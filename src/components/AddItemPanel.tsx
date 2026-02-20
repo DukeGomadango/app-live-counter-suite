@@ -126,26 +126,60 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
         );
     }
 
-    // Always show the tiny dot-like button when not editing, but handle hover events
+    // When not hovered: tiny dot-like button. When hovered: full panel.
+    if (!isHovered) {
+        return (
+            <motion.div
+                layout
+                className="flex items-center justify-center p-2 w-full h-full"
+                onMouseEnter={handleMouseEnter}
+            >
+                <button
+                    onClick={() => { setIsEditing(true); onExpand(); }}
+                    className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110"
+                    style={{
+                        border: `2px dashed ${borderColor}`,
+                        background: "transparent",
+                    }}
+                >
+                    <Plus
+                        size={14}
+                        className={isLightMode ? "text-black/40" : "text-white/40"}
+                    />
+                </button>
+            </motion.div>
+        );
+    }
+
+    // Hovered: expand to full grid cell
     return (
         <motion.div
             layout
-            className="flex items-center justify-center aspect-square w-full h-full"
-            onMouseEnter={handleMouseEnter}
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: "spring", stiffness: 400, damping: 25 }}
+            className="aspect-square w-full h-full p-2"
             onMouseLeave={handleMouseLeave}
         >
             <button
                 onClick={() => { setIsEditing(true); onExpand(); }}
-                className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110"
+                className="w-full h-full rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors duration-200"
                 style={{
-                    border: `2px dashed ${isHovered ? hoverBorderColor : borderColor}`,
-                    background: "transparent",
+                    border: `2px dashed ${hoverBorderColor}`,
+                    background: isLightMode
+                        ? "rgba(168,85,247,0.04)"
+                        : "rgba(168,85,247,0.05)",
                 }}
             >
                 <Plus
-                    size={14}
-                    className={isLightMode ? "text-black/40" : "text-white/40"}
+                    size={28}
+                    className={isLightMode ? "text-purple-500" : "text-purple-400"}
                 />
+                <span
+                    className={`text-xs font-medium ${isLightMode ? "text-purple-500" : "text-purple-400"}`}
+                >
+                    項目を追加
+                </span>
             </button>
         </motion.div>
     );

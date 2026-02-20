@@ -372,28 +372,13 @@ export default function Home() {
               </Reorder.Item>
             ))}
             {/* Add Panel Slot */}
-            <div className="list-none" style={{ touchAction: "none" }}>
-              <div className="relative w-full h-full aspect-square">
-                {/* Placeholder slot — appears when hovered, pushes into grid */}
-                {addPanelExpanded && (
-                  <div
-                    className="absolute inset-0 rounded-2xl transition-all duration-300"
-                    style={{
-                      border: `2px dashed ${isLightMode ? "rgba(168,85,247,0.25)" : "rgba(168,85,247,0.3)"}`,
-                      background: isLightMode ? "rgba(168,85,247,0.03)" : "rgba(168,85,247,0.04)",
-                    }}
-                  />
-                )}
-                {/* The AddItemPanel itself */}
-                <div className={`absolute inset-0 flex items-center justify-center ${addPanelExpanded ? "z-50" : ""}`}>
-                  <AddItemPanel
-                    isLightMode={isLightMode}
-                    onAddItem={handleAddItem}
-                    onExpand={() => setAddPanelExpanded(true)}
-                    onCollapse={() => setAddPanelExpanded(false)}
-                  />
-                </div>
-              </div>
+            <div className={`list-none rounded-2xl ${addPanelExpanded ? "z-50 shadow-2xl" : ""}`} style={{ touchAction: "none" }}>
+              <AddItemPanel
+                isLightMode={isLightMode}
+                onAddItem={handleAddItem}
+                onExpand={() => setAddPanelExpanded(true)}
+                onCollapse={() => setAddPanelExpanded(false)}
+              />
             </div>
           </Reorder.Group>
         </div>
