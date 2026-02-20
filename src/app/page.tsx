@@ -385,13 +385,7 @@ export default function Home() {
                   />
                 )}
                 {/* The AddItemPanel itself */}
-                <div
-                  className={`absolute ${addPanelExpanded ? "z-50 w-full" : "inset-0 flex items-center justify-center"}`}
-                  style={addPanelExpanded ? {
-                    width: `calc(100% + ${colMaxPx}px + 10px)`, // Expand visual width
-                    maxWidth: "280px"
-                  } : {}}
-                >
+                <div className={`absolute inset-0 flex items-center justify-center ${addPanelExpanded ? "z-50" : ""}`}>
                   <AddItemPanel
                     isLightMode={isLightMode}
                     onAddItem={handleAddItem}
