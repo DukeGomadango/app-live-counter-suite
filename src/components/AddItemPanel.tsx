@@ -27,16 +27,16 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
         if (label.trim()) {
             onAddItem(label.trim(), emoji);
             setLabel("");
-            setEmoji("⭐");
+            setEmoji(QUICK_EMOJIS[0]);
             setIsEditing(false);
+            setIsHovered(false);
             onCollapse();
         }
     }, [label, emoji, onAddItem, onCollapse]);
 
     const handleCancel = useCallback(() => {
-        setLabel("");
-        setEmoji("⭐");
         setIsEditing(false);
+        setIsHovered(false);
         onCollapse();
     }, [onCollapse]);
 
@@ -46,8 +46,8 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
     }, [onExpand]);
 
     const handleMouseLeave = useCallback(() => {
+        setIsHovered(false);
         if (!isEditing) {
-            setIsHovered(false);
             onCollapse();
         }
     }, [isEditing, onCollapse]);
@@ -126,60 +126,26 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
         );
     }
 
-    // When not hovered: tiny dot-like button. When hovered: full panel.
-    if (!isHovered) {
-        return (
-            <motion.div
-                layout
-                className="flex items-center justify-center"
-                onMouseEnter={handleMouseEnter}
-            >
-                <button
-                    onClick={() => { setIsEditing(true); onExpand(); }}
-                    className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300"
-                    style={{
-                        border: `2px dashed ${borderColor}`,
-                        background: "transparent",
-                    }}
-                >
-                    <Plus
-                        size={14}
-                        className={isLightMode ? "text-black/20" : "text-white/20"}
-                    />
-                </button>
-            </motion.div>
-        );
-    }
-
-    // Hovered: expand to full grid cell
+    // Always show the tiny dot-like button when not editing, but handle hover events
     return (
         <motion.div
             layout
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            className="aspect-square"
+            className="flex items-center justify-center aspect-square w-full h-full"
+            onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
         >
             <button
-                onClick={() => { setIsEditing(true); }}
-                className="w-full h-full rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors duration-200"
+                onClick={() => { setIsEditing(true); onExpand(); }}
+                className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110"
                 style={{
-                    border: `2px dashed ${hoverBorderColor}`,
-                    background: isLightMode
-                        ? "rgba(168,85,247,0.04)"
-                        : "rgba(168,85,247,0.05)",
+                    border: `2px dashed ${isHovered ? hoverBorderColor : borderColor}`,
+                    background: "transparent",
                 }}
             >
                 <Plus
-                    size={28}
-                    className={isLightMode ? "text-purple-500" : "text-purple-400"}
+                    size={14}
+                    className={isLightMode ? "text-black/40" : "text-white/40"}
                 />
-                <span
-                    className={`text-xs font-medium ${isLightMode ? "text-purple-500" : "text-purple-400"}`}
-                >
-                    追加
-                </span>
             </button>
         </motion.div>
     );

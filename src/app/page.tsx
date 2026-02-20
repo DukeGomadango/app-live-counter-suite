@@ -274,8 +274,8 @@ export default function Home() {
   const sizeConfig = cardSizeMap[appSettings.cardSize] || cardSizeMap.L;
   const colMaxPx = windowWidth <= 480 ? sizeConfig.mobile : windowWidth <= 768 ? sizeConfig.tablet : sizeConfig.desktop;
   // Limit columns to actual item count to prevent empty columns (centering fix)
-  // When add panel is hovered/expanded, count one extra slot for the placeholder
-  const totalSlots = addPanelExpanded ? items.length + 1 : items.length;
+  // Always count one extra slot for the add panel placeholder to prevent layout shift
+  const totalSlots = items.length + 1;
   const effectiveCols = Math.min(gridCols, totalSlots || 1);
   const gridMaxWidth = effectiveCols * colMaxPx;
 
