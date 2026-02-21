@@ -461,8 +461,7 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
                 } else if (op === "-") {
                     outputValue = inputValue - (val * count);
                 } else if (op === "*") {
-                    // Start from input or from 1 if no input but it multiplies...?
-                    // Use val * count as the multiplier. If count is 0, it acts as a passthrough (x1) so it doesn't break the chain.
+                    // Linear multiplier: val * count
                     const multiplier = count === 0 ? 1 : (val * count);
                     outputValue = inputValue * multiplier;
                 } else if (op === "/") {
