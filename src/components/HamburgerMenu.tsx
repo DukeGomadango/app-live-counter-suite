@@ -336,6 +336,20 @@ export default function HamburgerMenu({
                                                     </button>
                                                 ))}
                                             </div>
+
+                                            <button
+                                                onClick={() => {
+                                                    onSelectTemplate({ id: `custom-new-${Date.now()}`, name: "新規カウンター", description: "一から自由に作成", items: [] });
+                                                    setActiveTab("items");
+                                                    onToggle();
+                                                }}
+                                                className={`w-full mt-3 flex items-center justify-center gap-2 p-3 rounded-xl transition-all duration-200 border-2 border-dashed ${borderSubtle} hover:border-purple-500/50 hover:bg-purple-500/10 text-purple-400 group`}
+                                            >
+                                                <div className="w-6 h-6 rounded-full border border-purple-400/50 flex items-center justify-center group-hover:scale-110 transition-transform">
+                                                    <Plus size={14} />
+                                                </div>
+                                                <span className="text-sm font-medium text-[rgba(168,85,247,0.9)]">テンプレートを作成</span>
+                                            </button>
                                         </motion.div>
                                     )}
 
