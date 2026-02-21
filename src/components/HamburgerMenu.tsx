@@ -249,7 +249,7 @@ export default function HamburgerMenu({
                 {/* Center: Total count with target */}
                 {viewMode === "counter" && (
                     <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1 rounded-full ${bgSubtle} border ${borderSubtle} mx-1 shrink min-w-0`}>
-                        <span className={`text-xs sm:text-sm hidden sm:inline ${textMuted}`}>合計</span>
+                        <span className={`text-[10px] sm:text-sm ${textMuted}`}>合計</span>
                         <div className="flex items-baseline gap-0.5 truncate">
                             <AnimatePresence mode="popLayout">
                                 <motion.span
