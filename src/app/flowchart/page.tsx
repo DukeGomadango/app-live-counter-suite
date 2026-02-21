@@ -44,7 +44,7 @@ const INITIAL_NODES: Node[] = [
 
 const INITIAL_EDGES: Edge[] = [];
 
-export default function FlowChartPage({ isSplitMode = false }: { isSplitMode?: boolean } = {}) {
+export default function FlowChartPage({ isSplitMode = false, isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
     // 1. Sync appSettings
     const [appSettings, setAppSettings] = useLocalStorage<AppSettings>("flowchart-app-settings", {
         cardSize: "L" as const,
@@ -634,6 +634,7 @@ export default function FlowChartPage({ isSplitMode = false }: { isSplitMode?: b
                 viewMode="flowchart"
                 flowchartNodes={nodes}
                 onSetNodeTarget={handleSetNodeTarget}
+                hideThemeToggle={isSplitMode && !isRightPane}
             />
 
             <AnimatePresence>

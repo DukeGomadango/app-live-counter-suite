@@ -39,7 +39,7 @@ function useWindowWidth() {
   return width;
 }
 
-export default function Home({ isSplitMode = false }: { isSplitMode?: boolean } = {}) {
+export default function Home({ isSplitMode = false, isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
   const [items, setItems] = useLocalStorage<CounterItem[]>(
     "counter-items",
     createCounterItems(TEMPLATES[1])
@@ -393,7 +393,7 @@ export default function Home({ isSplitMode = false }: { isSplitMode?: boolean } 
         onDeleteCustomTemplate={handleDeleteCustomTemplate}
         onOpenSettings={() => setIsSettingsOpen(true)}
         accentColor={appSettings.accentColor}
-        hideThemeToggle={isSplitMode}
+        hideThemeToggle={isSplitMode && !isRightPane}
       />
 
       <main className="flex-1 overflow-auto" style={{ paddingTop: "56px" }}>

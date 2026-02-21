@@ -40,17 +40,18 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                     {
                         title: "基本操作",
                         items: [
-                            "左サイドバーから数字ノード(1, 10など)や演算子ノード(+, -, ×, ÷)をドラッグ＆ドロップで追加します",
+                            "画面右下の「＋」ボタンをクリックして新しいイベント（ノード）を追加します",
                             "各ノードのハンドル（丸い点）をドラッグして線を繋ぎます",
-                            "数字ノードを演算子に繋ぐと、自動的に計算結果が次のノードに出力されます",
+                            "ノードの上下左右にある「＋」ボタンを押すと、自動的に線が繋がった状態で新しいノードを追加できます",
+                            "線を繋ぐと自動的に計算が反映されます。演算（＋、－等）はノード内の設定で変更可能です",
                             "左メニューの「目標」から最終的な目標値を設定できます"
                         ]
                     },
                     {
                         title: "裏技",
                         items: [
-                            "ノードを選択してBackspaceキー（またはDeleteキー）で削除できます",
-                            "背景の何もない所をドラッグして全体をパン、スクロールでズームできます"
+                            "背景の何もない所をドラッグして全体をパン、スクロールでズームできます",
+                            "ショートカット対応: Ctrl+Z (元に戻す) / Ctrl+C, Ctrl+V (コピー＆ペースト) / Backspace, Del (ノード削除)"
                         ]
                     }
                 ]
@@ -87,12 +88,6 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                             "「テンプレート」を使って素早く構成を切り替えられます",
                             "右上の設定(歯車)アイコンから、カードサイズなどの見た目を変更できます"
                         ]
-                    },
-                    {
-                        title: "キーボードショートカット",
-                        items: [
-                            "【スペースキー】または【Enterキー】：押下でカウントアップ"
-                        ]
                     }
                 ]
             };
@@ -111,11 +106,11 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+                        className="fixed inset-x-0 bottom-0 top-[56px] z-[100] bg-black/40 backdrop-blur-sm"
                     />
 
                     {/* Modal */}
-                    <div className="fixed inset-0 z-[101] flex items-center justify-center p-4 pointer-events-none">
+                    <div className="fixed inset-x-0 bottom-0 top-[56px] z-[101] flex items-center justify-center p-4 pointer-events-none">
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95, y: 10 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -123,7 +118,8 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                             transition={{ type: "spring", damping: 25, stiffness: 300 }}
                             className="w-full max-w-lg overflow-hidden pointer-events-auto flex flex-col max-h-[85vh] rounded-3xl"
                             style={{
-                                background: bg,
+                                background: isLightMode ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.7)",
+                                backdropFilter: "blur(20px)",
                                 border: `1px solid ${borderColor}`,
                                 boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
                             }}
