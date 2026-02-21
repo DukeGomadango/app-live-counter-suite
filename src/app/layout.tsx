@@ -10,44 +10,19 @@ const montserrat = Montserrat({
 });
 
 const siteConfig = {
-  name: "ライブカウンター",
-  description: "IRIAMやYouTube配信で役立つ登録不要・完全無料のWeb人数カウンター。ライバーとリスナーのための入室カウント、交通量調査、野鳥観察、イベント管理など、スマホで簡単に複数項目の集計が可能です。",
+  name: "ライブカウンター Suite",
+  description: "配信者・クリエイター向けWebツールキット。完全無料で使える人数カウンターや、リアルタイム計算フローチャートなど、日々の活動を便利にするツール群を提供します。",
   url: "https://app-live-counter.vercel.app",
-  ogImage: "https://app-live-counter.vercel.app/og-image.png",
-  keywords: [
-    "人数カウント",
-    "入室カウント",
-    "入室",
-    "カウント",
-    "カウンターアプリ",
-    "IRIAM",
-    "YouTube配信",
-    "YouTube",
-    "ツイキャス",
-    "TikTok",
-    "ライブ配信",
-    "ライブ",
-    "配信",
-    "ライバー",
-    "リスナー",
-    "交通量調査",
-    "野鳥観察",
-    "入室管理",
-    "無料カウンター",
-    "Webツール",
-    "在庫管理",
-    "集計アプリ"
-  ]
+  ogImage: "https://app-live-counter.vercel.app/screenshot-light.png",
 };
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
-    default: `${siteConfig.name} | 無料のWeb人数カウンター・項目集計ツール`,
+    default: `${siteConfig.name} | 配信者・クリエイター向けWebツールキット`,
     template: `%s | ${siteConfig.name}`
   },
   description: siteConfig.description,
-  keywords: siteConfig.keywords,
   authors: [{ name: "Dukegomadango" }],
   creator: "Dukegomadango",
   openGraph: {

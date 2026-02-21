@@ -97,7 +97,7 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
     const leftConns = useNodeConnections({ handleType: "source", handleId: "source-left" });
 
     // Ghost button sub-component
-    const GhostAddButton = ({ position }: { position: Position }) => {
+    const renderGhostAddButton = (position: Position) => {
         return (
             <button
                 onClick={(e) => {
@@ -152,7 +152,7 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                 </div>
                 {topConns.length === 0 && (
                     <div className="absolute -top-6 left-1/2 -translate-x-1/2">
-                        <GhostAddButton position={Position.Top} />
+                        {renderGhostAddButton(Position.Top)}
                     </div>
                 )}
             </div>
@@ -172,7 +172,7 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                 </div>
                 {bottomConns.length === 0 && (
                     <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
-                        <GhostAddButton position={Position.Bottom} />
+                        {renderGhostAddButton(Position.Bottom)}
                     </div>
                 )}
             </div>
@@ -181,7 +181,7 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
             <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 flex items-center gap-1 z-10">
                 {leftConns.length === 0 && (
                     <div className="absolute -left-6 top-1/2 -translate-y-1/2">
-                        <GhostAddButton position={Position.Left} />
+                        {renderGhostAddButton(Position.Left)}
                     </div>
                 )}
                 <div className={`flex flex-col gap-1.5 relative ${isLightMode ? 'bg-white/90 border-black/10' : 'bg-[#1a103c]/90 border-white/10'} backdrop-blur-md px-0.5 py-1.5 rounded-full border items-center shadow-sm`}>
@@ -220,7 +220,7 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                 </div>
                 {rightConns.length === 0 && (
                     <div className="absolute -right-4 top-1/2 -translate-y-1/2 pointer-events-auto">
-                        <GhostAddButton position={Position.Right} />
+                        {renderGhostAddButton(Position.Right)}
                     </div>
                 )}
             </div>

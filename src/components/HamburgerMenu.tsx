@@ -822,7 +822,7 @@ export default function HamburgerMenu({
                                                                 </div>
                                                                 <div className="space-y-1.5 pl-1">
                                                                     {nodes.map((node) => {
-                                                                        const data = node.data as any;
+                                                                        const data = node.data as { emoji?: string; label?: string; color?: string; value?: number; target?: number; count?: number };
                                                                         return (
                                                                             <div key={node.id} className={`flex items-center gap-2 p-2 rounded-xl ${bgSubtle} border ${borderSubtle}`}>
                                                                                 <span className="text-base w-6 text-center">{data.emoji}</span>

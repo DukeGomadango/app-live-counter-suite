@@ -88,7 +88,7 @@ export default function FlowChartPage() {
                 { id: "e-sub5-total", source: "template-sub-5", sourceHandle: "source-right", target: "total", targetHandle: "target-left" },
                 { id: "e-mul2-total", source: "template-mul-2", sourceHandle: "source-right", target: "total", targetHandle: "target-left" }
             ],
-            updatedAt: Date.now()
+            updatedAt: 1740000000000
         }
     ]);
     const [globalTarget, setGlobalTarget] = useLocalStorage<number>("flowchart-global-target", 0);
@@ -101,7 +101,7 @@ export default function FlowChartPage() {
 
     const saveHistory = useCallback((currentNodes: Node[], currentEdges: Edge[]) => {
         setPast(p => [...p.slice(-20), { nodes: currentNodes, edges: currentEdges }]);
-    }, []);
+    }, [setPast]);
 
     // Handle Keyboard Shortcuts
     useEffect(() => {
@@ -454,7 +454,7 @@ export default function FlowChartPage() {
             let outputValue = 0;
 
             if (node.type === "counter") {
-                const data = node.data as any; // Cast as we don't know the exact type here
+                const data = node.data as unknown as CounterNodeData;
                 const val = data.value || 0;
                 const count = data.count || 0;
                 const op = data.operation || "+";

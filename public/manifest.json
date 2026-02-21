@@ -1,7 +1,7 @@
 {
-    "name": "ライブカウンター",
-    "short_name": "カウンター",
-    "description": "IRIAMやYouTube配信で役立つ登録不要・完全無料のWeb人数カウンター。交通量調査、野鳥観察、集計ツール。",
+    "name": "ライブカウンター Suite",
+    "short_name": "L-Counter",
+    "description": "配信者・クリエイター向けWebツールキット。登録不要・完全無料の人数カウンターやリアルタイム計算フローチャートを提供します。",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#030014",
