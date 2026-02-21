@@ -224,7 +224,7 @@ export default function HamburgerMenu({
         <>
             {/* Header bar */}
             <div
-                className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2"
+                className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-1.5 sm:px-3 py-2"
                 style={{
                     background: isLightMode ? "rgba(255,255,255,0.5)" : "rgba(10,5,30,0.5)",
                     backdropFilter: "blur(12px)",
@@ -232,10 +232,10 @@ export default function HamburgerMenu({
                 }}
             >
                 {/* Left: Hamburger + Title */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                     <button
                         onClick={onToggle}
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
                     >
                         {isOpen ? (
                             <X size={18} className={isLightMode ? "text-gray-700" : "text-white/80"} />
@@ -248,9 +248,9 @@ export default function HamburgerMenu({
 
                 {/* Center: Total count with target */}
                 {viewMode === "counter" && (
-                    <div className={`flex items-center gap-2 px-4 py-1 rounded-full ${bgSubtle} border ${borderSubtle}`}>
-                        <span className={`text-sm ${textMuted}`}>合計</span>
-                        <div className="flex items-baseline gap-0.5">
+                    <div className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1 rounded-full ${bgSubtle} border ${borderSubtle} mx-1 shrink min-w-0`}>
+                        <span className={`text-xs sm:text-sm hidden sm:inline ${textMuted}`}>合計</span>
+                        <div className="flex items-baseline gap-0.5 truncate">
                             <AnimatePresence mode="popLayout">
                                 <motion.span
                                     key={totalCount}
@@ -258,7 +258,7 @@ export default function HamburgerMenu({
                                     animate={{ opacity: 1, y: 0, scale: 1 }}
                                     exit={{ opacity: 0, y: 6, scale: 0.8 }}
                                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                    className="text-base font-bold tabular-nums"
+                                    className="text-sm sm:text-base font-bold tabular-nums"
                                     style={{
                                         color: totalCount > 0 ? "#a855f7" : isLightMode ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.4)",
                                         textShadow: totalCount > 0 ? "0 0 10px rgba(168,85,247,0.4)" : "none",
@@ -268,24 +268,24 @@ export default function HamburgerMenu({
                                 </motion.span>
                             </AnimatePresence>
                             {totalTarget > 0 && (
-                                <span className={`text-xs ${textMuted} tabular-nums`}>/{totalTarget}</span>
+                                <span className={`text-[10px] sm:text-xs ${textMuted} tabular-nums break-keep`}>/{totalTarget}</span>
                             )}
                         </div>
                     </div>
                 )}
 
                 {/* Right: Settings + Reset + Theme toggle */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                     <button
                         onClick={onOpenSettings}
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
                         title="設定"
                     >
                         <Settings size={16} className={isLightMode ? "text-gray-500" : "text-white/50"} />
                     </button>
                     <button
                         onClick={handleReset}
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 border ${confirmReset
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 border ${confirmReset
                             ? "bg-red-500/20 border-red-500/30"
                             : `${bgSubtle} ${borderSubtle} ${bgSubtleHover}`
                             }`}
@@ -296,7 +296,7 @@ export default function HamburgerMenu({
                     {!hideThemeToggle && (
                         <button
                             onClick={onToggleTheme}
-                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
+                            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
                             title={isLightMode ? "ダークモードに切替" : "ライトモードに切替"}
                         >
                             {isLightMode ? (

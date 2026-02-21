@@ -85,15 +85,14 @@ export default function ModeSelector({ isLightMode = false }: ModeSelectorProps)
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all duration-200 border ${isOpen ? currentMode.activeBorder : "border-transparent"} hover:${borderColor} ${isOpen ? currentMode.activeBg : bgHover}`}
+                className={`flex items-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all duration-200 border ${isOpen ? currentMode.activeBorder : "border-transparent"} hover:${borderColor} ${isOpen ? currentMode.activeBg : bgHover}`}
             >
-                <CurrentIcon size={16} className={currentMode.color} />
-                <span className={`text-sm font-semibold uppercase tracking-wider ${textColor}`}>
+                <CurrentIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${currentMode.color}`} />
+                <span className={`text-[10px] sm:text-sm font-semibold uppercase tracking-widest sm:tracking-wider ${textColor}`}>
                     {currentMode.label}
                 </span>
                 <ChevronDown
-                    size={14}
-                    className={`${textColor} transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                    className={`w-3.5 h-3.5 sm:w-3.5 sm:h-3.5 ${textColor} transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                 />
             </button>
 
