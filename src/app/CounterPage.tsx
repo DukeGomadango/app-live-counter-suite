@@ -20,7 +20,7 @@ function useWindowWidth() {
   return width;
 }
 
-export default function Home() {
+export default function Home({ isSplitMode = false }: { isSplitMode?: boolean } = {}) {
   const [items, setItems] = useLocalStorage<CounterItem[]>(
     "counter-items",
     createCounterItems(TEMPLATES[1])
@@ -281,9 +281,32 @@ export default function Home() {
 
   return (
     <div
-      className="h-screen w-screen flex flex-col overflow-hidden relative z-10"
+      className="h-full w-full flex flex-col relative z-10"
       style={{ "--accent-color": appSettings.accentColor } as React.CSSProperties}
     >
+      {/* Inline Background Orbs for Split mode (body::before is hidden behind split container) */}
+      {isSplitMode && (
+        <div className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${isLightMode ? 'mix-blend-multiply opacity-20' : 'opacity-80'}`}>
+          <motion.div
+            animate={{ x: [0, 60, -30, 0], y: [0, -60, 30, 0], scale: [1, 1.15, 0.85, 1] }}
+            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            className="absolute top-[10%] left-[10%] w-[30rem] h-[30rem] rounded-full blur-[100px]"
+            style={{ background: `radial-gradient(circle, ${appSettings.accentColor} 0%, transparent 70%)`, opacity: (appSettings.orbIntensity / 100) * (isLightMode ? 1.5 : 1) }}
+          />
+          <motion.div
+            animate={{ x: [0, -60, 30, 0], y: [0, 60, -30, 0], scale: [1, 0.85, 1.15, 1] }}
+            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+            className="absolute bottom-[10%] right-[10%] w-[35rem] h-[35rem] rounded-full blur-[120px]"
+            style={{ background: `radial-gradient(circle, ${appSettings.accentColor} 0%, transparent 60%)`, opacity: (appSettings.orbIntensity / 100) * 0.8 * (isLightMode ? 1.5 : 1) }}
+          />
+          <motion.div
+            animate={{ x: [0, 40, -50, 0], y: [0, 30, -60, 0], scale: [1, 1.1, 0.9, 1] }}
+            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+            className="absolute top-[50%] left-[30%] w-[25rem] h-[25rem] rounded-full blur-[80px]"
+            style={{ background: `radial-gradient(circle, ${appSettings.accentColor} 0%, transparent 60%)`, opacity: (appSettings.orbIntensity / 100) * 0.6 * (isLightMode ? 1.5 : 1) }}
+          />
+        </div>
+      )}
       <HamburgerMenu
         viewMode="counter"
         isOpen={isMenuOpen}
@@ -306,12 +329,13 @@ export default function Home() {
         onDeleteCustomTemplate={handleDeleteCustomTemplate}
         onOpenSettings={() => setIsSettingsOpen(true)}
         accentColor={appSettings.accentColor}
+        hideThemeToggle={isSplitMode}
       />
 
       <main className="flex-1 overflow-auto" style={{ paddingTop: "56px" }}>
         <div className="min-h-full flex flex-col items-center justify-center py-4 px-3 sm:px-4">
           {/* Project Name */}
-          {appSettings.showProjectName && appSettings.projectName && (
+          {!isSplitMode && appSettings.showProjectName && appSettings.projectName && (
             <motion.div
               drag
               dragMomentum={false}

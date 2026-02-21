@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Network, Sparkles, ChevronDown } from "lucide-react";
+import { Users, Network, Sparkles, ChevronDown, LayoutGrid } from "lucide-react";
 
 interface ModeSelectorProps {
     isLightMode?: boolean;
@@ -28,6 +28,15 @@ const MODES = [
         color: "text-blue-400",
         activeBg: "bg-blue-500/20",
         activeBorder: "border-blue-500/40",
+    },
+    {
+        id: "split",
+        path: "/split",
+        label: "Split",
+        icon: LayoutGrid,
+        color: "text-emerald-400",
+        activeBg: "bg-emerald-500/20",
+        activeBorder: "border-emerald-500/40",
     },
     {
         id: "gatcha",

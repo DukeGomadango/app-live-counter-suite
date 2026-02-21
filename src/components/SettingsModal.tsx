@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, Type, Palette, Maximize, Sparkles } from "lucide-react";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 
 export type CardSize = "S" | "M" | "L" | "XL";
 export type EdgeThickness = "S" | "M" | "L";
@@ -91,7 +92,7 @@ export default function SettingsModal({
 
     const accentColor = settings.accentColor;
 
-    return (
+    return createPortal(
         <AnimatePresence>
             <motion.div
                 initial={{ opacity: 0 }}
@@ -512,6 +513,7 @@ export default function SettingsModal({
                     </div>
                 </motion.div>
             </motion.div>
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 }

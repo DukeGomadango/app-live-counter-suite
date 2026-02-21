@@ -44,7 +44,7 @@ const INITIAL_NODES: Node[] = [
 
 const INITIAL_EDGES: Edge[] = [];
 
-export default function FlowChartPage() {
+export default function FlowChartPage({ isSplitMode = false }: { isSplitMode?: boolean } = {}) {
     // 1. Sync appSettings
     const [appSettings, setAppSettings] = useLocalStorage<AppSettings>("flowchart-app-settings", {
         cardSize: "L" as const,
@@ -611,7 +611,7 @@ export default function FlowChartPage() {
 
     return (
         <div
-            className={`h-screen w-screen flex flex-col overflow-hidden relative z-10 ${isLightMode ? 'bg-[#f8f9fa]' : 'bg-[#0a051e]'}`}
+            className={`h-full w-full flex flex-col overflow-hidden relative z-10 ${isLightMode ? 'bg-[#f8f9fa]' : 'bg-[#0a051e]'}`}
             style={{ "--accent-color": accentColor } as React.CSSProperties}
         >
             <HamburgerMenu
@@ -693,7 +693,7 @@ export default function FlowChartPage() {
 
                 {/* Optional Project Name Display for Flowchart */}
                 <AnimatePresence>
-                    {appSettings.showProjectName && appSettings.projectName && (
+                    {!isSplitMode && appSettings.showProjectName && appSettings.projectName && (
                         <motion.div
                             drag
                             dragMomentum={false}
@@ -734,6 +734,7 @@ export default function FlowChartPage() {
                     snapToGrid={true}
                     snapGrid={[24, 24]}
                     fitView
+                    fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
                     className="touch-none bg-transparent"
                     colorMode={isLightMode ? "light" : "dark"}
                 >

@@ -42,6 +42,7 @@ interface HamburgerMenuProps {
     onOpenSettings: () => void;
     accentColor: string;
     viewMode: "counter" | "flowchart";
+    hideThemeToggle?: boolean;
 
     // Counter specific
     totalCount?: number;
@@ -82,6 +83,7 @@ export default function HamburgerMenu({
     onOpenSettings,
     accentColor,
     viewMode,
+    hideThemeToggle = false,
 
     // Counter
     totalCount = 0,
@@ -222,7 +224,7 @@ export default function HamburgerMenu({
         <>
             {/* Header bar */}
             <div
-                className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2"
+                className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2"
                 style={{
                     background: isLightMode ? "rgba(255,255,255,0.5)" : "rgba(10,5,30,0.5)",
                     backdropFilter: "blur(12px)",
@@ -245,30 +247,32 @@ export default function HamburgerMenu({
                 </div>
 
                 {/* Center: Total count with target */}
-                <div className={`flex items-center gap-2 px-4 py-1 rounded-full ${bgSubtle} border ${borderSubtle}`}>
-                    <span className={`text-sm ${textMuted}`}>合計</span>
-                    <div className="flex items-baseline gap-0.5">
-                        <AnimatePresence mode="popLayout">
-                            <motion.span
-                                key={totalCount}
-                                initial={{ opacity: 0, y: -6, scale: 0.8 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 6, scale: 0.8 }}
-                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                className="text-base font-bold tabular-nums"
-                                style={{
-                                    color: totalCount > 0 ? "#a855f7" : isLightMode ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.4)",
-                                    textShadow: totalCount > 0 ? "0 0 10px rgba(168,85,247,0.4)" : "none",
-                                }}
-                            >
-                                {totalCount}
-                            </motion.span>
-                        </AnimatePresence>
-                        {totalTarget > 0 && (
-                            <span className={`text-xs ${textMuted} tabular-nums`}>/{totalTarget}</span>
-                        )}
+                {viewMode === "counter" && (
+                    <div className={`flex items-center gap-2 px-4 py-1 rounded-full ${bgSubtle} border ${borderSubtle}`}>
+                        <span className={`text-sm ${textMuted}`}>合計</span>
+                        <div className="flex items-baseline gap-0.5">
+                            <AnimatePresence mode="popLayout">
+                                <motion.span
+                                    key={totalCount}
+                                    initial={{ opacity: 0, y: -6, scale: 0.8 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 6, scale: 0.8 }}
+                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                    className="text-base font-bold tabular-nums"
+                                    style={{
+                                        color: totalCount > 0 ? "#a855f7" : isLightMode ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.4)",
+                                        textShadow: totalCount > 0 ? "0 0 10px rgba(168,85,247,0.4)" : "none",
+                                    }}
+                                >
+                                    {totalCount}
+                                </motion.span>
+                            </AnimatePresence>
+                            {totalTarget > 0 && (
+                                <span className={`text-xs ${textMuted} tabular-nums`}>/{totalTarget}</span>
+                            )}
+                        </div>
                     </div>
-                </div>
+                )}
 
                 {/* Right: Settings + Reset + Theme toggle */}
                 <div className="flex items-center gap-2">
@@ -289,17 +293,19 @@ export default function HamburgerMenu({
                     >
                         <RotateCcw size={16} className={confirmReset ? "text-red-400" : isLightMode ? "text-gray-500" : "text-white/50"} />
                     </button>
-                    <button
-                        onClick={onToggleTheme}
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
-                        title={isLightMode ? "ダークモードに切替" : "ライトモードに切替"}
-                    >
-                        {isLightMode ? (
-                            <Moon size={16} className="text-gray-600" />
-                        ) : (
-                            <Sun size={16} className="text-yellow-400" />
-                        )}
-                    </button>
+                    {!hideThemeToggle && (
+                        <button
+                            onClick={onToggleTheme}
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
+                            title={isLightMode ? "ダークモードに切替" : "ライトモードに切替"}
+                        >
+                            {isLightMode ? (
+                                <Moon size={16} className="text-gray-600" />
+                            ) : (
+                                <Sun size={16} className="text-yellow-400" />
+                            )}
+                        </button>
+                    )}
                 </div>
             </div>
 
@@ -312,7 +318,7 @@ export default function HamburgerMenu({
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={onToggle}
-                            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+                            className="absolute inset-0 bg-black/30 backdrop-blur-sm z-40"
                             style={{ top: "52px" }}
                         />
 
@@ -321,7 +327,7 @@ export default function HamburgerMenu({
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: "-100%", opacity: 0 }}
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            className="fixed left-0 bottom-0 w-[320px] z-50 overflow-y-auto"
+                            className="absolute left-0 bottom-0 w-[320px] z-50 overflow-y-auto"
                             style={{
                                 top: "52px",
                                 background: bg,

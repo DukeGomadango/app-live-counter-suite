@@ -21,12 +21,50 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
         });
     }, [key]);
 
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent | CustomEvent) => {
+            if ("detail" in e) {
+                // Custom event dispatched within the same tab
+                if (e.detail.key === key) {
+                    setStoredValue(e.detail.newValue);
+                }
+            } else {
+                // Storage event dispatched from other tabs
+                if (e.key === key && e.newValue) {
+                    try {
+                        setStoredValue(JSON.parse(e.newValue));
+                    } catch (error) {
+                        console.warn(`Error parsing localStorage key "${key}":`, error);
+                    }
+                }
+            }
+        };
+
+        window.addEventListener("storage", handleStorageChange);
+        window.addEventListener("local-storage-sync", handleStorageChange as EventListener);
+
+        return () => {
+            window.removeEventListener("storage", handleStorageChange);
+            window.removeEventListener("local-storage-sync", handleStorageChange as EventListener);
+        };
+    }, [key]);
+
     const setValue = useCallback(
         (value: T | ((prev: T) => T)) => {
             try {
                 setStoredValue((prev) => {
                     const valueToStore = value instanceof Function ? value(prev) : value;
-                    window.localStorage.setItem(key, JSON.stringify(valueToStore));
+                    const prevString = JSON.stringify(prev);
+                    const newString = JSON.stringify(valueToStore);
+
+                    if (prevString !== newString) {
+                        window.localStorage.setItem(key, newString);
+                        window.dispatchEvent(
+                            new CustomEvent("local-storage-sync", {
+                                detail: { key, newValue: valueToStore },
+                            })
+                        );
+                    }
                     return valueToStore;
                 });
             } catch (error) {
