@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import JsonLd from "@/components/JsonLd";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -12,9 +13,71 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteConfig = {
+  name: "ライブカウンター",
+  description: "登録不要・完全無料で使えるWeb人数カウンター。交通量調査、野鳥観察、イベントの入室管理、在庫管理など、スマホで簡単に複数項目の集計が可能です。",
+  url: "https://app-live-counter.vercel.app",
+  ogImage: "https://app-live-counter.vercel.app/og-image.png",
+  keywords: [
+    "人数カウント",
+    "カウンターアプリ",
+    "交通量調査",
+    "野鳥観察",
+    "入室管理",
+    "無料カウンター",
+    "Webツール",
+    "在庫管理",
+    "集計アプリ"
+  ]
+};
+
 export const metadata: Metadata = {
-  title: "ライブカウンター | 入室人数カウント",
-  description: "ライバー向け入室人数・項目カウントWebアプリケーション",
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: `${siteConfig.name} | 無料のWeb人数カウンター・項目集計ツール`,
+    template: `%s | ${siteConfig.name}`
+  },
+  description: siteConfig.description,
+  keywords: siteConfig.keywords,
+  authors: [{ name: "Dukegomadango" }],
+  creator: "Dukegomadango",
+  openGraph: {
+    type: "website",
+    locale: "ja_JP",
+    url: siteConfig.url,
+    title: siteConfig.name,
+    description: siteConfig.description,
+    siteName: siteConfig.name,
+    images: [
+      {
+        url: siteConfig.ogImage,
+        width: 1200,
+        height: 630,
+        alt: siteConfig.name,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteConfig.name,
+    description: siteConfig.description,
+    images: [siteConfig.ogImage],
+    creator: "@Dukegomadango",
+  },
+  alternates: {
+    canonical: siteConfig.url,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
 };
 
 export default function RootLayout({
@@ -27,6 +90,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
+        <JsonLd />
         {children}
       </body>
     </html>
