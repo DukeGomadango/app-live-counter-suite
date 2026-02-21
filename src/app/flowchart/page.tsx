@@ -183,12 +183,12 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
 
     const onConnect = useCallback(
         (params: Connection | Edge) => {
+            saveHistory(nodes, edges);
             setEdges((eds) => {
-                saveHistory(nodes, eds);
                 return addEdge(params, eds);
             });
         },
-        [setEdges, nodes, saveHistory]
+        [setEdges, nodes, edges, saveHistory]
     );
 
     const onReconnect = useCallback(
@@ -198,8 +198,8 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
 
     // Node Callbacks
     const handleIncrement = useCallback((id: string) => {
+        saveHistory(nodes, edges);
         setNodes((nds) => {
-            saveHistory(nds, edges);
             return nds.map((n) => {
                 if (n.id === id) {
                     return { ...n, data: { ...n.data, count: (n.data as CounterNodeData).count + 1 } };
@@ -207,11 +207,11 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
                 return n;
             });
         });
-    }, [setNodes, edges, saveHistory]);
+    }, [nodes, edges, setNodes, saveHistory]);
 
     const handleDecrement = useCallback((id: string) => {
+        saveHistory(nodes, edges);
         setNodes((nds) => {
-            saveHistory(nds, edges);
             return nds.map((n) => {
                 if (n.id === id) {
                     return { ...n, data: { ...n.data, count: Math.max(0, (n.data as CounterNodeData).count - 1) } };
@@ -219,11 +219,11 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
                 return n;
             });
         });
-    }, [setNodes, edges, saveHistory]);
+    }, [nodes, edges, setNodes, saveHistory]);
 
     const handleUpdateConfig = useCallback((id: string, updates: Partial<CounterNodeData>) => {
+        saveHistory(nodes, edges);
         setNodes((nds) => {
-            saveHistory(nds, edges);
             return nds.map((n) => {
                 if (n.id === id) {
                     return { ...n, data: { ...n.data, ...updates } };
@@ -231,11 +231,11 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
                 return n;
             });
         });
-    }, [setNodes, edges, saveHistory]);
+    }, [nodes, edges, setNodes, saveHistory]);
 
     const handleUpdateTotalLabel = useCallback((id: string, newLabel: string) => {
+        saveHistory(nodes, edges);
         setNodes((nds) => {
-            saveHistory(nds, edges);
             return nds.map((n) => {
                 if (n.id === id) {
                     return { ...n, data: { ...n.data, label: newLabel } };
@@ -243,15 +243,15 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
                 return n;
             });
         });
-    }, [setNodes, edges, saveHistory]);
+    }, [nodes, edges, setNodes, saveHistory]);
 
     const handleDelete = useCallback((id: string) => {
+        saveHistory(nodes, edges);
         setEdges((eds) => {
-            saveHistory(nodes, eds);
             return eds.filter((e) => e.source !== id && e.target !== id);
         });
         setNodes((nds) => nds.filter((n) => n.id !== id));
-    }, [setNodes, setEdges, nodes, saveHistory]);
+    }, [nodes, edges, setNodes, setEdges, saveHistory]);
 
     const onNodeDragStart = useCallback(() => {
         saveHistory(nodes, edges);
