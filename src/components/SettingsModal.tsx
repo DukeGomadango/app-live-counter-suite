@@ -5,20 +5,25 @@ import { X, Check, Type, Palette, Maximize, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 export type CardSize = "S" | "M" | "L" | "XL";
+export type EdgeThickness = "S" | "M" | "L";
 
 export interface AppSettings {
     cardSize: CardSize;
+    edgeThickness?: EdgeThickness;
     showProjectName: boolean;
     projectName: string;
     projectNameSize: "S" | "M" | "L" | "XL";
+    projectNameOrientation?: "horizontal" | "vertical";
     projectNameColor: string;
     accentColor: string;
     orbIntensity: number; // 0-100
+    dotIntensity?: number; // 0-100
 }
 
 interface SettingsModalProps {
     settings: AppSettings;
     isLightMode: boolean;
+    mode?: "counter" | "flowchart";
     onSave: (settings: AppSettings) => void;
     onClose: () => void;
 }
@@ -28,6 +33,12 @@ const CARD_SIZE_OPTIONS: { value: CardSize; label: string; desc: string }[] = [
     { value: "M", label: "M", desc: "標準" },
     { value: "L", label: "L", desc: "大きめ" },
     { value: "XL", label: "XL", desc: "特大" },
+];
+
+const EDGE_THICKNESS_OPTIONS: { value: EdgeThickness; label: string; desc: string }[] = [
+    { value: "S", label: "細い", desc: "1px" },
+    { value: "M", label: "標準", desc: "2px" },
+    { value: "L", label: "太い", desc: "4px" },
 ];
 
 const ACCENT_COLORS = [
@@ -55,6 +66,7 @@ const PROJECT_NAME_SIZE_OPTIONS: { value: "S" | "M" | "L" | "XL"; label: string;
 export default function SettingsModal({
     settings: initialSettings,
     isLightMode,
+    mode = "counter",
     onSave,
     onClose,
 }: SettingsModalProps) {
@@ -191,6 +203,81 @@ export default function SettingsModal({
                             </div>
                         </div>
 
+                        {/* === Edge Thickness (Flowchart Only) === */}
+                        {mode === "flowchart" && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Sparkles size={14} className={textSecondary} />
+                                    <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>
+                                        線の太さ
+                                    </label>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {EDGE_THICKNESS_OPTIONS.map((opt) => (
+                                        <button
+                                            key={opt.value}
+                                            onClick={() => setSettings((s) => ({ ...s, edgeThickness: opt.value }))}
+                                            className={`py-3 rounded-xl text-center transition-all duration-200 border ${settings.edgeThickness === opt.value
+                                                ? "shadow-lg"
+                                                : `${bgSubtle} ${inputBorder} ${bgSubtleHover}`
+                                                }`}
+                                            style={
+                                                settings.edgeThickness === opt.value
+                                                    ? {
+                                                        background: `${accentColor}20`,
+                                                        borderColor: `${accentColor}50`,
+                                                        boxShadow: `0 0 12px ${accentColor}20`,
+                                                    }
+                                                    : undefined
+                                            }
+                                        >
+                                            <div
+                                                className={`text-lg font-bold ${settings.edgeThickness === opt.value ? "" : textPrimary
+                                                    }`}
+                                                style={settings.edgeThickness === opt.value ? { color: accentColor } : undefined}
+                                            >
+                                                {opt.label}
+                                            </div>
+                                            <div className={`text-[10px] mt-0.5 ${textMuted}`}>{opt.desc}</div>
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* === Background Dots Intensity (Flowchart Only) === */}
+                        {mode === "flowchart" && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Sparkles size={14} className={textSecondary} />
+                                    <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>
+                                        背景ドットの濃さ
+                                    </label>
+                                    <span
+                                        className={`ml-auto text-xs font-mono tabular-nums ${textMuted}`}
+                                    >
+                                        {settings.dotIntensity ?? 50}%
+                                    </span>
+                                </div>
+                                <input
+                                    type="range"
+                                    min="0"
+                                    max="100"
+                                    value={settings.dotIntensity ?? 50}
+                                    onChange={(e) => setSettings((s) => ({ ...s, dotIntensity: parseInt(e.target.value, 10) }))}
+                                    className="w-full h-1.5 rounded-full appearance-none cursor-pointer"
+                                    style={{
+                                        background: `linear-gradient(to right, ${accentColor} ${settings.dotIntensity ?? 50}%, ${isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"} ${settings.dotIntensity ?? 50}%)`,
+                                        accentColor: accentColor,
+                                    }}
+                                />
+                                <div className={`flex justify-between text-[10px] mt-1 ${textMuted}`}>
+                                    <span>なし</span>
+                                    <span>最大</span>
+                                </div>
+                            </div>
+                        )}
+
                         {/* === Project Name === */}
                         <div>
                             <div className="flex items-center gap-2 mb-3">
@@ -270,6 +357,41 @@ export default function SettingsModal({
                                                         {opt.label}
                                                     </button>
                                                 ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Orientation */}
+                                        <div>
+                                            <span className={`text-xs ${textMuted} mb-1 block`}>向き</span>
+                                            <div className="grid grid-cols-2 gap-1.5">
+                                                <button
+                                                    onClick={() => setSettings((s) => ({ ...s, projectNameOrientation: "horizontal" }))}
+                                                    className={`py-1.5 rounded-lg text-xs font-medium text-center transition-all border ${settings.projectNameOrientation !== "vertical"
+                                                        ? ""
+                                                        : `${bgSubtle} ${inputBorder} ${bgSubtleHover}`
+                                                        }`}
+                                                    style={
+                                                        settings.projectNameOrientation !== "vertical"
+                                                            ? { background: `${accentColor}20`, borderColor: `${accentColor}50`, color: accentColor }
+                                                            : undefined
+                                                    }
+                                                >
+                                                    横書き
+                                                </button>
+                                                <button
+                                                    onClick={() => setSettings((s) => ({ ...s, projectNameOrientation: "vertical" }))}
+                                                    className={`py-1.5 rounded-lg text-xs font-medium text-center transition-all border ${settings.projectNameOrientation === "vertical"
+                                                        ? ""
+                                                        : `${bgSubtle} ${inputBorder} ${bgSubtleHover}`
+                                                        }`}
+                                                    style={
+                                                        settings.projectNameOrientation === "vertical"
+                                                            ? { background: `${accentColor}20`, borderColor: `${accentColor}50`, color: accentColor }
+                                                            : undefined
+                                                    }
+                                                >
+                                                    縦書き
+                                                </button>
                                             </div>
                                         </div>
 

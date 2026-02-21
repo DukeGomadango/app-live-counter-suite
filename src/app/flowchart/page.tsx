@@ -42,16 +42,20 @@ const INITIAL_NODES: Node[] = [
     },
 ];
 
+const INITIAL_EDGES: Edge[] = [];
+
 export default function FlowChartPage() {
     // 1. Sync appSettings
-    const [appSettings, setAppSettings] = useLocalStorage<AppSettings>("counter-app-settings", {
+    const [appSettings, setAppSettings] = useLocalStorage<AppSettings>("flowchart-app-settings", {
         cardSize: "L" as const,
+        edgeThickness: "M",
         showProjectName: false,
         projectName: "",
         projectNameSize: "M" as const,
         projectNameColor: "#a855f7",
         accentColor: "#a855f7",
         orbIntensity: 50,
+        dotIntensity: 50,
     });
 
     // Some SettingsModal config assumes isLightMode exists in AppSettings, but we moved it out in Counter mode.
@@ -66,11 +70,105 @@ export default function FlowChartPage() {
 
     // Save flowchart state to local storage
     const [nodes, setNodes] = useLocalStorage<Node[]>("flowchart-nodes", INITIAL_NODES);
-    const [edges, setEdges] = useLocalStorage<Edge[]>("flowchart-edges", []);
-    const [savedCharts, setSavedCharts] = useLocalStorage<SavedFlowChart[]>("flowchart-saved-charts", []);
+    const [edges, setEdges] = useLocalStorage<Edge[]>("flowchart-edges", INITIAL_EDGES);
+    const [savedCharts, setSavedCharts] = useLocalStorage<SavedFlowChart[]>("flowchart-saved-charts", [
+        {
+            id: "sample-1",
+            name: "サンプル 1 (基本的な使い方)",
+            nodes: [
+                { id: "total", type: "total", position: { x: 504, y: 336 }, data: { value: 0, isLightMode: false }, selected: false },
+                { id: "template-add-1", type: "counter", position: { x: 96, y: 120 }, data: { label: "加算", emoji: "➕", color: "#a855f7", operation: "+", value: 1, count: 0, isLightMode: false }, selected: false },
+                { id: "template-add-2", type: "counter", position: { x: 96, y: 264 }, data: { label: "加算", emoji: "✨", color: "#3b82f6", operation: "+", value: 2, count: 0, isLightMode: false }, selected: false },
+                { id: "template-sub-5", type: "counter", position: { x: 96, y: 408 }, data: { label: "減算", emoji: "➖", color: "#ef4444", operation: "-", value: 5, count: 0, isLightMode: false }, selected: false },
+                { id: "template-mul-2", type: "counter", position: { x: 96, y: 552 }, data: { label: "乗算", emoji: "⭐", color: "#eab308", operation: "*", value: 2, count: 0, isLightMode: false }, selected: false }
+            ],
+            edges: [
+                { id: "e-add1-total", source: "template-add-1", sourceHandle: "source-right", target: "total", targetHandle: "target-left" },
+                { id: "e-add2-total", source: "template-add-2", sourceHandle: "source-right", target: "total", targetHandle: "target-left" },
+                { id: "e-sub5-total", source: "template-sub-5", sourceHandle: "source-right", target: "total", targetHandle: "target-left" },
+                { id: "e-mul2-total", source: "template-mul-2", sourceHandle: "source-right", target: "total", targetHandle: "target-left" }
+            ],
+            updatedAt: Date.now()
+        }
+    ]);
     const [globalTarget, setGlobalTarget] = useLocalStorage<number>("flowchart-global-target", 0);
 
     const [ghostSourceId, setGhostSourceId] = useState<string | null>(null);
+
+    // History and Clipboard for Keyboard Shortcuts
+    const [past, setPast] = useLocalStorage<{ nodes: Node[], edges: Edge[] }[]>("flowchart-undo-history", []);
+    const [copiedElements, setCopiedElements] = useState<{ nodes: Node[], edges: Edge[] } | null>(null);
+
+    const saveHistory = useCallback((currentNodes: Node[], currentEdges: Edge[]) => {
+        setPast(p => [...p.slice(-20), { nodes: currentNodes, edges: currentEdges }]);
+    }, []);
+
+    // Handle Keyboard Shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            // Ignore if typing in an input
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+
+            const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+            const isCopy = (isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 'c';
+            const isCut = (isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 'x';
+            const isPaste = (isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 'v';
+            const isUndo = (isMac ? e.metaKey : e.ctrlKey) && e.key.toLowerCase() === 'z';
+
+            if (isUndo) {
+                e.preventDefault();
+                setPast(p => {
+                    if (p.length === 0) return p;
+                    const newPast = [...p];
+                    const lastState = newPast.pop()!;
+                    setNodes(lastState.nodes);
+                    setEdges(lastState.edges);
+                    return newPast;
+                });
+                return;
+            }
+
+            if (isCopy || isCut) {
+                const selectedNodes = nodes.filter(n => n.selected && n.id !== 'total');
+                if (selectedNodes.length === 0) return;
+                e.preventDefault();
+
+                const selectedEdges = edges.filter(edge => selectedNodes.some(n => n.id === edge.source) && selectedNodes.some(n => n.id === edge.target));
+                setCopiedElements({ nodes: selectedNodes, edges: selectedEdges });
+
+                if (isCut) {
+                    saveHistory(nodes, edges);
+                    setNodes(nds => nds.filter(n => !n.selected || n.id === 'total'));
+                    setEdges(eds => eds.filter(edge => !selectedNodes.some(n => n.id === edge.source || n.id === edge.target)));
+                }
+            }
+
+            if (isPaste && copiedElements) {
+                e.preventDefault();
+                saveHistory(nodes, edges);
+
+                const idMap = new Map<string, string>();
+                const pastedNodes = copiedElements.nodes.map(n => {
+                    const newId = `counter-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+                    idMap.set(n.id, newId);
+                    return { ...n, id: newId, position: { x: n.position.x + 50, y: n.position.y + 50 }, selected: true };
+                });
+                const pastedEdges = copiedElements.edges.map(e => ({
+                    ...e,
+                    id: `edge-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    source: idMap.get(e.source) || e.source,
+                    target: idMap.get(e.target) || e.target,
+                    selected: true
+                }));
+
+                setNodes(nds => [...nds.map(n => ({ ...n, selected: false })), ...pastedNodes]);
+                setEdges(eds => [...eds.map(e => ({ ...e, selected: false })), ...pastedEdges]);
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [nodes, edges, copiedElements, saveHistory, setNodes, setEdges]);
 
     const onNodesChange = useCallback(
         (changes: NodeChange[]) => setNodes((nds) => applyNodeChanges(changes, nds)),
@@ -83,8 +181,13 @@ export default function FlowChartPage() {
     );
 
     const onConnect = useCallback(
-        (params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)),
-        [setEdges]
+        (params: Connection | Edge) => {
+            setEdges((eds) => {
+                saveHistory(nodes, eds);
+                return addEdge(params, eds);
+            });
+        },
+        [setEdges, nodes, saveHistory]
     );
 
     const onReconnect = useCallback(
@@ -94,45 +197,64 @@ export default function FlowChartPage() {
 
     // Node Callbacks
     const handleIncrement = useCallback((id: string) => {
-        setNodes((nds) => nds.map((n) => {
-            if (n.id === id) {
-                return { ...n, data: { ...n.data, count: (n.data as CounterNodeData).count + 1 } };
-            }
-            return n;
-        }));
-    }, [setNodes]);
+        setNodes((nds) => {
+            saveHistory(nds, edges);
+            return nds.map((n) => {
+                if (n.id === id) {
+                    return { ...n, data: { ...n.data, count: (n.data as CounterNodeData).count + 1 } };
+                }
+                return n;
+            });
+        });
+    }, [setNodes, edges, saveHistory]);
 
     const handleDecrement = useCallback((id: string) => {
-        setNodes((nds) => nds.map((n) => {
-            if (n.id === id) {
-                return { ...n, data: { ...n.data, count: Math.max(0, (n.data as CounterNodeData).count - 1) } };
-            }
-            return n;
-        }));
-    }, [setNodes]);
+        setNodes((nds) => {
+            saveHistory(nds, edges);
+            return nds.map((n) => {
+                if (n.id === id) {
+                    return { ...n, data: { ...n.data, count: Math.max(0, (n.data as CounterNodeData).count - 1) } };
+                }
+                return n;
+            });
+        });
+    }, [setNodes, edges, saveHistory]);
 
     const handleUpdateConfig = useCallback((id: string, updates: Partial<CounterNodeData>) => {
-        setNodes((nds) => nds.map((n) => {
-            if (n.id === id) {
-                return { ...n, data: { ...n.data, ...updates } };
-            }
-            return n;
-        }));
-    }, [setNodes]);
+        setNodes((nds) => {
+            saveHistory(nds, edges);
+            return nds.map((n) => {
+                if (n.id === id) {
+                    return { ...n, data: { ...n.data, ...updates } };
+                }
+                return n;
+            });
+        });
+    }, [setNodes, edges, saveHistory]);
 
     const handleUpdateTotalLabel = useCallback((id: string, newLabel: string) => {
-        setNodes((nds) => nds.map((n) => {
-            if (n.id === id) {
-                return { ...n, data: { ...n.data, label: newLabel } };
-            }
-            return n;
-        }));
-    }, [setNodes]);
+        setNodes((nds) => {
+            saveHistory(nds, edges);
+            return nds.map((n) => {
+                if (n.id === id) {
+                    return { ...n, data: { ...n.data, label: newLabel } };
+                }
+                return n;
+            });
+        });
+    }, [setNodes, edges, saveHistory]);
 
     const handleDelete = useCallback((id: string) => {
+        setEdges((eds) => {
+            saveHistory(nodes, eds);
+            return eds.filter((e) => e.source !== id && e.target !== id);
+        });
         setNodes((nds) => nds.filter((n) => n.id !== id));
-        setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
-    }, [setNodes, setEdges]);
+    }, [setNodes, setEdges, nodes, saveHistory]);
+
+    const onNodeDragStart = useCallback(() => {
+        saveHistory(nodes, edges);
+    }, [nodes, edges, saveHistory]);
 
     const handleSourceHover = useCallback((id: string, isHovering: boolean) => {
         setGhostSourceId(isHovering ? id : null);
@@ -161,10 +283,13 @@ export default function FlowChartPage() {
             target: newId,
         };
 
-        setNodes(nds => [...nds, newNode]);
-        setEdges(eds => [...eds, newEdge]);
+        setNodes((nds) => {
+            saveHistory(nds, edges);
+            return [...nds, newNode];
+        });
+        setEdges((eds) => [...eds, newEdge]);
         setGhostSourceId(null);
-    }, [nodes, setNodes, setEdges]);
+    }, [nodes, edges, setNodes, setEdges, saveHistory]);
 
     const handleQuickAdd = useCallback((sourceId: string, position: Position) => {
         const sourceNode = nodes.find(n => n.id === sourceId);
@@ -463,17 +588,26 @@ export default function FlowChartPage() {
         }));
     }, [setNodes]);
 
-    const defaultEdgeOptions = useMemo(() => ({
-        type: 'smoothstep',
-        markerEnd: {
-            type: MarkerType.ArrowClosed,
-            width: 20,
-            height: 20,
-            color: accentColor,
-        },
-        style: { strokeWidth: 2, stroke: accentColor },
-        animated: true,
-    }), [accentColor]);
+    const defaultEdgeOptions = useMemo(() => {
+        const thicknessMap: Record<string, number> = {
+            S: 1,
+            M: 2,
+            L: 4,
+        };
+        const strokeWidth = thicknessMap[appSettings.edgeThickness || "M"];
+
+        return {
+            type: 'smoothstep',
+            markerEnd: {
+                type: MarkerType.ArrowClosed,
+                width: 20,
+                height: 20,
+                color: accentColor,
+            },
+            style: { strokeWidth, stroke: accentColor },
+            animated: true,
+        };
+    }, [accentColor, appSettings.edgeThickness]);
 
     return (
         <div
@@ -507,37 +641,46 @@ export default function FlowChartPage() {
                     <SettingsModal
                         settings={appSettings}
                         isLightMode={isLightMode}
+                        mode="flowchart"
                         onSave={setAppSettings}
                         onClose={() => setIsSettingsOpen(false)}
                     />
                 )}
             </AnimatePresence>
 
-            {/* Background Orbs (Synced with Counter mode) */}
-            {!isLightMode && (
-                <div className="absolute inset-0 pointer-events-none overflow-hidden mix-blend-screen opacity-50 z-0">
-                    <motion.div
-                        animate={{
-                            x: [0, 100, -50, 0],
-                            y: [0, -100, 50, 0],
-                            scale: [1, 1.2, 0.8, 1],
-                        }}
-                        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                        className="absolute top-[20%] left-[20%] w-[40rem] h-[40rem] rounded-full blur-[120px]"
-                        style={{ background: `radial-gradient(circle, ${accentColor} 0%, transparent 70%)`, opacity: appSettings.orbIntensity }}
-                    />
-                    <motion.div
-                        animate={{
-                            x: [0, -100, 50, 0],
-                            y: [0, 100, -50, 0],
-                            scale: [1, 0.8, 1.2, 1],
-                        }}
-                        transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-                        className="absolute bottom-[10%] right-[10%] w-[35rem] h-[35rem] rounded-full blur-[100px]"
-                        style={{ background: `radial-gradient(circle, ${accentColor} 0%, transparent 70%)`, opacity: appSettings.orbIntensity * 0.8 }}
-                    />
-                </div>
-            )}
+            {/* Background Orbs (Expanded and scattered for Flowchart) */}
+            <div className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${isLightMode ? 'mix-blend-multiply opacity-20' : 'opacity-80'}`}>
+                <motion.div
+                    animate={{ x: [0, 100, -50, 0], y: [0, -100, 50, 0], scale: [1, 1.2, 0.8, 1] }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    className="absolute top-[5%] left-[5%] w-[50rem] h-[50rem] rounded-full blur-[120px]"
+                    style={{ background: `radial-gradient(circle, ${accentColor} 0%, transparent 70%)`, opacity: (appSettings.orbIntensity / 100) * (isLightMode ? 1.5 : 1) }}
+                />
+                <motion.div
+                    animate={{ x: [0, -100, 50, 0], y: [0, 100, -50, 0], scale: [1, 0.8, 1.2, 1] }}
+                    transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                    className="absolute bottom-[5%] right-[5%] w-[60rem] h-[60rem] rounded-full blur-[150px]"
+                    style={{ background: `radial-gradient(circle, ${accentColor} 0%, transparent 60%)`, opacity: (appSettings.orbIntensity / 100) * 0.8 * (isLightMode ? 1.5 : 1) }}
+                />
+                <motion.div
+                    animate={{ x: [0, 50, -100, 0], y: [0, 50, -100, 0], scale: [1, 1.1, 0.9, 1] }}
+                    transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                    className="absolute top-[40%] left-[30%] w-[40rem] h-[40rem] rounded-full blur-[100px]"
+                    style={{ background: `radial-gradient(circle, ${accentColor} 0%, transparent 60%)`, opacity: (appSettings.orbIntensity / 100) * 0.6 * (isLightMode ? 1.5 : 1) }}
+                />
+                <motion.div
+                    animate={{ x: [0, -80, 80, 0], y: [0, -50, 100, 0], scale: [1, 1.3, 0.7, 1] }}
+                    transition={{ duration: 35, repeat: Infinity, ease: "linear" }}
+                    className="absolute top-[20%] right-[20%] w-[45rem] h-[45rem] rounded-full blur-[130px]"
+                    style={{ background: `radial-gradient(circle, ${accentColor} 0%, transparent 65%)`, opacity: (appSettings.orbIntensity / 100) * 0.7 * (isLightMode ? 1.5 : 1) }}
+                />
+                <motion.div
+                    animate={{ x: [0, 120, -120, 0], y: [0, 80, -80, 0], scale: [1, 0.9, 1.4, 1] }}
+                    transition={{ duration: 40, repeat: Infinity, ease: "linear" }}
+                    className="absolute bottom-[20%] left-[15%] w-[55rem] h-[55rem] rounded-full blur-[140px]"
+                    style={{ background: `radial-gradient(circle, ${accentColor} 0%, transparent 55%)`, opacity: (appSettings.orbIntensity / 100) * 0.5 * (isLightMode ? 1.5 : 1) }}
+                />
+            </div>
 
             {/* Header: Mode Selector and Quick Actions */}
             <div
@@ -548,7 +691,33 @@ export default function FlowChartPage() {
                     <ModeSelector isLightMode={isLightMode} />
                 </div>
 
-                {/* Top right area is now empty to avoid clutter, using Floating Action Button instead */}
+                {/* Optional Project Name Display for Flowchart */}
+                <AnimatePresence>
+                    {appSettings.showProjectName && appSettings.projectName && (
+                        <motion.div
+                            drag
+                            dragMomentum={false}
+                            initial={{ opacity: 0, y: -20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                            className="absolute left-1/2 top-[72px] -translate-x-1/2 z-40 px-6 py-2 rounded-2xl backdrop-blur-md font-black cursor-grab active:cursor-grabbing border whitespace-nowrap shadow-xl pointer-events-auto"
+                            style={{
+                                color: appSettings.projectNameColor,
+                                background: isLightMode ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.6)",
+                                borderColor: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)",
+                                fontSize:
+                                    appSettings.projectNameSize === "XL" ? "2.5rem" :
+                                        appSettings.projectNameSize === "L" ? "1.75rem" :
+                                            appSettings.projectNameSize === "S" ? "1rem" : "1.25rem",
+                                writingMode: appSettings.projectNameOrientation === "vertical" ? "vertical-rl" : "horizontal-tb",
+                                margin: appSettings.projectNameOrientation === "vertical" ? "0 auto" : undefined,
+                            }}
+                        >
+                            {appSettings.projectName}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
 
             <main className="flex-1 w-full h-full">
@@ -559,8 +728,11 @@ export default function FlowChartPage() {
                     onEdgesChange={onEdgesChange}
                     onConnect={onConnect}
                     onReconnect={onReconnect}
+                    onNodeDragStart={onNodeDragStart}
                     nodeTypes={nodeTypes}
                     defaultEdgeOptions={defaultEdgeOptions}
+                    snapToGrid={true}
+                    snapGrid={[24, 24]}
                     fitView
                     className="touch-none bg-transparent"
                     colorMode={isLightMode ? "light" : "dark"}
@@ -569,7 +741,8 @@ export default function FlowChartPage() {
                         variant={BackgroundVariant.Dots}
                         gap={24}
                         size={2}
-                        color={isLightMode ? `${accentColor}20` : `${accentColor}20`}
+                        color={isLightMode ? `${accentColor}40` : `${accentColor}40`}
+                        style={{ opacity: appSettings.dotIntensity !== undefined ? appSettings.dotIntensity / 100 : 0.5 }}
                     />
                     <Controls
                         className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg shadow-xl"

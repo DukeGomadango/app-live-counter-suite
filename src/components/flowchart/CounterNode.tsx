@@ -1,8 +1,11 @@
 "use client";
 
-import { memo, useRef, useCallback } from "react";
+import { memo, useRef, useCallback, useState } from "react";
 import { Handle, Position, NodeProps, Node, useNodeConnections } from "@xyflow/react";
-import { Plus, Minus, Trash2 } from "lucide-react";
+import { Plus, Minus, Trash2, ChevronUp, ChevronDown } from "lucide-react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { AppSettings } from "../../components/SettingsModal";
+import { EMOJI_OPTIONS } from "@/lib/constants";
 
 export type OperationType = "+" | "-" | "*" | "/";
 
@@ -35,6 +38,28 @@ function getOperationColor(op: OperationType, isLightMode: boolean) {
 function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
     const isLightMode = data?.isLightMode || false;
     const accentColor = data.color || "#a855f7";
+
+    // Read settings directly for scaling
+    const [appSettings] = useLocalStorage<AppSettings>("flowchart-app-settings", {
+        cardSize: "L",
+        edgeThickness: "M",
+        showProjectName: false,
+        projectName: "",
+        projectNameSize: "M",
+        projectNameColor: "#a855f7",
+        accentColor: "#a855f7",
+        orbIntensity: 50,
+    });
+
+    const scaleMap: Record<string, number> = {
+        S: 0.7,
+        M: 0.85,
+        L: 1.0,
+        XL: 1.2,
+    };
+    const scale = scaleMap[appSettings.cardSize] || 1.0;
+
+    const [isEditingEmoji, setIsEditingEmoji] = useState(false);
 
     // Long press logic
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -87,25 +112,43 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
         );
     };
 
+    const panelBg = isLightMode
+        ? "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(240,245,255,0.5) 100%)"
+        : "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)";
+    const panelBorder = isLightMode
+        ? "rgba(255,255,255,0.8)"
+        : "rgba(255,255,255,0.1)";
+    const panelShadow = isLightMode
+        ? `0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)`
+        : `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)`;
+
     return (
         <div
             className="rounded-2xl border w-[220px] transition-all relative group"
             style={{
-                background: isLightMode ? "rgba(255,255,255,0.85)" : "rgba(10,5,30,0.85)",
-                backdropFilter: "blur(12px)",
-                borderColor: isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
-                boxShadow: isLightMode
-                    ? "0 4px 20px -10px rgba(0,0,0,0.1), inset 0 0 0 1px rgba(255,255,255,0.5)"
-                    : "0 4px 30px -10px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.05)",
+                transform: `scale(${scale})`,
+                transformOrigin: "center center",
+                background: panelBg,
+                backdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
+                WebkitBackdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
+                borderColor: panelBorder,
+                boxShadow: panelShadow,
             }}
         >
             {/* --- Handles --- */}
 
             {/* Top Handles */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
-                <div className="flex gap-1 relative">
-                    <Handle type="target" position={Position.Top} id="target-top" className="!w-3 !h-3 !border-2 !relative !transform-none !left-auto !top-auto !bg-transparent" style={{ borderColor: accentColor }} />
-                    <Handle type="source" position={Position.Top} id="source-top" className="!w-3 !h-3 !border-2 !relative !transform-none !left-auto !top-auto" style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }} />
+                <div className={`flex gap-1.5 relative ${isLightMode ? 'bg-white/90 border-black/10' : 'bg-[#1a103c]/90 border-white/10'} backdrop-blur-md px-1.5 py-0.5 rounded-full border items-center shadow-sm`}>
+                    <div className="flex gap-0.5 items-center">
+                        <span className={`text-[8px] font-bold ${isLightMode ? 'text-gray-500' : 'text-white/60'} leading-none select-none pl-0.5`}>IN</span>
+                        <Handle type="target" position={Position.Top} id="target-top" className="!w-2.5 !h-2.5 !border-2 !relative !transform-none !left-auto !top-auto !bg-transparent" style={{ borderColor: accentColor }} />
+                    </div>
+                    <div className={`w-[1px] h-3 ${isLightMode ? 'bg-black/10' : 'bg-white/10'}`}></div>
+                    <div className="flex gap-0.5 items-center">
+                        <Handle type="source" position={Position.Top} id="source-top" className="!w-2.5 !h-2.5 !border-2 !relative !transform-none !left-auto !top-auto" style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }} />
+                        <span className={`text-[8px] font-bold ${isLightMode ? 'text-gray-500' : 'text-white/60'} leading-none select-none pr-0.5`}>OUT</span>
+                    </div>
                 </div>
                 {topConns.length === 0 && (
                     <div className="absolute -top-6 left-1/2 -translate-x-1/2">
@@ -116,9 +159,16 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
 
             {/* Bottom Handles */}
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 flex items-center gap-1 z-10">
-                <div className="flex gap-1 relative">
-                    <Handle type="target" position={Position.Bottom} id="target-bottom" className="!w-3 !h-3 !border-2 !relative !transform-none !left-auto !bottom-auto !bg-transparent" style={{ borderColor: accentColor }} />
-                    <Handle type="source" position={Position.Bottom} id="source-bottom" className="!w-3 !h-3 !border-2 !relative !transform-none !left-auto !bottom-auto" style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }} />
+                <div className={`flex gap-1.5 relative ${isLightMode ? 'bg-white/90 border-black/10' : 'bg-[#1a103c]/90 border-white/10'} backdrop-blur-md px-1.5 py-0.5 rounded-full border items-center shadow-sm`}>
+                    <div className="flex gap-0.5 items-center">
+                        <span className={`text-[8px] font-bold ${isLightMode ? 'text-gray-500' : 'text-white/60'} leading-none select-none pl-0.5`}>IN</span>
+                        <Handle type="target" position={Position.Bottom} id="target-bottom" className="!w-2.5 !h-2.5 !border-2 !relative !transform-none !left-auto !bottom-auto !bg-transparent" style={{ borderColor: accentColor }} />
+                    </div>
+                    <div className={`w-[1px] h-3 ${isLightMode ? 'bg-black/10' : 'bg-white/10'}`}></div>
+                    <div className="flex gap-0.5 items-center">
+                        <Handle type="source" position={Position.Bottom} id="source-bottom" className="!w-2.5 !h-2.5 !border-2 !relative !transform-none !left-auto !bottom-auto" style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }} />
+                        <span className={`text-[8px] font-bold ${isLightMode ? 'text-gray-500' : 'text-white/60'} leading-none select-none pr-0.5`}>OUT</span>
+                    </div>
                 </div>
                 {bottomConns.length === 0 && (
                     <div className="absolute -bottom-6 left-1/2 -translate-x-1/2">
@@ -134,9 +184,16 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                         <GhostAddButton position={Position.Left} />
                     </div>
                 )}
-                <div className="flex flex-col gap-1 relative">
-                    <Handle type="target" position={Position.Left} id="target-left" className="!w-3 !h-3 !border-2 !relative !transform-none !left-auto !top-auto !bg-transparent" style={{ borderColor: accentColor }} />
-                    <Handle type="source" position={Position.Left} id="source-left" className="!w-3 !h-3 !border-2 !relative !transform-none !left-auto !top-auto" style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }} />
+                <div className={`flex flex-col gap-1.5 relative ${isLightMode ? 'bg-white/90 border-black/10' : 'bg-[#1a103c]/90 border-white/10'} backdrop-blur-md px-0.5 py-1.5 rounded-full border items-center shadow-sm`}>
+                    <div className="flex flex-col gap-0.5 items-center">
+                        <span className={`text-[7px] font-bold ${isLightMode ? 'text-gray-500' : 'text-white/60'} leading-none select-none pt-0.5`}>IN</span>
+                        <Handle type="target" position={Position.Left} id="target-left" className="!w-2.5 !h-2.5 !border-2 !relative !transform-none !left-auto !top-auto !bg-transparent" style={{ borderColor: accentColor }} />
+                    </div>
+                    <div className={`w-3 h-[1px] ${isLightMode ? 'bg-black/10' : 'bg-white/10'}`}></div>
+                    <div className="flex flex-col gap-0.5 items-center">
+                        <Handle type="source" position={Position.Left} id="source-left" className="!w-2.5 !h-2.5 !border-2 !relative !transform-none !left-auto !top-auto" style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }} />
+                        <span className={`text-[7px] font-bold ${isLightMode ? 'text-gray-500' : 'text-white/60'} leading-none select-none pb-0.5`}>OUT</span>
+                    </div>
                 </div>
             </div>
 
@@ -150,9 +207,16 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                 }}
                 className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-1/2 flex items-center gap-1 z-10 p-2 cursor-crosshair"
             >
-                <div className="flex flex-col gap-1 relative">
-                    <Handle type="target" position={Position.Right} id="target-right" className="!w-3 !h-3 !border-2 !relative !transform-none !right-auto !top-auto !bg-transparent pointer-events-none" style={{ borderColor: accentColor }} />
-                    <Handle type="source" position={Position.Right} id="source-right" className="!w-3 !h-3 !border-2 !relative !transform-none !right-auto !top-auto pointer-events-none" style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }} />
+                <div className={`flex flex-col gap-1.5 relative ${isLightMode ? 'bg-white/90 border-black/10' : 'bg-[#1a103c]/90 border-white/10'} backdrop-blur-md px-0.5 py-1.5 rounded-full border items-center shadow-sm pointer-events-none`}>
+                    <div className="flex flex-col gap-0.5 items-center">
+                        <span className={`text-[7px] font-bold ${isLightMode ? 'text-gray-500' : 'text-white/60'} leading-none select-none pt-0.5`}>IN</span>
+                        <Handle type="target" position={Position.Right} id="target-right" className="!w-2.5 !h-2.5 !border-2 !relative !transform-none !right-auto !top-auto !bg-transparent pointer-events-none" style={{ borderColor: accentColor }} />
+                    </div>
+                    <div className={`w-3 h-[1px] ${isLightMode ? 'bg-black/10' : 'bg-white/10'}`}></div>
+                    <div className="flex flex-col gap-0.5 items-center">
+                        <Handle type="source" position={Position.Right} id="source-right" className="!w-2.5 !h-2.5 !border-2 !relative !transform-none !right-auto !top-auto pointer-events-none" style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }} />
+                        <span className={`text-[7px] font-bold ${isLightMode ? 'text-gray-500' : 'text-white/60'} leading-none select-none pb-0.5`}>OUT</span>
+                    </div>
                 </div>
                 {rightConns.length === 0 && (
                     <div className="absolute -right-4 top-1/2 -translate-y-1/2 pointer-events-auto">
@@ -175,9 +239,38 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                 {/* Header: Emoji, Label, config row */}
                 <div className="flex items-center justify-between mb-3 border-b pb-2" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)" }}>
                     <div className="flex items-center gap-2">
-                        <span className="text-xl" style={{ filter: isLightMode ? "none" : "drop-shadow(0 0 8px rgba(255,255,255,0.2))" }}>
-                            {data.emoji}
-                        </span>
+                        <div className="relative">
+                            <span
+                                className="text-xl px-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors cursor-pointer"
+                                style={{ filter: isLightMode ? "none" : "drop-shadow(0 0 8px rgba(255,255,255,0.2))" }}
+                                onClick={() => setIsEditingEmoji(!isEditingEmoji)}
+                            >
+                                {data.emoji}
+                            </span>
+                            {isEditingEmoji && (
+                                <div
+                                    className="absolute top-full left-0 mt-1 p-2 rounded-xl border grid grid-cols-6 gap-1 z-50 w-48 shadow-xl"
+                                    style={{
+                                        background: isLightMode ? "rgba(255,255,255,0.95)" : "rgba(15,8,35,0.95)",
+                                        borderColor: isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
+                                        backdropFilter: "blur(12px)",
+                                    }}
+                                >
+                                    {EMOJI_OPTIONS.map((e) => (
+                                        <button
+                                            key={e}
+                                            onClick={() => {
+                                                data.onUpdateConfig(id, { emoji: e });
+                                                setIsEditingEmoji(false);
+                                            }}
+                                            className="w-6 h-6 rounded hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-sm transition-colors"
+                                        >
+                                            {e}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                         <input
                             type="text"
                             value={data.label}
@@ -189,7 +282,7 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                 </div>
 
                 {/* Body: Value Settings */}
-                <div className="flex items-center gap-2 mb-3 bg-black/5 dark:bg-white/5 p-1.5 rounded-xl">
+                <div className="flex items-center gap-1.5 mb-3 bg-black/5 dark:bg-white/5 p-1.5 rounded-xl">
                     <select
                         value={data.operation}
                         onChange={(e) => data.onUpdateConfig(id, { operation: e.target.value as OperationType })}
@@ -210,6 +303,21 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                         className="flex-1 w-full bg-transparent font-mono text-lg font-bold outline-none tabular-nums text-right px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                         style={{ color: isLightMode ? "#1f2937" : "#f3f4f6" }}
                     />
+
+                    <div className="flex flex-col gap-0.5">
+                        <button
+                            onClick={() => data.onUpdateConfig(id, { value: data.value + 1 })}
+                            className={`w-5 h-4 flex items-center justify-center rounded ${isLightMode ? 'bg-black/5 hover:bg-black/10' : 'bg-white/5 hover:bg-white/10'} transition-colors`}
+                        >
+                            <ChevronUp size={10} className={isLightMode ? "text-gray-600" : "text-white/80"} />
+                        </button>
+                        <button
+                            onClick={() => data.onUpdateConfig(id, { value: Math.max(0, data.value - 1) })}
+                            className={`w-5 h-4 flex items-center justify-center rounded ${isLightMode ? 'bg-black/5 hover:bg-black/10' : 'bg-white/5 hover:bg-white/10'} transition-colors`}
+                        >
+                            <ChevronDown size={10} className={isLightMode ? "text-gray-600" : "text-white/80"} />
+                        </button>
+                    </div>
                 </div>
 
                 {/* Counter Actions */}
@@ -255,6 +363,27 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                         <Plus size={16} />
                     </button>
                 </div>
+
+                {data.target !== undefined && data.target > 0 && (
+                    <div className="mt-3 w-full space-y-1">
+                        <div className="flex justify-between items-end text-[10px] font-bold" style={{ color: isLightMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }}>
+                            <span>進捗</span>
+                            <span>{data.target.toLocaleString()}</span>
+                        </div>
+                        <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)" }}>
+                            <div
+                                className="h-full transition-all duration-500 ease-out relative"
+                                style={{
+                                    width: `${Math.min(100, (data.count / data.target) * 100)}%`,
+                                    background: `linear-gradient(90deg, ${accentColor}80, ${accentColor})`,
+                                    boxShadow: `0 0 10px ${accentColor}`,
+                                }}
+                            >
+                                <div className="absolute inset-0 opacity-50 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.3)_50%,transparent_75%,transparent_100%)] bg-[length:10px_10px] animate-[shine_1s_linear_infinite]" />
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

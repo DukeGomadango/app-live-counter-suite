@@ -3,6 +3,8 @@
 import { memo, useState } from "react";
 import { Handle, Position, NodeProps, Node } from "@xyflow/react";
 import { Calculator } from "lucide-react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { AppSettings } from "../../components/SettingsModal";
 
 export type TotalNodeData = {
     value: number;
@@ -28,16 +30,47 @@ function TotalNode({ id, data }: NodeProps<TotalNodeType>) {
         setIsEditing(false);
     };
 
+    // Read settings directly for scaling
+    const [appSettings] = useLocalStorage<AppSettings>("flowchart-app-settings", {
+        cardSize: "L",
+        edgeThickness: "M",
+        showProjectName: false,
+        projectName: "",
+        projectNameSize: "M",
+        projectNameColor: "#a855f7",
+        accentColor: "#a855f7",
+        orbIntensity: 50,
+    });
+
+    const scaleMap: Record<string, number> = {
+        S: 0.7,
+        M: 0.85,
+        L: 1.0,
+        XL: 1.2,
+    };
+    const scale = scaleMap[appSettings.cardSize] || 1.0;
+
+    const panelBg = isLightMode
+        ? "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(240,245,255,0.5) 100%)"
+        : "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)";
+    const panelBorder = isLightMode
+        ? "rgba(255,255,255,0.8)"
+        : "rgba(255,255,255,0.1)";
+    const panelShadow = isLightMode
+        ? `0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8), 0 20px 50px -10px rgba(168,85,247,0.15)`
+        : `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05), 0 20px 60px -10px rgba(168,85,247,0.3), 0 0 40px rgba(168,85,247,0.2)`;
+
     return (
         <div
             className="rounded-3xl border p-8 shadow-2xl min-w-[280px] min-h-[160px] flex gap-4 flex-col items-center justify-center relative transition-colors duration-200"
             style={{
-                background: isLightMode ? "rgba(255,255,255,0.9)" : "rgba(10,5,30,0.9)",
-                backdropFilter: "blur(20px)",
-                borderColor: isLightMode ? "rgba(168,85,247,0.3)" : "rgba(168,85,247,0.4)",
-                boxShadow: isLightMode
-                    ? "0 20px 50px -10px rgba(168,85,247,0.15), inset 0 0 0 2px rgba(168,85,247,0.2)"
-                    : "0 20px 60px -10px rgba(168,85,247,0.3), inset 0 0 0 2px rgba(168,85,247,0.2), 0 0 40px rgba(168,85,247,0.2)",
+                transform: `scale(${scale})`,
+                transformOrigin: "center center",
+                background: panelBg,
+                backdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
+                WebkitBackdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
+                borderColor: panelBorder,
+                boxShadow: panelShadow,
             }}
         >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 flex z-10">

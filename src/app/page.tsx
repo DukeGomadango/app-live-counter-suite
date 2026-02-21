@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useEffect, useState } from "react";
-import { Reorder, AnimatePresence } from "framer-motion";
+import { motion, Reorder, AnimatePresence } from "framer-motion";
 import CounterPanel from "@/components/CounterPanel";
 import AddItemPanel from "@/components/AddItemPanel";
 import HamburgerMenu from "@/components/HamburgerMenu";
@@ -312,24 +312,28 @@ export default function Home() {
         <div className="min-h-full flex flex-col items-center justify-center py-4 px-3 sm:px-4">
           {/* Project Name */}
           {appSettings.showProjectName && appSettings.projectName && (
-            <div
-              className="mb-4 text-center"
+            <motion.div
+              drag
+              dragMomentum={false}
+              className="mb-4 text-center cursor-grab active:cursor-grabbing z-[60] relative pointer-events-auto"
               style={{ maxWidth: `${gridMaxWidth}px`, width: "100%" }}
             >
               <h1
                 className={`${appSettings.projectNameSize === "S" ? "text-sm sm:text-base" :
                   appSettings.projectNameSize === "L" ? "text-xl sm:text-2xl" :
-                    appSettings.projectNameSize === "XL" ? "text-2xl sm:text-3xl" :
+                    appSettings.projectNameSize === "XL" ? "text-4xl sm:text-5xl" :
                       "text-lg sm:text-xl"
                   } font-bold tracking-wide`}
                 style={{
                   color: appSettings.projectNameColor || appSettings.accentColor,
                   textShadow: `0 0 20px ${appSettings.projectNameColor || appSettings.accentColor}30`,
+                  writingMode: appSettings.projectNameOrientation === "vertical" ? "vertical-rl" : "horizontal-tb",
+                  margin: appSettings.projectNameOrientation === "vertical" ? "0 auto" : undefined,
                 }}
               >
                 {appSettings.projectName}
               </h1>
-            </div>
+            </motion.div>
           )}
           <Reorder.Group
             axis="y"
