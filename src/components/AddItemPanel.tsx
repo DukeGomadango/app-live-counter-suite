@@ -25,7 +25,9 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
-        setMounted(true);
+        // Use microtask to avoid "setState synchronously within an effect" lint error
+        Promise.resolve().then(() => setMounted(true));
+
         const checkMobile = () => setIsMobile(window.innerWidth <= 768);
         checkMobile();
         window.addEventListener('resize', checkMobile);

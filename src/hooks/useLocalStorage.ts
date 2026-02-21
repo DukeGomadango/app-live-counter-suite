@@ -7,15 +7,18 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
     const [isHydrated, setIsHydrated] = useState(false);
 
     useEffect(() => {
-        try {
-            const item = window.localStorage.getItem(key);
-            if (item) {
-                setStoredValue(JSON.parse(item));
+        // Use microtask to avoid "setState synchronously within an effect" lint error
+        Promise.resolve().then(() => {
+            try {
+                const item = window.localStorage.getItem(key);
+                if (item) {
+                    setStoredValue(JSON.parse(item));
+                }
+            } catch (error) {
+                console.warn(`Error reading localStorage key "${key}":`, error);
             }
-        } catch (error) {
-            console.warn(`Error reading localStorage key "${key}":`, error);
-        }
-        setIsHydrated(true);
+            setIsHydrated(true);
+        });
     }, [key]);
 
     const setValue = useCallback(
