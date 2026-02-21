@@ -7,7 +7,7 @@ export default function JsonLd() {
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "ライブカウンター",
-        "description": "登録不要・完全無料で使えるWeb人数カウンター。交通量調査、野鳥観察、イベントの入室管理、在庫管理など、スマホで簡単に複数項目の集計が可能です。",
+        "description": "IRIAMやYouTube配信で役立つ登録不要・完全無料のWeb人数カウンター。ライバーとリスナーのための入室カウント、交通量調査、野鳥観察、イベント管理など、スマホで簡単に複数項目の集計が可能です。",
         "applicationCategory": "UtilityApplication",
         "operatingSystem": "Web",
         "offers": {

@@ -1,7 +1,7 @@
 {
     "name": "ライブカウンター",
     "short_name": "カウンター",
-    "description": "登録不要・完全無料で使えるWeb人数カウンター。交通量調査、野鳥観察、集計ツール。",
+    "description": "IRIAMやYouTube配信で役立つ登録不要・完全無料のWeb人数カウンター。交通量調査、野鳥観察、集計ツール。",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#030014",

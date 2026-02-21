@@ -15,12 +15,16 @@ const geistMono = Geist_Mono({
 
 const siteConfig = {
   name: "ライブカウンター",
-  description: "登録不要・完全無料で使えるWeb人数カウンター。交通量調査、野鳥観察、イベントの入室管理、在庫管理など、スマホで簡単に複数項目の集計が可能です。",
+  description: "IRIAMやYouTube配信で役立つ登録不要・完全無料のWeb人数カウンター。ライバーとリスナーのための入室カウント、交通量調査、野鳥観察、イベント管理など、スマホで簡単に複数項目の集計が可能です。",
   url: "https://app-live-counter.vercel.app",
   ogImage: "https://app-live-counter.vercel.app/og-image.png",
   keywords: [
     "人数カウント",
     "カウンターアプリ",
+    "IRIAM",
+    "YouTube配信",
+    "ライバー",
+    "リスナー",
     "交通量調査",
     "野鳥観察",
     "入室管理",
