@@ -465,11 +465,11 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
                     outputValue = inputValue - (val * count);
                 } else if (op === "*") {
                     // Start from input or from 1 if no input but it multiplies...?
-                    // Let's assume multiplication multiplies the input. If count = 0, no effect (* 1).
-                    // If input is 0, multiple is 0.
-                    outputValue = inputValue * Math.pow(val, count);
+                    // Use val * count as the multiplier. If count is 0, it acts as a passthrough (x1) so it doesn't break the chain.
+                    const multiplier = count === 0 ? 1 : (val * count);
+                    outputValue = inputValue * multiplier;
                 } else if (op === "/") {
-                    const divisor = Math.pow(val, count);
+                    const divisor = count === 0 ? 1 : (val * count);
                     outputValue = divisor !== 0 ? inputValue / divisor : 0;
                 }
             } else if (node.type === "total") {
