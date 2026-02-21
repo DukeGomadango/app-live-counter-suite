@@ -36,6 +36,9 @@ export default function GachaResultDisplay({
     const textPrimary = isLightMode ? "text-gray-800" : "text-white/90";
     const textSecondary = isLightMode ? "text-gray-500" : "text-white/50";
     const textMuted = isLightMode ? "text-gray-400" : "text-white/30";
+    const selectOptionStyle = isLightMode
+        ? { background: "#fff", color: "#1f2937" }
+        : { background: "#1e1b4b", color: "#e2e8f0" };
 
     if (results.length === 0) {
         return (
@@ -181,7 +184,7 @@ export default function GachaResultDisplay({
                         style={{ background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)", border: `1px solid ${glassBorder}` }}
                     >
                         {sortOptions.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            <option key={opt.value} value={opt.value} style={selectOptionStyle}>{opt.label}</option>
                         ))}
                     </select>
                 </div>
@@ -195,9 +198,9 @@ export default function GachaResultDisplay({
                         className={`text-[10px] px-1.5 py-1 rounded-lg outline-none cursor-pointer ${textSecondary}`}
                         style={{ background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)", border: `1px solid ${glassBorder}` }}
                     >
-                        <option value="all">全て</option>
+                        <option value="all" style={selectOptionStyle}>全て</option>
                         {pool.rarities.sort((a, b) => a.sortOrder - b.sortOrder).map(r => (
-                            <option key={r.id} value={r.id}>{r.name}</option>
+                            <option key={r.id} value={r.id} style={selectOptionStyle}>{r.name}</option>
                         ))}
                     </select>
                 </div>

@@ -11,9 +11,29 @@ import {
     Sparkles,
     Shield,
     Palette,
+    Pencil,
+    Check,
 } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, calculateProbabilities, getRarityProbabilities } from "@/lib/gacha";
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+    DragEndEvent
+} from '@dnd-kit/core';
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { GripVertical } from "lucide-react";
 
 interface GachaSetupProps {
     pool: GachaPool;
@@ -26,6 +46,8 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
     const [newItemWeight, setNewItemWeight] = useState("1");
+    const [editingItemId, setEditingItemId] = useState<string | null>(null);
+    const [editName, setEditName] = useState("");
 
     const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
     const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
@@ -34,9 +56,29 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
     const textMuted = isLightMode ? "text-gray-400" : "text-white/30";
     const inputBg = isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
     const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
+    const selectOptionStyle = isLightMode
+        ? { background: "#fff", color: "#1f2937" }
+        : { background: "#1e1b4b", color: "#e2e8f0" };
 
     const probabilities = calculateProbabilities(pool.items);
     const rarityProbs = getRarityProbabilities(pool.items, pool.rarities);
+
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+        useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+            const oldIndex = pool.items.findIndex(i => i.id === active.id);
+            const newIndex = pool.items.findIndex(i => i.id === over.id);
+            onPoolChange({
+                ...pool,
+                items: arrayMove(pool.items, oldIndex, newIndex),
+            });
+        }
+    };
 
     // -- レア度操作 --
     const updateRarity = (id: string, updates: Partial<RarityTier>) => {
@@ -91,6 +133,19 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
             ...pool,
             items: pool.items.map(item => item.id === id ? { ...item, ...updates } : item),
         });
+    };
+
+    const startEditing = (item: GachaItem) => {
+        setEditingItemId(item.id);
+        setEditName(item.name);
+    };
+
+    const finishEditing = () => {
+        if (editingItemId && editName.trim()) {
+            updateItem(editingItemId, { name: editName.trim() });
+        }
+        setEditingItemId(null);
+        setEditName("");
     };
 
     const toggleSection = (section: string) => {
@@ -254,45 +309,31 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                                     </div>
                                 )}
 
-                                {/* 品目リスト */}
-                                <div className="flex flex-col gap-1.5 mb-3 max-h-48 overflow-y-auto">
-                                    {pool.items.map(item => {
-                                        const rarity = pool.rarities.find(r => r.id === item.rarityId);
-                                        const prob = probabilities.get(item.id) || 0;
-                                        return (
-                                            <div
-                                                key={item.id}
-                                                className="flex items-center gap-2 p-2 rounded-lg group"
-                                                style={{ background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)" }}
-                                            >
-                                                <span
-                                                    className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0"
-                                                    style={{ color: rarity?.color, background: rarity?.bgColor }}
-                                                >
-                                                    {rarity?.name || "?"}
-                                                </span>
-                                                <span className={`text-xs flex-1 truncate ${textPrimary}`}>{item.name}</span>
-                                                <input
-                                                    type="number"
-                                                    min={0.000001}
-                                                    step="any"
-                                                    value={item.weight}
-                                                    onChange={e => updateItem(item.id, { weight: Math.max(0.000001, parseFloat(e.target.value) || 0.000001) })}
-                                                    className={`w-16 text-[10px] px-1.5 py-0.5 rounded text-right ${textPrimary} outline-none`}
-                                                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                                                />
-                                                <span className={`text-[10px] w-14 text-right tabular-nums ${textMuted}`}>
-                                                    {prob < 0.01 ? prob.toFixed(4) : prob.toFixed(2)}%
-                                                </span>
-                                                <button
-                                                    onClick={() => removeItem(item.id)}
-                                                    className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-red-400 transition-all"
-                                                >
-                                                    <Trash2 size={10} />
-                                                </button>
-                                            </div>
-                                        );
-                                    })}
+                                {/* 品目リスト（編集可能） */}
+                                <div className="flex flex-col gap-1.5 mb-3 max-h-64 overflow-y-auto pr-1">
+                                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                        <SortableContext items={pool.items.map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                            {pool.items.map(item => {
+                                                const pt = probabilities.get(item.id) || 0;
+                                                return (
+                                                    <SortableItem
+                                                        key={item.id}
+                                                        item={item}
+                                                        pool={pool}
+                                                        isLightMode={isLightMode}
+                                                        editingItemId={editingItemId}
+                                                        editName={editName}
+                                                        setEditName={setEditName}
+                                                        startEditing={startEditing}
+                                                        finishEditing={finishEditing}
+                                                        updateItem={updateItem}
+                                                        removeItem={removeItem}
+                                                        prob={pt}
+                                                    />
+                                                );
+                                            })}
+                                        </SortableContext>
+                                    </DndContext>
                                 </div>
 
                                 {/* 新規追加フォーム */}
@@ -311,10 +352,16 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                                             value={newItemRarityId}
                                             onChange={e => setNewItemRarityId(e.target.value)}
                                             className={`px-2 py-1.5 rounded-lg text-xs ${textPrimary} outline-none cursor-pointer`}
-                                            style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                                            style={{
+                                                background: inputBg,
+                                                border: `1px solid ${inputBorder}`,
+                                                color: pool.rarities.find(r => r.id === newItemRarityId)?.color || (isLightMode ? "#1f2937" : "#e2e8f0"),
+                                            }}
                                         >
                                             {pool.rarities.sort((a, b) => a.sortOrder - b.sortOrder).map(r => (
-                                                <option key={r.id} value={r.id}>{r.name}</option>
+                                                <option key={r.id} value={r.id} style={selectOptionStyle}>
+                                                    {r.name}
+                                                </option>
                                             ))}
                                         </select>
                                     </div>
@@ -396,10 +443,16 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                                                 value={pool.pityGuaranteedRarityId}
                                                 onChange={e => onPoolChange({ ...pool, pityGuaranteedRarityId: e.target.value })}
                                                 className={`w-full px-2 py-1.5 rounded-lg text-xs ${textPrimary} outline-none cursor-pointer`}
-                                                style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                                                style={{
+                                                    background: inputBg,
+                                                    border: `1px solid ${inputBorder}`,
+                                                    color: pool.rarities.find(r => r.id === pool.pityGuaranteedRarityId)?.color || (isLightMode ? "#1f2937" : "#e2e8f0"),
+                                                }}
                                             >
                                                 {pool.rarities.sort((a, b) => a.sortOrder - b.sortOrder).map(r => (
-                                                    <option key={r.id} value={r.id}>{r.name}</option>
+                                                    <option key={r.id} value={r.id} style={selectOptionStyle}>
+                                                        {r.name}
+                                                    </option>
                                                 ))}
                                             </select>
                                         </div>
@@ -427,6 +480,151 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                     </div>
                 </div>
             )}
+        </div>
+    );
+}
+
+// DnD用の子コンポーネント
+interface SortableItemProps {
+    item: GachaItem;
+    pool: GachaPool;
+    isLightMode: boolean;
+    editingItemId: string | null;
+    editName: string;
+    setEditName: (name: string) => void;
+    startEditing: (item: GachaItem) => void;
+    finishEditing: () => void;
+    updateItem: (id: string, updates: Partial<GachaItem>) => void;
+    removeItem: (id: string) => void;
+    prob: number;
+}
+
+function SortableItem({
+    item,
+    pool,
+    isLightMode,
+    editingItemId,
+    editName,
+    setEditName,
+    startEditing,
+    finishEditing,
+    updateItem,
+    removeItem,
+    prob
+}: SortableItemProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+    const isEditing = editingItemId === item.id;
+    const rarity = pool.rarities.find(r => r.id === item.rarityId);
+
+    const sortableStyle = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1,
+        zIndex: isDragging ? 10 : 1,
+    };
+
+    const textPrimary = isLightMode ? "text-gray-800" : "text-white/90";
+    const textMuted = isLightMode ? "text-gray-400" : "text-white/30";
+    const inputBg = isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
+    const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
+    const selectOptionStyle = isLightMode ? { background: "#fff", color: "#1f2937" } : { background: "#1e1b4b", color: "#e2e8f0" };
+
+    return (
+        <div
+            ref={setNodeRef}
+            className={`flex items-center gap-1.5 p-2 rounded-lg group ${isDragging ? "shadow-lg scale-[1.02]" : ""}`}
+            style={{ ...sortableStyle, background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)" }}
+        >
+            {/* ドラッグハンドル */}
+            <div {...attributes} {...listeners} className="cursor-grab hover:text-purple-400 text-gray-500/50 touch-none w-5 h-5 flex items-center justify-center shrink-0">
+                <GripVertical size={14} />
+            </div>
+
+            {/* レア度プルダウン */}
+            <select
+                value={item.rarityId}
+                onChange={e => updateItem(item.id, { rarityId: e.target.value })}
+                className="text-[10px] font-bold px-1 py-0.5 rounded shrink-0 outline-none cursor-pointer"
+                style={{
+                    color: rarity?.color,
+                    background: rarity?.bgColor,
+                    border: `1px solid ${rarity?.glowColor || "transparent"}`,
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                    appearance: "none",
+                    paddingRight: "14px",
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(rarity?.color || "#888")}' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                    backgroundRepeat: "no-repeat",
+                    backgroundPosition: "right 2px center",
+                }}
+            >
+                {pool.rarities.sort((a, b) => a.sortOrder - b.sortOrder).map(r => (
+                    <option key={r.id} value={r.id} style={selectOptionStyle}>
+                        {r.name}
+                    </option>
+                ))}
+            </select>
+
+            {/* 品目名（編集可能） */}
+            {isEditing ? (
+                <input
+                    type="text"
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    onBlur={finishEditing}
+                    onKeyDown={e => e.key === "Enter" && finishEditing()}
+                    autoFocus
+                    className={`text-xs flex-1 px-1.5 py-0.5 rounded ${textPrimary} outline-none`}
+                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                />
+            ) : (
+                <span
+                    className={`text-xs flex-1 truncate cursor-pointer hover:underline ${textPrimary}`}
+                    onClick={() => startEditing(item)}
+                    title="クリックして編集"
+                >
+                    {item.name}
+                </span>
+            )}
+
+            {/* ウェイト */}
+            <input
+                type="number"
+                min={0.000001}
+                step="any"
+                value={item.weight}
+                onChange={e => updateItem(item.id, { weight: Math.max(0.000001, parseFloat(e.target.value) || 0.000001) })}
+                className={`w-14 text-[10px] px-1.5 py-0.5 rounded text-right ${textPrimary} outline-none`}
+                style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+            />
+            <span className={`text-[10px] w-12 text-right tabular-nums ${textMuted}`}>
+                {prob < 0.01 ? prob.toFixed(4) : prob.toFixed(2)}%
+            </span>
+
+            {/* 操作ボタン */}
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                {isEditing ? (
+                    <button
+                        onClick={finishEditing}
+                        className="p-1 rounded hover:bg-green-500/20 text-green-400 transition-colors"
+                    >
+                        <Check size={10} />
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => startEditing(item)}
+                        className={`p-1 rounded transition-colors ${isLightMode ? "hover:bg-gray-200 text-gray-400" : "hover:bg-white/10 text-white/30"}`}
+                    >
+                        <Pencil size={10} />
+                    </button>
+                )}
+                <button
+                    onClick={() => removeItem(item.id)}
+                    className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors"
+                >
+                    <Trash2 size={10} />
+                </button>
+            </div>
         </div>
     );
 }

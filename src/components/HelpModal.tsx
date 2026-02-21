@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, GitMerge, LayoutGrid, HelpCircle } from "lucide-react";
+import { X, Users, GitMerge, LayoutGrid, HelpCircle, Sparkles } from "lucide-react";
 import { useEffect } from "react";
 
 interface HelpModalProps {
@@ -69,6 +69,32 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                             "「Counter」を選べば左右両方で異なるカウンターを使用できます",
                             "「FlowChart」を選んで複雑な計算とカウンターを同時に使えます",
                             "現在の画面構成は自動で保存され、次回も同じ状態で開きます"
+                        ]
+                    }
+                ]
+            };
+        } else if (currentPath.includes("gatcha")) {
+            return {
+                title: "Gacha モード",
+                icon: <Sparkles className="text-purple-400" size={24} />,
+                description: "カスタマイズ可能なガチャシミュレーターです。配信やイベントでの抽選にお使いいただけます。",
+                sections: [
+                    {
+                        title: "基本操作",
+                        items: [
+                            "左サイドバーの『設定』タブで排出品目・レア度・天井を設定します",
+                            "品目名をクリックすると名前を編集、レア度バッジをクリックするとレア度を変更できます",
+                            "『プレイヤー』タブでプレイヤーを追加・選択してからPULLボタンを押します",
+                            "右上の歯車アイコンから背景色・配色・演出ON/OFFを設定できます",
+                        ]
+                    },
+                    {
+                        title: "結果と共有",
+                        items: [
+                            "結果画面ではソート（レア度/名前/個数）やフィルタで整理できます",
+                            "Xで共有ボタンからSNSに結果を投稿、コピーボタンでテキストをコピーできます",
+                            "『品目別』タブでは排出品ごとにどのプレイヤーが何個当てたかを確認できます",
+                            "全データはブラウザに自動保存されます（ページを閉じても消えません）",
                         ]
                     }
                 ]

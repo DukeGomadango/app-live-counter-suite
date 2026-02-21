@@ -17,6 +17,9 @@ interface GachaRollAnimationProps {
     pityCounter?: number;
     pityThreshold?: number;
     pityEnabled?: boolean;
+    accentColor?: string;
+    showTitle?: boolean;
+    enableAnimation?: boolean;
 }
 
 // パーティクル生成
@@ -32,6 +35,20 @@ function createParticles(count: number, color: string) {
     }));
 }
 
+// 紙吹雪パーティクル
+function createConfetti(count: number) {
+    const colors = ["#ef4444", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7", "#ec4899", "#f97316", "#06b6d4"];
+    return Array.from({ length: count }, (_, i) => ({
+        id: i,
+        x: Math.random() * 100,
+        size: Math.random() * 8 + 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        delay: Math.random() * 0.5,
+        duration: Math.random() * 2 + 2,
+        rotate: Math.random() * 720 - 360,
+    }));
+}
+
 export default function GachaRollAnimation({
     pool,
     results,
@@ -43,8 +60,11 @@ export default function GachaRollAnimation({
     pityCounter = 0,
     pityThreshold = 100,
     pityEnabled = false,
+    accentColor = "#a855f7",
+    showTitle = true,
+    enableAnimation = true,
 }: GachaRollAnimationProps) {
-    const [phase, setPhase] = useState<"idle" | "spinning" | "reveal-setup" | "revealing" | "done">("idle");
+    const [phase, setPhase] = useState<"idle" | "spinning" | "reveal-setup" | "revealing" | "summary" | "done">("idle");
     const [revealIndex, setRevealIndex] = useState(0);
     const [showConfirmedEffect, setShowConfirmedEffect] = useState(false);
     const [skipRequested, setSkipRequested] = useState(false);
@@ -63,40 +83,54 @@ export default function GachaRollAnimation({
         [highestRarity]
     );
 
+    const confetti = useMemo(() => createConfetti(40), []);
+
+    // 最高レア結果の集計
+    const highestRarityResults = useMemo(() => {
+        if (!results || !highestRarity) return [];
+        return results.filter(r => r.rarityId === highestRarity.id);
+    }, [results, highestRarity]);
+
     // フェーズ管理
     useEffect(() => {
         if (!isRolling || !results) return;
+
+        if (!enableAnimation) {
+            // 演出OFF: 即完了
+            setPhase("done");
+            return;
+        }
 
         setPhase("spinning");
         setRevealIndex(0);
         setSkipRequested(false);
         setShowConfirmedEffect(false);
 
-        const spinDuration = isMassRoll ? 1500 : 2500;
+        const spinDuration = isMassRoll ? 2000 : 3500;
 
         const spinTimer = setTimeout(() => {
             if (hasHighestRarity && !isMassRoll) {
                 setShowConfirmedEffect(true);
                 setTimeout(() => {
                     setPhase("reveal-setup");
-                    setTimeout(() => setPhase("revealing"), 300);
-                }, 1500);
+                    setTimeout(() => setPhase("revealing"), 400);
+                }, 2000);
             } else {
-                setPhase(isMassRoll ? "done" : "reveal-setup");
+                setPhase(isMassRoll ? "summary" : "reveal-setup");
                 if (!isMassRoll) {
-                    setTimeout(() => setPhase("revealing"), 300);
+                    setTimeout(() => setPhase("revealing"), 400);
                 }
             }
         }, spinDuration);
 
         return () => clearTimeout(spinTimer);
-    }, [isRolling, results, hasHighestRarity, isMassRoll]);
+    }, [isRolling, results, hasHighestRarity, isMassRoll, enableAnimation]);
 
     // カード1枚ずつ表示
     useEffect(() => {
         if (phase !== "revealing" || skipRequested) return;
         if (revealIndex >= sortedResults.length) {
-            setPhase("done");
+            setPhase("summary");
             return;
         }
         const delay = sortedResults.length > 50 ? 20 : sortedResults.length > 10 ? 50 : 150;
@@ -106,16 +140,25 @@ export default function GachaRollAnimation({
 
     // スキップ
     useEffect(() => {
-        if (skipRequested && phase !== "done") {
+        if (skipRequested && (phase === "revealing" || phase === "spinning")) {
             setRevealIndex(sortedResults.length);
-            setPhase("done");
+            setShowConfirmedEffect(false);
+            setPhase("summary");
         }
     }, [skipRequested, phase, sortedResults.length]);
 
-    // 完了通知
+    // summary → done
+    useEffect(() => {
+        if (phase === "summary") {
+            const timer = setTimeout(() => setPhase("done"), 2500);
+            return () => clearTimeout(timer);
+        }
+    }, [phase]);
+
+    // done → 通知
     useEffect(() => {
         if (phase === "done") {
-            const timer = setTimeout(onAnimationComplete, 500);
+            const timer = setTimeout(onAnimationComplete, 300);
             return () => clearTimeout(timer);
         }
     }, [phase, onAnimationComplete]);
@@ -143,17 +186,18 @@ export default function GachaRollAnimation({
                         className="w-40 h-40 sm:w-56 sm:h-56 rounded-3xl flex items-center justify-center relative overflow-hidden"
                         style={{
                             background: isLightMode
-                                ? "linear-gradient(135deg, rgba(168,85,247,0.15), rgba(59,130,246,0.15))"
-                                : "linear-gradient(135deg, rgba(168,85,247,0.2), rgba(59,130,246,0.15))",
-                            border: `2px solid ${isLightMode ? "rgba(168,85,247,0.3)" : "rgba(168,85,247,0.3)"}`,
+                                ? `linear-gradient(135deg, ${accentColor}22, ${accentColor}18)`
+                                : `linear-gradient(135deg, ${accentColor}33, ${accentColor}22)`,
+                            border: `2px solid ${accentColor}55`,
                             backdropFilter: "blur(16px)",
-                            boxShadow: "0 0 60px rgba(168,85,247,0.15), inset 0 0 30px rgba(168,85,247,0.05)",
+                            boxShadow: `0 0 60px ${accentColor}25, inset 0 0 30px ${accentColor}10`,
                         }}
                     >
-                        <Sparkles className="w-16 h-16 sm:w-24 sm:h-24 text-purple-400" strokeWidth={1.5} />
+                        <Sparkles className="w-16 h-16 sm:w-24 sm:h-24" style={{ color: accentColor }} strokeWidth={1.5} />
                         {/* 装飾リング */}
                         <motion.div
-                            className="absolute inset-2 rounded-2xl border border-purple-500/20"
+                            className="absolute inset-2 rounded-2xl"
+                            style={{ border: `1px solid ${accentColor}33` }}
                             animate={{ rotate: 360 }}
                             transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                         />
@@ -166,7 +210,7 @@ export default function GachaRollAnimation({
                 </motion.div>
 
                 {/* コンセプト名 */}
-                {pool.conceptName && (
+                {showTitle && pool.conceptName && (
                     <motion.h2
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
@@ -189,7 +233,7 @@ export default function GachaRollAnimation({
                             <motion.div
                                 className="h-full rounded-full"
                                 style={{
-                                    background: `linear-gradient(90deg, ${highestRarity?.color || "#a855f7"}, ${highestRarity?.glowColor || "rgba(168,85,247,0.5)"})`,
+                                    background: `linear-gradient(90deg, ${accentColor}, ${highestRarity?.color || accentColor})`,
                                 }}
                                 initial={{ width: 0 }}
                                 animate={{ width: `${Math.min((pityCounter / pityThreshold) * 100, 100)}%` }}
@@ -210,8 +254,8 @@ export default function GachaRollAnimation({
                     <div
                         className="px-10 sm:px-16 py-3 sm:py-4 rounded-2xl font-bold text-lg sm:text-xl tracking-widest text-white relative z-10 flex items-center gap-3"
                         style={{
-                            background: "linear-gradient(135deg, #a855f7, #6366f1, #3b82f6)",
-                            boxShadow: "0 0 30px rgba(168,85,247,0.4), 0 4px 15px rgba(0,0,0,0.3)",
+                            background: `linear-gradient(135deg, ${accentColor}, ${accentColor}cc, ${accentColor}99)`,
+                            boxShadow: `0 0 30px ${accentColor}66, 0 4px 15px rgba(0,0,0,0.3)`,
                         }}
                     >
                         <Zap size={20} />
@@ -220,7 +264,7 @@ export default function GachaRollAnimation({
                     <div
                         className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"
                         style={{
-                            background: "linear-gradient(135deg, #a855f7, #6366f1, #3b82f6)",
+                            background: `linear-gradient(135deg, ${accentColor}, ${accentColor}cc)`,
                             filter: "blur(15px)",
                             transform: "translateY(5px)",
                         }}
@@ -240,6 +284,19 @@ export default function GachaRollAnimation({
     if (phase === "spinning") {
         return (
             <div className="flex flex-col items-center justify-center h-full gap-4 p-4 relative overflow-hidden">
+                {/* 画面明滅エフェクト */}
+                <motion.div
+                    className="absolute inset-0 pointer-events-none"
+                    animate={{
+                        opacity: [0, 0.08, 0, 0.05, 0],
+                        background: [
+                            `radial-gradient(circle, ${accentColor}40 0%, transparent 70%)`,
+                            `radial-gradient(circle, ${accentColor}20 0%, transparent 70%)`,
+                        ],
+                    }}
+                    transition={{ duration: 0.8, repeat: Infinity }}
+                />
+
                 {/* 確定演出 */}
                 <AnimatePresence>
                     {showConfirmedEffect && (
@@ -254,14 +311,14 @@ export default function GachaRollAnimation({
                                 className="absolute inset-0"
                                 animate={{
                                     background: [
-                                        "radial-gradient(circle, rgba(239,68,68,0.3) 0%, transparent 70%)",
-                                        "radial-gradient(circle, rgba(245,158,11,0.3) 0%, transparent 70%)",
-                                        "radial-gradient(circle, rgba(34,197,94,0.3) 0%, transparent 70%)",
-                                        "radial-gradient(circle, rgba(59,130,246,0.3) 0%, transparent 70%)",
-                                        "radial-gradient(circle, rgba(168,85,247,0.3) 0%, transparent 70%)",
+                                        "radial-gradient(circle, rgba(239,68,68,0.4) 0%, transparent 60%)",
+                                        "radial-gradient(circle, rgba(245,158,11,0.4) 0%, transparent 60%)",
+                                        "radial-gradient(circle, rgba(34,197,94,0.4) 0%, transparent 60%)",
+                                        "radial-gradient(circle, rgba(59,130,246,0.4) 0%, transparent 60%)",
+                                        "radial-gradient(circle, rgba(168,85,247,0.4) 0%, transparent 60%)",
                                     ],
                                 }}
-                                transition={{ duration: 1.5, repeat: Infinity }}
+                                transition={{ duration: 1.2, repeat: Infinity }}
                             />
                             {/* パーティクル */}
                             {particles.map(p => (
@@ -274,12 +331,12 @@ export default function GachaRollAnimation({
                                         left: `${p.x}%`,
                                         top: `${p.y}%`,
                                         background: p.color,
-                                        boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
+                                        boxShadow: `0 0 ${p.size * 3}px ${p.color}`,
                                     }}
                                     animate={{
-                                        y: [0, -50, 0],
+                                        y: [0, -80, 0],
                                         opacity: [0, 1, 0],
-                                        scale: [0, 1.5, 0],
+                                        scale: [0, 2, 0],
                                     }}
                                     transition={{
                                         duration: p.duration,
@@ -291,12 +348,12 @@ export default function GachaRollAnimation({
                             {/* 確定テキスト */}
                             <motion.div
                                 initial={{ scale: 0, rotate: -10 }}
-                                animate={{ scale: [0, 1.3, 1], rotate: [-10, 5, 0] }}
-                                transition={{ duration: 0.5 }}
-                                className="text-3xl sm:text-5xl font-black z-30"
+                                animate={{ scale: [0, 1.5, 1.2], rotate: [-10, 5, 0] }}
+                                transition={{ duration: 0.6, ease: "easeOut" }}
+                                className="text-4xl sm:text-6xl font-black z-30"
                                 style={{
                                     color: highestRarity?.color || "#ef4444",
-                                    textShadow: `0 0 30px ${highestRarity?.glowColor || "rgba(239,68,68,0.6)"}, 0 0 60px ${highestRarity?.glowColor || "rgba(239,68,68,0.3)"}`,
+                                    textShadow: `0 0 40px ${highestRarity?.glowColor || "rgba(239,68,68,0.6)"}, 0 0 80px ${highestRarity?.glowColor || "rgba(239,68,68,0.3)"}, 0 0 120px ${highestRarity?.glowColor || "rgba(239,68,68,0.15)"}`,
                                 }}
                             >
                                 ★ CONFIRMED ★
@@ -313,13 +370,21 @@ export default function GachaRollAnimation({
                         border: `2px solid ${glassBorder}`,
                         backdropFilter: "blur(12px)",
                     }}
+                    animate={{
+                        boxShadow: [
+                            `0 0 20px ${accentColor}20`,
+                            `0 0 40px ${accentColor}40`,
+                            `0 0 20px ${accentColor}20`,
+                        ],
+                    }}
+                    transition={{ duration: 1, repeat: Infinity }}
                 >
                     <motion.div
                         className="absolute inset-0 flex flex-col items-center justify-center"
-                        animate={{ y: [0, -200, -400, -200, 0, -100, 0] }}
-                        transition={{ duration: isMassRoll ? 1.2 : 2, ease: "easeInOut" }}
+                        animate={{ y: [0, -200, -400, -200, 0, -300, -100, 0] }}
+                        transition={{ duration: isMassRoll ? 1.5 : 3, ease: "easeInOut" }}
                     >
-                        {pool.rarities.sort((a, b) => a.sortOrder - b.sortOrder).map((r, i) => (
+                        {pool.rarities.sort((a, b) => a.sortOrder - b.sortOrder).map((r) => (
                             <motion.div
                                 key={r.id}
                                 className="flex items-center justify-center w-full py-4"
@@ -338,7 +403,15 @@ export default function GachaRollAnimation({
                 >
                     抽選中...
                 </motion.p>
-            </div >
+
+                {/* スキップボタン */}
+                <button
+                    onClick={handleSkip}
+                    className={`absolute bottom-6 right-6 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${isLightMode ? "bg-white/50 text-gray-600 hover:bg-white/70" : "bg-white/10 text-white/50 hover:bg-white/20"}`}
+                >
+                    <SkipForward size={12} /> スキップ
+                </button>
+            </div>
         );
     }
 
@@ -362,21 +435,31 @@ export default function GachaRollAnimation({
                 <div className="flex-1 overflow-y-auto">
                     <div className="flex flex-wrap gap-1.5">
                         <AnimatePresence>
-                            {visibleResults.map((result, idx) => {
+                            {visibleResults.map((result) => {
                                 const rarity = getRarityForResult(result);
+                                const isHighRarity = rarity && rarity.sortOrder >= (pool.rarities.length - 1);
                                 return (
                                     <motion.div
-                                        key={`${result.itemId}-${idx}`}
-                                        initial={{ rotateY: 90, opacity: 0, scale: 0.8 }}
-                                        animate={{ rotateY: 0, opacity: 1, scale: 1 }}
-                                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                                        className="px-2 py-1 rounded-lg text-[11px] font-bold"
+                                        key={result.resultId}
+                                        initial={{ rotateY: 90, opacity: 0, scale: 0.5 }}
+                                        animate={{
+                                            rotateY: 0,
+                                            opacity: 1,
+                                            scale: isHighRarity ? [0.5, 1.2, 1] : 1,
+                                        }}
+                                        transition={{
+                                            type: "spring",
+                                            stiffness: 300,
+                                            damping: 25,
+                                            scale: isHighRarity ? { duration: 0.4 } : undefined,
+                                        }}
+                                        className="px-2 py-1 rounded-lg text-[11px] font-bold relative"
                                         style={{
                                             color: rarity?.color,
                                             background: rarity?.bgColor,
                                             border: `1px solid ${rarity?.glowColor}`,
-                                            boxShadow: rarity && rarity.sortOrder >= (pool.rarities.length - 1)
-                                                ? `0 0 10px ${rarity.glowColor}`
+                                            boxShadow: isHighRarity
+                                                ? `0 0 15px ${rarity?.glowColor}, 0 0 30px ${rarity?.glowColor}`
                                                 : "none",
                                         }}
                                     >
@@ -391,27 +474,137 @@ export default function GachaRollAnimation({
         );
     }
 
-    // DONE (大量結果表示)
-    if (phase === "done" && results) {
+    // SUMMARY (余韻フェーズ)
+    if (phase === "summary" && results) {
+        // レア度ごとの集計
+        const rarityCounts = new Map<string, number>();
+        for (const r of results) {
+            rarityCounts.set(r.rarityId, (rarityCounts.get(r.rarityId) || 0) + 1);
+        }
+
         return (
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="flex flex-col items-center justify-center h-full p-4 gap-3"
+                className="flex flex-col items-center justify-center h-full p-4 gap-4 relative overflow-hidden"
             >
+                {/* 紙吹雪 */}
+                {hasHighestRarity && confetti.map(c => (
+                    <motion.div
+                        key={c.id}
+                        className="absolute w-2 h-3 rounded-sm"
+                        style={{
+                            left: `${c.x}%`,
+                            top: -10,
+                            background: c.color,
+                            width: c.size * 0.6,
+                            height: c.size,
+                        }}
+                        animate={{
+                            y: [0, 800],
+                            x: [0, Math.random() * 100 - 50],
+                            rotate: [0, c.rotate],
+                            opacity: [1, 0],
+                        }}
+                        transition={{
+                            duration: c.duration,
+                            delay: c.delay,
+                            ease: "easeIn",
+                        }}
+                    />
+                ))}
+
                 <motion.div
                     initial={{ scale: 0, rotate: -10 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: "spring", stiffness: 200 }}
-                    className={`text-xl sm:text-2xl font-black ${isLightMode ? "text-gray-700" : "text-white/80"}`}
+                    className={`text-2xl sm:text-3xl font-black ${isLightMode ? "text-gray-700" : "text-white/90"}`}
                 >
-                    🎉 結果表示
+                    🎉 {results.length.toLocaleString()}連の結果
                 </motion.div>
-                <p className={`text-xs ${isLightMode ? "text-gray-500" : "text-white/50"}`}>
-                    {results.length.toLocaleString()}連の結果が出ました
-                </p>
+
+                {/* レア度別サマリ */}
+                <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.3 }}
+                    className="flex flex-wrap gap-2 justify-center"
+                >
+                    {pool.rarities
+                        .sort((a, b) => b.sortOrder - a.sortOrder)
+                        .map(r => {
+                            const count = rarityCounts.get(r.id) || 0;
+                            if (count === 0) return null;
+                            return (
+                                <motion.span
+                                    key={r.id}
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: 1 }}
+                                    transition={{ delay: 0.5 + r.sortOrder * 0.1, type: "spring" }}
+                                    className="px-3 py-1.5 rounded-xl text-sm font-bold"
+                                    style={{
+                                        color: r.color,
+                                        background: r.bgColor,
+                                        border: `1px solid ${r.glowColor}`,
+                                        boxShadow: r.sortOrder >= pool.rarities.length - 1 ? `0 0 15px ${r.glowColor}` : "none",
+                                    }}
+                                >
+                                    {r.name} ×{count}
+                                </motion.span>
+                            );
+                        })}
+                </motion.div>
+
+                {/* 最高レアスポットライト */}
+                {highestRarityResults.length > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.8 }}
+                        className="flex flex-col items-center gap-1 mt-2"
+                    >
+                        <span className={`text-xs font-bold uppercase tracking-wider`} style={{ color: highestRarity?.color }}>
+                            ★ {highestRarity?.name} ★
+                        </span>
+                        <div className="flex flex-wrap gap-1.5 justify-center">
+                            {highestRarityResults.map(r => (
+                                <motion.span
+                                    key={r.resultId}
+                                    initial={{ scale: 0 }}
+                                    animate={{ scale: [0, 1.3, 1] }}
+                                    transition={{ delay: 1 }}
+                                    className="px-2 py-1 rounded-lg text-xs font-bold"
+                                    style={{
+                                        color: highestRarity?.color,
+                                        background: highestRarity?.bgColor,
+                                        border: `1px solid ${highestRarity?.glowColor}`,
+                                        boxShadow: `0 0 20px ${highestRarity?.glowColor}`,
+                                    }}
+                                >
+                                    {r.itemName}
+                                </motion.span>
+                            ))}
+                        </div>
+                    </motion.div>
+                )}
+
+                {/* スキップ */}
+                <motion.button
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.5 }}
+                    onClick={handleSkip}
+                    className={`text-xs mt-2 ${isLightMode ? "text-gray-400" : "text-white/30"} hover:underline`}
+                >
+                    スキップ →
+                </motion.button>
             </motion.div>
         );
+    }
+
+    // DONE
+    if (phase === "done") {
+        return null;
     }
 
     return null;

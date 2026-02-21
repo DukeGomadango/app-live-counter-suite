@@ -28,16 +28,68 @@ export interface GachaPool {
 }
 
 export interface GachaResult {
+    resultId: string;  // 一意のID（キー重複防止）
     itemId: string;
     itemName: string;
     rarityId: string;
     timestamp: number;
 }
 
+// ========== 設定 ==========
+
+export interface GachaSettings {
+    bgColor: string;          // 背景配色
+    accentColor: string;      // ガチャUI配色
+    showTitle: boolean;       // コンセプト名表示
+    enableAnimation: boolean; // 演出ON/OFF
+}
+
+export const GACHA_BG_COLORS = [
+    { value: "default", label: "デフォルト", bg: "linear-gradient(135deg, #0a051e 0%, #1a0a3e 50%, #0a051e 100%)" },
+    { value: "midnight", label: "ミッドナイト", bg: "linear-gradient(135deg, #020617 0%, #0f172a 50%, #020617 100%)" },
+    { value: "ocean", label: "オーシャン", bg: "linear-gradient(135deg, #042f2e 0%, #0c4a6e 50%, #042f2e 100%)" },
+    { value: "forest", label: "フォレスト", bg: "linear-gradient(135deg, #052e16 0%, #14532d 50%, #052e16 100%)" },
+    { value: "wine", label: "ワイン", bg: "linear-gradient(135deg, #2d0a0a 0%, #4c0519 50%, #2d0a0a 100%)" },
+    { value: "sunset", label: "サンセット", bg: "linear-gradient(135deg, #1c0a05 0%, #431407 50%, #1c0a05 100%)" },
+    { value: "sakura", label: "サクラ", bg: "linear-gradient(135deg, #fdf2f8 0%, #fce7f3 50%, #fdf2f8 100%)" },
+    { value: "snow", label: "スノー", bg: "linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #f8fafc 100%)" },
+];
+
+export const GACHA_ACCENT_COLORS = [
+    { value: "#a855f7", label: "パープル" },
+    { value: "#8b5cf6", label: "バイオレット" },
+    { value: "#6366f1", label: "インディゴ" },
+    { value: "#3b82f6", label: "ブルー" },
+    { value: "#06b6d4", label: "シアン" },
+    { value: "#14b8a6", label: "ティール" },
+    { value: "#22c55e", label: "グリーン" },
+    { value: "#eab308", label: "イエロー" },
+    { value: "#f97316", label: "オレンジ" },
+    { value: "#ef4444", label: "レッド" },
+    { value: "#ec4899", label: "ピンク" },
+    { value: "#f43f5e", label: "ローズ" },
+];
+
+export function createDefaultSettings(): GachaSettings {
+    return {
+        bgColor: "default",
+        accentColor: "#a855f7",
+        showTitle: true,
+        enableAnimation: true,
+    };
+}
+
+export interface InventoryItem {
+    count: number;
+    name: string;
+    rarityId: string;
+}
+
 export interface Player {
     id: string;
     name: string;
     results: GachaResult[];
+    inventory?: Record<string, InventoryItem>;
     totalPulls: number;
     pityCounter: number; // 天井カウント (最高レア出たらリセット)
 }
@@ -137,9 +189,11 @@ export function performGachaPull(
     const pityRarityItems = pool.items.filter(item => item.rarityId === pool.pityGuaranteedRarityId);
 
     const results: GachaResult[] = [];
+    const inventory: Record<string, InventoryItem> = player.inventory ? { ...player.inventory } : {};
     let pityCounter = player.pityCounter;
     let pityTriggered = false;
     const now = Date.now();
+    const baseId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
 
     for (let i = 0; i < count; i++) {
         pityCounter++;
@@ -160,16 +214,28 @@ export function performGachaPull(
         }
 
         results.push({
+            resultId: `r-${now}-${baseId}-${i}`,
             itemId: picked.id,
             itemName: picked.name,
             rarityId: picked.rarityId,
-            timestamp: now + i, // 順序保持用
+            timestamp: now + i,
         });
+
+        // インベントリの更新
+        if (!inventory[picked.id]) {
+            inventory[picked.id] = { count: 0, name: picked.name, rarityId: picked.rarityId };
+        }
+        inventory[picked.id].count += 1;
     }
+
+    const MAX_RESULTS = 300;
+    const combinedResults = [...player.results, ...results];
+    const trimmedResults = combinedResults.slice(-MAX_RESULTS);
 
     const updatedPlayer: Player = {
         ...player,
-        results: [...player.results, ...results],
+        results: trimmedResults,
+        inventory,
         totalPulls: player.totalPulls + count,
         pityCounter,
     };
@@ -288,4 +354,34 @@ export function generateShareUrl(text: string): string {
 
 export function generateId(): string {
     return crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+// ========== レガシーデータ互換 ==========
+
+// resultIdがない古いGachaResultデータに対してresultIdを付与する
+export function ensureResultIds(results: GachaResult[]): GachaResult[] {
+    return results.map((r, i) => {
+        if (r.resultId) return r;
+        return { ...r, resultId: `legacy-${r.timestamp || Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}` };
+    });
+}
+
+// Playerのresultsに対してresultIdを付与し、inventoryを初期化する
+export function migratePlayerData(players: Player[]): Player[] {
+    return players.map(p => {
+        const inventory: Record<string, InventoryItem> = p.inventory ? { ...p.inventory } : {};
+        if (!p.inventory && p.results) {
+            for (const r of p.results) {
+                if (!inventory[r.itemId]) {
+                    inventory[r.itemId] = { count: 0, name: r.itemName, rarityId: r.rarityId };
+                }
+                inventory[r.itemId].count += 1;
+            }
+        }
+        return {
+            ...p,
+            results: ensureResultIds(p.results).slice(-300),
+            inventory
+        };
+    });
 }
