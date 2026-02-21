@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
 import JsonLd from "@/components/JsonLd";
+import HelpButton from "@/components/HelpButton";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -77,6 +78,7 @@ export default function RootLayout({
       >
         <JsonLd />
         {children}
+        <HelpButton />
       </body>
     </html>
   );
