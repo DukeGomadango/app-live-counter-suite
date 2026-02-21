@@ -110,6 +110,7 @@ export default function CounterPanel({
                 transition: isOverlay ? undefined : transition,
                 zIndex: isDragging ? 50 : 0,
                 opacity: isDragging ? 0.5 : 1,
+                touchAction: "none", // スマホのスクロールによるドラッグの中断を防止
             }}
             {...(isOverlay ? {} : attributes)}
             {...(isOverlay ? {} : listeners)}
