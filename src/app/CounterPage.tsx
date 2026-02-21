@@ -476,6 +476,7 @@ export default function Home({ isSplitMode = false }: { isSplitMode?: boolean } 
                     onDeleteItem={handleDeleteItem}
                     onEditItem={(id) => setEditingItemId(id)}
                     isLightMode={isLightMode}
+                    isOverlay
                   />
                 </div>
               ) : null}

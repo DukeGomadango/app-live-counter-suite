@@ -18,6 +18,7 @@ interface CounterPanelProps {
     onDeleteItem: (id: string) => void;
     onEditItem: (id: string) => void;
     isLightMode: boolean;
+    isOverlay?: boolean;
 }
 
 export default function CounterPanel({
@@ -32,8 +33,9 @@ export default function CounterPanel({
     onDeleteItem,
     onEditItem,
     isLightMode,
+    isOverlay = false,
 }: CounterPanelProps) {
-    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: isOverlay });
     const [isPop, setIsPop] = useState(false);
     const [popDirection, setPopDirection] = useState<"up" | "down">("up");
     const [isHovered, setIsHovered] = useState(false);
@@ -102,16 +104,16 @@ export default function CounterPanel({
 
     return (
         <div
-            ref={setNodeRef}
+            ref={isOverlay ? undefined : setNodeRef}
             style={{
-                transform: CSS.Translate.toString(transform),
-                transition,
+                transform: isOverlay ? undefined : CSS.Translate.toString(transform),
+                transition: isOverlay ? undefined : transition,
                 zIndex: isDragging ? 50 : 0,
                 opacity: isDragging ? 0.5 : 1,
             }}
-            {...attributes}
-            {...listeners}
-            className={`no-context-menu relative group aspect-square ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+            {...(isOverlay ? {} : attributes)}
+            {...(isOverlay ? {} : listeners)}
+            className={`no-context-menu relative group aspect-square ${isOverlay ? "cursor-grabbing" : isDragging ? "cursor-grabbing" : "cursor-grab"}`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
