@@ -331,7 +331,7 @@ export default function Home() {
             </div>
           )}
           <Reorder.Group
-            axis="x"
+            axis="y"
             values={items}
             onReorder={setItems}
             className="grid gap-2 sm:gap-2.5 w-full"
@@ -347,7 +347,7 @@ export default function Home() {
               <Reorder.Item
                 key={item.id}
                 value={item}
-                className="list-none"
+                className="list-none relative z-0"
                 whileDrag={{
                   scale: 1.05,
                   zIndex: 50,

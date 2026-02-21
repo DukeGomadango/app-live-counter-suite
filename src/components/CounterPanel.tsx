@@ -232,9 +232,12 @@ export default function CounterPanel({
                     {label}
                 </span>
 
-                {/* Target reached indicator */}
+                {/* Target reached indicator - Absolutely positioned to prevent layout shift */}
                 {targetReached && (
-                    <span className="text-[10px] font-bold tracking-wider" style={{ color }}>
+                    <span
+                        className="absolute top-1.5 left-2 z-20 text-[10px] font-bold tracking-wider"
+                        style={{ color }}
+                    >
                         ✓ 達成
                     </span>
                 )}
