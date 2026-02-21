@@ -70,8 +70,9 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
         if (intervalRef.current) clearInterval(intervalRef.current);
     }, []);
 
-    const startIncrement = useCallback(() => {
+    const startIncrement = useCallback((e: React.PointerEvent) => {
         data.onIncrement(id);
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
         timeoutRef.current = setTimeout(() => {
             intervalRef.current = setInterval(() => {
                 data.onIncrement(id);
@@ -79,8 +80,9 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
         }, 500);
     }, [id, data]);
 
-    const startDecrement = useCallback(() => {
+    const startDecrement = useCallback((e: React.PointerEvent) => {
         data.onDecrement(id);
+        (e.target as HTMLElement).setPointerCapture(e.pointerId);
         timeoutRef.current = setTimeout(() => {
             intervalRef.current = setInterval(() => {
                 data.onDecrement(id);
@@ -324,8 +326,9 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                 <div className="flex items-stretch gap-2">
                     <button
                         onPointerDown={startDecrement}
-                        onPointerUp={stopHolding}
+                        onPointerUp={(e) => { stopHolding(); (e.target as HTMLElement).releasePointerCapture(e.pointerId); }}
                         onPointerLeave={stopHolding}
+                        onPointerCancel={stopHolding}
                         onContextMenu={(e) => e.preventDefault()}
                         disabled={data.count <= 0}
                         className="w-10 flex flex-col items-center justify-center rounded-xl transition-all disabled:opacity-30 disabled:cursor-not-allowed select-none"
@@ -351,8 +354,9 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
 
                     <button
                         onPointerDown={startIncrement}
-                        onPointerUp={stopHolding}
+                        onPointerUp={(e) => { stopHolding(); (e.target as HTMLElement).releasePointerCapture(e.pointerId); }}
                         onPointerLeave={stopHolding}
+                        onPointerCancel={stopHolding}
                         onContextMenu={(e) => e.preventDefault()}
                         className="w-10 flex flex-col items-center justify-center rounded-xl transition-all active:scale-95 shadow-sm select-none touch-manipulation"
                         style={{
