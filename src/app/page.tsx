@@ -285,6 +285,7 @@ export default function Home() {
       style={{ "--accent-color": appSettings.accentColor } as React.CSSProperties}
     >
       <HamburgerMenu
+        viewMode="counter"
         isOpen={isMenuOpen}
         onToggle={() => setIsMenuOpen((prev) => !prev)}
         isLightMode={isLightMode}

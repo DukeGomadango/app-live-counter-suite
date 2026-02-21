@@ -19,46 +19,74 @@ import {
     Target,
     Settings,
 } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { TEMPLATES, type Template, type CounterItem } from "@/lib/templates";
 import { EMOJI_OPTIONS, COLOR_OPTIONS } from "@/lib/constants";
+import ModeSelector from "@/components/ModeSelector";
+import { Node, Edge } from "@xyflow/react";
+
+export type SavedFlowChart = {
+    id: string;
+    name: string;
+    nodes: Node[];
+    edges: Edge[];
+    updatedAt: number;
+};
 
 interface HamburgerMenuProps {
     isOpen: boolean;
     onToggle: () => void;
     isLightMode: boolean;
     onToggleTheme: () => void;
-    totalCount: number;
-    totalTarget: number;
     onReset: () => void;
-    items: CounterItem[];
-    onSelectTemplate: (template: Template) => void;
-    onAddItem: (label: string, emoji: string) => void;
-    onEditItem: (id: string, label: string, emoji: string, target: number, color: string) => void;
-    onDeleteItem: (id: string) => void;
-    onSetTarget: (id: string, target: number) => void;
-    onSetAllTargets: (target: number) => void;
-    currentTemplateId: string;
-    onSaveCustomTemplate: (name: string) => void;
-    customTemplates: Template[];
-    onDeleteCustomTemplate: (id: string) => void;
     onOpenSettings: () => void;
     accentColor: string;
+    viewMode: "counter" | "flowchart";
+
+    // Counter specific
+    totalCount?: number;
+    totalTarget?: number;
+    items?: CounterItem[];
+    onSelectTemplate?: (template: Template) => void;
+    onAddItem?: (label: string, emoji: string) => void;
+    onEditItem?: (id: string, label: string, emoji: string, target: number, color: string) => void;
+    onDeleteItem?: (id: string) => void;
+    onSetTarget?: (id: string, target: number) => void;
+    onSetAllTargets?: (target: number) => void;
+    currentTemplateId?: string;
+    onSaveCustomTemplate?: (name: string) => void;
+    customTemplates?: Template[];
+    onDeleteCustomTemplate?: (id: string) => void;
+
+    // FlowChart specific
+    savedCharts?: SavedFlowChart[];
+    onSaveChart?: (name: string) => void;
+    onLoadChart?: (chart: SavedFlowChart) => void;
+    onDeleteChart?: (id: string) => void;
+    globalTarget?: number;
+    onSetGlobalTarget?: (t: number) => void;
+    flowchartNodes?: Node[];
+    onSetNodeTarget?: (id: string, target: number) => void;
 }
 
 // EMOJI_OPTIONS and COLOR_OPTIONS are now imported from @/lib/constants
 
-type TabId = "templates" | "items" | "targets" | "custom";
+type TabId = "templates" | "items" | "targets" | "custom" | "actions" | "save_load";
 
 export default function HamburgerMenu({
     isOpen,
     onToggle,
     isLightMode,
     onToggleTheme,
-    totalCount,
-    totalTarget,
     onReset,
-    items,
+    onOpenSettings,
+    accentColor,
+    viewMode,
+
+    // Counter
+    totalCount = 0,
+    totalTarget = 0,
+    items = [],
     onSelectTemplate,
     onAddItem,
     onEditItem,
@@ -67,12 +95,20 @@ export default function HamburgerMenu({
     onSetAllTargets,
     currentTemplateId,
     onSaveCustomTemplate,
-    customTemplates,
+    customTemplates = [],
     onDeleteCustomTemplate,
-    onOpenSettings,
-    accentColor,
+
+    // FlowChart
+    savedCharts = [],
+    onSaveChart,
+    onLoadChart,
+    onDeleteChart,
+    globalTarget = 0,
+    onSetGlobalTarget,
+    flowchartNodes = [],
+    onSetNodeTarget,
 }: HamburgerMenuProps) {
-    const [activeTab, setActiveTab] = useState<TabId>("templates");
+    const [activeTab, setActiveTab] = useState<TabId>(viewMode === "counter" ? "templates" : "actions");
     const [confirmReset, setConfirmReset] = useState(false);
     const [newLabel, setNewLabel] = useState("");
     const [newEmoji, setNewEmoji] = useState("⭐");
@@ -86,6 +122,10 @@ export default function HamburgerMenu({
     const [newTemplateName, setNewTemplateName] = useState("");
     const [bulkTarget, setBulkTarget] = useState("");
 
+    // FlowChart specific local state
+    const [isSaving, setIsSaving] = useState(false);
+    const [newChartName, setNewChartName] = useState("");
+
     const handleReset = useCallback(() => {
         if (confirmReset) {
             onReset();
@@ -97,7 +137,7 @@ export default function HamburgerMenu({
     }, [confirmReset, onReset]);
 
     const handleAddItem = useCallback(() => {
-        if (newLabel.trim()) {
+        if (newLabel.trim() && onAddItem) {
             onAddItem(newLabel.trim(), newEmoji);
             setNewLabel("");
             setNewEmoji("⭐");
@@ -113,7 +153,7 @@ export default function HamburgerMenu({
     };
 
     const handleSaveEdit = () => {
-        if (editingId && editLabel.trim()) {
+        if (editingId && editLabel.trim() && onEditItem) {
             onEditItem(editingId, editLabel.trim(), editEmoji, Math.max(0, editTarget), editColor);
             setEditingId(null);
             setShowEditEmojiPicker(false);
@@ -122,7 +162,7 @@ export default function HamburgerMenu({
 
     const handleSaveTemplate = () => {
         if (newTemplateName.trim()) {
-            onSaveCustomTemplate(newTemplateName.trim());
+            onSaveCustomTemplate?.(newTemplateName.trim());
             setNewTemplateName("");
         }
     };
@@ -130,8 +170,17 @@ export default function HamburgerMenu({
     const handleBulkTarget = () => {
         const val = parseInt(bulkTarget, 10);
         if (!isNaN(val) && val >= 0) {
-            onSetAllTargets(val);
+            onSetAllTargets?.(val);
             setBulkTarget("");
+        }
+    };
+
+    const handleSaveSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newChartName.trim() && onSaveChart) {
+            onSaveChart(newChartName.trim());
+            setNewChartName("");
+            setIsSaving(false);
         }
     };
 
@@ -147,11 +196,26 @@ export default function HamburgerMenu({
     const inputBg = isLightMode ? "bg-black/5" : "bg-white/5";
     const inputBorder = isLightMode ? "border-black/10" : "border-white/10";
 
-    const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = [
+    // FlowChart nodes grouped by operation for targets
+    const groupedFlowchartNodes = useMemo(() => {
+        if (viewMode !== "flowchart" || !flowchartNodes) return {} as Record<string, Node[]>;
+        const counterNodes = flowchartNodes.filter(n => n.type === "counter" && !n.data.isGhost);
+        const grouped: Record<string, Node[]> = { "+": [], "-": [], "*": [], "/": [] };
+        counterNodes.forEach(n => {
+            const op = String(n.data.operation);
+            if (grouped[op]) grouped[op].push(n);
+        });
+        return grouped;
+    }, [viewMode, flowchartNodes]);
+
+    const tabs: { id: TabId; label: string; icon: React.ReactNode }[] = viewMode === "counter" ? [
         { id: "templates", label: "テンプレ", icon: <LayoutGrid size={13} /> },
         { id: "items", label: "項目", icon: <Pencil size={13} /> },
         { id: "targets", label: "目標", icon: <Target size={13} /> },
         { id: "custom", label: "保存", icon: <FolderOpen size={13} /> },
+    ] : [
+        { id: "actions", label: "操作", icon: <LayoutGrid size={13} /> },
+        { id: "save_load", label: "保存/読込", icon: <FolderOpen size={13} /> },
     ];
 
     return (
@@ -177,12 +241,7 @@ export default function HamburgerMenu({
                             <Menu size={18} className={isLightMode ? "text-gray-700" : "text-white/80"} />
                         )}
                     </button>
-                    <div className="flex items-center gap-2">
-                        <Users size={15} className="text-purple-400" />
-                        <span className={`text-sm font-semibold uppercase tracking-wider ${textSecondary}`}>
-                            Counter
-                        </span>
-                    </div>
+                    <ModeSelector isLightMode={isLightMode} />
                 </div>
 
                 {/* Center: Total count with target */}
@@ -312,7 +371,7 @@ export default function HamburgerMenu({
                                                     <button
                                                         key={template.id}
                                                         onClick={() => {
-                                                            onSelectTemplate(template);
+                                                            onSelectTemplate?.(template);
                                                             onToggle();
                                                         }}
                                                         className={`text-left p-3 rounded-xl transition-all duration-200 border ${currentTemplateId === template.id
@@ -339,7 +398,7 @@ export default function HamburgerMenu({
 
                                             <button
                                                 onClick={() => {
-                                                    onSelectTemplate({ id: `custom-new-${Date.now()}`, name: "新規カウンター", description: "一から自由に作成", items: [] });
+                                                    onSelectTemplate?.({ id: `custom-new-${Date.now()}`, name: "新規カウンター", description: "一から自由に作成", items: [] });
                                                     setActiveTab("items");
                                                     onToggle();
                                                 }}
@@ -528,7 +587,7 @@ export default function HamburgerMenu({
                                                                     <Pencil size={10} className={textMuted} />
                                                                 </button>
                                                                 <button
-                                                                    onClick={() => onDeleteItem(item.id)}
+                                                                    onClick={() => onDeleteItem?.(item.id)}
                                                                     className="w-6 h-6 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center hover:bg-red-500/20 transition-colors"
                                                                 >
                                                                     <Trash2 size={10} className="text-red-400/60" />
@@ -606,7 +665,7 @@ export default function HamburgerMenu({
                                                                 value={item.target || ""}
                                                                 onChange={(e) => {
                                                                     const val = parseInt(e.target.value, 10);
-                                                                    onSetTarget(item.id, isNaN(val) ? 0 : val);
+                                                                    onSetTarget?.(item.id, isNaN(val) ? 0 : val);
                                                                 }}
                                                                 placeholder="0"
                                                                 className={`w-12 ${inputBg} border ${inputBorder} rounded-lg px-1.5 py-0.5 text-xs text-center ${textPrimary} outline-none focus:border-purple-500/40 tabular-nums`}
@@ -667,7 +726,7 @@ export default function HamburgerMenu({
                                                             className={`flex items-center justify-between p-3 rounded-xl ${bgSubtle} border ${borderSubtle}`}
                                                         >
                                                             <button
-                                                                onClick={() => { onSelectTemplate(t); onToggle(); }}
+                                                                onClick={() => { onSelectTemplate?.(t); onToggle(); }}
                                                                 className="flex-1 text-left"
                                                             >
                                                                 <div className={`text-sm font-medium ${textPrimary}`}>{t.name}</div>
@@ -676,7 +735,7 @@ export default function HamburgerMenu({
                                                                 </div>
                                                             </button>
                                                             <button
-                                                                onClick={() => onDeleteCustomTemplate(t.id)}
+                                                                onClick={() => onDeleteCustomTemplate?.(t.id)}
                                                                 className="ml-2 w-7 h-7 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center hover:bg-red-500/20 transition-colors"
                                                             >
                                                                 <Trash2 size={12} className="text-red-400/60" />
@@ -685,6 +744,208 @@ export default function HamburgerMenu({
                                                     ))}
                                                 </div>
                                             )}
+                                        </motion.div>
+                                    )}
+
+                                    {activeTab === "actions" && viewMode === "flowchart" && (
+                                        <motion.div
+                                            key="actions"
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="space-y-4"
+                                        >
+                                            <div className="space-y-2">
+                                                <h3 className={`text-xs font-bold ${textMuted} uppercase tracking-wider pl-1`}>
+                                                    キャンバス操作
+                                                </h3>
+
+                                                <button
+                                                    onClick={handleReset}
+                                                    className={`w-full flex items-center justify-between p-3 rounded-xl transition-all border ${confirmReset
+                                                        ? "bg-red-500/10 border-red-500/30 text-red-500 hover:bg-red-500/20"
+                                                        : `border-transparent ${bgSubtle} ${bgSubtleHover} ${textPrimary}`
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${confirmReset ? "bg-red-500/20" : isLightMode ? "bg-black/5" : "bg-white/5"}`}>
+                                                            <RotateCcw size={16} />
+                                                        </div>
+                                                        <span className="text-sm font-medium">
+                                                            {confirmReset ? "本当にリセットしますか？" : "キャンバスを全消去"}
+                                                        </span>
+                                                    </div>
+                                                    <span className={`text-[10px] font-semibold px-2 py-1 rounded-md ${confirmReset ? "bg-red-500 text-white" : isLightMode ? "bg-black/10 text-gray-500" : "bg-white/10 text-white/50"}`}>
+                                                        Reset
+                                                    </span>
+                                                </button>
+                                            </div>
+
+                                            <div className="space-y-2 pt-2">
+                                                <h3 className={`text-xs font-bold ${textMuted} uppercase tracking-wider pl-1`}>
+                                                    総合計の目標
+                                                </h3>
+                                                <div className="flex gap-2">
+                                                    <div className="relative flex-1">
+                                                        <div className={`absolute left-3 top-1/2 -translate-y-1/2 ${textSecondary}`}>
+                                                            <Target size={16} />
+                                                        </div>
+                                                        <input
+                                                            type="number"
+                                                            value={globalTarget || ""}
+                                                            onChange={(e) => onSetGlobalTarget?.(Math.max(0, Number(e.target.value)))}
+                                                            placeholder="目標値を入力 (例: 1000)"
+                                                            className={`w-full ${inputBg} border ${inputBorder} rounded-xl pl-10 pr-3 py-2.5 text-sm ${textPrimary} outline-none focus:border-purple-500/50 transition-colors bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10 font-bold`}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <p className={`text-[10px] ${textMuted} pl-1`}>
+                                                    総合計ノードに進捗バーが表示されます。
+                                                </p>
+                                            </div>
+
+                                            {/* Node-specific targets grouped by operation */}
+                                            {viewMode === "flowchart" && Object.entries(groupedFlowchartNodes).some(([_, nodes]) => nodes.length > 0) && (
+                                                <div className="space-y-4 pt-4 border-t" style={{ borderColor: borderSubtle }}>
+                                                    <h3 className={`text-xs font-bold ${textMuted} uppercase tracking-wider pl-1`}>
+                                                        個別ノードの目標設定
+                                                    </h3>
+                                                    {["+", "-", "*", "/"].map((op) => {
+                                                        const nodes = groupedFlowchartNodes[op];
+                                                        if (!nodes || nodes.length === 0) return null;
+
+                                                        return (
+                                                            <div key={op} className="space-y-2">
+                                                                <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block backdrop-blur-md border ${isLightMode ? "bg-black/5 border-black/10 text-gray-600" : "bg-white/5 border-white/10 text-white/50"}`}>
+                                                                    演算子: <span className="text-purple-500 font-mono text-xs">{op}</span>
+                                                                </div>
+                                                                <div className="space-y-1.5 pl-1">
+                                                                    {nodes.map((node) => {
+                                                                        const data = node.data as any;
+                                                                        return (
+                                                                            <div key={node.id} className={`flex items-center gap-2 p-2 rounded-xl ${bgSubtle} border ${borderSubtle}`}>
+                                                                                <span className="text-base w-6 text-center">{data.emoji}</span>
+                                                                                <span className={`flex-1 text-sm ${isLightMode ? "text-gray-700" : "text-white/80"} truncate`}>
+                                                                                    {data.label}
+                                                                                </span>
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <span className="text-xs font-mono tabular-nums" style={{ color: data.color }}>
+                                                                                        {data.value}
+                                                                                    </span>
+                                                                                    <span className={`text-xs ${textMuted}`}>/</span>
+                                                                                    <input
+                                                                                        type="number"
+                                                                                        min="0"
+                                                                                        value={data.target || ""}
+                                                                                        onChange={(e) => onSetNodeTarget?.(node.id, Math.max(0, Number(e.target.value)))}
+                                                                                        placeholder="目標"
+                                                                                        className={`w-16 text-right ${inputBg} border ${inputBorder} rounded-lg px-2 py-1 text-xs ${textPrimary} outline-none focus:border-purple-500/40 transition-colors tabular-nums focus:w-20`}
+                                                                                    />
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            )}
+                                        </motion.div>
+                                    )}
+
+                                    {activeTab === "save_load" && viewMode === "flowchart" && (
+                                        <motion.div
+                                            key="save_load"
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            exit={{ opacity: 0, y: -10 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="space-y-6 pb-2"
+                                        >
+                                            {/* Save Section */}
+                                            <div className="space-y-3">
+                                                <h3 className={`text-xs font-bold ${textMuted} uppercase tracking-wider pl-1`}>
+                                                    現在の状態を保存
+                                                </h3>
+
+                                                {!isSaving ? (
+                                                    <button
+                                                        onClick={() => setIsSaving(true)}
+                                                        className={`w-full flex items-center justify-center gap-2 p-3 rounded-xl transition-all border border-dashed text-purple-600 bg-purple-500/10 hover:bg-purple-500/20`}
+                                                        style={{ color: accentColor, borderColor: accentColor }}
+                                                    >
+                                                        <Save size={16} />
+                                                        <span className="text-sm font-semibold">新しく保存する</span>
+                                                    </button>
+                                                ) : (
+                                                    <form onSubmit={handleSaveSubmit} className="flex gap-2">
+                                                        <input
+                                                            type="text"
+                                                            value={newChartName}
+                                                            onChange={(e) => setNewChartName(e.target.value)}
+                                                            placeholder="名前を入力..."
+                                                            className={`flex-1 ${inputBg} border ${inputBorder} rounded-xl px-3 py-2 text-sm ${textPrimary} outline-none focus:border-purple-500/50 transition-colors bg-black/5 dark:bg-white/5 border-black/10 dark:border-white/10`}
+                                                            autoFocus
+                                                        />
+                                                        <button
+                                                            type="submit"
+                                                            className="w-10 h-10 flex items-center justify-center rounded-xl bg-purple-500 text-white shrink-0 shadow-md hover:brightness-110 transition-all"
+                                                            style={{ backgroundColor: accentColor }}
+                                                        >
+                                                            <Check size={16} />
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setIsSaving(false)}
+                                                            className={`w-10 h-10 flex items-center justify-center rounded-xl ${bgSubtle} ${textSecondary} ${bgSubtleHover} transition-colors border border-black/10 dark:border-white/10`}
+                                                        >
+                                                            <X size={16} />
+                                                        </button>
+                                                    </form>
+                                                )}
+                                            </div>
+
+                                            {/* Load Section */}
+                                            <div className="space-y-3">
+                                                <h3 className={`text-xs font-bold ${textMuted} uppercase tracking-wider pl-1`}>
+                                                    保存したデータ
+                                                </h3>
+
+                                                {savedCharts.length === 0 ? (
+                                                    <div className={`p-4 rounded-xl text-center text-sm ${textMuted} bg-black/5 dark:bg-white/5 border border-black/5 dark:border-white/5 border-dashed`}>
+                                                        保存されたチャートはありません
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-2">
+                                                        {savedCharts.map((chart) => (
+                                                            <div
+                                                                key={chart.id}
+                                                                className={`group flex items-center justify-between p-3 rounded-xl border ${bgSubtleHover} transition-colors border-black/5 dark:border-white/5`}
+                                                            >
+                                                                <div className="flex-1 min-w-0 pr-2 cursor-pointer" onClick={() => { onLoadChart?.(chart); onToggle(); }}>
+                                                                    <div className={`text-sm font-bold ${textPrimary} truncate flex items-center gap-2`}>
+                                                                        <FolderOpen size={14} className={textSecondary} />
+                                                                        {chart.name}
+                                                                    </div>
+                                                                    <div className={`text-[10px] mt-1 ${textMuted} flex gap-2`}>
+                                                                        <span>ノード: {chart.nodes.length}</span>
+                                                                        <span>更新: {new Date(chart.updatedAt).toLocaleDateString()}</span>
+                                                                    </div>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => onDeleteChart?.(chart.id)}
+                                                                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-red-500/50 hover:bg-red-500/10 hover:text-red-500 transition-all opacity-100 sm:opacity-0 group-hover:opacity-100`}
+                                                                    title="削除"
+                                                                >
+                                                                    <Trash2 size={14} />
+                                                                </button>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
