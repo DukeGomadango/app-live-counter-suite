@@ -32,6 +32,7 @@ export default function SplitPage() {
     const [rightModule, setRightModule] = useLocalStorage<ModuleType>("split-pane-right", "flowchart");
 
     useEffect(() => {
+        // eslint-disable-next-line
         setIsMounted(true);
     }, []);
 

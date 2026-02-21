@@ -36,7 +36,8 @@ function getOperationColor(op: OperationType, isLightMode: boolean) {
 }
 
 function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
-    const isLightMode = data?.isLightMode || false;
+    const isLightMode = data.isLightMode || false;
+    const isAchieved = data.target !== undefined && data.target > 0 && data.count >= data.target;
     const accentColor = data.color || "#a855f7";
 
     // Read settings directly for scaling
@@ -126,18 +127,22 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
 
     return (
         <div
-            className="rounded-2xl border w-[220px] transition-all relative group"
+            className={`rounded-2xl border w-[220px] transition-all relative group ${isAchieved ? "ring-2 ring-green-500/30 dark:ring-green-400/30" : ""
+                }`}
             style={{
                 transform: `scale(${scale})`,
                 transformOrigin: "center center",
                 background: panelBg,
                 backdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
                 WebkitBackdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
-                borderColor: panelBorder,
-                boxShadow: panelShadow,
+                borderColor: isAchieved ? (isLightMode ? "#22c55e" : "#4ade80") : panelBorder,
+                boxShadow: isAchieved
+                    ? (isLightMode ? `0 0 20px rgba(34,197,94,0.3)` : `0 0 20px rgba(74,222,128,0.2)`)
+                    : panelShadow,
             }}
         >
             {/* --- Handles --- */}
+
 
             {/* Top Handles */}
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1 z-10">
@@ -370,8 +375,10 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
 
                 {data.target !== undefined && data.target > 0 && (
                     <div className="mt-3 w-full space-y-1">
-                        <div className="flex justify-between items-end text-[10px] font-bold" style={{ color: isLightMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }}>
-                            <span>進捗</span>
+                        <div className="flex justify-between items-end text-[10px] font-bold" style={{
+                            color: isAchieved ? (isLightMode ? "#16a34a" : "#4ade80") : (isLightMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)")
+                        }}>
+                            <span>{isAchieved ? "✨ CLEAR!" : "進捗"}</span>
                             <span>{data.target.toLocaleString()}</span>
                         </div>
                         <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)" }}>
@@ -379,8 +386,10 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                                 className="h-full transition-all duration-500 ease-out relative"
                                 style={{
                                     width: `${Math.min(100, (data.count / data.target) * 100)}%`,
-                                    background: `linear-gradient(90deg, ${accentColor}80, ${accentColor})`,
-                                    boxShadow: `0 0 10px ${accentColor}`,
+                                    background: isAchieved
+                                        ? `linear-gradient(90deg, #4ade80, #22c55e)`
+                                        : `linear-gradient(90deg, ${accentColor}80, ${accentColor})`,
+                                    boxShadow: isAchieved ? `0 0 10px rgba(74,222,128,0.8)` : `0 0 10px ${accentColor}`,
                                 }}
                             >
                                 <div className="absolute inset-0 opacity-50 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.3)_50%,transparent_75%,transparent_100%)] bg-[length:10px_10px] animate-[shine_1s_linear_infinite]" />

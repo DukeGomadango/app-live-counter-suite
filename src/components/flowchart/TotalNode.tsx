@@ -16,8 +16,9 @@ export type TotalNodeData = {
 
 export type TotalNodeType = Node<TotalNodeData, "total">;
 
-function TotalNode({ id, data }: NodeProps<TotalNodeType>) {
-    const isLightMode = data?.isLightMode || false;
+function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
+    const isLightMode = data.isLightMode || false;
+    const isTargetAchieved = data.target !== undefined && data.target > 0 && data.value >= data.target;
     const [isEditing, setIsEditing] = useState(false);
     const [editValue, setEditValue] = useState(data.label || "総合計 (TOTAL SCORE)");
 
@@ -50,27 +51,24 @@ function TotalNode({ id, data }: NodeProps<TotalNodeType>) {
     };
     const scale = scaleMap[appSettings.cardSize] || 1.0;
 
-    const panelBg = isLightMode
-        ? "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(240,245,255,0.5) 100%)"
-        : "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)";
-    const panelBorder = isLightMode
-        ? "rgba(255,255,255,0.8)"
-        : "rgba(255,255,255,0.1)";
-    const panelShadow = isLightMode
-        ? `0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8), 0 20px 50px -10px rgba(168,85,247,0.15)`
-        : `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05), 0 20px 60px -10px rgba(168,85,247,0.3), 0 0 40px rgba(168,85,247,0.2)`;
-
     return (
         <div
-            className="rounded-3xl border p-8 shadow-2xl min-w-[280px] min-h-[160px] flex gap-4 flex-col items-center justify-center relative transition-colors duration-200"
+            className={`relative group flex flex-col items-center justify-center p-8 rounded-3xl border-4 transition-all duration-300 min-w-[300px] ${isTargetAchieved ? "ring-4 ring-yellow-500/50 dark:ring-yellow-400/50 animate-[pulse_2s_ease-in-out_infinite]" : ""
+                } ${selected
+                    ? "scale-[1.02] z-10"
+                    : "hover:scale-[1.01]"
+                }`}
             style={{
                 transform: `scale(${scale})`,
                 transformOrigin: "center center",
-                background: panelBg,
-                backdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
-                WebkitBackdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
-                borderColor: panelBorder,
-                boxShadow: panelShadow,
+                background: isLightMode ? "rgba(255,255,255,0.95)" : "rgba(10,10,10,0.95)",
+                borderColor: isTargetAchieved ? (isLightMode ? "#eab308" : "#facc15") : (selected ? "#a855f7" : isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"),
+                boxShadow: isTargetAchieved
+                    ? (isLightMode ? "0 0 40px rgba(234,179,8,0.4), inset 0 0 20px rgba(234,179,8,0.1)" : "0 0 40px rgba(250,204,21,0.3), inset 0 0 20px rgba(250,204,21,0.2)")
+                    : (selected
+                        ? (isLightMode ? "0 0 30px rgba(0,0,0,0.15)" : "0 0 30px rgba(255,255,255,0.1)")
+                        : (isLightMode ? "0 10px 30px rgba(0,0,0,0.1)" : "0 10px 30px rgba(0,0,0,0.5)")),
+                backdropFilter: "blur(16px)",
             }}
         >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 flex z-10">
@@ -125,19 +123,25 @@ function TotalNode({ id, data }: NodeProps<TotalNodeType>) {
 
                 {data.target !== undefined && data.target > 0 && (
                     <div className="w-full mt-4 space-y-2">
-                        <div className="flex justify-between items-end text-xs font-bold" style={{ color: isLightMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)" }}>
-                            <span>進捗</span>
+                        <div className="flex justify-between items-end text-xs font-bold" style={{
+                            color: isTargetAchieved ? (isLightMode ? "#d97706" : "#facc15") : (isLightMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.5)")
+                        }}>
+                            <span>{isTargetAchieved ? "✨ 総合目標達成！ ✨" : "進捗"}</span>
                             <span>{data.target.toLocaleString()}</span>
                         </div>
                         <div className="w-full h-3 rounded-full overflow-hidden" style={{ background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)" }}>
                             <div
-                                className="h-full rounded-full transition-all duration-500 ease-out"
+                                className="h-full rounded-full transition-all duration-500 ease-out relative"
                                 style={{
                                     width: `${Math.min(100, (data.value / data.target) * 100)}%`,
-                                    background: "#a855f7",
-                                    boxShadow: "0 0 10px rgba(168,85,247,0.5)"
+                                    background: isTargetAchieved ? "linear-gradient(90deg, #f59e0b, #fcd34d, #f59e0b)" : "#a855f7",
+                                    boxShadow: isTargetAchieved ? "0 0 15px rgba(250,204,21,0.8)" : "0 0 10px rgba(168,85,247,0.5)"
                                 }}
-                            />
+                            >
+                                {isTargetAchieved && (
+                                    <div className="absolute inset-0 opacity-50 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.5)_50%,transparent_75%,transparent_100%)] bg-[length:15px_15px] animate-[shine_1s_linear_infinite]" />
+                                )}
+                            </div>
                         </div>
                     </div>
                 )}
