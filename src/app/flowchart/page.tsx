@@ -75,17 +75,14 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
         {
             id: "sample-1",
             name: "サンプル 1 (基本的な使い方)",
+            notes: "数珠つなぎ（直列）で繋ぐと掛け算が適用されます",
             nodes: [
-                { id: "total", type: "total", position: { x: 504, y: 336 }, data: { value: 0, isLightMode: false }, selected: false },
-                { id: "template-add-1", type: "counter", position: { x: 96, y: 120 }, data: { label: "加算", emoji: "➕", color: "#a855f7", operation: "+", value: 1, count: 0, isLightMode: false }, selected: false },
-                { id: "template-add-2", type: "counter", position: { x: 96, y: 264 }, data: { label: "加算", emoji: "✨", color: "#3b82f6", operation: "+", value: 2, count: 0, isLightMode: false }, selected: false },
-                { id: "template-sub-5", type: "counter", position: { x: 96, y: 408 }, data: { label: "減算", emoji: "➖", color: "#ef4444", operation: "-", value: 5, count: 0, isLightMode: false }, selected: false },
-                { id: "template-mul-2", type: "counter", position: { x: 96, y: 552 }, data: { label: "乗算", emoji: "⭐", color: "#eab308", operation: "*", value: 2, count: 0, isLightMode: false }, selected: false }
+                { id: "total", type: "total", position: { x: 740, y: 336 }, data: { value: 0, isLightMode: false }, selected: false },
+                { id: "template-add-1", type: "counter", position: { x: 80, y: 336 }, data: { label: "加算", emoji: "➕", color: "#a855f7", operation: "+", value: 1, count: 0, isLightMode: false }, selected: false },
+                { id: "template-mul-2", type: "counter", position: { x: 400, y: 336 }, data: { label: "乗算", emoji: "⭐", color: "#eab308", operation: "*", value: 2, count: 0, isLightMode: false }, selected: false }
             ],
             edges: [
-                { id: "e-add1-total", source: "template-add-1", sourceHandle: "source-right", target: "total", targetHandle: "target-left" },
-                { id: "e-add2-total", source: "template-add-2", sourceHandle: "source-right", target: "total", targetHandle: "target-left" },
-                { id: "e-sub5-total", source: "template-sub-5", sourceHandle: "source-right", target: "total", targetHandle: "target-left" },
+                { id: "e-add1-mul2", source: "template-add-1", sourceHandle: "source-right", target: "template-mul-2", targetHandle: "target-left" },
                 { id: "e-mul2-total", source: "template-mul-2", sourceHandle: "source-right", target: "total", targetHandle: "target-left" }
             ],
             updatedAt: 1740000000000

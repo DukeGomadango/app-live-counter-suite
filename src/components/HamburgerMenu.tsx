@@ -28,6 +28,7 @@ import { Node, Edge } from "@xyflow/react";
 export type SavedFlowChart = {
     id: string;
     name: string;
+    notes?: string;
     nodes: Node[];
     edges: Edge[];
     updatedAt: number;
