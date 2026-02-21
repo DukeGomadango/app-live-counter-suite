@@ -7,6 +7,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragStartEvent,
@@ -78,9 +79,17 @@ export default function Home({ isSplitMode = false }: { isSplitMode?: boolean } 
 
   // dnd-kit sensors and state
   const sensors = useSensors(
+    // PC用のマウスドラッグ設定（5pxの遊びを持たせる）
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 5, // カーソルを5px動かすまでドラッグを開始しない（クリックとの干渉防止）
+        distance: 5,
+      },
+    }),
+    // スマホ用の長押し設定（250px長押しでドラッグ開始、タップ時は5pxまでブレ許容）
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {
