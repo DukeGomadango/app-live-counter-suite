@@ -25,7 +25,20 @@ export default function JsonLd() {
             "テンプレート機能",
             "ローカルストレージへの自動保存",
             "モバイル対応のUI"
-        ]
+        ],
+        "screenshot": [
+            {
+                "@type": "ImageObject",
+                "url": "https://app-live-counter.vercel.app/screenshot-light.png",
+                "caption": "ライトモードのカウンター画面"
+            },
+            {
+                "@type": "ImageObject",
+                "url": "https://app-live-counter.vercel.app/screenshot-dark.png",
+                "caption": "ダークモードのカウンター画面"
+            }
+        ],
+        "softwareVersion": "1.0.0"
     };
 
     return (

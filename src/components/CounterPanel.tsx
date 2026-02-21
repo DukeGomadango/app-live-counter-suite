@@ -199,6 +199,7 @@ export default function CounterPanel({
                             >
                                 <button
                                     onClick={handleIncrement}
+                                    aria-label={`${label}を1増やす`}
                                     className={`w-5 h-4 sm:w-6 sm:h-5 rounded flex items-center justify-center cursor-pointer transition-colors ${arrowColor}`}
                                     style={{ background: arrowBg }}
                                     onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
@@ -209,6 +210,7 @@ export default function CounterPanel({
                                 {count > 0 && (
                                     <button
                                         onClick={handleDecrement}
+                                        aria-label={`${label}を1減らす`}
                                         className={`w-5 h-4 sm:w-6 sm:h-5 rounded flex items-center justify-center cursor-pointer transition-colors ${arrowColor}`}
                                         style={{ background: arrowBg }}
                                         onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
@@ -249,6 +251,7 @@ export default function CounterPanel({
                         >
                             <button
                                 onClick={(e) => { e.stopPropagation(); onEditItem(id); }}
+                                aria-label={`${label}を編集`}
                                 className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
                                 style={{
                                     background: isLightMode ? "rgba(139,92,246,0.1)" : "rgba(139,92,246,0.15)",
@@ -261,6 +264,7 @@ export default function CounterPanel({
                             </button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); onDeleteItem(id); }}
+                                aria-label={`${label}を削除`}
                                 className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
                                 style={{
                                     background: isLightMode ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.15)",

@@ -95,7 +95,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                 >
                     <div className="flex justify-between items-center mb-4">
                         <h3 className={`text-base font-bold ${isLightMode ? "text-gray-800" : "text-white"}`}>項目を追加</h3>
-                        <button onClick={handleCancel} className={`w-8 h-8 rounded-full flex items-center justify-center ${isLightMode ? "bg-black/5 hover:bg-black/10" : "bg-white/10 hover:bg-white/20"} transition-colors`}>
+                        <button onClick={handleCancel} aria-label="モーダルを閉じる" className={`w-8 h-8 rounded-full flex items-center justify-center ${isLightMode ? "bg-black/5 hover:bg-black/10" : "bg-white/10 hover:bg-white/20"} transition-colors`}>
                             <X size={16} className={isLightMode ? "text-gray-600" : "text-white/70"} />
                         </button>
                     </div>
@@ -150,6 +150,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                 <div className="flex items-center justify-center p-2 w-full h-full">
                     <button
                         onClick={() => setIsModalOpen(true)}
+                        aria-label="項目を追加するモーダルを開く"
                         className="w-full h-full rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors duration-200"
                         style={{
                             border: `2px dashed ${hoverBorderColor}`,
@@ -248,6 +249,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
             >
                 <button
                     onClick={() => { setIsEditing(true); onExpand(); }}
+                    aria-label="新しい項目の入力を開始"
                     className="w-10 h-10 rounded-full flex items-center justify-center cursor-pointer transition-all duration-300 hover:scale-110"
                     style={{
                         border: `2px dashed ${borderColor}`,
@@ -275,6 +277,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
         >
             <button
                 onClick={() => { setIsEditing(true); onExpand(); }}
+                aria-label="新しい項目の入力を開始"
                 className="w-full h-full rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors duration-200"
                 style={{
                     border: `2px dashed ${hoverBorderColor}`,
