@@ -3,6 +3,8 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp, ChevronDown, Trash2, Pencil } from "lucide-react";
 import { useState, useCallback } from "react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface CounterPanelProps {
     id: string;
@@ -31,6 +33,7 @@ export default function CounterPanel({
     onEditItem,
     isLightMode,
 }: CounterPanelProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
     const [isPop, setIsPop] = useState(false);
     const [popDirection, setPopDirection] = useState<"up" | "down">("up");
     const [isHovered, setIsHovered] = useState(false);
@@ -99,7 +102,16 @@ export default function CounterPanel({
 
     return (
         <div
-            className="no-context-menu relative group aspect-square"
+            ref={setNodeRef}
+            style={{
+                transform: CSS.Translate.toString(transform),
+                transition,
+                zIndex: isDragging ? 50 : 0,
+                opacity: isDragging ? 0.5 : 1,
+            }}
+            {...attributes}
+            {...listeners}
+            className={`no-context-menu relative group aspect-square ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >

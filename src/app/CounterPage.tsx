@@ -1,7 +1,25 @@
 "use client";
 
 import { useCallback, useMemo, useEffect, useState } from "react";
-import { motion, Reorder, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragStartEvent,
+  DragEndEvent,
+  DragOverlay,
+  defaultDropAnimationSideEffects,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+} from "@dnd-kit/sortable";
 import CounterPanel from "@/components/CounterPanel";
 import AddItemPanel from "@/components/AddItemPanel";
 import HamburgerMenu from "@/components/HamburgerMenu";
@@ -57,6 +75,43 @@ export default function Home({ isSplitMode = false }: { isSplitMode?: boolean } 
     }
   );
   const windowWidth = useWindowWidth();
+
+  // dnd-kit sensors and state
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // カーソルを5px動かすまでドラッグを開始しない（クリックとの干渉防止）
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setItems((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+
+    setActiveId(null);
+  };
+
+  const activeItem = useMemo(
+    () => items.find((item) => item.id === activeId),
+    [activeId, items]
+  );
+
 
   // Migrate old data without target field
   useEffect(() => {
@@ -359,57 +414,73 @@ export default function Home({ isSplitMode = false }: { isSplitMode?: boolean } 
               </h1>
             </motion.div>
           )}
-          <Reorder.Group
-            axis="y"
-            values={items}
-            onReorder={setItems}
-            className="grid gap-2 sm:gap-2.5 w-full"
-            style={{
-              gridTemplateColumns: `repeat(${effectiveCols}, 1fr)`,
-              maxWidth: `${gridMaxWidth}px`,
-              listStyle: "none",
-              padding: 0,
-              margin: 0,
-            }}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
           >
-            {items.map((item) => (
-              <Reorder.Item
-                key={item.id}
-                value={item}
-                className="list-none relative z-0"
-                whileDrag={{
-                  scale: 1.05,
-                  zIndex: 50,
-                  boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-                  cursor: "grabbing",
+            <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
+              <div
+                className="grid gap-2 sm:gap-2.5 w-full"
+                style={{
+                  gridTemplateColumns: `repeat(${effectiveCols}, 1fr)`,
+                  maxWidth: `${gridMaxWidth}px`,
+                  padding: 0,
+                  margin: 0,
                 }}
-                transition={{ type: "spring", stiffness: 400, damping: 30 }}
               >
-                <CounterPanel
-                  id={item.id}
-                  label={item.label}
-                  emoji={item.emoji}
-                  color={item.color}
-                  count={item.count}
-                  target={item.target}
-                  onIncrement={handleIncrement}
-                  onDecrement={handleDecrement}
-                  onDeleteItem={handleDeleteItem}
-                  onEditItem={(id) => setEditingItemId(id)}
-                  isLightMode={isLightMode}
-                />
-              </Reorder.Item>
-            ))}
-            {/* Add Panel Slot */}
-            <div className={`list-none rounded-2xl ${addPanelExpanded ? "z-50 shadow-2xl" : ""}`} style={{ touchAction: "none" }}>
-              <AddItemPanel
-                isLightMode={isLightMode}
-                onAddItem={handleAddItem}
-                onExpand={() => setAddPanelExpanded(true)}
-                onCollapse={() => setAddPanelExpanded(false)}
-              />
-            </div>
-          </Reorder.Group>
+                {items.map((item) => (
+                  <CounterPanel
+                    key={item.id}
+                    id={item.id}
+                    label={item.label}
+                    emoji={item.emoji}
+                    color={item.color}
+                    count={item.count}
+                    target={item.target}
+                    onIncrement={handleIncrement}
+                    onDecrement={handleDecrement}
+                    onDeleteItem={handleDeleteItem}
+                    onEditItem={(id) => setEditingItemId(id)}
+                    isLightMode={isLightMode}
+                  />
+                ))}
+                {/* Add Panel Slot */}
+                <div className={`list-none rounded-2xl ${addPanelExpanded ? "z-50 shadow-2xl" : ""}`} style={{ touchAction: "none" }}>
+                  <AddItemPanel
+                    isLightMode={isLightMode}
+                    onAddItem={handleAddItem}
+                    onExpand={() => setAddPanelExpanded(true)}
+                    onCollapse={() => setAddPanelExpanded(false)}
+                  />
+                </div>
+              </div>
+            </SortableContext>
+            <DragOverlay
+              dropAnimation={{
+                sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.5" } } }),
+              }}
+            >
+              {activeItem ? (
+                <div style={{ transform: "scale(1.05)", cursor: "grabbing" }}>
+                  <CounterPanel
+                    id={activeItem.id}
+                    label={activeItem.label}
+                    emoji={activeItem.emoji}
+                    color={activeItem.color}
+                    count={activeItem.count}
+                    target={activeItem.target}
+                    onIncrement={handleIncrement}
+                    onDecrement={handleDecrement}
+                    onDeleteItem={handleDeleteItem}
+                    onEditItem={(id) => setEditingItemId(id)}
+                    isLightMode={isLightMode}
+                  />
+                </div>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
         </div>
       </main>
 
