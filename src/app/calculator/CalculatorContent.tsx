@@ -46,8 +46,8 @@ function evalExpr(expr: string): number | null {
         return NaN;
     };
 
-    let vals: number[] = [tokens[0] as number];
-    let ops: string[] = [];
+    const vals: number[] = [tokens[0] as number];
+    const ops: string[] = [];
     for (let j = 1; j < tokens.length; j += 2) {
         const op = tokens[j] as string;
         const next = tokens[j + 1];
