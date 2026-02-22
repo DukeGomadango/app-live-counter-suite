@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserPlus, Trash2, RotateCcw, ChevronRight, User, Link } from "lucide-react";
+import { UserPlus, Trash2, RotateCcw, ChevronRight, User, Link, FileArchive } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
+import { getPlayerItemAttachments, buildPlayerAttachmentsZip } from "@/lib/gachaZip";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -43,6 +44,34 @@ export default function GachaPlayerManager({
     const [playerToReset, setPlayerToReset] = useState<string | null>(null);
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
     const [linkCollectionPlayerId, setLinkCollectionPlayerId] = useState<string | null>(null);
+    const [zipLoadingPlayerId, setZipLoadingPlayerId] = useState<string | null>(null);
+
+    const handleDownloadZip = useCallback(
+        async (player: Player) => {
+            const attachments = getPlayerItemAttachments(player, pool);
+            if (attachments.length === 0) {
+                alert("このプレイヤーの獲得品目に画像URL・音声URLが設定されているものはありません。");
+                return;
+            }
+            setZipLoadingPlayerId(player.id);
+            try {
+                const blob = await buildPlayerAttachmentsZip(player, pool);
+                const name = player.name.replace(/[/\\:*?"<>|]/g, "_").trim().slice(0, 100) || "player";
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${name}_景品.zip`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                console.error(e);
+                alert("ZIPの作成に失敗しました。");
+            } finally {
+                setZipLoadingPlayerId(null);
+            }
+        },
+        [pool]
+    );
 
     const allSelected = players.length > 0 && selectedPlayerIds.size === players.length;
     const someSelected = selectedPlayerIds.size > 0;
@@ -193,6 +222,14 @@ export default function GachaPlayerManager({
                                             title="リンク集"
                                         >
                                             <Link size={12} />
+                                        </button>
+                                        <button
+                                            onClick={e => { e.stopPropagation(); handleDownloadZip(player); }}
+                                            disabled={zipLoadingPlayerId === player.id}
+                                            className={`p-1 rounded text-[10px] transition-all disabled:opacity-50 ${isLightMode ? "text-amber-700 hover:bg-amber-50" : "text-amber-400 hover:bg-amber-500/10"}`}
+                                            title="景品をZIPでダウンロード"
+                                        >
+                                            <FileArchive size={12} />
                                         </button>
                                         {onViewPlayerHistory && (
                                             <button

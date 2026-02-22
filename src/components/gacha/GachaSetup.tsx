@@ -13,7 +13,8 @@ import {
     Palette,
     Pencil,
     Check,
-    Link as LinkIcon,
+    Image,
+    Music,
     } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, calculateProbabilities, getRarityProbabilities } from "@/lib/gacha";
@@ -548,37 +549,41 @@ interface SortableItemProps {
 
 const MIN_WEIGHT = 0.000001;
 
-/** 品目ごとのリンクURL入力（アイコンクリックで入力表示） */
-function LinkInputCell({
-    link,
+/** 品目ごとのURL入力（アイコンクリックで入力表示）。画像URL・音声URL用 */
+function UrlInputCell({
+    value,
     onUpdate,
+    title,
+    icon: Icon,
     textPrimary,
     inputBg,
     inputBorder,
     onCellClick,
 }: {
-    link?: string;
+    value?: string;
     onUpdate: (url: string) => void;
+    title: string;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
     textPrimary: string;
     inputBg: string;
     inputBorder: string;
     onCellClick: (e: React.MouseEvent) => void;
 }) {
     const [editing, setEditing] = useState(false);
-    const [value, setValue] = useState(link ?? "");
+    const [inputValue, setInputValue] = useState(value ?? "");
 
     if (editing) {
         return (
             <div className="shrink-0 flex items-center gap-0.5" onClick={onCellClick}>
                 <input
                     type="url"
-                    value={value}
-                    onChange={e => setValue(e.target.value)}
+                    value={inputValue}
+                    onChange={e => setInputValue(e.target.value)}
                     onBlur={() => {
-                        onUpdate(value.trim());
+                        onUpdate(inputValue.trim());
                         setEditing(false);
                     }}
-                    onKeyDown={e => e.key === "Enter" && (onUpdate(value.trim()), setEditing(false))}
+                    onKeyDown={e => e.key === "Enter" && (onUpdate(inputValue.trim()), setEditing(false))}
                     placeholder="https://..."
                     autoFocus
                     className={`w-24 min-w-0 text-[10px] px-1.5 py-0.5 rounded ${textPrimary} outline-none placeholder:opacity-60`}
@@ -590,11 +595,11 @@ function LinkInputCell({
     return (
         <button
             type="button"
-            onClick={e => { e.stopPropagation(); setEditing(true); setValue(link ?? ""); }}
-            className={`shrink-0 p-1 rounded transition-colors ${link ? "text-purple-400" : "text-gray-500/60 hover:text-purple-400"}`}
-            title={link || "リンクを設定"}
+            onClick={e => { e.stopPropagation(); setEditing(true); setInputValue(value ?? ""); }}
+            className={`shrink-0 p-1 rounded transition-colors ${value ? "text-purple-400" : "text-gray-500/60 hover:text-purple-400"}`}
+            title={value || title}
         >
-            <LinkIcon size={12} />
+            <Icon size={12} />
         </button>
     );
 }
@@ -711,10 +716,22 @@ function SortableItem({
                 {prob < 0.01 ? prob.toFixed(4) : prob.toFixed(2)}%
             </span>
 
-            {/* リンク（任意） */}
-            <LinkInputCell
-                link={item.link}
-                onUpdate={(url) => updateItem(item.id, { link: url || undefined })}
+            {/* 画像URL・音声URL（任意） */}
+            <UrlInputCell
+                value={item.imageUrl}
+                onUpdate={(url) => updateItem(item.id, { imageUrl: url || undefined })}
+                title="画像URL"
+                icon={Image}
+                textPrimary={textPrimary}
+                inputBg={inputBg}
+                inputBorder={inputBorder}
+                onCellClick={e => e.stopPropagation()}
+            />
+            <UrlInputCell
+                value={item.audioUrl}
+                onUpdate={(url) => updateItem(item.id, { audioUrl: url || undefined })}
+                title="音声URL"
+                icon={Music}
                 textPrimary={textPrimary}
                 inputBg={inputBg}
                 inputBorder={inputBorder}

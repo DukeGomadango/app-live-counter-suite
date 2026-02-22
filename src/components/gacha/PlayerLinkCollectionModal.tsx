@@ -5,9 +5,9 @@ import { X, ExternalLink, Copy, Check } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 
-/** 1行分のコピー用テキスト（項目名 + リンク） */
-function formatLine(item: { name: string; link: string }): string {
-    return `${item.name}\t${item.link}`;
+/** 1行分のコピー用テキスト（項目名 + 種別 + リンク） */
+function formatLine(item: { name: string; link: string; kindLabel: string }): string {
+    return `${item.name} (${item.kindLabel})\t${item.link}`;
 }
 
 interface PlayerLinkCollectionModalProps {
@@ -29,7 +29,7 @@ export default function PlayerLinkCollectionModal({
     const textSecondary = isLightMode ? "text-gray-700" : "text-white/75";
     const textMuted = isLightMode ? "text-gray-600" : "text-white/65";
 
-    // このガチャの履歴から獲得品目を集計し、リンクが設定されているものだけ抽出
+    // このガチャの履歴から獲得品目を集計し、imageUrl/audioUrl が設定されているものを抽出（1URL＝1行）
     const linkItems = useMemo(() => {
         const runs = (player.runHistory ?? []).filter((r) => r.poolId === pool.id);
         const itemIds = new Set<string>();
@@ -40,24 +40,27 @@ export default function PlayerLinkCollectionModal({
                 if (!itemInfo.has(it.itemId)) itemInfo.set(it.itemId, { name: it.itemName, rarityId: it.rarityId });
             }
         }
-        const result: { itemId: string; name: string; rarityId: string; link: string }[] = [];
+        type Row = { itemId: string; name: string; rarityId: string; link: string; kindLabel: string };
+        const result: Row[] = [];
         for (const itemId of itemIds) {
             const poolItem = pool.items.find((i) => i.id === itemId);
-            if (poolItem?.link) {
-                const info = itemInfo.get(itemId);
-                result.push({
-                    itemId,
-                    name: info?.name ?? poolItem.name,
-                    rarityId: info?.rarityId ?? poolItem.rarityId,
-                    link: poolItem.link,
-                });
+            if (!poolItem) continue;
+            const info = itemInfo.get(itemId);
+            const name = info?.name ?? poolItem.name;
+            const rarityId = info?.rarityId ?? poolItem.rarityId;
+            if (poolItem.imageUrl?.trim()) {
+                result.push({ itemId: `${itemId}-image`, name, rarityId, link: poolItem.imageUrl.trim(), kindLabel: "画像" });
+            }
+            if (poolItem.audioUrl?.trim()) {
+                result.push({ itemId: `${itemId}-audio`, name, rarityId, link: poolItem.audioUrl.trim(), kindLabel: "音声" });
             }
         }
         const sortOrderMap = new Map(pool.rarities.map((r) => [r.id, r.sortOrder]));
         result.sort(
             (a, b) =>
                 (sortOrderMap.get(a.rarityId) ?? 0) - (sortOrderMap.get(b.rarityId) ?? 0) ||
-                a.name.localeCompare(b.name)
+                a.name.localeCompare(b.name) ||
+                a.kindLabel.localeCompare(b.kindLabel)
         );
         return result;
     }, [player.runHistory, pool.id, pool.items, pool.rarities]);
@@ -81,7 +84,7 @@ export default function PlayerLinkCollectionModal({
         }
     }, [copyAllText, linkItems.length]);
 
-    const handleCopyRow = useCallback(async (item: { itemId: string; name: string; link: string }) => {
+    const handleCopyRow = useCallback(async (item: { itemId: string; name: string; link: string; kindLabel: string }) => {
         try {
             await navigator.clipboard.writeText(formatLine(item));
             setCopiedId(item.itemId);
@@ -132,7 +135,7 @@ export default function PlayerLinkCollectionModal({
                 <div className="flex-1 min-h-0 overflow-y-auto p-4">
                     {linkItems.length === 0 ? (
                         <p className={`text-xs ${textMuted}`}>
-                            このガチャで獲得した品目にリンクが設定されているものはありません。設定タブで品目にURLを設定してください。
+                            このガチャで獲得した品目に画像URL・音声URLが設定されているものはありません。設定タブで品目にURLを設定してください。
                         </p>
                     ) : (
                         <ul className="flex flex-col gap-2">
@@ -157,7 +160,7 @@ export default function PlayerLinkCollectionModal({
                                                 rel="noopener noreferrer"
                                                 className={`flex-1 text-sm truncate min-w-0 ${textPrimary} hover:underline`}
                                             >
-                                                {item.name}
+                                                {item.name} <span className="text-[10px] opacity-80">({item.kindLabel})</span>
                                             </a>
                                             <div className="flex items-center gap-1 shrink-0">
                                                 <button

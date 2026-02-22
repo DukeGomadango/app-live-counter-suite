@@ -17,8 +17,10 @@ export interface GachaItem {
     name: string;
     rarityId: string;
     weight: number; // 排出重み（確率 = weight / 全weightの合計）
-    /** 排出物ごとのリンクURL（プレイヤーリンク集で使用） */
-    link?: string;
+    /** 品目に紐づける画像のURL（プレイヤーリンク集・ZIPで使用） */
+    imageUrl?: string;
+    /** 品目に紐づける音声のURL（プレイヤーリンク集・ZIPで使用） */
+    audioUrl?: string;
 }
 
 export interface GachaPool {
@@ -168,6 +170,27 @@ const _sampleRarities3: RarityTier[] = [
     { id: "r", name: "R", color: "#3b82f6", glowColor: "rgba(59,130,246,0.3)", bgColor: "rgba(59,130,246,0.1)", sortOrder: 2 },
     { id: "sr", name: "SR", color: "#a855f7", glowColor: "rgba(168,85,247,0.4)", bgColor: "rgba(168,85,247,0.15)", sortOrder: 3 },
 ];
+
+/** 旧形式の link を imageUrl に移す（後方互換）。読み込み後に1回だけ呼ぶ */
+export function migratePoolItemsForLink(pool: GachaPool): GachaPool {
+    type LegacyItem = GachaItem & { link?: string };
+    let changed = false;
+    const items = pool.items.map((item): GachaItem => {
+        const it = item as LegacyItem;
+        if (it.link != null && it.link !== "" && !it.imageUrl) {
+            changed = true;
+            const { link: _link, ...rest } = it;
+            return { ...rest, imageUrl: _link };
+        }
+        if ("link" in it && it.link !== undefined) {
+            changed = true;
+            const { link: _link, ...rest } = it;
+            return rest;
+        }
+        return it;
+    });
+    return changed ? { ...pool, items } : pool;
+}
 
 /** プリセット・サンプル読み込み用に pool をクローンし、id を新規発行する */
 export function clonePoolWithNewIds(pool: GachaPool): GachaPool {

@@ -13,7 +13,7 @@ import GachaPlayerManager from "@/components/gacha/GachaPlayerManager";
 import PlayerHistoryCard from "@/components/gacha/PlayerHistoryCard";
 import GachaSwitchDropdown from "@/components/gacha/GachaSwitchDropdown";
 import type { GachaPool, Player, GachaResult, GachaSettings, GachaPoolPreset } from "@/lib/gacha";
-import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_BG_COLORS, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds, clonePoolWithNewIds, getSampleTemplates } from "@/lib/gacha";
+import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_BG_COLORS, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds, clonePoolWithNewIds, getSampleTemplates, migratePoolItemsForLink } from "@/lib/gacha";
 import { DEFAULT_EXTRA_HASHTAG, DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 
@@ -293,6 +293,11 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
     const [playerHistoryViewId, setPlayerHistoryViewId] = useState<string | null>(null);
     const [sidebarWidthPx, setSidebarWidthPx] = useLocalStorage<number>("gacha-sidebar-width", 320);
 
+    // 旧品目形式（link）を imageUrl に移すマイグレーション（初回のみ）
+    useEffect(() => {
+        setPool(prev => migratePoolItemsForLink(prev));
+    }, [setPool]);
+
     useEffect(() => {
         if (mobileTab === "setup") setShowScrollHint(true);
     }, [mobileTab]);
@@ -510,11 +515,11 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
         if (value.startsWith("sample:")) {
             const id = value.slice(7);
             const t = sampleTemplates.find(s => s.id === id);
-            if (t) setPool(clonePoolWithNewIds(t.pool));
+            if (t) setPool(migratePoolItemsForLink(clonePoolWithNewIds(t.pool)));
         } else if (value.startsWith("preset:")) {
             const id = value.slice(7);
             const pre = presets.find(p => p.id === id);
-            if (pre) setPool(clonePoolWithNewIds(pre.pool));
+            if (pre) setPool(migratePoolItemsForLink(clonePoolWithNewIds(pre.pool)));
         }
     }, [presets, sampleTemplates, setPool]);
 
