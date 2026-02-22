@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Network, Sparkles, ChevronDown, LayoutGrid, CircleDot } from "lucide-react";
+import { Users, Network, Sparkles, ChevronDown, LayoutGrid, CircleDot, Calculator } from "lucide-react";
 
 interface ModeSelectorProps {
     isLightMode?: boolean;
@@ -55,6 +55,15 @@ const MODES = [
         color: "text-amber-400",
         activeBg: "bg-amber-500/20",
         activeBorder: "border-amber-500/40",
+    },
+    {
+        id: "calculator",
+        path: "/calculator",
+        label: "Calculator",
+        icon: Calculator,
+        color: "text-cyan-400",
+        activeBg: "bg-cyan-500/20",
+        activeBorder: "border-cyan-500/40",
     },
 ];
 

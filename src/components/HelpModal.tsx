@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, GitMerge, LayoutGrid, HelpCircle, Sparkles } from "lucide-react";
+import { X, Users, GitMerge, LayoutGrid, HelpCircle, Sparkles, Calculator } from "lucide-react";
 import { useEffect } from "react";
 
 interface HelpModalProps {
@@ -69,6 +69,42 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                             "「Counter」を選べば左右両方で異なるカウンターを使用できます",
                             "「FlowChart」を選んで複雑な計算とカウンターを同時に使えます",
                             "現在の画面構成は自動で保存され、次回も同じ状態で開きます"
+                        ]
+                    }
+                ]
+            };
+        } else if (currentPath.includes("calculator")) {
+            return {
+                title: "Calculator モード",
+                icon: <Calculator className="text-cyan-400" size={24} />,
+                description: "四則演算・分数・確率の簡易計算ができる電卓です。配信やメモ用のサポートツールとしてお使いいただけます。",
+                sections: [
+                    {
+                        title: "四則",
+                        items: [
+                            "数字と演算子（＋、−、×、÷）を押して式を入力し、「＝」で計算します。×と÷は＋と−より先に計算されます",
+                            "「⌫」で末尾1文字を消し、「AC」で表示をすべてクリア（0にリセット）します",
+                            "小数にも対応しています",
+                        ]
+                    },
+                    {
+                        title: "分数",
+                        items: [
+                            "2つの分数（分子・分母）と演算子を選ぶと、結果を既約分数で表示します",
+                        ]
+                    },
+                    {
+                        title: "確率",
+                        items: [
+                            "P(A)・P(B)を0〜1で入力すると、独立とみなして P(A and B)・P(A or B) を表示します",
+                            "n と k を入力すると、組み合わせ nCk を計算します",
+                        ]
+                    },
+                    {
+                        title: "設定",
+                        items: [
+                            "右上の歯車アイコンから、アクセント色や背景オーブの濃さを変更できます",
+                            "太陽・月アイコンでライト/ダークを切り替えられます",
                         ]
                     }
                 ]
