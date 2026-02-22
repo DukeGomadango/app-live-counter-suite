@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Zap, SkipForward } from "lucide-react";
 import type { GachaPool, GachaResult, RarityTier } from "@/lib/gacha";
-import { sortResultsForPresentation, containsHighestRarity } from "@/lib/gacha";
+import { sortResultsForPresentation, containsHighestRarity, organizeResults } from "@/lib/gacha";
 
 interface GachaRollAnimationProps {
     pool: GachaPool;
@@ -67,14 +67,24 @@ export default function GachaRollAnimation({
     enableAnimation = true,
     activePlayerName = "ゲスト",
 }: GachaRollAnimationProps) {
-    const [phase, setPhase] = useState<"idle" | "build-up" | "spinning" | "reveal-setup" | "revealing" | "summary" | "done">("idle");
+    const BULK_THRESHOLD = 100;
+    const [phase, setPhase] = useState<"idle" | "build-up" | "spinning" | "reveal-setup" | "revealing" | "bulk-reveal" | "summary" | "done">("idle");
     const [revealIndex, setRevealIndex] = useState(0);
     const [showConfirmedEffect, setShowConfirmedEffect] = useState(false);
     const [skipRequested, setSkipRequested] = useState(false);
+    const [bulkDisplayCounts, setBulkDisplayCounts] = useState<number[]>([]);
+    /** 大量連で「何行目まで表示したか」。レア度低い順に1行ずつ間を空けて表示する */
+    const [bulkRevealVisibleUpTo, setBulkRevealVisibleUpTo] = useState(-1);
+    const completedRef = useRef(false);
 
     const hasHighestRarity = results ? containsHighestRarity(results, pool.rarities) : false;
     const sortedResults = results ? sortResultsForPresentation(results, pool.rarities) : [];
     const isMassRoll = (results?.length || 0) > 20;
+    const isBulkRoll = (results?.length || 0) >= BULK_THRESHOLD;
+    const bulkOrganized = useMemo(
+        () => (results && isBulkRoll ? organizeResults(results, pool.rarities, "rarity-asc", "all") : []),
+        [results, isBulkRoll, pool.rarities]
+    );
 
     const highestRarity = useMemo(
         () => [...pool.rarities].sort((a, b) => b.sortOrder - a.sortOrder)[0],
@@ -112,13 +122,17 @@ export default function GachaRollAnimation({
         return () => clearTimeout(buildUpTimer);
     }, [isRolling, results, enableAnimation]);
 
-    // スピン開始後のタイマー（確定演出・リベールへ）
+    // スピン開始後のタイマー（確定演出・リベールへ / 大量連は bulk-reveal）
     useEffect(() => {
         if (phase !== "spinning" || !results) return;
 
         const spinDuration = isMassRoll ? 2000 : 3500;
         const spinTimer = setTimeout(() => {
-            if (hasHighestRarity && !isMassRoll) {
+            if (isBulkRoll) {
+                setPhase("bulk-reveal");
+                setBulkDisplayCounts(bulkOrganized.map(() => 0));
+                setBulkRevealVisibleUpTo(0);
+            } else if (hasHighestRarity && !isMassRoll) {
                 setShowConfirmedEffect(true);
                 setTimeout(() => {
                     setPhase("reveal-setup");
@@ -133,7 +147,7 @@ export default function GachaRollAnimation({
         }, spinDuration);
 
         return () => clearTimeout(spinTimer);
-    }, [phase, results, hasHighestRarity, isMassRoll]);
+    }, [phase, results, hasHighestRarity, isMassRoll, isBulkRoll, bulkOrganized]);
 
     // カード1枚ずつ表示（最後の1枚表示後は余韻を入れてから summary へ）
     useEffect(() => {
@@ -154,7 +168,61 @@ export default function GachaRollAnimation({
             setShowConfirmedEffect(false);
             setPhase("summary");
         }
-    }, [skipRequested, phase, sortedResults.length]);
+        if (skipRequested && phase === "bulk-reveal" && bulkOrganized.length > 0) {
+            setBulkDisplayCounts(bulkOrganized.map(o => o.count));
+            setBulkRevealVisibleUpTo(-1);
+            setPhase("summary");
+        }
+    }, [skipRequested, phase, sortedResults.length, bulkOrganized]);
+
+    // bulk-reveal: 1行ずつ表示（1項目ごとに約1秒遅延）、各項目のカウントアップは表示と同時に開始（待ち合わせなし）
+    const bulkRevealPhaseStartRef = useRef<number>(0);
+    useEffect(() => {
+        if (phase === "bulk-reveal" && bulkOrganized.length > 0) {
+            bulkRevealPhaseStartRef.current = Date.now();
+        }
+    }, [phase, bulkOrganized.length]);
+
+    useEffect(() => {
+        if (phase !== "bulk-reveal" || bulkOrganized.length === 0 || bulkRevealVisibleUpTo < 0) return;
+        if (bulkRevealVisibleUpTo >= bulkOrganized.length - 1) {
+            const timer = setTimeout(() => {
+                setBulkDisplayCounts(bulkOrganized.map(o => o.count));
+                setPhase("summary");
+            }, 800);
+            return () => clearTimeout(timer);
+        }
+        const timer = setTimeout(() => setBulkRevealVisibleUpTo(prev => prev + 1), 1000);
+        return () => clearTimeout(timer);
+    }, [phase, bulkRevealVisibleUpTo, bulkOrganized]);
+
+    useEffect(() => {
+        if (phase !== "bulk-reveal" || bulkOrganized.length === 0) return;
+        const targets = bulkOrganized.map(o => o.count);
+        const durationMs = 1200;
+        const tickMs = 40;
+        const interval = setInterval(() => {
+            const now = Date.now();
+            const phaseStart = bulkRevealPhaseStartRef.current;
+            setBulkDisplayCounts(prev => {
+                if (prev.length !== targets.length) return prev;
+                return prev.map((_, i) => {
+                    if (i > bulkRevealVisibleUpTo) return 0;
+                    const rowStart = phaseStart + i * 1000;
+                    const elapsed = now - rowStart;
+                    if (elapsed <= 0) return 0;
+                    const t = Math.min(1, elapsed / durationMs);
+                    const eased = 1 - (1 - t) * (1 - t);
+                    return Math.min(targets[i], Math.round(targets[i] * eased));
+                });
+            });
+        }, tickMs);
+        return () => clearInterval(interval);
+    }, [phase, bulkOrganized, bulkRevealVisibleUpTo]);
+
+    useEffect(() => {
+        if (phase !== "bulk-reveal") setBulkRevealVisibleUpTo(-1);
+    }, [phase]);
 
     // summary → done（○○連の結果表示時間を長めに）
     useEffect(() => {
@@ -164,12 +232,19 @@ export default function GachaRollAnimation({
         }
     }, [phase]);
 
-    // done → 通知
+    // ロール開始時に完了フラグをリセット（二重呼び出し防止）
     useEffect(() => {
-        if (phase === "done") {
-            const timer = setTimeout(onAnimationComplete, 300);
-            return () => clearTimeout(timer);
-        }
+        if (isRolling && results) completedRef.current = false;
+    }, [isRolling, results]);
+
+    // done → 通知（1回だけ呼ぶ）
+    useEffect(() => {
+        if (phase !== "done" || completedRef.current) return;
+        completedRef.current = true;
+        const timer = setTimeout(() => {
+            onAnimationComplete();
+        }, 300);
+        return () => clearTimeout(timer);
     }, [phase, onAnimationComplete]);
 
     const handleSkip = useCallback(() => setSkipRequested(true), []);
@@ -463,6 +538,119 @@ export default function GachaRollAnimation({
                 >
                     <SkipForward size={12} /> スキップ
                 </button>
+            </div>
+        );
+    }
+
+    // BULK-REVEAL（大量連: レア度低い順に「品目名 × N」で数字だけカウントアップ）
+    if (phase === "bulk-reveal" && bulkOrganized.length > 0) {
+        const getRarityById = (rarityId: string) => pool.rarities.find(r => r.id === rarityId);
+        return (
+            <div className="flex flex-col h-full p-4 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-2">
+                    <span className={`text-xs font-bold ${isLightMode ? "text-gray-700" : "text-white/90"}`}>
+                        🎲 {results!.length.toLocaleString()}連の結果
+                    </span>
+                    <button
+                        onClick={handleSkip}
+                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${isLightMode ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
+                    >
+                        <SkipForward size={12} /> スキップ
+                    </button>
+                </div>
+                <div className="flex-1 overflow-y-auto rounded-xl px-3 py-2 min-h-0" style={{ background: glassBg, border: `1px solid ${glassBorder}` }}>
+                    <div className="flex flex-col gap-1">
+                        {bulkOrganized.slice(0, Math.max(0, bulkRevealVisibleUpTo + 1)).map((item, idx) => {
+                            const rarity = getRarityById(item.rarityId);
+                            const prevRarity = idx > 0 ? getRarityById(bulkOrganized[idx - 1].rarityId) : null;
+                            const isRarityUp = idx > 0 && rarity && prevRarity && rarity.sortOrder > prevRarity.sortOrder;
+                            const displayCount = bulkDisplayCounts[idx] ?? 0;
+                            return (
+                                <motion.div
+                                    key={item.itemId}
+                                    initial={{ opacity: 0, x: -16, scale: isRarityUp ? 1.15 : 0.98 }}
+                                    animate={{
+                                        opacity: 1,
+                                        x: 0,
+                                        scale: 1,
+                                        boxShadow: isRarityUp
+                                            ? [
+                                                `0 0 0 0 ${rarity?.glowColor}`,
+                                                `0 0 24px 2px ${rarity?.glowColor}, 0 0 40px ${rarity?.color}40`,
+                                                `0 0 12px 1px ${rarity?.glowColor}`,
+                                            ]
+                                            : "none",
+                                    }}
+                                    transition={{
+                                        duration: isRarityUp ? 0.5 : 0.25,
+                                        scale: { type: "spring", stiffness: 400, damping: 28 },
+                                        boxShadow: { duration: 0.6 },
+                                    }}
+                                    className="relative flex items-center gap-2 py-1.5 rounded-lg px-2 -mx-2"
+                                >
+                                    {/* レア度アップ時: 出現瞬間のフラッシュ */}
+                                    <AnimatePresence>
+                                        {isRarityUp && rarity && (
+                                            <motion.div
+                                                initial={{ opacity: 0.85, scale: 0.8 }}
+                                                animate={{ opacity: 0, scale: 1.4 }}
+                                                transition={{ duration: 0.5, ease: "easeOut" }}
+                                                className="absolute inset-0 rounded-lg pointer-events-none"
+                                                style={{
+                                                    background: `radial-gradient(ellipse 80% 100% at 0% 50%, ${rarity.color}50, transparent 70%), linear-gradient(90deg, ${rarity.color}25, transparent 50%)`,
+                                                    boxShadow: `inset 0 0 30px ${rarity.color}30`,
+                                                }}
+                                            />
+                                        )}
+                                    </AnimatePresence>
+                                    {/* レア度アップ時: レア名バッジ（回りながら出現→一瞬キープ→フェード） */}
+                                    <AnimatePresence>
+                                        {isRarityUp && rarity && (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.3, rotate: -180 }}
+                                                animate={{
+                                                    opacity: [0, 1, 1, 0],
+                                                    scale: [0.3, 1, 1, 1],
+                                                    rotate: [-180, 0, 0, 0],
+                                                }}
+                                                transition={{
+                                                    duration: 1.2,
+                                                    times: [0, 0.15, 0.5, 1],
+                                                    rotate: { duration: 0.4, ease: "easeOut" },
+                                                }}
+                                                className="absolute left-1/2 -translate-x-1/2 flex items-center justify-center z-10 whitespace-nowrap pointer-events-none"
+                                                style={{
+                                                    top: "-0.5rem",
+                                                    color: rarity.color,
+                                                    background: rarity.bgColor,
+                                                    border: `3px solid ${rarity.glowColor}`,
+                                                    boxShadow: `0 0 32px ${rarity.glowColor}`,
+                                                    fontSize: "100px",
+                                                    fontWeight: 900,
+                                                    letterSpacing: "0.15em",
+                                                    padding: "0.25em 0.5em",
+                                                    borderRadius: "0.2em",
+                                                }}
+                                            >
+                                                {rarity.name}
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                    <span
+                                        className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 relative z-10"
+                                        style={{ color: rarity?.color, background: rarity?.bgColor }}
+                                    >
+                                        {rarity?.name || "?"}
+                                    </span>
+                                    <span className={`text-xs flex-1 relative z-10 ${isLightMode ? "text-gray-800" : "text-white/90"}`}>{item.itemName}</span>
+                                    <span className={`text-sm font-black tabular-nums relative z-10 ${isLightMode ? "text-gray-900" : "text-white"}`}>
+                                        ×{displayCount.toLocaleString()}
+                                    </span>
+                                </motion.div>
+                            );
+                        })}
+                    </div>
+                </div>
             </div>
         );
     }

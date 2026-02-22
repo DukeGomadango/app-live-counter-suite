@@ -9,7 +9,6 @@ import {
     Check,
     ArrowUpDown,
     Filter,
-    BarChart3,
     ImageDown,
 } from "lucide-react";
 import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode, OrganizedResult } from "@/lib/gacha";
@@ -46,7 +45,6 @@ export default function GachaResultDisplay({
     const [sortMode, setSortMode] = useState<SortMode>("rarity-asc");
     const [filterMode, setFilterMode] = useState<FilterMode>("all");
     const [copied, setCopied] = useState(false);
-    const [viewMode, setViewMode] = useState<"summary" | "list">("summary");
 
     const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
     const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
@@ -217,28 +215,6 @@ export default function GachaResultDisplay({
 
             {/* コントロールバー */}
             <div className="flex items-center gap-2 px-4 mb-2 shrink-0 flex-wrap">
-                {/* ビューモード */}
-                <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${glassBorder}` }}>
-                    <button
-                        onClick={() => setViewMode("summary")}
-                        className={`px-2 py-1 text-[10px] transition-all ${viewMode === "summary"
-                            ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
-                            : (isLightMode ? "text-gray-600" : "text-white/40")
-                            }`}
-                    >
-                        <BarChart3 size={10} className="inline mr-0.5" /> 集計
-                    </button>
-                    <button
-                        onClick={() => setViewMode("list")}
-                        className={`px-2 py-1 text-[10px] transition-all ${viewMode === "list"
-                            ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
-                            : (isLightMode ? "text-gray-600" : "text-white/40")
-                            }`}
-                    >
-                        一覧
-                    </button>
-                </div>
-
                 {/* ソート */}
                 <div className="flex items-center gap-1">
                     <ArrowUpDown size={10} className={textMuted} />
@@ -275,58 +251,37 @@ export default function GachaResultDisplay({
                 </span>
             </div>
 
-            {/* 結果リスト */}
+            {/* 結果リスト（集計表示のみ） */}
             <div className={`flex-1 overflow-y-auto pb-4 ${isMobile ? "pb-24" : ""}`}>
-                {viewMode === "summary" ? (
-                    <div className="flex flex-col gap-1">
-                        {organized.map((item, idx) => {
-                            const rarity = getRarity(item.rarityId);
-                            return (
-                                <motion.div
-                                    key={item.itemId}
-                                    initial={{ opacity: 0, x: -10 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: Math.min(idx * 0.02, 1) }}
-                                    className="flex items-center gap-2 p-2 rounded-lg"
-                                    style={{
-                                        background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)",
-                                        borderLeft: `3px solid ${rarity?.color || "#666"}`,
-                                    }}
-                                >
-                                    <span
-                                        className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0"
-                                        style={{ color: rarity?.color, background: rarity?.bgColor }}
-                                    >
-                                        {rarity?.name || "?"}
-                                    </span>
-                                    <span className={`text-xs flex-1 ${textPrimary}`}>{item.itemName}</span>
-                                    <span className={`text-sm font-bold tabular-nums ${textPrimary}`}>
-                                        ×{item.count.toLocaleString()}
-                                    </span>
-                                </motion.div>
-                            );
-                        })}
-                    </div>
-                ) : (
-                    <div className="flex flex-wrap gap-1">
-                        {organized.flatMap(item => {
-                            const rarity = getRarity(item.rarityId);
-                            return Array.from({ length: item.count }, (_, i) => (
+                <div className="flex flex-col gap-1">
+                    {organized.map((item, idx) => {
+                        const rarity = getRarity(item.rarityId);
+                        return (
+                            <motion.div
+                                key={item.itemId}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ delay: Math.min(idx * 0.02, 1) }}
+                                className="flex items-center gap-2 p-2 rounded-lg"
+                                style={{
+                                    background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)",
+                                    borderLeft: `3px solid ${rarity?.color || "#666"}`,
+                                }}
+                            >
                                 <span
-                                    key={`${item.itemId}-${i}`}
-                                    className="text-[10px] font-bold px-1.5 py-0.5 rounded"
-                                    style={{
-                                        color: rarity?.color,
-                                        background: rarity?.bgColor,
-                                        border: `1px solid ${rarity?.glowColor}`,
-                                    }}
+                                    className="text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0"
+                                    style={{ color: rarity?.color, background: rarity?.bgColor }}
                                 >
-                                    【{rarity?.name}】{item.itemName}
+                                    {rarity?.name || "?"}
                                 </span>
-                            ));
-                        })}
-                    </div>
-                )}
+                                <span className={`text-xs flex-1 ${textPrimary}`}>{item.itemName}</span>
+                                <span className={`text-sm font-bold tabular-nums ${textPrimary}`}>
+                                    ×{item.count.toLocaleString()}
+                                </span>
+                            </motion.div>
+                        );
+                    })}
+                </div>
             </div>
             </div>
         </div>

@@ -13,6 +13,7 @@ export default function HelpButton() {
     const [isLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
     const [isGachaLightMode] = useLocalStorage<boolean>("gacha-light-mode", false);
     const isGacha = pathname?.includes("gacha");
+    const isSplit = pathname?.includes("split");
     const effectiveLightMode = isGacha ? isGachaLightMode : isLightMode;
 
     useEffect(() => {
@@ -22,17 +23,20 @@ export default function HelpButton() {
         return () => window.removeEventListener("resize", check);
     }, []);
 
+    // ガチャまたはSplit時は右下に配置（PC版Splitでガチャの時も邪魔にならないように）
+    const useBottomRight = isGacha || isSplit;
     const gachaBottom = isGacha && isMobile ? "72px" : "16px";
+    const bottomPos = useBottomRight ? (isGacha && isMobile ? gachaBottom : "16px") : "auto";
 
     return (
         <>
-            {/* The Help Button positioned below the header controls */}
+            {/* The Help Button: top-right normally, bottom-right on Gacha/Split */}
             <button
                 onClick={() => setIsOpen(true)}
                 className={`fixed z-40 w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 group`}
                 style={{
-                    top: isGacha ? "auto" : "70px",
-                    bottom: isGacha ? gachaBottom : "auto",
+                    top: useBottomRight ? "auto" : "70px",
+                    bottom: bottomPos,
                     right: "16px",
                     background: effectiveLightMode ? "rgba(255, 255, 255, 0.4)" : "rgba(20, 10, 40, 0.4)",
                     backdropFilter: "blur(8px)",

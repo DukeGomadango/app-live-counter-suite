@@ -200,13 +200,13 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                 <input
                     type="number"
                     min={1}
-                    max={10000}
+                    max={100000}
                     value={pool.pullCount}
-                    onChange={e => onPoolChange({ ...pool, pullCount: Math.max(1, Math.min(10000, parseInt(e.target.value) || 1)) })}
+                    onChange={e => onPoolChange({ ...pool, pullCount: Math.max(1, Math.min(100000, parseInt(e.target.value) || 1)) })}
                     className={`w-full px-3 py-2 rounded-lg text-sm ${textPrimary} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
                     style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                 />
-                <p className={`text-[10px] mt-1 ${textMuted}`}>最大10,000枚</p>
+                <p className={`text-[10px] mt-1 ${textMuted}`}>最大100,000枚</p>
             </div>
 
             {/* レア度設定 */}
