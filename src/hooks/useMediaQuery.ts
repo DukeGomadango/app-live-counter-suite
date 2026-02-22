@@ -1,20 +1,29 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
+
+function subscribeMedia(query: string, callback: () => void) {
+    const m = window.matchMedia(query);
+    m.addEventListener("change", callback);
+    return () => m.removeEventListener("change", callback);
+}
+
+function getMediaSnapshot(query: string): boolean {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia(query).matches;
+}
+
+function getMediaServerSnapshot(): boolean {
+    return false;
+}
 
 /**
  * メディアクエリにマッチするかどうかを返す。SSR 時は false。
  */
 export function useMediaQuery(query: string): boolean {
-    const [matches, setMatches] = useState(false);
-
-    useEffect(() => {
-        const m = window.matchMedia(query);
-        setMatches(m.matches);
-        const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
-        m.addEventListener("change", handler);
-        return () => m.removeEventListener("change", handler);
-    }, [query]);
-
-    return matches;
+    return useSyncExternalStore(
+        (cb) => subscribeMedia(query, cb),
+        () => getMediaSnapshot(query),
+        getMediaServerSnapshot
+    );
 }

@@ -16,20 +16,22 @@ export default function RouletteHitEffect({ show, onComplete, accentColor }: Rou
 
     useEffect(() => {
         if (show) {
-            setParticles(
-                Array.from({ length: 50 }, (_, i) => ({
-                    id: i,
-                    x: Math.random() * 100 - 50,
-                    y: Math.random() * 100 - 50,
-                    color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)]!,
-                    delay: Math.random() * 0.3,
-                    duration: Math.random() * 1.5 + 1.5,
-                    size: Math.random() * 8 + 4,
-                    rotate: Math.random() * 720 - 360,
-                }))
-            );
+            const next = Array.from({ length: 50 }, (_, i) => ({
+                id: i,
+                x: Math.random() * 100 - 50,
+                y: Math.random() * 100 - 50,
+                color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)]!,
+                delay: Math.random() * 0.3,
+                duration: Math.random() * 1.5 + 1.5,
+                size: Math.random() * 8 + 4,
+                rotate: Math.random() * 720 - 360,
+            }));
+            const id = setTimeout(() => setParticles(next), 0);
             const t = setTimeout(() => onComplete?.(), 2500);
-            return () => clearTimeout(t);
+            return () => {
+                clearTimeout(id);
+                clearTimeout(t);
+            };
         }
     }, [show, onComplete]);
 
