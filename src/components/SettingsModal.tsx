@@ -19,6 +19,14 @@ export interface AppSettings {
     accentColor: string;
     orbIntensity: number; // 0-100
     dotIntensity?: number; // 0-100
+    /** ±5 ボタンをカードに表示（カウンターのみ） */
+    showStep5?: boolean;
+    /** ±10 ボタンをカードに表示（カウンターのみ） */
+    showStep10?: boolean;
+    /** ±自由記述ボタンをカードに表示（カウンターのみ） */
+    showStepFree?: boolean;
+    /** ±自由記述で加減算する値（設定で指定、カウンターのみ） */
+    stepFreeValue?: number;
 }
 
 interface SettingsModalProps {
@@ -163,6 +171,54 @@ export default function SettingsModal({
                                 <span>最大</span>
                             </div>
                         </div>
+
+                        {/* === Step buttons (Counter only) === */}
+                        {mode === "counter" && (
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>
+                                        ±5 / ±10 / 自由記述
+                                    </label>
+                                </div>
+                                {[
+                                    { key: "step5", label: "±5 を表示", value: settings.showStep5 ?? true, onChange: () => setSettings((s) => ({ ...s, showStep5: !(s.showStep5 ?? true) })) },
+                                    { key: "step10", label: "±10 を表示", value: settings.showStep10 ?? true, onChange: () => setSettings((s) => ({ ...s, showStep10: !(s.showStep10 ?? true) })) },
+                                    { key: "stepFree", label: "±自由記述を表示", value: settings.showStepFree ?? false, onChange: () => setSettings((s) => ({ ...s, showStepFree: !(s.showStepFree ?? false) })) },
+                                ].map(({ key, label, value, onChange }) => (
+                                    <div key={key} className="flex items-center justify-between">
+                                        <span className={`text-sm ${textPrimary}`}>{label}</span>
+                                        <button
+                                            onClick={onChange}
+                                            className="relative w-11 h-6 rounded-full transition-colors duration-200"
+                                            style={{
+                                                background: value ? `${accentColor}60` : isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.15)",
+                                            }}
+                                        >
+                                            <motion.div
+                                                className="absolute top-0.5 w-5 h-5 rounded-full shadow-md"
+                                                animate={{ left: value ? "22px" : "2px" }}
+                                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                                style={{
+                                                    background: value ? accentColor : isLightMode ? "white" : "rgba(255,255,255,0.6)",
+                                                }}
+                                            />
+                                        </button>
+                                    </div>
+                                ))}
+                                {settings.showStepFree && (
+                                    <div className="flex items-center gap-2 pl-1">
+                                        <span className={`text-sm ${textPrimary}`}>加減算する値</span>
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            value={settings.stepFreeValue ?? 1}
+                                            onChange={(e) => setSettings((s) => ({ ...s, stepFreeValue: Math.max(1, parseInt(e.target.value, 10) || 1) }))}
+                                            className={`w-16 px-2 py-1 rounded text-sm tabular-nums ${inputBg} ${inputBorder}`}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
                         {/* === Card Size === */}
                         <div>

@@ -1,4 +1,5 @@
 import { DEFAULT_ACCENT_COLOR } from "./constants";
+import { DEFAULT_EXTRA_HASHTAG } from "./site";
 
 // ========== 型定義 ==========
 
@@ -91,7 +92,7 @@ export function createDefaultSettings(): GachaSettings {
         accentColor: DEFAULT_ACCENT_COLOR,
         showTitle: true,
         enableAnimation: true,
-        shareHashtags: "#だんごツール",
+        shareHashtags: DEFAULT_EXTRA_HASHTAG,
     };
 }
 
@@ -448,7 +449,7 @@ export function containsHighestRarity(
 export function formatResultsForShare(
     results: GachaResult[],
     pool: GachaPool,
-    extraHashtags: string = "#だんごツール",
+    extraHashtags: string = DEFAULT_EXTRA_HASHTAG,
 ): string {
     const organized = organizeResults(results, pool.rarities, "rarity-asc");
     const rarityMap = new Map(pool.rarities.map(r => [r.id, r.name]));

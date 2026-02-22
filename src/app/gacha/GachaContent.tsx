@@ -14,7 +14,7 @@ import PlayerHistoryCard from "@/components/gacha/PlayerHistoryCard";
 import GachaSwitchDropdown from "@/components/gacha/GachaSwitchDropdown";
 import type { GachaPool, Player, GachaResult, GachaSettings, GachaPoolPreset } from "@/lib/gacha";
 import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_BG_COLORS, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds, clonePoolWithNewIds, getSampleTemplates } from "@/lib/gacha";
-import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
+import { DEFAULT_EXTRA_HASHTAG, DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 
 type MobileTab = "setup" | "gacha" | "results" | "players" | "items";
@@ -146,9 +146,9 @@ function GachaSettingsPanel({
                         <p className={`text-[10px] ${textSecondary} mb-1`}>固定: #だんごツール</p>
                         <input
                             type="text"
-                            value={settings.shareHashtags ?? DEFAULT_SHARE_HASHTAG}
+                            value={settings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                             onChange={e => onSettingsChange({ ...settings, shareHashtags: e.target.value })}
-                            placeholder={DEFAULT_SHARE_HASHTAG}
+                            placeholder={DEFAULT_EXTRA_HASHTAG}
                             className={`w-full px-2 py-1.5 rounded-lg text-xs ${textPrimary} outline-none`}
                             style={{ background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)", border: `1px solid ${glassBorder}` }}
                         />
@@ -272,14 +272,17 @@ function ItemHistoryPanel({
 }
 
 // ===== メインページ =====
+const DEFAULT_POOL = createDefaultPool();
+const DEFAULT_SETTINGS = createDefaultSettings();
+
 export default function GachaContent({ isSplitMode = false, isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
-    // 永続化される状態
-    const [pool, setPool] = useLocalStorage<GachaPool>("gacha-pool", createDefaultPool());
+    // 永続化される状態（初期値はモジュール定数で参照を安定化）
+    const [pool, setPool] = useLocalStorage<GachaPool>("gacha-pool", DEFAULT_POOL);
     const [players, setPlayers] = useLocalStorage<Player[]>("gacha-players", []);
     const [activePlayerId, setActivePlayerId] = useLocalStorage<string | null>("gacha-active-player", null);
     const [latestResults, setLatestResults] = useState<GachaResult[] | null>(null);
     const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("gacha-light-mode", false);
-    const [gachaSettings, setGachaSettings] = useLocalStorage<GachaSettings>("gacha-settings", createDefaultSettings());
+    const [gachaSettings, setGachaSettings] = useLocalStorage<GachaSettings>("gacha-settings", DEFAULT_SETTINGS);
     const [presets] = useLocalStorage<GachaPoolPreset[]>("gacha-presets", []);
     const [hasMigrated, setHasMigrated] = useState(false);
 
@@ -295,6 +298,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
     const [showSidebarScrollHint, setShowSidebarScrollHint] = useState(true);
     const sidebarScrollRef = useRef<HTMLDivElement>(null);
     const [playerHistoryViewId, setPlayerHistoryViewId] = useState<string | null>(null);
+    const [sidebarWidthPx, setSidebarWidthPx] = useLocalStorage<number>("gacha-sidebar-width", 320);
 
     useEffect(() => {
         if (mobileTab === "setup") setShowScrollHint(true);
@@ -303,6 +307,41 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
     useEffect(() => {
         setShowSidebarScrollHint(true);
     }, [sidebarTab]);
+
+    const sidebarResizeRafRef = useRef<number | null>(null);
+    const sidebarResizePendingRef = useRef<number | null>(null);
+    const handleSidebarResizeStart = useCallback((e: React.MouseEvent) => {
+        if (e.button !== 0) return;
+        const startX = e.clientX;
+        const startW = sidebarWidthPx;
+        const onMove = (moveEvent: MouseEvent) => {
+            const newW = Math.min(720, Math.max(200, startW + (moveEvent.clientX - startX)));
+            sidebarResizePendingRef.current = newW;
+            if (sidebarResizeRafRef.current !== null) return;
+            sidebarResizeRafRef.current = requestAnimationFrame(() => {
+                sidebarResizeRafRef.current = null;
+                const w = sidebarResizePendingRef.current;
+                if (w !== null) setSidebarWidthPx(w);
+              });
+        };
+        const onUp = () => {
+            if (sidebarResizeRafRef.current !== null) {
+                cancelAnimationFrame(sidebarResizeRafRef.current);
+                sidebarResizeRafRef.current = null;
+            }
+            const pending = sidebarResizePendingRef.current;
+            if (pending !== null) setSidebarWidthPx(pending);
+            sidebarResizePendingRef.current = null;
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup", onUp);
+            document.body.style.userSelect = "";
+            document.body.style.cursor = "";
+        };
+        document.body.style.userSelect = "none";
+        document.body.style.cursor = "col-resize";
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+    }, [sidebarWidthPx, setSidebarWidthPx]);
 
     useEffect(() => {
         if (playerHistoryViewId && !(players || []).some(p => p.id === playerHistoryViewId)) setPlayerHistoryViewId(null);
@@ -523,15 +562,6 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                 <span>{activePlayer.name}</span>
                             </div>
                         )}
-                        <button
-                            type="button"
-                            onClick={() => setMobileTab("players")}
-                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium shrink-0 ${displayLight ? "bg-gray-100 text-gray-700 hover:bg-gray-200" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
-                            title="プレイヤーの過去履歴"
-                        >
-                            <Users size={12} />
-                            履歴
-                        </button>
                     </div>
                     <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
                         <GachaSwitchDropdown
@@ -582,7 +612,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                     player={player}
                                     pool={pool}
                                     isLightMode={isLightMode}
-                                    shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_SHARE_HASHTAG}
+                                    shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                     onClose={() => setPlayerHistoryViewId(null)}
                                 />
                             </div>
@@ -634,7 +664,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                     pool={pool}
                                     isLightMode={isLightMode}
                                     textContrastLight={effectiveLightBackground}
-                                    shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_SHARE_HASHTAG}
+                                    shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                     isMobile={true}
                                 />
                             </motion.div>
@@ -653,7 +683,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                         pool={pool}
                                         isLightMode={isLightMode}
                                         textContrastLight={effectiveLightBackground}
-                                        shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_SHARE_HASHTAG}
+                                        shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                     />
                                 </div>
                             </motion.div>
@@ -910,7 +940,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                                         pool={pool}
                                                         isLightMode={isLightMode}
                                                         textContrastLight={effectiveLightBackground}
-                                                        shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_SHARE_HASHTAG}
+                                                        shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                                     />
                                                 ) : sidebarTab === "items" ? (
                                                     <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={effectiveLightBackground} />
@@ -925,9 +955,15 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                         </AnimatePresence>
                     </>
                 ) : (
+                    <>
                     <aside
-                        className="h-full w-80 flex flex-col overflow-hidden shrink-0"
-                        style={{ borderRight: `1px solid ${glassBorder}` }}
+                        className="h-full flex flex-col overflow-hidden shrink-0"
+                        style={{
+                            width: sidebarWidthPx,
+                            minWidth: 200,
+                            maxWidth: 720,
+                            borderRight: `1px solid ${glassBorder}`,
+                        }}
                     >
                         <div className="flex px-3 pt-3 gap-1 shrink-0 flex-wrap items-center">
                             {([
@@ -997,7 +1033,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                         pool={pool}
                                         isLightMode={isLightMode}
                                         textContrastLight={effectiveLightBackground}
-                                        shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_SHARE_HASHTAG}
+                                        shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                     />
                                 ) : sidebarTab === "items" ? (
                                     <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={effectiveLightBackground} />
@@ -1007,6 +1043,19 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                             </div>
                         </div>
                     </aside>
+                    <div
+                        role="separator"
+                        aria-label="サイドバー幅を調節"
+                        onMouseDown={handleSidebarResizeStart}
+                        className="shrink-0 w-4 h-full cursor-col-resize select-none flex items-center justify-center group touch-none"
+                        style={{ minWidth: 16 }}
+                    >
+                        <span
+                            className="w-0.5 h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                            style={{ background: glassBorder }}
+                        />
+                    </div>
+                    </>
                 )}
 
                 {/* メインステージ */}
@@ -1021,7 +1070,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                         player={player}
                                         pool={pool}
                                         isLightMode={isLightMode}
-                                        shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_SHARE_HASHTAG}
+                                        shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                         onClose={() => setPlayerHistoryViewId(null)}
                                     />
                                 </motion.div>
@@ -1043,7 +1092,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                     pool={pool}
                                     isLightMode={isLightMode}
                                     textContrastLight={effectiveLightBackground}
-                                    shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_SHARE_HASHTAG}
+                                    shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                     isMobile={false}
                                     onBackToGacha={() => { setShowResults(false); setLatestResults(null); }}
                                     accentColor={gachaSettings.accentColor}

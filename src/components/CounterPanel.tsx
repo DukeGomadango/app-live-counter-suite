@@ -6,6 +6,37 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+function StepBtn({
+    label,
+    onClick,
+    disabled,
+    arrowColor,
+    arrowBg,
+    arrowHoverBg,
+}: {
+    label: string;
+    onClick: () => void;
+    disabled?: boolean;
+    arrowColor: string;
+    arrowBg: string;
+    arrowHoverBg: string;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            disabled={disabled}
+            aria-label={label}
+            className={`min-w-[1.25rem] h-5 px-0.5 rounded text-[10px] font-medium tabular-nums flex items-center justify-center select-none disabled:opacity-40 disabled:cursor-not-allowed ${arrowColor}`}
+            style={{ background: arrowBg }}
+            onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = arrowHoverBg; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
+        >
+            {label}
+        </button>
+    );
+}
+
 interface CounterPanelProps {
     id: string;
     label: string;
@@ -16,6 +47,11 @@ interface CounterPanelProps {
     onIncrement: (id: string) => void;
     onDecrement: (id: string) => void;
     onSetCount?: (id: string, value: number) => void;
+    onAdjustBy?: (id: string, delta: number) => void;
+    showStep5?: boolean;
+    showStep10?: boolean;
+    showStepFree?: boolean;
+    stepFreeValue?: number;
     onDeleteItem: (id: string) => void;
     onEditItem: (id: string) => void;
     isLightMode: boolean;
@@ -32,6 +68,11 @@ export default function CounterPanel({
     onIncrement,
     onDecrement,
     onSetCount,
+    onAdjustBy,
+    showStep5 = true,
+    showStep10 = true,
+    showStepFree = false,
+    stepFreeValue = 1,
     onDeleteItem,
     onEditItem,
     isLightMode,
@@ -294,105 +335,9 @@ export default function CounterPanel({
                     {emoji}
                 </span>
 
-                {/* Count row: △ count/target ▽ */}
-                <div className="relative z-10 flex items-center gap-0.5">
-                    {/* Count number with animation or edit input */}
-                    <div className="flex items-baseline gap-0.5">
-                        {isEditingCount && onSetCount ? (
-                            <input
-                                type="number"
-                                min={0}
-                                value={editCountValue}
-                                onChange={(e) => setEditCountValue(e.target.value.replace(/[^0-9]/g, ""))}
-                                onBlur={() => {
-                                    const n = Math.max(0, parseInt(editCountValue, 10) || 0);
-                                    onSetCount(id, n);
-                                    setIsEditingCount(false);
-                                }}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
-                                        e.currentTarget.blur();
-                                    }
-                                }}
-                                autoFocus
-                                className="font-bold tabular-nums text-2xl sm:text-3xl lg:text-4xl w-16 sm:w-20 bg-transparent border-b-2 outline-none text-center"
-                                style={{
-                                    color: countColor,
-                                    borderColor: color,
-                                }}
-                                onClick={(e) => e.stopPropagation()}
-                            />
-                        ) : (
-                            <span
-                                data-count-editable
-                                role="button"
-                                tabIndex={0}
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (onSetCount) {
-                                        setIsEditingCount(true);
-                                        setEditCountValue(String(count));
-                                    }
-                                }}
-                                onKeyDown={(e) => {
-                                    if ((e.key === "Enter" || e.key === " ") && onSetCount) {
-                                        e.preventDefault();
-                                        setIsEditingCount(true);
-                                        setEditCountValue(String(count));
-                                    }
-                                }}
-                                className={`font-bold tabular-nums text-2xl sm:text-3xl lg:text-4xl ${onSetCount ? "cursor-text rounded px-0.5 hover:bg-black/5 dark:hover:bg-white/5" : ""}`}
-                                style={{
-                                    color: countColor,
-                                    textShadow: countShadow,
-                                }}
-                                title={onSetCount ? "クリックで数を直接編集" : undefined}
-                            >
-                                <AnimatePresence mode="popLayout">
-                                    <motion.span
-                                        key={count}
-                                        initial={{
-                                            opacity: 0,
-                                            y: popDirection === "up" ? 10 : -10,
-                                            scale: 0.5,
-                                        }}
-                                        animate={{
-                                            opacity: 1,
-                                            y: 0,
-                                            scale: isPop ? 1.3 : 1,
-                                        }}
-                                        exit={{
-                                            opacity: 0,
-                                            y: popDirection === "up" ? -10 : 10,
-                                            scale: 0.5,
-                                        }}
-                                        transition={{
-                                            type: "spring",
-                                            stiffness: 500,
-                                            damping: 25,
-                                        }}
-                                        className="inline-block"
-                                    >
-                                        {count}
-                                    </motion.span>
-                                </AnimatePresence>
-                            </span>
-                        )}
-
-                        {/* Target */}
-                        {target > 0 && (
-                            <span
-                                className="text-xs sm:text-sm font-medium tabular-nums"
-                                style={{
-                                    color: isLightMode ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.25)",
-                                }}
-                            >
-                                /{target}
-                            </span>
-                        )}
-                    </div>
-
-                    {/* △▽ buttons - right side of count */}
+                {/* Count row: 左△▽ / 中央 数字 / 右 ステップボタン */}
+                <div className="relative z-10 flex items-center justify-center gap-1 min-w-0">
+                    {/* 左: △▽ */}
                     <AnimatePresence>
                         {isHovered && (
                             <motion.div
@@ -400,7 +345,7 @@ export default function CounterPanel({
                                 animate={{ opacity: 1, x: 0 }}
                                 exit={{ opacity: 0, x: -5 }}
                                 transition={{ duration: 0.15 }}
-                                className="flex flex-col gap-0.5 ml-1"
+                                className="flex flex-col gap-0.5 shrink-0"
                             >
                                 <button
                                     type="button"
@@ -437,6 +382,86 @@ export default function CounterPanel({
                             </motion.div>
                         )}
                     </AnimatePresence>
+
+                    {/* 中央: 数字 / target */}
+                    <div className="flex-1 flex justify-center items-baseline min-w-0">
+                        <div className="flex items-baseline gap-0.5">
+                            {isEditingCount && onSetCount ? (
+                                <input
+                                    type="number"
+                                    min={0}
+                                    value={editCountValue}
+                                    onChange={(e) => setEditCountValue(e.target.value.replace(/[^0-9]/g, ""))}
+                                    onBlur={() => {
+                                        const n = Math.max(0, parseInt(editCountValue, 10) || 0);
+                                        onSetCount(id, n);
+                                        setIsEditingCount(false);
+                                    }}
+                                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                                    autoFocus
+                                    className="font-bold tabular-nums text-2xl sm:text-3xl lg:text-4xl w-16 sm:w-20 bg-transparent border-b-2 outline-none text-center"
+                                    style={{ color: countColor, borderColor: color }}
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                            ) : (
+                                <span
+                                    data-count-editable
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(e) => { e.stopPropagation(); if (onSetCount) { setIsEditingCount(true); setEditCountValue(String(count)); } }}
+                                    onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && onSetCount) { e.preventDefault(); setIsEditingCount(true); setEditCountValue(String(count)); } }}
+                                    className={`font-bold tabular-nums text-2xl sm:text-3xl lg:text-4xl ${onSetCount ? "cursor-text rounded px-0.5 hover:bg-black/5 dark:hover:bg-white/5" : ""}`}
+                                    style={{ color: countColor, textShadow: countShadow }}
+                                    title={onSetCount ? "クリックで数を直接編集" : undefined}
+                                >
+                                    <AnimatePresence mode="popLayout">
+                                        <motion.span
+                                            key={count}
+                                            initial={{ opacity: 0, y: popDirection === "up" ? 10 : -10, scale: 0.5 }}
+                                            animate={{ opacity: 1, y: 0, scale: isPop ? 1.3 : 1 }}
+                                            exit={{ opacity: 0, y: popDirection === "up" ? -10 : 10, scale: 0.5 }}
+                                            transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                                            className="inline-block"
+                                        >
+                                            {count}
+                                        </motion.span>
+                                    </AnimatePresence>
+                                </span>
+                            )}
+                            {target > 0 && (
+                                <span className="text-xs sm:text-sm font-medium tabular-nums" style={{ color: isLightMode ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.25)" }}>/{target}</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 右: ステップボタン（＋を上段・－を下段で縦に積む） */}
+                    {(showStep5 || showStep10 || showStepFree) && onAdjustBy && (
+                        <AnimatePresence>
+                            {isHovered && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: 5 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 5 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="flex flex-col gap-0.5 shrink-0 items-end"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {/* 上段: すべての ＋ */}
+                                    <div className="flex items-center gap-0.5">
+                                        {showStep5 && <StepBtn label="+5" onClick={() => onAdjustBy(id, 5)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
+                                        {showStep10 && <StepBtn label="+10" onClick={() => onAdjustBy(id, 10)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
+                                        {showStepFree && stepFreeValue >= 1 && <StepBtn label={`+${stepFreeValue}`} onClick={() => onAdjustBy(id, stepFreeValue)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
+                                    </div>
+                                    {/* 下段: すべての － */}
+                                    <div className="flex items-center gap-0.5">
+                                        {showStep5 && <StepBtn label="-5" onClick={() => onAdjustBy(id, -5)} disabled={count < 5} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
+                                        {showStep10 && <StepBtn label="-10" onClick={() => onAdjustBy(id, -10)} disabled={count < 10} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
+                                        {showStepFree && stepFreeValue >= 1 && <StepBtn label={`-${stepFreeValue}`} onClick={() => onAdjustBy(id, -stepFreeValue)} disabled={count < stepFreeValue} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    )}
                 </div>
 
                 {/* Label */}

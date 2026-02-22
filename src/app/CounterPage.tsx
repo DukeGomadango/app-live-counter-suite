@@ -75,6 +75,10 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
       projectNameColor: "#a855f7",
       accentColor: "#a855f7",
       orbIntensity: 50,
+      showStep5: true,
+      showStep10: true,
+      showStepFree: false,
+      stepFreeValue: 1,
     }
   );
   const windowWidth = useWindowWidth();
@@ -136,12 +140,19 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
 
   // Migrate settings for new fields
   useEffect(() => {
-    setAppSettings((prev) => ({
-      ...prev,
-      projectNameSize: prev.projectNameSize ?? "M",
-      projectNameColor: prev.projectNameColor ?? prev.accentColor ?? "#a855f7",
-      orbIntensity: prev.orbIntensity ?? 50,
-    }));
+    setAppSettings((prev) => {
+      const hadLegacy = "showStepButtons" in prev && prev.showStepButtons === true;
+      return {
+        ...prev,
+        projectNameSize: prev.projectNameSize ?? "M",
+        projectNameColor: prev.projectNameColor ?? prev.accentColor ?? "#a855f7",
+        orbIntensity: prev.orbIntensity ?? 50,
+        showStep5: prev.showStep5 ?? (hadLegacy || true),
+        showStep10: prev.showStep10 ?? (hadLegacy || true),
+        showStepFree: prev.showStepFree ?? hadLegacy ?? false,
+        stepFreeValue: prev.stepFreeValue ?? 1,
+      };
+    });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Apply accent color as CSS variable to body (for orbs, scrollbar, etc.)
@@ -202,6 +213,19 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
       setItems((prev) =>
         prev.map((item) =>
           item.id === id ? { ...item, count: Math.max(0, value) } : item
+        )
+      );
+    },
+    [setItems]
+  );
+
+  const handleAdjustBy = useCallback(
+    (id: string, delta: number) => {
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? { ...item, count: Math.max(0, item.count + delta) }
+            : item
         )
       );
     },
@@ -341,8 +365,8 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
 
   // Card size multiplier based on settings
   const cardSizeMap: Record<CardSize, { mobile: number; tablet: number; desktop: number }> = {
-    S: { mobile: 80, tablet: 120, desktop: 150 },
-    M: { mobile: 100, tablet: 150, desktop: 190 },
+    S: { mobile: 96, tablet: 136, desktop: 168 },
+    M: { mobile: 112, tablet: 162, desktop: 205 },
     L: { mobile: 120, tablet: 170, desktop: 220 },
     XL: { mobile: 140, tablet: 200, desktop: 280 },
   };
@@ -465,6 +489,11 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                     onIncrement={handleIncrement}
                     onDecrement={handleDecrement}
                     onSetCount={handleSetCount}
+                    onAdjustBy={handleAdjustBy}
+                    showStep5={appSettings.showStep5 ?? true}
+                    showStep10={appSettings.showStep10 ?? true}
+                    showStepFree={appSettings.showStepFree ?? false}
+                    stepFreeValue={appSettings.stepFreeValue ?? 1}
                     onDeleteItem={(id) => setItemToDelete(id)}
                     onEditItem={(id) => setEditingItemId(id)}
                     isLightMode={isLightMode}
@@ -498,6 +527,11 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                     onIncrement={handleIncrement}
                     onDecrement={handleDecrement}
                     onSetCount={handleSetCount}
+                    onAdjustBy={handleAdjustBy}
+                    showStep5={appSettings.showStep5 ?? true}
+                    showStep10={appSettings.showStep10 ?? true}
+                    showStepFree={appSettings.showStepFree ?? false}
+                    stepFreeValue={appSettings.stepFreeValue ?? 1}
                     onDeleteItem={(id) => setItemToDelete(id)}
                     onEditItem={(id) => setEditingItemId(id)}
                     isLightMode={isLightMode}

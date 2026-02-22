@@ -2,35 +2,31 @@
 
 import { useState, useEffect, useCallback } from "react";
 
-export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((prev: T) => T)) => void] {
-    const [storedValue, setStoredValue] = useState<T>(initialValue);
-    const [isHydrated, setIsHydrated] = useState(false);
+function readFromStorage<T>(key: string, initialValue: T): T {
+    if (typeof window === "undefined") return initialValue;
+    try {
+        const item = window.localStorage.getItem(key);
+        if (item != null) return JSON.parse(item) as T;
+    } catch (error) {
+        console.warn(`Error reading localStorage key "${key}":`, error);
+    }
+    return initialValue;
+}
 
-    useEffect(() => {
-        // Use microtask to avoid "setState synchronously within an effect" lint error
-        Promise.resolve().then(() => {
-            try {
-                const item = window.localStorage.getItem(key);
-                if (item) {
-                    setStoredValue(JSON.parse(item));
-                }
-            } catch (error) {
-                console.warn(`Error reading localStorage key "${key}":`, error);
-            }
-            setIsHydrated(true);
-        });
-    }, [key]);
+/**
+ * localStorage と同期する state。初回は lazy 初期化で同期的に読み取り、
+ * hydration 用の useEffect を廃止して「複数キーが順番に hydrate される」ことによる
+ * 連続再レンダー（ガチャ画面のチカチカ）を防ぐ。
+ */
+export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((prev: T) => T)) => void] {
+    const [storedValue, setStoredValue] = useState<T>(() => readFromStorage(key, initialValue));
 
     useEffect(() => {
         const handleStorageChange = (e: StorageEvent | CustomEvent) => {
             if ("detail" in e) {
-                // Custom event dispatched within the same tab
-                if (e.detail.key === key) {
-                    setStoredValue(e.detail.newValue);
-                }
+                if (e.detail.key === key) setStoredValue(e.detail.newValue);
             } else {
-                // Storage event dispatched from other tabs
-                if (e.key === key && e.newValue) {
+                if (e.key === key && e.newValue != null) {
                     try {
                         setStoredValue(JSON.parse(e.newValue));
                     } catch (error) {
@@ -42,7 +38,6 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 
         window.addEventListener("storage", handleStorageChange);
         window.addEventListener("local-storage-sync", handleStorageChange as EventListener);
-
         return () => {
             window.removeEventListener("storage", handleStorageChange);
             window.removeEventListener("local-storage-sync", handleStorageChange as EventListener);
@@ -59,14 +54,6 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 
                     if (prevString !== newString) {
                         window.localStorage.setItem(key, newString);
-                        // 同一タブの listener は requestAnimationFrame で遅延し、setState 二重適用を防ぐ
-                        requestAnimationFrame(() => {
-                            window.dispatchEvent(
-                                new CustomEvent("local-storage-sync", {
-                                    detail: { key, newValue: valueToStore },
-                                })
-                            );
-                        });
                     }
                     return valueToStore;
                 });
@@ -77,5 +64,5 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
         [key]
     );
 
-    return [isHydrated ? storedValue : initialValue, setValue];
+    return [storedValue, setValue];
 }

@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserPlus, Trash2, RotateCcw, ChevronRight, User } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
-import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
+import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
@@ -34,7 +34,7 @@ export default function GachaPlayerManager({
     pool,
     isLightMode,
     textContrastLight = false,
-    shareHashtags = DEFAULT_SHARE_HASHTAG,
+    shareHashtags = DEFAULT_EXTRA_HASHTAG,
 }: GachaPlayerManagerProps) {
     const [newPlayerName, setNewPlayerName] = useState("");
     const [playerToDelete, setPlayerToDelete] = useState<string | null>(null);

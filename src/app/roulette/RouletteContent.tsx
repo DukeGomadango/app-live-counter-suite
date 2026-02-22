@@ -100,12 +100,14 @@ export default function RouletteContent({
 
     return (
         <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`}>
-            {/* 開発中オーバーレイ */}
+            {/* 開発中オーバーレイ（ヘッダーは隠さず、背景は透かす） */}
             <div
-                className="absolute inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md"
+                className="absolute top-14 left-0 right-0 bottom-0 z-40 flex items-center justify-center bg-black/35 backdrop-blur-sm"
                 aria-hidden="false"
             >
-                <p className="text-xl font-bold text-white/95 tracking-wider">開発中です</p>
+                <p className="text-xl font-bold text-white/95 tracking-wider drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]">
+                    開発中です
+                </p>
             </div>
             {/* 背景オーブ */}
             <div className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${isLightMode ? "mix-blend-multiply opacity-20" : "opacity-80"}`}>

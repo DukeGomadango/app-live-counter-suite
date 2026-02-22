@@ -11,5 +11,8 @@ export const SITE_CONFIG = {
   screenshotDark: "https://app-live-counter.vercel.app/screenshot-dark.png",
 } as const;
 
-/** 共有用デフォルトハッシュタグ（全ツール共通） */
+/** 共有用デフォルトハッシュタグ（全ツール共通・常に付与） */
 export const DEFAULT_SHARE_HASHTAG = "#だんごツール";
+
+/** ガチャの「追加ハッシュタグ」の初期値（編集可能部分のデフォルト） */
+export const DEFAULT_EXTRA_HASHTAG = "#ガチャ";
