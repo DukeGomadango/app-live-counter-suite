@@ -458,14 +458,21 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
     }, [presets, sampleTemplates, setPool]);
 
     const { glassBorder } = useGlassStyle(isLightMode);
-    const headerBg = isLightMode ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.5)";
-    /** ダークモードで背景を明るくしたとき、文字を暗くして視認性を確保する */
-    const effectiveLightBackground = !isLightMode && (gachaSettings.bgIntensity ?? 100) < 50;
+    /** ダークモードで背景が明るいとき、文字を暗くして視認性を確保する（濃さを下げた時 or サクラ/スノー背景） */
+    const effectiveLightBackground =
+        !isLightMode &&
+        ((gachaSettings.bgIntensity ?? 100) < 50 ||
+            gachaSettings.bgColor === "sakura" ||
+            gachaSettings.bgColor === "snow");
+    /** 表示用：明るい背景として扱い、文字・ボタンは暗い色で統一する */
+    const displayLight = isLightMode || effectiveLightBackground;
+    const headerBg = displayLight ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.5)";
 
     // ===== 共通props =====
     const rollAnimationProps = {
         pool,
         isLightMode,
+        textContrastLight: effectiveLightBackground,
         disabled: pool.items.length === 0 || (players.length > 0 && !activePlayerId),
         pityCounter: activePlayer?.pityCounter,
         pityThreshold: pool.pityThreshold,
@@ -508,7 +515,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                     <div className="flex items-center gap-2">
                         <ModeSelector isLightMode={isLightMode} />
                         {activePlayer && (
-                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${isLightMode ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
+                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${displayLight ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
                                 <Users size={12} />
                                 <span>{activePlayer.name}</span>
                             </div>
@@ -516,7 +523,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                         <button
                             type="button"
                             onClick={() => setMobileTab("players")}
-                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium shrink-0 ${isLightMode ? "bg-gray-100 text-gray-700 hover:bg-gray-200" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium shrink-0 ${displayLight ? "bg-gray-100 text-gray-700 hover:bg-gray-200" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
                             title="プレイヤーの過去履歴"
                         >
                             <Users size={12} />
@@ -529,18 +536,19 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                             presets={presets}
                             onSelect={handleGachaSwitch}
                             isLightMode={isLightMode}
+                            textContrastLight={effectiveLightBackground}
                             size="sm"
                         />
                         <button
                             onClick={() => setShowSettingsPanel(!showSettingsPanel)}
-                            className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                            className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
                         >
                             <Settings size={16} />
                         </button>
                         {(!isSplitMode || isRightPane) && (
                             <button
                                 onClick={() => setIsLightMode(!isLightMode)}
-                                className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                                className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
                             >
                                 {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
                             </button>
@@ -565,7 +573,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                     const player = (players || []).find(p => p.id === playerHistoryViewId);
                     if (!player) return null;
                     return (
-                        <div className={`fixed inset-0 z-[60] flex flex-col overflow-hidden ${isLightMode ? "bg-[#f8f9fa]/98" : "bg-[#0a051e]/95"}`}>
+                        <div className={`fixed inset-0 z-[60] flex flex-col overflow-hidden ${displayLight ? "bg-[#f8f9fa]/98" : "bg-[#0a051e]/95"}`}>
                             <div className="flex-1 min-h-0 overflow-y-auto p-4 pt-14">
                                 <PlayerHistoryCard
                                     player={player}
@@ -596,7 +604,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                                     : "linear-gradient(to top, rgba(10,5,30,0.92) 0%, transparent 100%)",
                             }}
                         >
-                            <ChevronDown size={14} className={`animate-bounce ${isLightMode ? "text-gray-600" : "text-white/70"}`} />
+                            <ChevronDown size={14} className={`animate-bounce ${displayLight ? "text-gray-600" : "text-white/70"}`} />
                         </div>
                     )}
                     <AnimatePresence mode="wait">
@@ -680,8 +688,8 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                                 key={tab.id}
                                 onClick={() => setMobileTab(tab.id)}
                                 className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg transition-all ${isActive
-                                    ? (isLightMode ? "text-purple-600" : "text-purple-400")
-                                    : (isLightMode ? "text-gray-400" : "text-white/30")
+                                    ? (displayLight ? "text-purple-600" : "text-purple-400")
+                                    : (displayLight ? "text-purple-500" : "text-white/30")
                                     }`}
                             >
                                 <Icon size={16} />
@@ -724,7 +732,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                     {isSplitMode && (
                         <button
                             onClick={() => setSidebarOpen(!sidebarOpen)}
-                            className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                            className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
                             title="メニュー"
                             aria-label="メニュー"
                         >
@@ -734,7 +742,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                     {/* PC版Split時はモード切替を右下に出すのでヘッダーからは非表示 */}
                     {!(isSplitMode && !isMobile) && <ModeSelector isLightMode={isLightMode} />}
                     {activePlayer && (
-                        <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${isLightMode ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
+                        <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${displayLight ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
                             <Users size={12} />
                             <span className="text-xs font-medium">{activePlayer.name}</span>
                         </div>
@@ -746,11 +754,12 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                         presets={presets}
                         onSelect={handleGachaSwitch}
                         isLightMode={isLightMode}
+                        textContrastLight={effectiveLightBackground}
                         size="md"
                     />
                     <button
                         onClick={() => setShowSettingsPanel(!showSettingsPanel)}
-                        className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                        className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
                         title="ガチャ設定"
                     >
                         <Settings size={16} />
@@ -758,7 +767,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                     {(!isSplitMode || isRightPane) && (
                         <button
                             onClick={() => setIsLightMode(!isLightMode)}
-                            className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                            className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
                         >
                             {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
                         </button>
@@ -771,7 +780,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                 <div
                     className="absolute bottom-4 right-4 z-50 flex items-center gap-2 p-2 rounded-xl shadow-lg backdrop-blur-md"
                     style={{
-                        background: isLightMode ? "rgba(255,255,255,0.8)" : "rgba(20,10,40,0.7)",
+                        background: displayLight ? "rgba(255,255,255,0.8)" : "rgba(20,10,40,0.7)",
                         border: `1px solid ${glassBorder}`,
                     }}
                 >
@@ -829,7 +838,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                                             <span className="text-xs font-bold opacity-70">メニュー</span>
                                             <button
                                                 onClick={() => setSidebarOpen(false)}
-                                                className={`p-1.5 rounded-lg ${isLightMode ? "hover:bg-gray-200 text-gray-600" : "hover:bg-white/10 text-white/70"}`}
+                                                className={`p-1.5 rounded-lg ${displayLight ? "hover:bg-gray-200 text-gray-600" : "hover:bg-white/10 text-white/70"}`}
                                                 aria-label="閉じる"
                                             >
                                                 <X size={18} />
@@ -848,13 +857,13 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                                                         key={tab.id}
                                                         onClick={() => setSidebarTab(tab.id)}
                                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${sidebarTab === tab.id
-                                                            ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
-                                                            : (isLightMode ? "text-gray-700 hover:bg-gray-100" : "text-white/40 hover:bg-white/5")
+                                                            ? (displayLight ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
+                                                            : (displayLight ? "text-purple-600 hover:bg-purple-50" : "text-white/40 hover:bg-white/5")
                                                             }`}
                                                     >
                                                         <Icon size={14} /> {tab.label}
                                                         {tab.id === "players" && (players || []).length > 0 && (
-                                                            <span className={`text-[10px] px-1 rounded-full ${isLightMode ? "bg-gray-200" : "bg-white/10"}`}>
+                                                            <span className={`text-[10px] px-1 rounded-full ${displayLight ? "bg-purple-100 text-purple-700" : "bg-white/10"}`}>
                                                                 {(players || []).length}
                                                             </span>
                                                         )}
@@ -864,7 +873,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                                             <button
                                                 type="button"
                                                 onClick={() => { setSidebarOpen(false); setShowResults(false); setPlayerHistoryViewId(null); }}
-                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLightMode ? "text-purple-700 hover:bg-purple-50 border border-purple-200" : "text-purple-400 hover:bg-purple-500/20 border border-purple-500/30"}`}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${displayLight ? "text-purple-700 hover:bg-purple-50 border border-purple-200" : "text-purple-400 hover:bg-purple-500/20 border border-purple-500/30"}`}
                                                 title="ガチャを引く画面へ"
                                             >
                                                 <Sparkles size={14} /> ガチャ
@@ -880,7 +889,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                                                             : "linear-gradient(to top, rgba(10,5,30,0.95) 0%, transparent 100%)",
                                                     }}
                                                 >
-                                                    <ChevronDown size={12} className={`animate-bounce ${isLightMode ? "text-gray-700" : "text-white/75"}`} />
+                                                    <ChevronDown size={12} className={`animate-bounce ${displayLight ? "text-gray-700" : "text-white/75"}`} />
                                                 </div>
                                             )}
                                             <div
@@ -935,13 +944,13 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                                         key={tab.id}
                                         onClick={() => setSidebarTab(tab.id)}
                                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${sidebarTab === tab.id
-                                            ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
-                                            : (isLightMode ? "text-gray-700 hover:bg-gray-100" : "text-white/40 hover:bg-white/5")
+                                            ? (displayLight ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
+                                            : (displayLight ? "text-purple-600 hover:bg-purple-50" : "text-white/40 hover:bg-white/5")
                                             }`}
                                     >
                                         <Icon size={14} /> {tab.label}
                                         {tab.id === "players" && (players || []).length > 0 && (
-                                            <span className={`text-[10px] px-1 rounded-full ${isLightMode ? "bg-gray-200" : "bg-white/10"}`}>
+                                            <span className={`text-[10px] px-1 rounded-full ${displayLight ? "bg-purple-100 text-purple-700" : "bg-white/10"}`}>
                                                 {(players || []).length}
                                             </span>
                                         )}
@@ -951,7 +960,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                             <button
                                 type="button"
                                 onClick={() => { setShowResults(false); setPlayerHistoryViewId(null); }}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLightMode ? "text-purple-700 hover:bg-purple-50 border border-purple-200" : "text-purple-400 hover:bg-purple-500/20 border border-purple-500/30"}`}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${displayLight ? "text-purple-700 hover:bg-purple-50 border border-purple-200" : "text-purple-400 hover:bg-purple-500/20 border border-purple-500/30"}`}
                                 title="ガチャを引く画面へ"
                             >
                                 <Sparkles size={14} /> ガチャ
@@ -967,7 +976,7 @@ export default function GachaPage({ isSplitMode = false, isRightPane = false }: 
                                             : "linear-gradient(to top, rgba(10,5,30,0.95) 0%, transparent 100%)",
                                     }}
                                 >
-                                    <ChevronDown size={12} className={`animate-bounce ${isLightMode ? "text-gray-700" : "text-white/75"}`} />
+                                    <ChevronDown size={12} className={`animate-bounce ${displayLight ? "text-gray-700" : "text-white/75"}`} />
                                 </div>
                             )}
                             <div

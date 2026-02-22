@@ -56,11 +56,12 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
-    const textPrimary = textLight ? "text-gray-900" : "text-white/95";
-    const textSecondary = textLight ? "text-gray-800" : "text-white/75";
-    const textMuted = textLight ? "text-gray-700" : "text-white/65";
+    const textPrimary = textLight ? "text-purple-900" : "text-white/95";
+    const textSecondary = textLight ? "text-purple-800" : "text-white/75";
+    const textMuted = textLight ? "text-purple-600" : "text-white/65";
     const inputBg = textLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
     const inputBorder = textLight ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
+    const placeholderCls = textLight ? "placeholder:text-purple-500" : "placeholder:text-white/50";
     const selectOptionStyle = textLight
         ? { background: "#fff", color: "#1f2937" }
         : { background: "rgba(30,27,75,0.95)", color: "#e2e8f0" };
@@ -162,14 +163,14 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
             onClick={() => toggleSection(id)}
             className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 ${textPrimary}`}
             style={{
-                background: expandedSection === id ? (isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)") : "transparent",
+                background: expandedSection === id ? (textLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)") : "transparent",
             }}
         >
             <div className="flex items-center gap-2">
-                <Icon size={16} className={isLightMode ? "text-purple-600" : "text-purple-400"} />
+                <Icon size={16} className={textLight ? "text-purple-600" : "text-purple-400"} />
                 <span className="text-sm font-semibold">{title}</span>
                 {badge && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-300"}`}>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${textLight ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-300"}`}>
                         {badge}
                     </span>
                 )}
@@ -190,7 +191,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                     value={pool.conceptName}
                     onChange={e => onPoolChange({ ...pool, conceptName: e.target.value })}
                     placeholder="例: 推し決定ガチャ"
-                    className={`w-full px-3 py-2 rounded-lg text-sm ${textPrimary} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
+                    className={`w-full px-3 py-2 rounded-lg text-sm ${textPrimary} ${placeholderCls} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
                     style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                 />
             </div>
@@ -206,7 +207,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                     max={100000}
                     value={pool.pullCount}
                     onChange={e => onPoolChange({ ...pool, pullCount: Math.max(1, Math.min(100000, parseInt(e.target.value) || 1)) })}
-                    className={`w-full px-3 py-2 rounded-lg text-sm ${textPrimary} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
+                    className={`w-full px-3 py-2 rounded-lg text-sm ${textPrimary} ${placeholderCls} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
                     style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                 />
                 <p className={`text-[10px] mt-1 ${textMuted}`}>最大100,000枚</p>
@@ -231,7 +232,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         <div
                                             key={rarity.id}
                                             className="flex items-center gap-2 p-2 rounded-lg min-h-11 flex-shrink-0"
-                                            style={{ background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)" }}
+                                            style={{ background: textLight ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)" }}
                                         >
                                             <input
                                                 type="color"
@@ -275,7 +276,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                     ))}
                                 <button
                                     onClick={addRarity}
-                                    className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition-all ${isLightMode ? "bg-purple-100 text-purple-700 hover:bg-purple-200" : "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"}`}
+                                    className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition-all ${textLight ? "bg-purple-100 text-purple-700 hover:bg-purple-200" : "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"}`}
                                 >
                                     <Plus size={12} /> レア度を追加
                                 </button>
@@ -354,7 +355,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                             value={newItemName}
                                             onChange={e => setNewItemName(e.target.value)}
                                             placeholder="品目名"
-                                            className={`flex-1 px-2 py-1.5 rounded-lg text-xs ${textPrimary} outline-none`}
+                                            className={`flex-1 px-2 py-1.5 rounded-lg text-xs ${textPrimary} ${placeholderCls} outline-none`}
                                             style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                             onKeyDown={e => e.key === "Enter" && addItem()}
                                         />
@@ -365,7 +366,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                             style={{
                                                 background: inputBg,
                                                 border: `1px solid ${inputBorder}`,
-                                                color: pool.rarities.find(r => r.id === newItemRarityId)?.color || (isLightMode ? "#1f2937" : "#e2e8f0"),
+                                                color: pool.rarities.find(r => r.id === newItemRarityId)?.color || (textLight ? "#1f2937" : "#e2e8f0"),
                                             }}
                                         >
                                             {pool.rarities.sort((a, b) => a.sortOrder - b.sortOrder).map(r => (
@@ -383,13 +384,13 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                             value={newItemWeight}
                                             onChange={e => setNewItemWeight(e.target.value)}
                                             placeholder="重み"
-                                            className={`w-24 px-2 py-1.5 rounded-lg text-xs ${textPrimary} outline-none`}
+                                            className={`w-24 px-2 py-1.5 rounded-lg text-xs ${textPrimary} ${placeholderCls} outline-none`}
                                             style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                         />
                                         <button
                                             onClick={addItem}
                                             disabled={!newItemName.trim()}
-                                            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-30 ${isLightMode ? "bg-purple-100 text-purple-700 hover:bg-purple-200" : "bg-purple-500/20 text-purple-400 hover:bg-purple-500/30"}`}
+                                            className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-30 ${textLight ? "bg-purple-100 text-purple-700 hover:bg-purple-200" : "bg-purple-500/20 text-purple-400 hover:bg-purple-500/30"}`}
                                         >
                                             <Plus size={12} /> 追加
                                         </button>
@@ -419,7 +420,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         onClick={() => onPoolChange({ ...pool, pityEnabled: !pool.pityEnabled })}
                                         className={`w-10 h-5 rounded-full transition-all relative cursor-pointer ${pool.pityEnabled
                                             ? "bg-purple-500"
-                                            : isLightMode ? "bg-gray-300" : "bg-white/20"
+                                            : textLight ? "bg-gray-300" : "bg-white/20"
                                             }`}
                                     >
                                         <div
@@ -456,7 +457,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                 style={{
                                                     background: inputBg,
                                                     border: `1px solid ${inputBorder}`,
-                                                    color: pool.rarities.find(r => r.id === pool.pityGuaranteedRarityId)?.color || (isLightMode ? "#1f2937" : "#e2e8f0"),
+                                                    color: pool.rarities.find(r => r.id === pool.pityGuaranteedRarityId)?.color || (textLight ? "#1f2937" : "#e2e8f0"),
                                                 }}
                                             >
                                                 {pool.rarities.sort((a, b) => a.sortOrder - b.sortOrder).map(r => (
@@ -553,8 +554,8 @@ function SortableItem({
         zIndex: isDragging ? 10 : 1,
     };
 
-    const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
-    const textMuted = isLightMode ? "text-gray-700" : "text-white/65";
+    const textPrimary = isLightMode ? "text-purple-900" : "text-white/95";
+    const textMuted = isLightMode ? "text-purple-600" : "text-white/65";
     const inputBg = isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
     const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
     const selectOptionStyle = isLightMode ? { background: "#fff", color: "#1f2937" } : { background: "#1e1b4b", color: "#e2e8f0" };
@@ -650,7 +651,7 @@ function SortableItem({
                 ) : (
                     <button
                         onClick={() => startEditing(item)}
-                        className={`p-1 rounded transition-colors ${isLightMode ? "hover:bg-gray-200 text-gray-600" : "hover:bg-white/10 text-white/65"}`}
+                        className={`p-1 rounded transition-colors ${isLightMode ? "hover:bg-gray-200 text-purple-600" : "hover:bg-white/10 text-white/65"}`}
                     >
                         <Pencil size={10} />
                     </button>

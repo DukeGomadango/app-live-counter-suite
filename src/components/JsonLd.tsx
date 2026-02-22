@@ -45,8 +45,7 @@ export default function JsonLd() {
         features = ["カウンター・フローチャート・ガチャの切替", "1画面で複数ツールを利用"];
     }
 
-    const jsonLd = {
-        "@context": "https://schema.org",
+    const appLd = {
         "@type": "SoftwareApplication",
         "name": name,
         "description": description,
@@ -75,6 +74,31 @@ export default function JsonLd() {
             }
         ],
         "softwareVersion": "2.0.0"
+    };
+
+    const breadcrumbItems: { position: number; name: string; item: string }[] = [
+        { position: 1, name: "ホーム", item: SITE_CONFIG.url },
+    ];
+    if (pathname === "/flowchart") {
+        breadcrumbItems.push({ position: 2, name: "フローチャート", item: `${SITE_CONFIG.url}/flowchart` });
+    } else if (pathname === "/gacha") {
+        breadcrumbItems.push({ position: 2, name: "ガチャシミュレーター", item: `${SITE_CONFIG.url}/gacha` });
+    } else if (pathname === "/split") {
+        breadcrumbItems.push({ position: 2, name: "スプリットビュー", item: `${SITE_CONFIG.url}/split` });
+    }
+    const breadcrumbLd = {
+        "@type": "BreadcrumbList",
+        "itemListElement": breadcrumbItems.map(({ position, name: n, item }) => ({
+            "@type": "ListItem",
+            "position": position,
+            "name": n,
+            "item": { "@id": item },
+        })),
+    };
+
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@graph": [appLd, breadcrumbLd],
     };
 
     // 中身は pathname と SITE_CONFIG のみ。ユーザー入力を渡さないこと。

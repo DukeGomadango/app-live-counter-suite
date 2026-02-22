@@ -1,9 +1,17 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import CounterPage from "@/app/CounterPage";
-import FlowChartPage from "@/app/flowchart/page";
-import GachaPage from "@/app/gacha/page";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+
+const FlowChartPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
+  () => import("@/app/flowchart/page"),
+  { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
+);
+const GachaPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
+  () => import("@/app/gacha/page"),
+  { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
+);
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AppSettings } from "@/components/SettingsModal";
