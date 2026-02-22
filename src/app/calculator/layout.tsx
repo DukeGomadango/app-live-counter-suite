@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { SITE_CONFIG } from "@/lib/site";
 
-const title = "電卓 | ライブカウンター Suite";
+const title = "電卓 | だんごツール";
 const description =
     "四則演算・分数・確率の簡易計算ができる電卓。配信やイベントのサポートツールとしても利用可能。";
 const url = `${SITE_CONFIG.url}/calculator`;

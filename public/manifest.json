@@ -1,7 +1,7 @@
 {
-    "name": "ライブカウンター Suite",
-    "short_name": "L-Counter",
-    "description": "配信者・クリエイター向けWebツールキット。登録不要・完全無料の人数カウンターやリアルタイム計算フローチャートを提供します。",
+    "name": "だんごツール",
+    "short_name": "だんごツール",
+    "description": "配信者・クリエイター向けWebツールキット「だんごツール」。登録不要・完全無料の人数カウンターやリアルタイム計算フローチャートを提供します。",
     "start_url": "/",
     "display": "standalone",
     "background_color": "#030014",

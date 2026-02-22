@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { SITE_CONFIG } from "@/lib/site";
 
-const title = "フローチャート・数値計算マップ | ライブカウンター Suite";
+const title = "フローチャート・数値計算マップ | だんごツール";
 const description = "リアルタイムで数値演算ができる直感的なノード式フローチャート・マインドマップ作成ツール。イベントの分岐、確率計算、アイテム集計などを視覚的に整理し、自動計算します。";
 const url = `${SITE_CONFIG.url}/flowchart`;
 

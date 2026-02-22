@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { SITE_CONFIG } from "@/lib/site";
 
-const title = "スプリットビュー (Split) | ライブカウンター Suite";
+const title = "スプリットビュー (Split) | だんごツール";
 const description = "カウンターとフローチャートを1つの画面で同時に操作できる分割ビューモードです。配信画面の構築やリアルタイム計算をよりスムーズに行えます。";
 const url = `${SITE_CONFIG.url}/split`;
 
