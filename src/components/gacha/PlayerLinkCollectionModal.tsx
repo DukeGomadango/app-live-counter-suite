@@ -1,9 +1,14 @@
 "use client";
 
-import { useMemo } from "react";
-import { X, ExternalLink } from "lucide-react";
+import { useMemo, useState, useCallback } from "react";
+import { X, ExternalLink, Copy, Check } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+
+/** 1行分のコピー用テキスト（項目名 + リンク） */
+function formatLine(item: { name: string; link: string }): string {
+    return `${item.name}\t${item.link}`;
+}
 
 interface PlayerLinkCollectionModalProps {
     player: Player;
@@ -57,6 +62,35 @@ export default function PlayerLinkCollectionModal({
         return result;
     }, [player.runHistory, pool.id, pool.items, pool.rarities]);
 
+    const [copiedAll, setCopiedAll] = useState(false);
+    const [copiedId, setCopiedId] = useState<string | null>(null);
+
+    const copyAllText = useMemo(
+        () => linkItems.map((item) => formatLine(item)).join("\n"),
+        [linkItems]
+    );
+
+    const handleCopyAll = useCallback(async () => {
+        if (linkItems.length === 0) return;
+        try {
+            await navigator.clipboard.writeText(copyAllText);
+            setCopiedAll(true);
+            setTimeout(() => setCopiedAll(false), 2000);
+        } catch {
+            // fallback or ignore
+        }
+    }, [copyAllText, linkItems.length]);
+
+    const handleCopyRow = useCallback(async (item: { itemId: string; name: string; link: string }) => {
+        try {
+            await navigator.clipboard.writeText(formatLine(item));
+            setCopiedId(item.itemId);
+            setTimeout(() => setCopiedId(null), 2000);
+        } catch {
+            // ignore
+        }
+    }, []);
+
     return (
         <>
             <div
@@ -70,17 +104,30 @@ export default function PlayerLinkCollectionModal({
                 role="dialog"
                 aria-labelledby="link-collection-title"
             >
-                <div className="flex items-center justify-between px-4 py-3 shrink-0 border-b" style={{ borderColor: glassBorder }}>
-                    <h2 id="link-collection-title" className={`text-sm font-bold ${textPrimary}`}>
+                <div className="flex items-center justify-between gap-2 px-4 py-3 shrink-0 border-b" style={{ borderColor: glassBorder }}>
+                    <h2 id="link-collection-title" className={`text-sm font-bold truncate min-w-0 ${textPrimary}`}>
                         {player.name} — リンク集
                     </h2>
-                    <button
-                        onClick={onClose}
-                        className={`p-2 rounded-lg transition-colors ${isLightMode ? "hover:bg-gray-100 text-gray-600" : "hover:bg-white/10 text-white/85"}`}
-                        aria-label="閉じる"
-                    >
-                        <X size={18} />
-                    </button>
+                    <div className="flex items-center gap-1 shrink-0">
+                        {linkItems.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={handleCopyAll}
+                                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${isLightMode ? "bg-purple-100 text-purple-700 hover:bg-purple-200" : "bg-purple-500/20 text-purple-400 hover:bg-purple-500/30"}`}
+                                title="項目+リンクをすべてコピー（タブ区切り・改行区切り）"
+                            >
+                                {copiedAll ? <Check size={14} /> : <Copy size={14} />}
+                                <span>{copiedAll ? "コピーした" : "すべてコピー"}</span>
+                            </button>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className={`p-2 rounded-lg transition-colors ${isLightMode ? "hover:bg-gray-100 text-gray-600" : "hover:bg-white/10 text-white/85"}`}
+                            aria-label="閉じる"
+                        >
+                            <X size={18} />
+                        </button>
+                    </div>
                 </div>
                 <div className="flex-1 min-h-0 overflow-y-auto p-4">
                     {linkItems.length === 0 ? (
@@ -91,12 +138,10 @@ export default function PlayerLinkCollectionModal({
                         <ul className="flex flex-col gap-2">
                             {linkItems.map((item) => {
                                 const rarity = pool.rarities.find((r) => r.id === item.rarityId);
+                                const rowCopied = copiedId === item.itemId;
                                 return (
                                     <li key={item.itemId}>
-                                        <a
-                                            href={item.link}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
+                                        <div
                                             className={`flex items-center gap-2 p-3 rounded-xl transition-colors ${isLightMode ? "hover:bg-gray-100" : "hover:bg-white/10"}`}
                                             style={{ border: `1px solid ${glassBorder}` }}
                                         >
@@ -106,9 +151,36 @@ export default function PlayerLinkCollectionModal({
                                             >
                                                 {rarity?.name ?? "?"}
                                             </span>
-                                            <span className={`flex-1 text-sm truncate ${textPrimary}`}>{item.name}</span>
-                                            <ExternalLink size={14} className={`shrink-0 ${textSecondary}`} />
-                                        </a>
+                                            <a
+                                                href={item.link}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className={`flex-1 text-sm truncate min-w-0 ${textPrimary} hover:underline`}
+                                            >
+                                                {item.name}
+                                            </a>
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.preventDefault(); handleCopyRow(item); }}
+                                                    className={`p-1.5 rounded-lg transition-colors ${rowCopied ? "text-green-500" : isLightMode ? "text-gray-500 hover:bg-gray-200 hover:text-gray-700" : "text-white/60 hover:bg-white/10 hover:text-white/90"}`}
+                                                    title="項目+リンクをコピー"
+                                                    aria-label="この行をコピー"
+                                                >
+                                                    {rowCopied ? <Check size={14} /> : <Copy size={14} />}
+                                                </button>
+                                                <a
+                                                    href={item.link}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className={`p-1.5 rounded-lg transition-colors ${isLightMode ? "text-gray-500 hover:bg-gray-200" : "text-white/60 hover:bg-white/10"}`}
+                                                    title="リンクを開く"
+                                                    aria-label="リンクを開く"
+                                                >
+                                                    <ExternalLink size={14} />
+                                                </a>
+                                            </div>
+                                        </div>
                                     </li>
                                 );
                             })}
