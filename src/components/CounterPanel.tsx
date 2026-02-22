@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp, ChevronDown, Trash2, Pencil } from "lucide-react";
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -40,6 +40,10 @@ export default function CounterPanel({
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: isOverlay });
     const lastIncrementAt = useRef<number>(0);
     const pointerHandled = useRef(false);
+    const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const tapPendingRef = useRef(false);
+    const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [isPop, setIsPop] = useState(false);
     const [popDirection, setPopDirection] = useState<"up" | "down">("up");
     const [isHovered, setIsHovered] = useState(false);
@@ -47,6 +51,7 @@ export default function CounterPanel({
     const [editCountValue, setEditCountValue] = useState("");
 
     const doIncrement = useCallback(() => {
+        if (pointerHandled.current) return;
         if (isEditingCount) return;
         const now = Date.now();
         if (now - lastIncrementAt.current < 400) return;
@@ -56,16 +61,39 @@ export default function CounterPanel({
         setPopDirection("up");
         setIsPop(true);
         setTimeout(() => setIsPop(false), 300);
+        setTimeout(() => { pointerHandled.current = false; }, 300);
     }, [id, onIncrement, isEditingCount]);
 
+    // パネル領域: イベントを親（sortable）にバブルさせつつ、短いタップ時だけ pointerup で増加（長押しドラッグでは増やさない）
+    const TAP_WINDOW_MS = 200;
     const handlePointerDown = useCallback(
         (e: React.PointerEvent) => {
             if (e.button !== 0) return;
             const el = e.target as HTMLElement;
             if (el.closest("button") || el.closest("[data-count-editable]") || el.closest("input")) return;
-            e.preventDefault();
-            e.stopPropagation();
-            doIncrement();
+            if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+            tapPendingRef.current = true;
+            tapTimerRef.current = setTimeout(() => {
+                tapPendingRef.current = false;
+                tapTimerRef.current = null;
+            }, TAP_WINDOW_MS);
+            // stopPropagation しないので sortable が pointer を受け取りドラッグできる
+        },
+        []
+    );
+
+    const handlePointerUp = useCallback(
+        (e: React.PointerEvent) => {
+            const el = e.target as HTMLElement;
+            if (el.closest("button") || el.closest("[data-count-editable]") || el.closest("input")) return;
+            if (tapTimerRef.current) {
+                clearTimeout(tapTimerRef.current);
+                tapTimerRef.current = null;
+            }
+            if (tapPendingRef.current) {
+                tapPendingRef.current = false;
+                doIncrement();
+            }
         },
         [doIncrement]
     );
@@ -74,38 +102,103 @@ export default function CounterPanel({
         (e: React.MouseEvent) => {
             e.preventDefault();
             e.stopPropagation();
-            if (pointerHandled.current) {
-                pointerHandled.current = false;
-                return;
-            }
-            doIncrement();
+            // 増加は handlePointerUp で行うため、click では何もしない
         },
-        [doIncrement]
+        []
     );
 
-    const handleIncrement = useCallback(
-        (e: React.MouseEvent) => {
+    const HOLD_DELAY_MS = 400;
+    const REPEAT_INTERVAL_MS = 80;
+
+    const stopRepeat = useCallback(() => {
+        if (holdTimerRef.current) {
+            clearTimeout(holdTimerRef.current);
+            holdTimerRef.current = null;
+        }
+        if (repeatIntervalRef.current) {
+            clearInterval(repeatIntervalRef.current);
+            repeatIntervalRef.current = null;
+        }
+    }, []);
+
+    useEffect(() => () => stopRepeat(), [stopRepeat]);
+    useEffect(() => () => {
+        if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
+    }, []);
+
+    const handleIncrementPointerDown = useCallback(
+        (e: React.PointerEvent) => {
+            if (e.button !== 0) return;
             e.stopPropagation();
-            onIncrement(id);
-            setPopDirection("up");
-            setIsPop(true);
-            setTimeout(() => setIsPop(false), 300);
+            (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+            stopRepeat();
+            holdTimerRef.current = setTimeout(() => {
+                holdTimerRef.current = null;
+                repeatIntervalRef.current = setInterval(() => {
+                    onIncrement(id);
+                }, REPEAT_INTERVAL_MS);
+            }, HOLD_DELAY_MS);
         },
-        [id, onIncrement]
+        [id, onIncrement, stopRepeat]
     );
 
-    const handleDecrement = useCallback(
-        (e: React.MouseEvent) => {
+    const handleIncrementPointerUp = useCallback(
+        (e: React.PointerEvent) => {
             e.stopPropagation();
-            if (count > 0) {
+            const wasRepeating = repeatIntervalRef.current !== null;
+            stopRepeat();
+            try {
+                (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+            } catch { /* ignore */ }
+            if (!wasRepeating) doIncrement();
+        },
+        [doIncrement, stopRepeat]
+    );
+
+    const handleIncrementClick = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // 1回目は handleIncrementPointerUp で doIncrement するため、click では何もしない
+    }, []);
+
+    const handleDecrementPointerDown = useCallback(
+        (e: React.PointerEvent) => {
+            if (e.button !== 0) return;
+            e.stopPropagation();
+            (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+            stopRepeat();
+            holdTimerRef.current = setTimeout(() => {
+                holdTimerRef.current = null;
+                repeatIntervalRef.current = setInterval(() => {
+                    onDecrement(id);
+                }, REPEAT_INTERVAL_MS);
+            }, HOLD_DELAY_MS);
+        },
+        [id, onDecrement, stopRepeat]
+    );
+
+    const handleDecrementPointerUp = useCallback(
+        (e: React.PointerEvent) => {
+            e.stopPropagation();
+            const wasRepeating = repeatIntervalRef.current !== null;
+            stopRepeat();
+            try {
+                (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+            } catch { /* ignore */ }
+            if (!wasRepeating && count > 0) {
                 onDecrement(id);
                 setPopDirection("down");
                 setIsPop(true);
                 setTimeout(() => setIsPop(false), 300);
             }
         },
-        [id, count, onDecrement]
+        [id, count, onDecrement, stopRepeat]
     );
+
+    const handleDecrementClick = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+    }, []);
 
     // Prevent context menu
     const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -153,6 +246,14 @@ export default function CounterPanel({
             <div
                 onClick={handleLeftClick}
                 onPointerDown={handlePointerDown}
+                onPointerUp={handlePointerUp}
+                onPointerLeave={() => {
+                    if (tapTimerRef.current) {
+                        clearTimeout(tapTimerRef.current);
+                        tapTimerRef.current = null;
+                    }
+                    tapPendingRef.current = false;
+                }}
                 onContextMenu={handleContextMenu}
                 className="relative flex flex-col items-center justify-center gap-0.5 rounded-2xl cursor-pointer transition-all duration-300 overflow-hidden w-full h-full"
                 style={{
@@ -294,9 +395,14 @@ export default function CounterPanel({
                                 className="flex flex-col gap-0.5 ml-1"
                             >
                                 <button
-                                    onClick={handleIncrement}
-                                    aria-label={`${label}を1増やす`}
-                                    className={`w-5 h-4 sm:w-6 sm:h-5 rounded flex items-center justify-center cursor-pointer transition-colors ${arrowColor}`}
+                                    type="button"
+                                    onClick={handleIncrementClick}
+                                    onPointerDown={handleIncrementPointerDown}
+                                    onPointerUp={handleIncrementPointerUp}
+                                    onPointerLeave={handleIncrementPointerUp}
+                                    onPointerCancel={handleIncrementPointerUp}
+                                    aria-label={`${label}を1増やす（長押しで連続）`}
+                                    className={`w-5 h-4 sm:w-6 sm:h-5 rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
                                     style={{ background: arrowBg }}
                                     onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
                                     onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
@@ -305,9 +411,14 @@ export default function CounterPanel({
                                 </button>
                                 {count > 0 && (
                                     <button
-                                        onClick={handleDecrement}
-                                        aria-label={`${label}を1減らす`}
-                                        className={`w-5 h-4 sm:w-6 sm:h-5 rounded flex items-center justify-center cursor-pointer transition-colors ${arrowColor}`}
+                                        type="button"
+                                        onClick={handleDecrementClick}
+                                        onPointerDown={handleDecrementPointerDown}
+                                        onPointerUp={handleDecrementPointerUp}
+                                        onPointerLeave={handleDecrementPointerUp}
+                                        onPointerCancel={handleDecrementPointerUp}
+                                        aria-label={`${label}を1減らす（長押しで連続）`}
+                                        className={`w-5 h-4 sm:w-6 sm:h-5 rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
                                         style={{ background: arrowBg }}
                                         onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
                                         onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}

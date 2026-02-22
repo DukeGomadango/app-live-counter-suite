@@ -11,8 +11,8 @@ import GachaRollAnimation from "@/components/gacha/GachaRollAnimation";
 import GachaResultDisplay from "@/components/gacha/GachaResultDisplay";
 import GachaPlayerManager from "@/components/gacha/GachaPlayerManager";
 import PlayerHistoryCard from "@/components/gacha/PlayerHistoryCard";
-import type { GachaPool, Player, GachaResult, GachaSettings } from "@/lib/gacha";
-import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_BG_COLORS, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds } from "@/lib/gacha";
+import type { GachaPool, Player, GachaResult, GachaSettings, GachaPoolPreset } from "@/lib/gacha";
+import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_BG_COLORS, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds, clonePoolWithNewIds, getSampleTemplates } from "@/lib/gacha";
 
 type MobileTab = "setup" | "gacha" | "results" | "players" | "items";
 type SidebarTab = "setup" | "players" | "items" | "presets";
@@ -275,6 +275,7 @@ export default function GachaPage() {
     const [latestResults, setLatestResults] = useState<GachaResult[] | null>(null);
     const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("gacha-light-mode", false);
     const [gachaSettings, setGachaSettings] = useLocalStorage<GachaSettings>("gacha-settings", createDefaultSettings());
+    const [presets] = useLocalStorage<GachaPoolPreset[]>("gacha-presets", []);
     const [hasMigrated, setHasMigrated] = useState(false);
 
     const [isRolling, setIsRolling] = useState(false);
@@ -433,6 +434,20 @@ export default function GachaPage() {
     }, [isMobile]);
 
     const activePlayer = players.find(p => p.id === activePlayerId);
+    const sampleTemplates = useMemo(() => getSampleTemplates(), []);
+
+    const handleGachaSwitch = useCallback((value: string) => {
+        if (!value) return;
+        if (value.startsWith("sample:")) {
+            const id = value.slice(7);
+            const t = sampleTemplates.find(s => s.id === id);
+            if (t) setPool(clonePoolWithNewIds(t.pool));
+        } else if (value.startsWith("preset:")) {
+            const id = value.slice(7);
+            const pre = presets.find(p => p.id === id);
+            if (pre) setPool(clonePoolWithNewIds(pre.pool));
+        }
+    }, [presets, sampleTemplates, setPool]);
 
     const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
     const headerBg = isLightMode ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.5)";
@@ -487,16 +502,36 @@ export default function GachaPage() {
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+                        <select
+                            value=""
+                            onChange={(e) => { handleGachaSwitch(e.target.value); e.target.value = ""; }}
+                            className="shrink-0 max-w-[140px] px-2 py-1 rounded-lg text-xs outline-none border bg-white border-gray-300 text-gray-900"
+                            title="ガチャを切り替え"
+                        >
+                            <option value="">ガチャを切り替え</option>
+                            <optgroup label="サンプル">
+                                {sampleTemplates.map(t => (
+                                    <option key={t.id} value={`sample:${t.id}`}>{t.name}</option>
+                                ))}
+                            </optgroup>
+                            {presets.length > 0 && (
+                                <optgroup label="保存済み">
+                                    {[...presets].sort((a, b) => b.savedAt - a.savedAt).map(pre => (
+                                        <option key={pre.id} value={`preset:${pre.id}`}>{pre.name}</option>
+                                    ))}
+                                </optgroup>
+                            )}
+                        </select>
                         <button
                             onClick={() => setShowSettingsPanel(!showSettingsPanel)}
-                            className={`p-1.5 rounded-lg transition-all ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                            className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
                         >
                             <Settings size={16} />
                         </button>
                         <button
                             onClick={() => setIsLightMode(!isLightMode)}
-                            className={`p-1.5 rounded-lg transition-all ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                            className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
                         >
                             {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
                         </button>
@@ -662,17 +697,37 @@ pool={pool}
                         </div>
                     )}
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+                    <select
+                        value=""
+                        onChange={(e) => { handleGachaSwitch(e.target.value); e.target.value = ""; }}
+                        className="shrink-0 w-40 px-2 py-1.5 rounded-lg text-xs outline-none border bg-white border-gray-300 text-gray-900"
+                        title="ガチャを切り替え"
+                    >
+                        <option value="">ガチャを切り替え</option>
+                        <optgroup label="サンプル">
+                            {sampleTemplates.map(t => (
+                                <option key={t.id} value={`sample:${t.id}`}>{t.name}</option>
+                            ))}
+                        </optgroup>
+                        {presets.length > 0 && (
+                            <optgroup label="保存済み">
+                                {[...presets].sort((a, b) => b.savedAt - a.savedAt).map(pre => (
+                                    <option key={pre.id} value={`preset:${pre.id}`}>{pre.name}</option>
+                                ))}
+                            </optgroup>
+                        )}
+                    </select>
                     <button
                         onClick={() => setShowSettingsPanel(!showSettingsPanel)}
-                        className={`p-1.5 rounded-lg transition-all ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                        className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
                         title="ガチャ設定"
                     >
                         <Settings size={16} />
                     </button>
                     <button
                         onClick={() => setIsLightMode(!isLightMode)}
-                        className={`p-1.5 rounded-lg transition-all ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                        className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
                     >
                         {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
                     </button>

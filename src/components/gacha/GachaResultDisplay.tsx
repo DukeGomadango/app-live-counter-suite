@@ -133,9 +133,16 @@ export default function GachaResultDisplay({
         <div className="flex flex-col h-full overflow-hidden">
             {/* ヘッダー */}
             <div className="flex items-center justify-between px-4 py-2 shrink-0 gap-2 flex-wrap">
-                <h3 className={`text-sm font-bold ${textPrimary}`}>
-                    {title || `${results.length.toLocaleString()}連の結果`}
-                </h3>
+                <div>
+                    <h3 className={`text-sm font-bold ${textPrimary}`}>
+                        {title || `${results.length.toLocaleString()}連の結果`}
+                    </h3>
+                    {title && (
+                        <p className={`text-[10px] mt-0.5 ${textMuted}`}>
+                            直近の結果（{results.length.toLocaleString()}連）
+                        </p>
+                    )}
+                </div>
                 <div className="flex items-center gap-1">
                     {onBackToGacha && (
                         <button

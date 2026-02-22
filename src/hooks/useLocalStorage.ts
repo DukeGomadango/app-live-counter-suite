@@ -59,11 +59,14 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 
                     if (prevString !== newString) {
                         window.localStorage.setItem(key, newString);
-                        window.dispatchEvent(
-                            new CustomEvent("local-storage-sync", {
-                                detail: { key, newValue: valueToStore },
-                            })
-                        );
+                        // 同一タブの listener は requestAnimationFrame で遅延し、setState 二重適用を防ぐ
+                        requestAnimationFrame(() => {
+                            window.dispatchEvent(
+                                new CustomEvent("local-storage-sync", {
+                                    detail: { key, newValue: valueToStore },
+                                })
+                            );
+                        });
                     }
                     return valueToStore;
                 });
