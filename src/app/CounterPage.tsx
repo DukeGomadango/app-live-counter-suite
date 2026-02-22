@@ -43,7 +43,7 @@ function useWindowWidth() {
 export default function Home({ isSplitMode = false, isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
   const [items, setItems] = useLocalStorage<CounterItem[]>(
     "counter-items",
-    createCounterItems(TEMPLATES[1])
+    createCounterItems(TEMPLATES[1] ?? TEMPLATES[0]!)
   );
   const [currentTemplateId, setCurrentTemplateId] = useLocalStorage<string>(
     "counter-template",
@@ -230,7 +230,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
         id: `custom-${Date.now()}`,
         label,
         emoji,
-        color: colors[Math.floor(Math.random() * colors.length)],
+        color: colors[Math.floor(Math.random() * colors.length)] ?? colors[0]!,
         count: 0,
         target: 0,
       };
@@ -407,6 +407,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
         onOpenSettings={() => setIsSettingsOpen(true)}
         accentColor={appSettings.accentColor}
         hideThemeToggle={isSplitMode && !isRightPane}
+        hideModeSelector={isSplitMode}
       />
 
       <main className="flex-1 overflow-auto" style={{ paddingTop: "56px" }}>

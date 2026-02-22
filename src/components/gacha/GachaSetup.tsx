@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Plus,
@@ -45,6 +45,47 @@ interface GachaSetupProps {
     textContrastLight?: boolean;
 }
 
+function SectionHeader({
+    id,
+    icon: Icon,
+    title,
+    badge,
+    expandedSection,
+    onToggle,
+    textLight,
+    textPrimary,
+}: {
+    id: string;
+    icon: React.ElementType;
+    title: string;
+    badge?: string;
+    expandedSection: string | null;
+    onToggle: (id: string) => void;
+    textLight: boolean;
+    textPrimary: string;
+}) {
+    return (
+        <button
+            onClick={() => onToggle(id)}
+            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 ${textPrimary}`}
+            style={{
+                background: expandedSection === id ? (textLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)") : "transparent",
+            }}
+        >
+            <div className="flex items-center gap-2">
+                <Icon size={16} className={textLight ? "text-purple-600" : "text-purple-400"} />
+                <span className="text-sm font-semibold">{title}</span>
+                {badge && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${textLight ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-300"}`}>
+                        {badge}
+                    </span>
+                )}
+            </div>
+            {expandedSection === id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+    );
+}
+
 export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false }: GachaSetupProps) {
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
@@ -56,12 +97,12 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
-    const textPrimary = textLight ? "text-purple-900" : "text-white/95";
-    const textSecondary = textLight ? "text-purple-800" : "text-white/75";
-    const textMuted = textLight ? "text-purple-600" : "text-white/65";
+    const textPrimary = textLight ? "text-neutral-900" : "text-white/95";
+    const textSecondary = textLight ? "text-neutral-700" : "text-white/80";
+    const textMuted = textLight ? "text-neutral-600" : "text-white/70";
     const inputBg = textLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
     const inputBorder = textLight ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
-    const placeholderCls = textLight ? "placeholder:text-purple-500" : "placeholder:text-white/50";
+    const placeholderCls = textLight ? "placeholder:text-neutral-500" : "placeholder:text-white/55";
     const selectOptionStyle = textLight
         ? { background: "#fff", color: "#1f2937" }
         : { background: "rgba(30,27,75,0.95)", color: "#e2e8f0" };
@@ -158,27 +199,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         setExpandedSection(prev => prev === section ? null : section);
     };
 
-    const SectionHeader = ({ id, icon: Icon, title, badge }: { id: string; icon: React.ElementType; title: string; badge?: string }) => (
-        <button
-            onClick={() => toggleSection(id)}
-            className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 ${textPrimary}`}
-            style={{
-                background: expandedSection === id ? (textLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)") : "transparent",
-            }}
-        >
-            <div className="flex items-center gap-2">
-                <Icon size={16} className={textLight ? "text-purple-600" : "text-purple-400"} />
-                <span className="text-sm font-semibold">{title}</span>
-                {badge && (
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${textLight ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-300"}`}>
-                        {badge}
-                    </span>
-                )}
-            </div>
-            {expandedSection === id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </button>
-    );
-
     return (
         <div className="flex flex-col gap-3 min-h-0 pr-1 pb-20">
             {/* コンセプト名 */}
@@ -215,7 +235,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
             {/* レア度設定 */}
             <div className="rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
-                <SectionHeader id="rarities" icon={Palette} title="レア度設定" badge={`${pool.rarities.length}`} />
+                <SectionHeader id="rarities" icon={Palette} title="レア度設定" badge={`${pool.rarities.length}`} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
                 <AnimatePresence>
                     {expandedSection === "rarities" && (
                         <motion.div
@@ -288,7 +308,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
             {/* 品目設定 */}
             <div className="rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
-                <SectionHeader id="items" icon={Sparkles} title="排出品目" badge={`${pool.items.length}`} />
+                <SectionHeader id="items" icon={Sparkles} title="排出品目" badge={`${pool.items.length}`} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
                 <AnimatePresence>
                     {expandedSection === "items" && (
                         <motion.div
@@ -404,7 +424,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
             {/* 天井設定 */}
             <div className="rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
-                <SectionHeader id="pity" icon={Shield} title="天井設定" badge={pool.pityEnabled ? "ON" : "OFF"} />
+                <SectionHeader id="pity" icon={Shield} title="天井設定" badge={pool.pityEnabled ? "ON" : "OFF"} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
                 <AnimatePresence>
                     {expandedSection === "pity" && (
                         <motion.div

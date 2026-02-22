@@ -52,9 +52,9 @@ export default function GachaResultDisplay({
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
-    const textPrimary = textLight ? "text-gray-800" : "text-white/90";
-    const textSecondary = textLight ? "text-gray-700" : "text-white/50";
-    const textMuted = textLight ? "text-gray-600" : "text-white/30";
+    const textPrimary = textLight ? "text-gray-800" : "text-white/95";
+    const textSecondary = textLight ? "text-gray-700" : "text-white/75";
+    const textMuted = textLight ? "text-gray-600" : "text-white/65";
     const selectOptionStyle = textLight
         ? { background: "#fff", color: "#1f2937" }
         : { background: "#1e1b4b", color: "#e2e8f0" };
@@ -164,7 +164,7 @@ export default function GachaResultDisplay({
                         onClick={handleCopy}
                         className={`p-1.5 rounded-lg text-xs transition-all ${copied
                             ? "bg-green-500/20 text-green-400"
-                            : isLightMode ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-white/10 text-white/60 hover:bg-white/20"
+                            : isLightMode ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-white/10 text-white/80 hover:bg-white/20"
                             }`}
                         title="コピー"
                     >

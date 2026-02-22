@@ -55,7 +55,7 @@ export default function ModeSelector({ isLightMode = false }: ModeSelectorProps)
     const dropdownRef = useRef<HTMLDivElement>(null);
 
     // Find the current mode based on exact path match, default to counter if not found
-    const currentMode = MODES.find((m) => m.path === pathname) || MODES[0];
+    const currentMode = MODES.find((m) => m.path === pathname) ?? MODES[0]!;
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {

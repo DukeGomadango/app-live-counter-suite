@@ -44,6 +44,8 @@ interface HamburgerMenuProps {
     accentColor: string;
     viewMode: "counter" | "flowchart";
     hideThemeToggle?: boolean;
+    /** Split表示時は上部バーにモード切替があるため非表示 */
+    hideModeSelector?: boolean;
 
     // Counter specific
     totalCount?: number;
@@ -85,6 +87,7 @@ export default function HamburgerMenu({
     accentColor,
     viewMode,
     hideThemeToggle = false,
+    hideModeSelector = false,
 
     // Counter
     totalCount = 0,
@@ -244,7 +247,7 @@ export default function HamburgerMenu({
                             <Menu size={18} className={isLightMode ? "text-gray-700" : "text-white/80"} />
                         )}
                     </button>
-                    <ModeSelector isLightMode={isLightMode} />
+                    {!hideModeSelector && <ModeSelector isLightMode={isLightMode} />}
                 </div>
 
                 {/* Center: Total count with target */}

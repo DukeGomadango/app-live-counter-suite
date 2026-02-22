@@ -41,8 +41,8 @@ export default function GachaSwitchDropdown({
     }, [open]);
 
     const textLight = isLightMode || textContrastLight;
-    const textCls = textLight ? "text-gray-900" : "text-white/90";
-    const textMuted = textLight ? "text-gray-500" : "text-white/50";
+    const textCls = textLight ? "text-gray-900" : "text-white/95";
+    const textMuted = textLight ? "text-gray-600" : "text-white/70";
     const hoverCls = textLight ? "hover:bg-black/5" : "hover:bg-white/10";
     const pad = size === "sm" ? "px-2 py-1" : "px-2 py-1.5";
     const widthCls = size === "sm" ? "max-w-[140px]" : "w-40";
@@ -82,6 +82,7 @@ export default function GachaSwitchDropdown({
                                 key={t.id}
                                 type="button"
                                 role="option"
+                                aria-selected={false}
                                 onClick={() => {
                                     onSelect(`sample:${t.id}`);
                                     setOpen(false);
@@ -101,6 +102,7 @@ export default function GachaSwitchDropdown({
                                         key={pre.id}
                                         type="button"
                                         role="option"
+                                        aria-selected={false}
                                         onClick={() => {
                                             onSelect(`preset:${pre.id}`);
                                             setOpen(false);

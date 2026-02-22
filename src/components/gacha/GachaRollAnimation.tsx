@@ -46,6 +46,7 @@ function createConfetti(count: number) {
     return Array.from({ length: count }, (_, i) => ({
         id: i,
         x: Math.random() * 100,
+        endX: Math.random() * 100 - 50,
         size: Math.random() * 8 + 4,
         color: colors[Math.floor(Math.random() * colors.length)],
         delay: Math.random() * 0.5,
@@ -114,14 +115,16 @@ export default function GachaRollAnimation({
         if (!isRolling || !results) return;
 
         if (!enableAnimation) {
-            setPhase("done");
+            queueMicrotask(() => setPhase("done"));
             return;
         }
 
-        setPhase("build-up");
-        setRevealIndex(0);
-        setSkipRequested(false);
-        setShowConfirmedEffect(false);
+        queueMicrotask(() => {
+            setPhase("build-up");
+            setRevealIndex(0);
+            setSkipRequested(false);
+            setShowConfirmedEffect(false);
+        });
 
         const buildUpTimer = setTimeout(() => setPhase("spinning"), 600);
         return () => clearTimeout(buildUpTimer);
@@ -169,14 +172,18 @@ export default function GachaRollAnimation({
     // スキップ
     useEffect(() => {
         if (skipRequested && (phase === "revealing" || phase === "spinning" || phase === "build-up")) {
-            setRevealIndex(sortedResults.length);
-            setShowConfirmedEffect(false);
-            setPhase("summary");
+            queueMicrotask(() => {
+                setRevealIndex(sortedResults.length);
+                setShowConfirmedEffect(false);
+                setPhase("summary");
+            });
         }
         if (skipRequested && phase === "bulk-reveal" && bulkOrganized.length > 0) {
-            setBulkDisplayCounts(bulkOrganized.map(o => o.count));
-            setBulkRevealVisibleUpTo(-1);
-            setPhase("summary");
+            queueMicrotask(() => {
+                setBulkDisplayCounts(bulkOrganized.map(o => o.count));
+                setBulkRevealVisibleUpTo(-1);
+                setPhase("summary");
+            });
         }
     }, [skipRequested, phase, sortedResults.length, bulkOrganized]);
 
@@ -218,7 +225,8 @@ export default function GachaRollAnimation({
                     if (elapsed <= 0) return 0;
                     const t = Math.min(1, elapsed / durationMs);
                     const eased = 1 - (1 - t) * (1 - t);
-                    return Math.min(targets[i], Math.round(targets[i] * eased));
+                    const targetVal = targets[i] ?? 0;
+                    return Math.min(targetVal, Math.round(targetVal * eased));
                 });
             });
         }, tickMs);
@@ -226,7 +234,7 @@ export default function GachaRollAnimation({
     }, [phase, bulkOrganized, bulkRevealVisibleUpTo]);
 
     useEffect(() => {
-        if (phase !== "bulk-reveal") setBulkRevealVisibleUpTo(-1);
+        if (phase !== "bulk-reveal") queueMicrotask(() => setBulkRevealVisibleUpTo(-1));
     }, [phase]);
 
     // summary → done（○○連の結果表示時間を長めに）
@@ -389,13 +397,13 @@ export default function GachaRollAnimation({
                 <motion.p
                     animate={{ opacity: [0.3, 1, 0.3] }}
                     transition={{ duration: 0.5, repeat: 1 }}
-                    className={`text-lg font-bold ${textLight ? "text-gray-600" : "text-white/70"}`}
+                    className={`text-lg font-bold ${textLight ? "text-gray-600" : "text-white/85"}`}
                 >
                     ...
                 </motion.p>
                 <button
                     onClick={handleSkip}
-                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${textLight ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${textLight ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/15 text-white/90 hover:bg-white/25"}`}
                 >
                     <SkipForward size={12} /> スキップ
                 </button>
@@ -538,7 +546,7 @@ export default function GachaRollAnimation({
                 {/* スキップボタン */}
                 <button
                     onClick={handleSkip}
-                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${textLight ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${textLight ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/15 text-white/90 hover:bg-white/25"}`}
                 >
                     <SkipForward size={12} /> スキップ
                 </button>
@@ -557,7 +565,7 @@ export default function GachaRollAnimation({
                     </span>
                     <button
                         onClick={handleSkip}
-                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${textLight ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
+                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${textLight ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/15 text-white/90 hover:bg-white/25"}`}
                     >
                         <SkipForward size={12} /> スキップ
                     </button>
@@ -566,7 +574,7 @@ export default function GachaRollAnimation({
                     <div className="flex flex-col gap-1">
                         {bulkOrganized.slice(0, Math.max(0, bulkRevealVisibleUpTo + 1)).map((item, idx) => {
                             const rarity = getRarityById(item.rarityId);
-                            const prevRarity = idx > 0 ? getRarityById(bulkOrganized[idx - 1].rarityId) : null;
+                            const prevRarity = idx > 0 ? getRarityById(bulkOrganized[idx - 1]?.rarityId ?? "") : null;
                             const isRarityUp = idx > 0 && rarity && prevRarity && rarity.sortOrder > prevRarity.sortOrder;
                             const displayCount = bulkDisplayCounts[idx] ?? 0;
                             return (
@@ -670,7 +678,7 @@ export default function GachaRollAnimation({
                     </span>
                     <button
                         onClick={handleSkip}
-                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${textLight ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
+                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${textLight ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/15 text-white/90 hover:bg-white/25"}`}
                     >
                         <SkipForward size={12} /> スキップ
                     </button>
@@ -746,7 +754,7 @@ export default function GachaRollAnimation({
                         }}
                         animate={{
                             y: [0, 800],
-                            x: [0, Math.random() * 100 - 50],
+                            x: [0, c.endX],
                             rotate: [0, c.rotate],
                             opacity: [1, 0],
                         }}
@@ -762,7 +770,7 @@ export default function GachaRollAnimation({
                     initial={{ scale: 0, rotate: -10 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: "spring", stiffness: 200 }}
-                    className={`text-2xl sm:text-3xl font-black ${textLight ? "text-gray-900" : "text-white/90"}`}
+                    className={`text-2xl sm:text-3xl font-black ${textLight ? "text-gray-900" : "text-white/95"}`}
                 >
                     🎉 {results.length.toLocaleString()}連の結果
                 </motion.div>
@@ -838,7 +846,7 @@ export default function GachaRollAnimation({
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1.5 }}
                     onClick={handleSkip}
-                    className={`text-xs mt-2 ${textLight ? "text-gray-600" : "text-white/65"} hover:underline`}
+                    className={`text-xs mt-2 ${textLight ? "text-gray-600" : "text-white/75"} hover:underline`}
                 >
                     スキップ →
                 </motion.button>

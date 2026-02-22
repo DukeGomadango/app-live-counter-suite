@@ -65,9 +65,9 @@ export default function GachaPlayerManager({
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
-    const textPrimary = textLight ? "text-gray-900" : "text-white/90";
-    const textSecondary = textLight ? "text-gray-900" : "text-white/50";
-    const textMuted = textLight ? "text-gray-800" : "text-white/30";
+    const textPrimary = textLight ? "text-gray-900" : "text-white/95";
+    const textSecondary = textLight ? "text-gray-700" : "text-white/75";
+    const textMuted = textLight ? "text-gray-600" : "text-white/65";
     const inputBg = textLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
     const inputBorder = textLight ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
 
@@ -96,7 +96,7 @@ export default function GachaPlayerManager({
                         value={newPlayerName}
                         onChange={e => setNewPlayerName(e.target.value)}
                         placeholder="名前を入力..."
-                        className={`flex-1 px-3 py-2 rounded-lg text-sm ${textPrimary} ${textLight ? "placeholder:text-gray-600" : "placeholder:text-white/50"} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm ${textPrimary} ${textLight ? "placeholder:text-gray-500" : "placeholder:text-white/55"} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
                         style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                         onKeyDown={e => e.key === "Enter" && handleAddPlayer()}
                     />
