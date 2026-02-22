@@ -34,15 +34,18 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from "lucide-react";
+import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface GachaSetupProps {
     pool: GachaPool;
     onPoolChange: (pool: GachaPool) => void;
     isLightMode: boolean;
+    /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
+    textContrastLight?: boolean;
 }
 
-export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSetupProps) {
+export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false }: GachaSetupProps) {
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
@@ -51,16 +54,16 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
     const [editName, setEditName] = useState("");
     const [pendingDelete, setPendingDelete] = useState<{ type: "rarity"; id: string } | { type: "item"; id: string } | null>(null);
 
-    const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
-    const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
-    const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
-    const textSecondary = isLightMode ? "text-gray-800" : "text-white/75";
-    const textMuted = isLightMode ? "text-gray-700" : "text-white/65";
-    const inputBg = isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
-    const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
-    const selectOptionStyle = isLightMode
+    const { glassBg, glassBorder } = useGlassStyle(isLightMode);
+    const textLight = isLightMode || textContrastLight;
+    const textPrimary = textLight ? "text-gray-900" : "text-white/95";
+    const textSecondary = textLight ? "text-gray-800" : "text-white/75";
+    const textMuted = textLight ? "text-gray-700" : "text-white/65";
+    const inputBg = textLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
+    const inputBorder = textLight ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
+    const selectOptionStyle = textLight
         ? { background: "#fff", color: "#1f2937" }
-        : { background: "#1e1b4b", color: "#e2e8f0" };
+        : { background: "rgba(30,27,75,0.95)", color: "#e2e8f0" };
 
     const probabilities = calculateProbabilities(pool.items);
     const rarityProbs = getRarityProbabilities(pool.items, pool.rarities);
@@ -327,7 +330,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                                                         key={item.id}
                                                         item={item}
                                                         pool={pool}
-                                                        isLightMode={isLightMode}
+                                                        isLightMode={textLight}
                                                         editingItemId={editingItemId}
                                                         editName={editName}
                                                         setEditName={setEditName}

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Zap, SkipForward } from "lucide-react";
 import type { GachaPool, GachaResult, RarityTier } from "@/lib/gacha";
 import { sortResultsForPresentation, containsHighestRarity, organizeResults } from "@/lib/gacha";
+import { useGlassStyle } from "@/hooks/useGlassStyle";
 
 interface GachaRollAnimationProps {
     pool: GachaPool;
@@ -249,8 +250,7 @@ export default function GachaRollAnimation({
 
     const handleSkip = useCallback(() => setSkipRequested(true), []);
 
-    const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
-    const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
+    const { glassBg, glassBorder } = useGlassStyle(isLightMode);
 
     const getRarityForResult = (result: GachaResult): RarityTier | undefined => {
         return pool.rarities.find(r => r.id === result.rarityId);

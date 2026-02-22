@@ -4,6 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { UserPlus, Trash2, RotateCcw, ChevronRight, User } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
+import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
+import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface GachaPlayerManagerProps {
@@ -16,6 +18,8 @@ interface GachaPlayerManagerProps {
     onViewPlayerHistory?: (playerId: string) => void;
     pool: GachaPool;
     isLightMode: boolean;
+    /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
+    textContrastLight?: boolean;
     shareHashtags?: string;
 }
 
@@ -29,7 +33,8 @@ export default function GachaPlayerManager({
     onViewPlayerHistory,
     pool,
     isLightMode,
-    shareHashtags = "#ライブカウンター #ガチャ",
+    textContrastLight = false,
+    shareHashtags = DEFAULT_SHARE_HASHTAG,
 }: GachaPlayerManagerProps) {
     const [newPlayerName, setNewPlayerName] = useState("");
     const [playerToDelete, setPlayerToDelete] = useState<string | null>(null);
@@ -58,13 +63,13 @@ export default function GachaPlayerManager({
         if (el) el.indeterminate = someSelected && !allSelected;
     }, [someSelected, allSelected]);
 
-    const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
-    const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
-    const textPrimary = isLightMode ? "text-gray-900" : "text-white/90";
-    const textSecondary = isLightMode ? "text-gray-900" : "text-white/50";
-    const textMuted = isLightMode ? "text-gray-800" : "text-white/30";
-    const inputBg = isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
-    const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
+    const { glassBg, glassBorder } = useGlassStyle(isLightMode);
+    const textLight = isLightMode || textContrastLight;
+    const textPrimary = textLight ? "text-gray-900" : "text-white/90";
+    const textSecondary = textLight ? "text-gray-900" : "text-white/50";
+    const textMuted = textLight ? "text-gray-800" : "text-white/30";
+    const inputBg = textLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
+    const inputBorder = textLight ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
 
     const handleAddPlayer = () => {
         if (!newPlayerName.trim()) return;
@@ -91,7 +96,7 @@ export default function GachaPlayerManager({
                         value={newPlayerName}
                         onChange={e => setNewPlayerName(e.target.value)}
                         placeholder="名前を入力..."
-                        className={`flex-1 px-3 py-2 rounded-lg text-sm ${textPrimary} ${isLightMode ? "placeholder:text-gray-600" : "placeholder:text-white/50"} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm ${textPrimary} ${textLight ? "placeholder:text-gray-600" : "placeholder:text-white/50"} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
                         style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                         onKeyDown={e => e.key === "Enter" && handleAddPlayer()}
                     />

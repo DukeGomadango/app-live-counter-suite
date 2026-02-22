@@ -3,6 +3,7 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
     title: "ガチャシミュレーター | ライブカウンター Suite",
     description: "配信やイベントで使えるガチャシミュレーター。レア度カスタマイズ、排出確率の細密調整、天井設定、プレイヤー別履歴管理、SNS共有機能を搭載。",
+    alternates: { canonical: "/gacha" },
     keywords: [
         "ガチャ",
         "シミュレーター",

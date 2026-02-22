@@ -2,12 +2,13 @@
 
 import Script from "next/script";
 import { usePathname } from "next/navigation";
+import { SITE_CONFIG } from "@/lib/site";
 
 export default function JsonLd() {
     const pathname = usePathname();
 
-    let name = "ライブカウンター Suite";
-    let description = "配信者・クリエイター向けWebツールキット。完全無料で使える人数カウンターや、リアルタイム計算フローチャートを提供します。";
+    let name: string = SITE_CONFIG.name;
+    let description: string = "配信者・クリエイター向けWebツールキット。完全無料で使える人数カウンターや、リアルタイム計算フローチャートを提供します。";
     let features = [
         "複数項目の同時カウント",
         "フローチャート＆ノード演算",
@@ -36,8 +37,12 @@ export default function JsonLd() {
         ];
     } else if (pathname === "/gacha") {
         name = "オリジナルガチャシミュレーター | ライブカウンター Suite";
-        description = "配信やイベントで使える完全無料のガチャシミュレーター機能（開発中）。設定した確率に基づいてランダムな結果をドロップし、配信画面を盛り上げます。";
+        description = "配信やイベントで使える完全無料のガチャシミュレーター。設定した確率に基づいてランダムな結果をドロップし、配信画面を盛り上げます。";
         features = ["確率ベースのランダム排出", "配信上の演出効果"];
+    } else if (pathname === "/split") {
+        name = "スプリットビュー | ライブカウンター Suite";
+        description = "カウンター・フローチャート・ガチャを1画面で切り替え。配信やイベントで便利なスプリット表示。";
+        features = ["カウンター・フローチャート・ガチャの切替", "1画面で複数ツールを利用"];
     }
 
     const jsonLd = {
@@ -60,23 +65,25 @@ export default function JsonLd() {
         "screenshot": [
             {
                 "@type": "ImageObject",
-                "url": "https://app-live-counter.vercel.app/screenshot-light.png",
+                "url": SITE_CONFIG.screenshotLight,
                 "caption": "ライトモードのアプリデザイン"
             },
             {
                 "@type": "ImageObject",
-                "url": "https://app-live-counter.vercel.app/screenshot-dark.png",
+                "url": SITE_CONFIG.screenshotDark,
                 "caption": "ダークモードのアプリデザイン"
             }
         ],
         "softwareVersion": "2.0.0"
     };
 
+    // 中身は pathname と SITE_CONFIG のみ。ユーザー入力を渡さないこと。
+    const safeJson = JSON.stringify(jsonLd);
     return (
         <Script
             id={`json-ld-${pathname}`}
             type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+            dangerouslySetInnerHTML={{ __html: safeJson }}
         />
     );
 }

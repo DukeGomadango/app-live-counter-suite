@@ -1,3 +1,5 @@
+import { DEFAULT_ACCENT_COLOR } from "./constants";
+
 // ========== 型定義 ==========
 
 export interface RarityTier {
@@ -86,10 +88,10 @@ export function createDefaultSettings(): GachaSettings {
     return {
         bgColor: "default",
         bgIntensity: 100,
-        accentColor: "#a855f7",
+        accentColor: DEFAULT_ACCENT_COLOR,
         showTitle: true,
         enableAnimation: true,
-        shareHashtags: "#ライブカウンター #ガチャ",
+        shareHashtags: "#だんごツール",
     };
 }
 
@@ -446,7 +448,7 @@ export function containsHighestRarity(
 export function formatResultsForShare(
     results: GachaResult[],
     pool: GachaPool,
-    extraHashtags: string = "#ライブカウンター #ガチャ",
+    extraHashtags: string = "#だんごツール",
 ): string {
     const organized = organizeResults(results, pool.rarities, "rarity-asc");
     const rarityMap = new Map(pool.rarities.map(r => [r.id, r.name]));
