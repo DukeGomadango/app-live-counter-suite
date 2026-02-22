@@ -13,13 +13,16 @@ import {
 } from "lucide-react";
 import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode, OrganizedResult } from "@/lib/gacha";
 import { organizeResults, formatResultsForShare, generateShareUrl } from "@/lib/gacha";
-
-const DEFAULT_SHARE_HASHTAGS = "#ライブカウンター #ガチャ";
+import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
+import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
+import { useGlassStyle } from "@/hooks/useGlassStyle";
 
 interface GachaResultDisplayProps {
     results: GachaResult[];
     pool: GachaPool;
     isLightMode: boolean;
+    /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
+    textContrastLight?: boolean;
     title?: string;
     /** 共有ツイートに付与する追加ハッシュタグ。#だんごツールは常に付与される */
     shareHashtags?: string;
@@ -35,23 +38,24 @@ export default function GachaResultDisplay({
     results,
     pool,
     isLightMode,
+    textContrastLight = false,
     title,
-    shareHashtags = DEFAULT_SHARE_HASHTAGS,
+    shareHashtags = DEFAULT_SHARE_HASHTAG,
     isMobile = false,
     onBackToGacha,
-    accentColor = "#a855f7",
+    accentColor = DEFAULT_ACCENT_COLOR,
 }: GachaResultDisplayProps) {
     const resultAreaRef = useRef<HTMLDivElement>(null);
     const [sortMode, setSortMode] = useState<SortMode>("rarity-asc");
     const [filterMode, setFilterMode] = useState<FilterMode>("all");
     const [copied, setCopied] = useState(false);
 
-    const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
-    const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
-    const textPrimary = isLightMode ? "text-gray-800" : "text-white/90";
-    const textSecondary = isLightMode ? "text-gray-700" : "text-white/50";
-    const textMuted = isLightMode ? "text-gray-600" : "text-white/30";
-    const selectOptionStyle = isLightMode
+    const { glassBg, glassBorder } = useGlassStyle(isLightMode);
+    const textLight = isLightMode || textContrastLight;
+    const textPrimary = textLight ? "text-gray-800" : "text-white/90";
+    const textSecondary = textLight ? "text-gray-700" : "text-white/50";
+    const textMuted = textLight ? "text-gray-600" : "text-white/30";
+    const selectOptionStyle = textLight
         ? { background: "#fff", color: "#1f2937" }
         : { background: "#1e1b4b", color: "#e2e8f0" };
 
@@ -93,7 +97,7 @@ export default function GachaResultDisplay({
             a.href = dataUrl;
             a.download = "gacha-result.png";
             a.click();
-            const tagLine = ["#だんごツール", shareHashtags.trim()].filter(Boolean).join(" ");
+            const tagLine = [DEFAULT_SHARE_HASHTAG, shareHashtags.trim()].filter(Boolean).join(" ");
             const tweetText = `ガチャ結果（画像を添付してください）\n\n${tagLine}`;
             window.open(generateShareUrl(tweetText), "_blank", "noopener,noreferrer");
         } catch (err) {

@@ -17,6 +17,9 @@ export const EMOJI_OPTIONS = [
     "😀", "😎", "🤩", "🥳", "😺", "👻", "🤖", "👽",
 ];
 
+/** デフォルトアクセント色（Counter / Flowchart 等で共通） */
+export const DEFAULT_ACCENT_COLOR = "#a855f7";
+
 export const COLOR_OPTIONS = [
     { value: "#ef4444", label: "レッド" },
     { value: "#f97316", label: "オレンジ" },

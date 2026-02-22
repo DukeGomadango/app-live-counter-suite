@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next'
+import { SITE_CONFIG } from '@/lib/site'
 
 export default function sitemap(): MetadataRoute.Sitemap {
-    const baseUrl = 'https://app-live-counter.vercel.app';
+    const baseUrl = SITE_CONFIG.url;
     const lastModified = new Date();
 
     return [
@@ -19,6 +20,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
         },
         {
             url: `${baseUrl}/gacha`,
+            lastModified,
+            changeFrequency: 'monthly',
+            priority: 0.5,
+        },
+        {
+            url: `${baseUrl}/split`,
             lastModified,
             changeFrequency: 'monthly',
             priority: 0.5,

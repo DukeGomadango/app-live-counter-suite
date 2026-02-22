@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import type { Player, GachaPool, RunSummary } from "@/lib/gacha";
+import { useGlassStyle } from "@/hooks/useGlassStyle";
 import GachaResultDisplay from "./GachaResultDisplay";
 
 interface PlayerHistoryCardProps {
@@ -16,8 +17,7 @@ interface PlayerHistoryCardProps {
 export default function PlayerHistoryCard({ player, pool, isLightMode, shareHashtags, onClose }: PlayerHistoryCardProps) {
     const [expandedRunIndex, setExpandedRunIndex] = useState<number | null>(null);
 
-    const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
-    const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
+    const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/90";
     const textSecondary = isLightMode ? "text-gray-900" : "text-white/50";
     const textMuted = isLightMode ? "text-gray-800" : "text-white/30";

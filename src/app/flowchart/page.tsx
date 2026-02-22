@@ -513,31 +513,31 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
             return hasChanges ? newNodes : nds;
         });
 
-        // Update Edge styles based on source output weights
+        // Update Edge styles based on source output weights and accent color
         setEdges(eds => {
             let hasChanges = false;
             const newEdges = eds.map(e => {
                 const sourceOutput = nodeOutputs.get(e.source) || 0;
-                // Calculate thickness. Min 2, max 10. Scale by log base 10 roughly to handle huge numbers
                 const thickness = Math.max(2, Math.min(10, 2 + Math.log10(sourceOutput > 0 ? sourceOutput : 1) * 2));
                 const currentWidth = e.style?.strokeWidth || 2;
+                const currentStroke = e.style?.stroke;
+                const thicknessChanged = Math.abs(Number(currentWidth) - thickness) > 0.5;
+                const strokeChanged = currentStroke !== accentColor;
 
-                // Only update if changed significantly to avoid jitter
-                if (Math.abs(Number(currentWidth) - thickness) > 0.5) {
-                    hasChanges = true;
-                    return {
-                        ...e,
-                        style: {
-                            ...e.style,
-                            strokeWidth: thickness,
-                            stroke: accentColor,
-                        },
-                        animated: true,
-                    };
-                }
+                if (thicknessChanged || strokeChanged) hasChanges = true;
                 return {
                     ...e,
-                    style: { ...e.style, stroke: accentColor }, // Ensure color is always synced
+                    style: {
+                        ...e.style,
+                        strokeWidth: thicknessChanged ? thickness : (e.style?.strokeWidth ?? 2),
+                        stroke: accentColor,
+                    },
+                    markerEnd: {
+                        type: MarkerType.ArrowClosed,
+                        width: 20,
+                        height: 20,
+                        color: accentColor,
+                    },
                     animated: true,
                 };
             });

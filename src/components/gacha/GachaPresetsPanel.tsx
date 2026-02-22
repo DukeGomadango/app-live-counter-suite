@@ -5,6 +5,7 @@ import { Save, FolderOpen, Trash2, FileStack } from "lucide-react";
 import type { GachaPool, GachaPoolPreset } from "@/lib/gacha";
 import { generateId, getSampleTemplates, clonePoolWithNewIds } from "@/lib/gacha";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useGlassStyle } from "@/hooks/useGlassStyle";
 
 interface GachaPresetsPanelProps {
     pool: GachaPool;
@@ -16,8 +17,7 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
     const [presets, setPresets] = useLocalStorage<GachaPoolPreset[]>("gacha-presets", []);
     const [newPresetName, setNewPresetName] = useState("");
 
-    const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
-    const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
+    const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-800" : "text-white/75";
 
