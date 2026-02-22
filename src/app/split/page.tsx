@@ -2,17 +2,19 @@
 
 import CounterPage from "@/app/CounterPage";
 import FlowChartPage from "@/app/flowchart/page";
+import GachaPage from "@/app/gacha/page";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AppSettings } from "@/components/SettingsModal";
-import { ChevronDown, LayoutGrid } from "lucide-react";
+import { ChevronDown, LayoutGrid, PanelLeft, PanelRight } from "lucide-react";
 
-export type ModuleType = "counter" | "flowchart";
+export type ModuleType = "counter" | "flowchart" | "gacha";
 
 const MODULE_OPTIONS: { value: ModuleType; label: string }[] = [
     { value: "counter", label: "Counter" },
     { value: "flowchart", label: "FlowChart" },
+    { value: "gacha", label: "Gacha" },
 ];
 
 export default function SplitPage() {
@@ -27,25 +29,109 @@ export default function SplitPage() {
         } as AppSettings
     );
     const [isMounted, setIsMounted] = useState(false);
+    const [isMobileView, setIsMobileView] = useState(false);
+    const [mobileActivePane, setMobileActivePane] = useState<"left" | "right">("left");
 
     const [leftModule, setLeftModule] = useLocalStorage<ModuleType>("split-pane-left", "counter");
     const [rightModule, setRightModule] = useLocalStorage<ModuleType>("split-pane-right", "flowchart");
 
     useEffect(() => {
-        // eslint-disable-next-line
         setIsMounted(true);
+    }, []);
+
+    useEffect(() => {
+        const check = () => setIsMobileView(typeof window !== "undefined" && window.innerWidth < 768);
+        check();
+        window.addEventListener("resize", check);
+        return () => window.removeEventListener("resize", check);
     }, []);
 
     const renderModule = (type: ModuleType, isRight: boolean = false) => {
         switch (type) {
             case "counter": return <CounterPage isSplitMode={true} isRightPane={isRight} />;
             case "flowchart": return <FlowChartPage isSplitMode={true} isRightPane={isRight} />;
+            case "gacha": return <GachaPage isSplitMode={true} isRightPane={isRight} />;
             default: return null;
         }
     };
 
     if (!isMounted) return null;
 
+    const paneSelectorStyle: React.CSSProperties = {
+        background: isLightMode ? "rgba(255,255,255,0.6)" : "rgba(20,10,40,0.6)",
+        border: `1px solid ${isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"}`,
+    };
+
+    // モバイル: タブで1ペインずつフル表示（見切れ・メニュー問題を解消）
+    if (isMobileView) {
+        return (
+            <div className={`h-screen w-screen flex flex-col overflow-hidden ${isLightMode ? 'bg-[#f8f9fa]' : 'bg-[#0a051e]'}`}>
+                {/* 上部タブ: 左ペイン | 右ペイン */}
+                <div
+                    className="flex shrink-0 border-b z-50"
+                    style={{ ...paneSelectorStyle, borderLeft: "none", borderRight: "none", borderTop: "none" }}
+                >
+                    <button
+                        type="button"
+                        onClick={() => setMobileActivePane("left")}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-all ${mobileActivePane === "left"
+                            ? (isLightMode ? "bg-white text-purple-700 shadow-sm" : "bg-white/10 text-purple-300")
+                            : (isLightMode ? "text-gray-500" : "text-white/40")
+                            }`}
+                    >
+                        <PanelLeft size={18} />
+                        <span>{MODULE_OPTIONS.find(o => o.value === leftModule)?.label ?? "左"}</span>
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMobileActivePane("right")}
+                        className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold transition-all ${mobileActivePane === "right"
+                            ? (isLightMode ? "bg-white text-purple-700 shadow-sm" : "bg-white/10 text-purple-300")
+                            : (isLightMode ? "text-gray-500" : "text-white/40")
+                            }`}
+                    >
+                        <PanelRight size={18} />
+                        <span>{MODULE_OPTIONS.find(o => o.value === rightModule)?.label ?? "右"}</span>
+                    </button>
+                </div>
+                {/* モジュール切り替え（表示中ペイン用） */}
+                <div className="flex justify-center gap-2 py-2 px-2 shrink-0" style={{ background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)" }}>
+                    <div className="relative flex items-center gap-1.5 p-1.5 rounded-xl shadow-md" style={paneSelectorStyle}>
+                        <LayoutGrid size={14} className={isLightMode ? "text-gray-500" : "text-white/50"} />
+                        <select
+                            value={mobileActivePane === "left" ? leftModule : rightModule}
+                            onChange={(e) => {
+                                const v = e.target.value as ModuleType;
+                                if (mobileActivePane === "left") setLeftModule(v);
+                                else setRightModule(v);
+                            }}
+                            className={`appearance-none pl-1 pr-6 py-1 rounded-lg text-xs font-bold outline-none cursor-pointer ${isLightMode ? "bg-white/90 text-gray-800" : "bg-black/40 text-white"}`}
+                        >
+                            {MODULE_OPTIONS.map(opt => (
+                                <option key={opt.value} value={opt.value}>{opt.label}</option>
+                            ))}
+                        </select>
+                        <ChevronDown size={14} className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                    </div>
+                </div>
+                <div className="flex-1 min-h-0 min-w-0 relative overflow-hidden">
+                    <AnimatePresence mode="wait">
+                        {mobileActivePane === "left" ? (
+                            <motion.div key="left" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full w-full">
+                                {renderModule(leftModule, false)}
+                            </motion.div>
+                        ) : (
+                            <motion.div key="right" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="h-full w-full">
+                                {renderModule(rightModule, true)}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </div>
+        );
+    }
+
+    // デスクトップ: 従来の左右2ペイン
     return (
         <div className={`h-screen w-screen flex flex-col md:flex-row overflow-hidden relative ${isLightMode ? 'bg-[#f8f9fa]' : 'bg-[#0a051e]'}`}>
 
@@ -79,15 +165,8 @@ export default function SplitPage() {
 
             {/* Left Pane */}
             <div className={`flex-1 min-w-0 min-h-0 relative border-b md:border-b-0 md:border-r flex flex-col ${isLightMode ? 'border-black/10' : 'border-white/10'}`}>
-                {/* Left Module Selector */}
                 <div className="absolute top-[70px] right-4 z-[60]">
-                    <div
-                        className="flex items-center gap-1.5 p-1.5 rounded-2xl shadow-lg backdrop-blur-md transition-all duration-300"
-                        style={{
-                            background: isLightMode ? "rgba(255,255,255,0.6)" : "rgba(20,10,40,0.6)",
-                            border: `1px solid ${isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"}`
-                        }}
-                    >
+                    <div className="flex items-center gap-1.5 p-1.5 rounded-2xl shadow-lg backdrop-blur-md transition-all duration-300" style={paneSelectorStyle}>
                         <div className="relative group">
                             <select
                                 value={leftModule}
@@ -103,22 +182,15 @@ export default function SplitPage() {
                         </div>
                     </div>
                 </div>
-                <div className="flex-1 min-h-0 relative">
+                <div className="flex-1 min-h-0 min-w-0 relative overflow-hidden">
                     {renderModule(leftModule, false)}
                 </div>
             </div>
 
             {/* Right Pane */}
-            <div className="flex-1 min-w-0 min-h-0 relative flex flex-col">
-                {/* Right Module Selector */}
+            <div className="flex-1 min-w-0 min-h-0 relative flex flex-col overflow-hidden">
                 <div className="absolute top-[70px] right-[60px] z-[60]">
-                    <div
-                        className="flex items-center gap-1.5 p-1.5 rounded-2xl shadow-lg backdrop-blur-md transition-all duration-300"
-                        style={{
-                            background: isLightMode ? "rgba(255,255,255,0.6)" : "rgba(20,10,40,0.6)",
-                            border: `1px solid ${isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"}`
-                        }}
-                    >
+                    <div className="flex items-center gap-1.5 p-1.5 rounded-2xl shadow-lg backdrop-blur-md transition-all duration-300" style={paneSelectorStyle}>
                         <div className="relative group">
                             <select
                                 value={rightModule}
@@ -134,7 +206,7 @@ export default function SplitPage() {
                         </div>
                     </div>
                 </div>
-                <div className="flex-1 min-h-0 relative">
+                <div className="flex-1 min-h-0 min-w-0 relative overflow-hidden">
                     {renderModule(rightModule, true)}
                 </div>
             </div>

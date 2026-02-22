@@ -42,6 +42,8 @@ export default function CounterPanel({
     const pointerHandled = useRef(false);
     const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const repeatIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const incrementPointerDownRef = useRef(false);
+    const decrementPointerDownRef = useRef(false);
     const tapPendingRef = useRef(false);
     const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [isPop, setIsPop] = useState(false);
@@ -130,6 +132,7 @@ export default function CounterPanel({
         (e: React.PointerEvent) => {
             if (e.button !== 0) return;
             e.stopPropagation();
+            incrementPointerDownRef.current = true;
             (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
             stopRepeat();
             holdTimerRef.current = setTimeout(() => {
@@ -145,12 +148,14 @@ export default function CounterPanel({
     const handleIncrementPointerUp = useCallback(
         (e: React.PointerEvent) => {
             e.stopPropagation();
+            const hadPointerDown = incrementPointerDownRef.current;
+            incrementPointerDownRef.current = false;
             const wasRepeating = repeatIntervalRef.current !== null;
             stopRepeat();
             try {
                 (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
             } catch { /* ignore */ }
-            if (!wasRepeating) doIncrement();
+            if (hadPointerDown && !wasRepeating) doIncrement();
         },
         [doIncrement, stopRepeat]
     );
@@ -165,6 +170,7 @@ export default function CounterPanel({
         (e: React.PointerEvent) => {
             if (e.button !== 0) return;
             e.stopPropagation();
+            decrementPointerDownRef.current = true;
             (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
             stopRepeat();
             holdTimerRef.current = setTimeout(() => {
@@ -180,12 +186,14 @@ export default function CounterPanel({
     const handleDecrementPointerUp = useCallback(
         (e: React.PointerEvent) => {
             e.stopPropagation();
+            const hadPointerDown = decrementPointerDownRef.current;
+            decrementPointerDownRef.current = false;
             const wasRepeating = repeatIntervalRef.current !== null;
             stopRepeat();
             try {
                 (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
             } catch { /* ignore */ }
-            if (!wasRepeating && count > 0) {
+            if (hadPointerDown && !wasRepeating && count > 0) {
                 onDecrement(id);
                 setPopDirection("down");
                 setIsPop(true);

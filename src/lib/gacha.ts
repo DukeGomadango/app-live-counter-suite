@@ -185,10 +185,10 @@ export function getSampleTemplates(): SampleTemplate[] {
     const r1 = [..._sampleRarities3];
     const pool1: GachaPool = {
         id: "sample-1",
-        conceptName: "初回1万",
+        conceptName: "初回10万",
         rarities: r1,
         items: [{ id: "sample-1-item", name: "景品", rarityId: r1[0].id, weight: 1 }],
-        pullCount: 10000,
+        pullCount: 100000,
         pityEnabled: false,
         pityThreshold: 100,
         pityGuaranteedRarityId: r1[r1.length - 1].id,
@@ -220,7 +220,7 @@ export function getSampleTemplates(): SampleTemplate[] {
         pityGuaranteedRarityId: "ur",
     };
     return [
-        { id: "tpl-1", name: "初回1万", pool: pool1 },
+        { id: "tpl-1", name: "初回10万", pool: pool1 },
         { id: "tpl-2", name: "シンプル（N/R/SR）", pool: pool2 },
         { id: "tpl-3", name: "フルレア度＋天井", pool: pool3 },
     ];
@@ -343,10 +343,20 @@ export function performGachaPull(
         items: summaryItems.map(o => ({ itemId: o.itemId, itemName: o.itemName, rarityId: o.rarityId, count: o.count })),
     };
 
+    // localStorage の容量制限を避けるため、件数が多すぎる場合は生結果を保存しない（runHistory に集計は残る）
+    const MAX_RESULTS_TO_STORE = 8000;
+    const resultsToStore = results.length > MAX_RESULTS_TO_STORE ? [] : results;
+    // 履歴の最大件数（古い run を削除）
+    const MAX_RUN_HISTORY = 100;
+    const newRunHistory = [...runHistory, runSummary];
+    const trimmedRunHistory = newRunHistory.length > MAX_RUN_HISTORY
+        ? newRunHistory.slice(-MAX_RUN_HISTORY)
+        : newRunHistory;
+
     const updatedPlayer: Player = {
         ...player,
-        results,
-        runHistory: [...runHistory, runSummary],
+        results: resultsToStore,
+        runHistory: trimmedRunHistory,
         inventory,
         totalPulls: player.totalPulls + count,
         pityCounter,

@@ -267,7 +267,7 @@ function ItemHistoryPanel({
 }
 
 // ===== メインページ =====
-export default function GachaPage() {
+export default function GachaPage({ isSplitMode = false, isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
     // 永続化される状態
     const [pool, setPool] = useLocalStorage<GachaPool>("gacha-pool", createDefaultPool());
     const [players, setPlayers] = useLocalStorage<Player[]>("gacha-players", []);
@@ -428,9 +428,12 @@ export default function GachaPage() {
     }, [pool, players, activePlayerId, setLatestResults, setPlayers, setActivePlayerId]);
 
     const handleAnimationComplete = useCallback(() => {
-        setIsRolling(false);
-        setShowResults(true);
-        if (isMobile) setMobileTab("results");
+        // 状態更新をマイクロタスクで分離し、稀な固まりを軽減
+        queueMicrotask(() => {
+            setIsRolling(false);
+            setShowResults(true);
+            if (isMobile) setMobileTab("results");
+        });
     }, [isMobile]);
 
     const activePlayer = players.find(p => p.id === activePlayerId);
@@ -468,12 +471,14 @@ export default function GachaPage() {
 
     // ===== モバイルレイアウト =====
     if (isMobile) {
+        const mobileHeaderPosition = isSplitMode ? "sticky top-0" : "fixed top-0 left-0 right-0";
+        const mobileOverlayPosition = isSplitMode ? "absolute" : "fixed";
         return (
             <div className="h-screen w-screen flex flex-col overflow-hidden relative z-10">
-                {/* カスタム背景はbodyで適用済み。濃さオーバーレイ */}
+                {/* カスタム背景（Split時はペイン内に収める） */}
                 <div
                     aria-hidden
-                    className="fixed inset-0 z-0 pointer-events-none"
+                    className={`${mobileOverlayPosition} inset-0 z-0 pointer-events-none`}
                     style={{
                         background: (() => {
                             const intensity = gachaSettings.bgIntensity ?? 100;
@@ -484,9 +489,9 @@ export default function GachaPage() {
                     }}
                 />
 
-                {/* ヘッダー */}
+                {/* ヘッダー（Split時はstickyでタブバーと被らない） */}
                 <div
-                    className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2"
+                    className={`${mobileHeaderPosition} left-0 right-0 z-50 flex items-center justify-between px-3 py-2 shrink-0`}
                     style={{
                         background: headerBg,
                         backdropFilter: "blur(12px)",
@@ -501,6 +506,15 @@ export default function GachaPage() {
                                 <span>{activePlayer.name}</span>
                             </div>
                         )}
+                        <button
+                            type="button"
+                            onClick={() => setMobileTab("players")}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium shrink-0 ${isLightMode ? "bg-gray-100 text-gray-700 hover:bg-gray-200" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                            title="プレイヤーの過去履歴"
+                        >
+                            <Users size={12} />
+                            履歴
+                        </button>
                     </div>
                     <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
                         <select
@@ -529,12 +543,14 @@ export default function GachaPage() {
                         >
                             <Settings size={16} />
                         </button>
-                        <button
-                            onClick={() => setIsLightMode(!isLightMode)}
-                            className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
-                        >
-                            {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
-                        </button>
+                        {(!isSplitMode || isRightPane) && (
+                            <button
+                                onClick={() => setIsLightMode(!isLightMode)}
+                                className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                            >
+                                {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -550,10 +566,29 @@ export default function GachaPage() {
                     )}
                 </AnimatePresence>
 
-                {/* メインコンテンツ（設定タブ時はスクロール可能なボックス） */}
+                {/* モバイル: プレイヤー履歴詳細（オーバーレイ） */}
+                {playerHistoryViewId && (() => {
+                    const player = (players || []).find(p => p.id === playerHistoryViewId);
+                    if (!player) return null;
+                    return (
+                        <div className={`fixed inset-0 z-[60] flex flex-col overflow-hidden ${isLightMode ? "bg-[#f8f9fa]/98" : "bg-[#0a051e]/95"}`}>
+                            <div className="flex-1 min-h-0 overflow-y-auto p-4 pt-14">
+                                <PlayerHistoryCard
+                                    player={player}
+                                    pool={pool}
+                                    isLightMode={isLightMode}
+                                    shareHashtags={gachaSettings.shareHashtags ?? "#ライブカウンター #ガチャ"}
+                                    onClose={() => setPlayerHistoryViewId(null)}
+                                />
+                            </div>
+                        </div>
+                    );
+                })()}
+
+                {/* メインコンテンツ（固定ヘッダー時のみ pt-12、Split時はヘッダーがstickyで流れるので不要） */}
                 <div
                     ref={mobileTab === "setup" ? setupScrollRef : undefined}
-                    className={`flex-1 min-h-0 pt-12 pb-14 relative z-10 ${mobileTab === "setup" ? "overflow-y-auto overflow-x-hidden scroll-smooth rounded-t-2xl mx-2 border border-t border-l border-r" : "overflow-hidden"}`}
+                    className={`flex-1 min-h-0 ${!isSplitMode ? "pt-12" : ""} pb-14 relative z-10 ${mobileTab === "setup" ? "overflow-y-auto overflow-x-hidden scroll-smooth rounded-t-2xl mx-2 border border-t border-l border-r" : "overflow-hidden"}`}
                     style={mobileTab === "setup" ? { borderColor: glassBorder, WebkitOverflowScrolling: "touch" } : undefined}
                     onScroll={mobileTab === "setup" ? (e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowScrollHint(false); } : undefined}
                 >
@@ -602,13 +637,14 @@ export default function GachaPage() {
                             <motion.div key="players" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
                                 <div className="flex-1 min-h-0 overflow-y-auto">
                                     <GachaPlayerManager
-                                    players={players}
-                                    activePlayerId={activePlayerId}
-                                    onSelectPlayer={setActivePlayerId}
-                                    onAddPlayer={addPlayer}
-                                    onRemovePlayer={removePlayer}
-                                    onResetPlayer={resetPlayer}
-pool={pool}
+                                        players={players}
+                                        activePlayerId={activePlayerId}
+                                        onSelectPlayer={setActivePlayerId}
+                                        onAddPlayer={addPlayer}
+                                        onRemovePlayer={removePlayer}
+                                        onResetPlayer={resetPlayer}
+                                        onViewPlayerHistory={setPlayerHistoryViewId}
+                                        pool={pool}
                                         isLightMode={isLightMode}
                                         shareHashtags={gachaSettings.shareHashtags ?? "#ライブカウンター #ガチャ"}
                                     />
@@ -664,11 +700,11 @@ pool={pool}
 
     // ===== デスクトップレイアウト =====
     return (
-        <div className="h-screen w-screen flex flex-col overflow-hidden relative z-10">
-            {/* カスタム背景はbodyで適用済み。濃さオーバーレイ */}
+        <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`}>
+            {/* カスタム背景はbodyで適用済み。濃さオーバーレイ（Split時はペイン内に収める） */}
             <div
                 aria-hidden
-                className="fixed inset-0 z-0 pointer-events-none"
+                className={`${isSplitMode ? "absolute" : "fixed"} inset-0 z-0 pointer-events-none`}
                 style={{
                     background: (() => {
                         const intensity = gachaSettings.bgIntensity ?? 100;
@@ -679,9 +715,9 @@ pool={pool}
                 }}
             />
 
-            {/* ヘッダー */}
+            {/* ヘッダー（Split時はabsoluteでペイン内に表示＝右ペインにもハンバーガーが出る） */}
             <div
-                className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2"
+                className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2`}
                 style={{
                     background: headerBg,
                     backdropFilter: "blur(12px)",
@@ -689,7 +725,18 @@ pool={pool}
                 }}
             >
                 <div className="flex items-center gap-2">
-                    <ModeSelector isLightMode={isLightMode} />
+                    {isSplitMode && (
+                        <button
+                            onClick={() => setSidebarOpen(!sidebarOpen)}
+                            className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                            title="メニュー"
+                            aria-label="メニュー"
+                        >
+                            <Menu size={18} />
+                        </button>
+                    )}
+                    {/* PC版Split時はモード切替を右下に出すのでヘッダーからは非表示 */}
+                    {!(isSplitMode && !isMobile) && <ModeSelector isLightMode={isLightMode} />}
                     {activePlayer && (
                         <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${isLightMode ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
                             <Users size={12} />
@@ -725,14 +772,29 @@ pool={pool}
                     >
                         <Settings size={16} />
                     </button>
-                    <button
-                        onClick={() => setIsLightMode(!isLightMode)}
-                        className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
-                    >
-                        {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
-                    </button>
+                    {(!isSplitMode || isRightPane) && (
+                        <button
+                            onClick={() => setIsLightMode(!isLightMode)}
+                            className={`p-1.5 rounded-lg transition-all shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                        >
+                            {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
+                        </button>
+                    )}
                 </div>
             </div>
+
+            {/* PC版Split時のみ：モード切替を右下に表示（邪魔にならないように） */}
+            {isSplitMode && !isMobile && (
+                <div
+                    className="absolute bottom-4 right-4 z-50 flex items-center gap-2 p-2 rounded-xl shadow-lg backdrop-blur-md"
+                    style={{
+                        background: isLightMode ? "rgba(255,255,255,0.8)" : "rgba(20,10,40,0.7)",
+                        border: `1px solid ${glassBorder}`,
+                    }}
+                >
+                    <ModeSelector isLightMode={isLightMode} />
+                </div>
+            )}
 
             {/* 設定パネル */}
             <AnimatePresence>
@@ -748,93 +810,212 @@ pool={pool}
 
             {/* メインエリア */}
             <div className="flex-1 flex overflow-hidden pt-12 relative z-10">
-                {/* サイドバー（常時展開） */}
-                <aside
-                    className="h-full w-80 flex flex-col overflow-hidden shrink-0"
-                    style={{
-                        borderRight: `1px solid ${glassBorder}`,
-                    }}
-                >
-                            {/* サイドバータブ + ガチャボタン */}
-                            <div className="flex px-3 pt-3 gap-1 shrink-0 flex-wrap items-center">
-                                {([
-                                    { id: "setup" as SidebarTab, icon: Settings, label: "設定" },
-                                    { id: "players" as SidebarTab, icon: Users, label: "プレイヤー" },
-                                    { id: "items" as SidebarTab, icon: Package, label: "品目別" },
-                                    { id: "presets" as SidebarTab, icon: Save, label: "保存・読み込み" },
-                                ]).map(tab => {
-                                    const Icon = tab.icon;
-                                    return (
-                                        <button
-                                            key={tab.id}
-                                            onClick={() => setSidebarTab(tab.id)}
-                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${sidebarTab === tab.id
-                                                ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
-                                                : (isLightMode ? "text-gray-700 hover:bg-gray-100" : "text-white/40 hover:bg-white/5")
-                                                }`}
-                                        >
-                                            <Icon size={14} /> {tab.label}
-                                            {tab.id === "players" && (players || []).length > 0 && (
-                                                <span className={`text-[10px] px-1 rounded-full ${isLightMode ? "bg-gray-200" : "bg-white/10"}`}>
-                                                    {(players || []).length}
-                                                </span>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                                <button
-                                    type="button"
-                                    onClick={() => { setShowResults(false); setPlayerHistoryViewId(null); }}
-                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLightMode ? "text-purple-700 hover:bg-purple-50 border border-purple-200" : "text-purple-400 hover:bg-purple-500/20 border border-purple-500/30"}`}
-                                    title="ガチャを引く画面へ"
-                                >
-                                    <Sparkles size={14} /> ガチャ
-                                </button>
-                            </div>
-
-                            {/* サイドバーコンテンツ（スクロール可能・ヒント表示） */}
-                            <div className="flex-1 min-h-0 relative flex flex-col">
-                                {showSidebarScrollHint && (
-                                    <div
-                                        className="absolute left-0 right-0 bottom-0 z-10 flex items-center justify-center gap-1.5 py-2 pointer-events-none"
+                {/* Split時: サイドバーはハンバーガーでオーバーレイ表示。通常時: 常時展開 */}
+                {isSplitMode ? (
+                    <>
+                        <AnimatePresence>
+                            {sidebarOpen && (
+                                <>
+                                    <motion.div
+                                        key="sidebar-backdrop"
+                                        aria-hidden
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        exit={{ opacity: 0 }}
+                                        className="fixed inset-0 z-40"
                                         style={{
-                                            background: isLightMode
-                                                ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, transparent 100%)"
-                                                : "linear-gradient(to top, rgba(10,5,30,0.95) 0%, transparent 100%)",
+                                            top: 48,
+                                            background: isLightMode ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.5)",
+                                        }}
+                                        onClick={() => setSidebarOpen(false)}
+                                    />
+                                    <motion.aside
+                                        key="sidebar-panel"
+                                        initial={{ x: "-100%" }}
+                                        animate={{ x: 0 }}
+                                        exit={{ x: "-100%" }}
+                                        transition={{ type: "tween", duration: 0.2 }}
+                                        className="fixed left-0 top-12 bottom-0 z-50 w-80 flex flex-col overflow-hidden shadow-xl"
+                                        style={{
+                                            background: headerBg,
+                                            borderRight: `1px solid ${glassBorder}`,
+                                            backdropFilter: "blur(12px)",
                                         }}
                                     >
-                                        <ChevronDown size={12} className={`animate-bounce ${isLightMode ? "text-gray-700" : "text-white/75"}`} />
-                                    </div>
-                                )}
+                                        <div className="flex items-center justify-between px-3 pt-3 pb-2 shrink-0">
+                                            <span className="text-xs font-bold opacity-70">メニュー</span>
+                                            <button
+                                                onClick={() => setSidebarOpen(false)}
+                                                className={`p-1.5 rounded-lg ${isLightMode ? "hover:bg-gray-200 text-gray-600" : "hover:bg-white/10 text-white/70"}`}
+                                                aria-label="閉じる"
+                                            >
+                                                <X size={18} />
+                                            </button>
+                                        </div>
+                                        <div className="flex px-3 gap-1 shrink-0 flex-wrap items-center">
+                                            {([
+                                                { id: "setup" as SidebarTab, icon: Settings, label: "設定" },
+                                                { id: "players" as SidebarTab, icon: Users, label: "プレイヤー" },
+                                                { id: "items" as SidebarTab, icon: Package, label: "品目別" },
+                                                { id: "presets" as SidebarTab, icon: Save, label: "保存・読み込み" },
+                                            ]).map(tab => {
+                                                const Icon = tab.icon;
+                                                return (
+                                                    <button
+                                                        key={tab.id}
+                                                        onClick={() => setSidebarTab(tab.id)}
+                                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${sidebarTab === tab.id
+                                                            ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
+                                                            : (isLightMode ? "text-gray-700 hover:bg-gray-100" : "text-white/40 hover:bg-white/5")
+                                                            }`}
+                                                    >
+                                                        <Icon size={14} /> {tab.label}
+                                                        {tab.id === "players" && (players || []).length > 0 && (
+                                                            <span className={`text-[10px] px-1 rounded-full ${isLightMode ? "bg-gray-200" : "bg-white/10"}`}>
+                                                                {(players || []).length}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                            <button
+                                                type="button"
+                                                onClick={() => { setSidebarOpen(false); setShowResults(false); setPlayerHistoryViewId(null); }}
+                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLightMode ? "text-purple-700 hover:bg-purple-50 border border-purple-200" : "text-purple-400 hover:bg-purple-500/20 border border-purple-500/30"}`}
+                                                title="ガチャを引く画面へ"
+                                            >
+                                                <Sparkles size={14} /> ガチャ
+                                            </button>
+                                        </div>
+                                        <div className="flex-1 min-h-0 relative flex flex-col">
+                                            {showSidebarScrollHint && (
+                                                <div
+                                                    className="absolute left-0 right-0 bottom-0 z-10 flex items-center justify-center gap-1.5 py-2 pointer-events-none"
+                                                    style={{
+                                                        background: isLightMode
+                                                            ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, transparent 100%)"
+                                                            : "linear-gradient(to top, rgba(10,5,30,0.95) 0%, transparent 100%)",
+                                                    }}
+                                                >
+                                                    <ChevronDown size={12} className={`animate-bounce ${isLightMode ? "text-gray-700" : "text-white/75"}`} />
+                                                </div>
+                                            )}
+                                            <div
+                                                ref={sidebarScrollRef}
+                                                onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }}
+                                                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth"
+                                                style={{ WebkitOverflowScrolling: "touch" }}
+                                            >
+                                                {sidebarTab === "setup" ? (
+                                                    <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
+                                                ) : sidebarTab === "players" ? (
+                                                    <GachaPlayerManager
+                                                        players={players}
+                                                        activePlayerId={activePlayerId}
+                                                        onSelectPlayer={setActivePlayerId}
+                                                        onAddPlayer={addPlayer}
+                                                        onRemovePlayer={removePlayer}
+                                                        onResetPlayer={resetPlayer}
+                                                        onViewPlayerHistory={setPlayerHistoryViewId}
+                                                        pool={pool}
+                                                        isLightMode={isLightMode}
+                                                        shareHashtags={gachaSettings.shareHashtags ?? "#ライブカウンター #ガチャ"}
+                                                    />
+                                                ) : sidebarTab === "items" ? (
+                                                    <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} />
+                                                ) : (
+                                                    <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
+                                                )}
+                                            </div>
+                                        </div>
+                                    </motion.aside>
+                                </>
+                            )}
+                        </AnimatePresence>
+                    </>
+                ) : (
+                    <aside
+                        className="h-full w-80 flex flex-col overflow-hidden shrink-0"
+                        style={{ borderRight: `1px solid ${glassBorder}` }}
+                    >
+                        <div className="flex px-3 pt-3 gap-1 shrink-0 flex-wrap items-center">
+                            {([
+                                { id: "setup" as SidebarTab, icon: Settings, label: "設定" },
+                                { id: "players" as SidebarTab, icon: Users, label: "プレイヤー" },
+                                { id: "items" as SidebarTab, icon: Package, label: "品目別" },
+                                { id: "presets" as SidebarTab, icon: Save, label: "保存・読み込み" },
+                            ]).map(tab => {
+                                const Icon = tab.icon;
+                                return (
+                                    <button
+                                        key={tab.id}
+                                        onClick={() => setSidebarTab(tab.id)}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${sidebarTab === tab.id
+                                            ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
+                                            : (isLightMode ? "text-gray-700 hover:bg-gray-100" : "text-white/40 hover:bg-white/5")
+                                            }`}
+                                    >
+                                        <Icon size={14} /> {tab.label}
+                                        {tab.id === "players" && (players || []).length > 0 && (
+                                            <span className={`text-[10px] px-1 rounded-full ${isLightMode ? "bg-gray-200" : "bg-white/10"}`}>
+                                                {(players || []).length}
+                                            </span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                            <button
+                                type="button"
+                                onClick={() => { setShowResults(false); setPlayerHistoryViewId(null); }}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLightMode ? "text-purple-700 hover:bg-purple-50 border border-purple-200" : "text-purple-400 hover:bg-purple-500/20 border border-purple-500/30"}`}
+                                title="ガチャを引く画面へ"
+                            >
+                                <Sparkles size={14} /> ガチャ
+                            </button>
+                        </div>
+                        <div className="flex-1 min-h-0 relative flex flex-col">
+                            {showSidebarScrollHint && (
                                 <div
-                                    ref={sidebarScrollRef}
-                                    onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }}
-                                    className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth"
-                                    style={{ WebkitOverflowScrolling: "touch" }}
+                                    className="absolute left-0 right-0 bottom-0 z-10 flex items-center justify-center gap-1.5 py-2 pointer-events-none"
+                                    style={{
+                                        background: isLightMode
+                                            ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, transparent 100%)"
+                                            : "linear-gradient(to top, rgba(10,5,30,0.95) 0%, transparent 100%)",
+                                    }}
                                 >
-                                    {sidebarTab === "setup" ? (
-                                        <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
-                                    ) : sidebarTab === "players" ? (
-                                        <GachaPlayerManager
-                                            players={players}
-                                            activePlayerId={activePlayerId}
-                                            onSelectPlayer={setActivePlayerId}
-                                            onAddPlayer={addPlayer}
-                                            onRemovePlayer={removePlayer}
-                                            onResetPlayer={resetPlayer}
-                                            onViewPlayerHistory={setPlayerHistoryViewId}
-                                            pool={pool}
-                                            isLightMode={isLightMode}
-                                            shareHashtags={gachaSettings.shareHashtags ?? "#ライブカウンター #ガチャ"}
-                                        />
-                                    ) : sidebarTab === "items" ? (
-                                        <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} />
-                                    ) : (
-                                        <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
-                                    )}
+                                    <ChevronDown size={12} className={`animate-bounce ${isLightMode ? "text-gray-700" : "text-white/75"}`} />
                                 </div>
+                            )}
+                            <div
+                                ref={sidebarScrollRef}
+                                onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }}
+                                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth"
+                                style={{ WebkitOverflowScrolling: "touch" }}
+                            >
+                                {sidebarTab === "setup" ? (
+                                    <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
+                                ) : sidebarTab === "players" ? (
+                                    <GachaPlayerManager
+                                        players={players}
+                                        activePlayerId={activePlayerId}
+                                        onSelectPlayer={setActivePlayerId}
+                                        onAddPlayer={addPlayer}
+                                        onRemovePlayer={removePlayer}
+                                        onResetPlayer={resetPlayer}
+                                        onViewPlayerHistory={setPlayerHistoryViewId}
+                                        pool={pool}
+                                        isLightMode={isLightMode}
+                                        shareHashtags={gachaSettings.shareHashtags ?? "#ライブカウンター #ガチャ"}
+                                    />
+                                ) : sidebarTab === "items" ? (
+                                    <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} />
+                                ) : (
+                                    <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
+                                )}
                             </div>
-                </aside>
+                        </div>
+                    </aside>
+                )}
 
                 {/* メインステージ */}
                 <main className="flex-1 overflow-hidden relative">
