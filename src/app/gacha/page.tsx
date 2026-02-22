@@ -14,6 +14,9 @@ const GachaContent = dynamic(
   }
 );
 
-export default function GachaPage(props: { isSplitMode?: boolean; isRightPane?: boolean }) {
-  return <GachaContent {...props} />;
+type PageProps = { params?: Promise<Record<string, string | string[]>>; searchParams?: Promise<Record<string, string | string[]>> };
+
+export default function GachaPage(props: PageProps) {
+  const { isSplitMode, isRightPane } = (props as PageProps & { isSplitMode?: boolean; isRightPane?: boolean });
+  return <GachaContent isSplitMode={isSplitMode} isRightPane={isRightPane} />;
 }

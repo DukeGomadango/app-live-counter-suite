@@ -123,9 +123,13 @@ export default function CalculatorContent({
         return () => document.body.classList.remove("light-mode");
     }, [isLightMode, isSplitMode]);
 
+    const headerBgStrong = isLightMode ? "rgba(255,255,255,0.95)" : "rgba(20,10,40,0.92)";
+    const iconColor = isLightMode ? "text-gray-800" : "text-white";
+    const iconHover = isLightMode ? "hover:bg-gray-200" : "hover:bg-white/20";
+
     return (
         <div
-            className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`}
+            className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0 pt-12" : "h-screen w-screen"}`}
         >
             {/* 背景オーブ */}
             <div
@@ -151,13 +155,13 @@ export default function CalculatorContent({
                 />
             </div>
 
-            {/* ヘッダー */}
+            {/* ヘッダー（Split時は上部余白の下に表示し、背景を濃くしてアイコン視認性を確保） */}
             <div
-                className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2`}
+                className={`shrink-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 ${isSplitMode ? "relative" : "fixed top-0"}`}
                 style={{
-                    background: headerBg,
+                    background: headerBgStrong,
                     backdropFilter: "blur(12px)",
-                    borderBottom: `1px solid ${glassBorder}`,
+                    borderBottom: `1px solid ${isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)"}`,
                 }}
             >
                 <div className="flex items-center gap-2">
@@ -166,7 +170,7 @@ export default function CalculatorContent({
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => setShowSettingsPanel(true)}
-                        className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                        className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
                         title="電卓設定"
                         aria-label="設定"
                     >
@@ -175,7 +179,7 @@ export default function CalculatorContent({
                     {(!isSplitMode || isRightPane) && (
                         <button
                             onClick={() => setIsLightMode(!isLightMode)}
-                            className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                            className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
                         >
                             {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
                         </button>
@@ -197,12 +201,12 @@ export default function CalculatorContent({
             <main
                 className={`flex-1 min-h-0 flex flex-col p-4 ${!isSplitMode ? "pt-14" : ""} overflow-auto`}
             >
-                {/* タブ */}
+                {/* タブ（背景・枠を強めてどの背景でも視認しやすく） */}
                 <div
                     className="flex gap-1 p-1 rounded-xl mb-4 shrink-0 border overflow-x-auto"
                     style={{
-                        background: isLightMode ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.05)",
-                        borderColor: glassBorder,
+                        background: isLightMode ? "rgba(255,255,255,0.9)" : "rgba(255,255,255,0.12)",
+                        borderColor: isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.2)",
                     }}
                 >
                     {(["four", "fraction", "probability"] as const).map((t) => (
@@ -213,13 +217,13 @@ export default function CalculatorContent({
                             className={`shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                                 tab === t
                                     ? isLightMode
-                                        ? "bg-white text-gray-800 shadow"
-                                        : "bg-white/15 text-white"
+                                        ? "bg-white text-gray-900 shadow"
+                                        : "bg-white/20 text-white"
                                     : isLightMode
-                                        ? "text-gray-600 hover:bg-black/5"
-                                        : "text-white/70 hover:bg-white/5"
+                                        ? "text-gray-800 hover:bg-black/8"
+                                        : "text-white/90 hover:bg-white/10"
                             }`}
-                            style={tab === t ? { border: `1px solid ${glassBorder}` } : undefined}
+                            style={tab === t ? { border: `1px solid ${isLightMode ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.25)"}` } : undefined}
                         >
                             {t === "four" && "四則"}
                             {t === "fraction" && "分数"}
@@ -287,7 +291,7 @@ function FourOpsPanel({
     };
 
     const btnClass = (active?: boolean) =>
-        `rounded-xl border transition-all font-mono text-lg ${isLightMode ? "bg-white/80 text-gray-800 border-black/10 hover:bg-gray-50" : "bg-white/10 text-white border-white/10 hover:bg-white/15"} ${active ? "ring-2 ring-offset-2 border-transparent" : ""}`;
+        `rounded-xl border transition-all font-mono text-lg ${isLightMode ? "bg-white/95 text-gray-900 border-gray-300/80 hover:bg-gray-50" : "bg-white/15 text-white border-white/20 hover:bg-white/20"} ${active ? "ring-2 ring-offset-2 border-transparent" : ""}`;
 
     const opBtnClass = `rounded-xl border-2 transition-all font-mono text-lg font-semibold text-white py-3`;
 
@@ -300,7 +304,10 @@ function FourOpsPanel({
         >
             <div
                 className="p-4 rounded-2xl border text-right font-mono text-2xl min-h-[3rem] break-all"
-                style={{ borderColor: glassBorder, background: isLightMode ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.08)" }}
+                style={{
+                    borderColor: isLightMode ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.25)",
+                    background: isLightMode ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.12)",
+                }}
             >
                 {display.replace(/\//g, "÷").replace(/\*/g, "×")}
             </div>
@@ -318,7 +325,7 @@ function FourOpsPanel({
                         {c}
                     </button>
                 ))}
-                <button type="button" onClick={() => handleOp("/")} className={opBtnClass} style={{ borderColor: accentColor, background: `${accentColor}40` }}>
+                <button type="button" onClick={() => handleOp("/")} className={opBtnClass} style={{ borderColor: accentColor, background: `${accentColor}99` }}>
                     ÷
                 </button>
                 {["4", "5", "6"].map((c) => (
@@ -326,7 +333,7 @@ function FourOpsPanel({
                         {c}
                     </button>
                 ))}
-                <button type="button" onClick={() => handleOp("*")} className={opBtnClass} style={{ borderColor: accentColor, background: `${accentColor}40` }}>
+                <button type="button" onClick={() => handleOp("*")} className={opBtnClass} style={{ borderColor: accentColor, background: `${accentColor}99` }}>
                     ×
                 </button>
                 {["1", "2", "3"].map((c) => (
@@ -334,7 +341,7 @@ function FourOpsPanel({
                         {c}
                     </button>
                 ))}
-                <button type="button" onClick={() => handleOp("-")} className={opBtnClass} style={{ borderColor: accentColor, background: `${accentColor}40` }}>
+                <button type="button" onClick={() => handleOp("-")} className={opBtnClass} style={{ borderColor: accentColor, background: `${accentColor}99` }}>
                     −
                 </button>
                 <button type="button" onClick={() => handleDigit("0")} className={`py-3 ${btnClass()}`}>
@@ -351,7 +358,7 @@ function FourOpsPanel({
                 >
                     =
                 </button>
-                <button type="button" onClick={() => handleOp("+")} className={opBtnClass} style={{ borderColor: accentColor, background: `${accentColor}40` }}>
+                <button type="button" onClick={() => handleOp("+")} className={opBtnClass} style={{ borderColor: accentColor, background: `${accentColor}99` }}>
                     +
                 </button>
             </div>
@@ -434,7 +441,7 @@ function FractionPanel({
                 </div>
             </div>
             <div className="flex justify-center gap-2">
-                {(["+" as const, "-", "*", "/"]).map((o) => (
+                {(["+", "-", "*", "/"] as const).map((o) => (
                     <button
                         key={o}
                         type="button"

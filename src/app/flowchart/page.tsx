@@ -14,6 +14,9 @@ const FlowchartContent = dynamic(
   }
 );
 
-export default function FlowChartPage(props: { isSplitMode?: boolean; isRightPane?: boolean }) {
-  return <FlowchartContent {...props} />;
+type PageProps = { params?: Promise<Record<string, string | string[]>>; searchParams?: Promise<Record<string, string | string[]>> };
+
+export default function FlowChartPage(props: PageProps) {
+  const { isSplitMode, isRightPane } = (props as PageProps & { isSplitMode?: boolean; isRightPane?: boolean });
+  return <FlowchartContent isSplitMode={isSplitMode} isRightPane={isRightPane} />;
 }

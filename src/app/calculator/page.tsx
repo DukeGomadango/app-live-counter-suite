@@ -11,9 +11,9 @@ const CalculatorContent = dynamic(() => import("./CalculatorContent"), {
     ),
 });
 
-export default function CalculatorPage(props: {
-    isSplitMode?: boolean;
-    isRightPane?: boolean;
-}) {
-    return <CalculatorContent {...props} />;
+type PageProps = { params?: Promise<Record<string, string | string[]>>; searchParams?: Promise<Record<string, string | string[]>> };
+
+export default function CalculatorPage(props: PageProps) {
+    const { isSplitMode, isRightPane } = (props as PageProps & { isSplitMode?: boolean; isRightPane?: boolean });
+    return <CalculatorContent isSplitMode={isSplitMode} isRightPane={isRightPane} />;
 }

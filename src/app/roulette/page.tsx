@@ -14,6 +14,9 @@ const RouletteContent = dynamic(
     }
 );
 
-export default function RoulettePage(props: { isSplitMode?: boolean; isRightPane?: boolean }) {
-    return <RouletteContent {...props} />;
+type PageProps = { params?: Promise<Record<string, string | string[]>>; searchParams?: Promise<Record<string, string | string[]>> };
+
+export default function RoulettePage(props: PageProps) {
+    const { isSplitMode, isRightPane } = (props as PageProps & { isSplitMode?: boolean; isRightPane?: boolean });
+    return <RouletteContent isSplitMode={isSplitMode} isRightPane={isRightPane} />;
 }
