@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Network, Sparkles, ChevronDown, LayoutGrid } from "lucide-react";
+import { Users, Network, Sparkles, ChevronDown, LayoutGrid, CircleDot } from "lucide-react";
 
 interface ModeSelectorProps {
     isLightMode?: boolean;
@@ -46,6 +46,15 @@ const MODES = [
         color: "text-yellow-400",
         activeBg: "bg-yellow-500/20",
         activeBorder: "border-yellow-500/40",
+    },
+    {
+        id: "roulette",
+        path: "/roulette",
+        label: "Roulette",
+        icon: CircleDot,
+        color: "text-amber-400",
+        activeBg: "bg-amber-500/20",
+        activeBorder: "border-amber-500/40",
     },
 ];
 

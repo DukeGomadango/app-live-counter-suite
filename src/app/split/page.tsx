@@ -12,18 +12,23 @@ const GachaPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
   () => import("@/app/gacha/GachaContent"),
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
+const RoulettePage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
+  () => import("@/app/roulette/RouletteContent"),
+  { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
+);
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AppSettings } from "@/components/SettingsModal";
 import ModeSelector from "@/components/ModeSelector";
 import { ChevronDown, LayoutGrid, PanelLeft, PanelRight } from "lucide-react";
 
-export type ModuleType = "counter" | "flowchart" | "gacha";
+export type ModuleType = "counter" | "flowchart" | "gacha" | "roulette";
 
 const MODULE_OPTIONS: { value: ModuleType; label: string }[] = [
     { value: "counter", label: "Counter" },
     { value: "flowchart", label: "FlowChart" },
     { value: "gacha", label: "Gacha" },
+    { value: "roulette", label: "Roulette" },
 ];
 
 export default function SplitPage() {
@@ -56,6 +61,7 @@ export default function SplitPage() {
             case "counter": return <CounterPage isSplitMode={true} isRightPane={isRight} />;
             case "flowchart": return <FlowChartPage isSplitMode={true} isRightPane={isRight} />;
             case "gacha": return <GachaPage isSplitMode={true} isRightPane={isRight} />;
+            case "roulette": return <RoulettePage isSplitMode={true} isRightPane={isRight} />;
             default: return null;
         }
     };
