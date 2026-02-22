@@ -18,7 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
             priority: 0.8,
         },
         {
-            url: `${baseUrl}/gatcha`,
+            url: `${baseUrl}/gacha`,
             lastModified,
             changeFrequency: 'monthly',
             priority: 0.5,

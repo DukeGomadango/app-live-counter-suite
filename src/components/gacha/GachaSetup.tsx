@@ -13,7 +13,7 @@ import {
     Palette,
     Pencil,
     Check,
-} from "lucide-react";
+    } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, calculateProbabilities, getRarityProbabilities } from "@/lib/gacha";
 import {
@@ -34,6 +34,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from "lucide-react";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface GachaSetupProps {
     pool: GachaPool;
@@ -48,12 +49,13 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
     const [newItemWeight, setNewItemWeight] = useState("1");
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editName, setEditName] = useState("");
+    const [pendingDelete, setPendingDelete] = useState<{ type: "rarity"; id: string } | { type: "item"; id: string } | null>(null);
 
     const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
     const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
-    const textPrimary = isLightMode ? "text-gray-800" : "text-white/90";
-    const textSecondary = isLightMode ? "text-gray-500" : "text-white/50";
-    const textMuted = isLightMode ? "text-gray-400" : "text-white/30";
+    const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
+    const textSecondary = isLightMode ? "text-gray-800" : "text-white/75";
+    const textMuted = isLightMode ? "text-gray-700" : "text-white/65";
     const inputBg = isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
     const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
     const selectOptionStyle = isLightMode
@@ -174,7 +176,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
     );
 
     return (
-        <div className="flex flex-col gap-3 h-full overflow-y-auto pr-1 pb-4">
+        <div className="flex flex-col gap-3 min-h-0 pr-1 pb-20">
             {/* コンセプト名 */}
             <div className="rounded-2xl p-4" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
                 <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider mb-2 block`}>
@@ -225,7 +227,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                                     .map(rarity => (
                                         <div
                                             key={rarity.id}
-                                            className="flex items-center gap-2 p-2 rounded-lg"
+                                            className="flex items-center gap-2 p-2 rounded-lg min-h-11 flex-shrink-0"
                                             style={{ background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)" }}
                                         >
                                             <input
@@ -249,13 +251,17 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                                                 type="text"
                                                 value={rarity.name}
                                                 onChange={e => updateRarity(rarity.id, { name: e.target.value })}
+                                                autoComplete="off"
+                                                autoCorrect="off"
+                                                autoCapitalize="off"
+                                                spellCheck={false}
                                                 className={`flex-1 px-2 py-1 rounded text-xs font-bold ${textPrimary} outline-none`}
                                                 style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                             />
                                             <span className={`text-[10px] w-8 text-center ${textMuted}`}>#{rarity.sortOrder}</span>
                                             {pool.rarities.length > 1 && (
                                                 <button
-                                                    onClick={() => removeRarity(rarity.id)}
+                                                    onClick={() => setPendingDelete({ type: "rarity", id: rarity.id })}
                                                     className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors"
                                                 >
                                                     <Trash2 size={12} />
@@ -287,7 +293,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                             transition={{ duration: 0.2 }}
                             className="overflow-hidden"
                         >
-                            <div className="px-4 pb-4">
+                            <div className="px-4 pb-4 flex flex-col gap-2">
                                 {/* レア度別確率サマリ */}
                                 {pool.items.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mb-3">
@@ -327,7 +333,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                                                         startEditing={startEditing}
                                                         finishEditing={finishEditing}
                                                         updateItem={updateItem}
-                                                        removeItem={removeItem}
+                                                        onRequestRemoveItem={(id) => setPendingDelete({ type: "item", id })}
                                                         prob={pt}
                                                     />
                                                 );
@@ -480,6 +486,21 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                     </div>
                 </div>
             )}
+
+            <ConfirmDialog
+                open={pendingDelete !== null}
+                message="本当に削除しますか？"
+                confirmLabel="削除する"
+                cancelLabel="キャンセル"
+                onConfirm={() => {
+                    if (pendingDelete) {
+                        if (pendingDelete.type === "rarity") removeRarity(pendingDelete.id);
+                        else removeItem(pendingDelete.id);
+                        setPendingDelete(null);
+                    }
+                }}
+                onCancel={() => setPendingDelete(null)}
+            />
         </div>
     );
 }
@@ -495,7 +516,7 @@ interface SortableItemProps {
     startEditing: (item: GachaItem) => void;
     finishEditing: () => void;
     updateItem: (id: string, updates: Partial<GachaItem>) => void;
-    removeItem: (id: string) => void;
+    onRequestRemoveItem: (id: string) => void;
     prob: number;
 }
 
@@ -509,7 +530,7 @@ function SortableItem({
     startEditing,
     finishEditing,
     updateItem,
-    removeItem,
+    onRequestRemoveItem,
     prob
 }: SortableItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
@@ -523,8 +544,8 @@ function SortableItem({
         zIndex: isDragging ? 10 : 1,
     };
 
-    const textPrimary = isLightMode ? "text-gray-800" : "text-white/90";
-    const textMuted = isLightMode ? "text-gray-400" : "text-white/30";
+    const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
+    const textMuted = isLightMode ? "text-gray-700" : "text-white/65";
     const inputBg = isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
     const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
     const selectOptionStyle = isLightMode ? { background: "#fff", color: "#1f2937" } : { background: "#1e1b4b", color: "#e2e8f0" };
@@ -613,13 +634,13 @@ function SortableItem({
                 ) : (
                     <button
                         onClick={() => startEditing(item)}
-                        className={`p-1 rounded transition-colors ${isLightMode ? "hover:bg-gray-200 text-gray-400" : "hover:bg-white/10 text-white/30"}`}
+                        className={`p-1 rounded transition-colors ${isLightMode ? "hover:bg-gray-200 text-gray-600" : "hover:bg-white/10 text-white/65"}`}
                     >
                         <Pencil size={10} />
                     </button>
                 )}
                 <button
-                    onClick={() => removeItem(item.id)}
+                    onClick={() => onRequestRemoveItem(item.id)}
                     className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors"
                 >
                     <Trash2 size={10} />

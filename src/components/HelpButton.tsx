@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { HelpCircle } from "lucide-react";
 import HelpModal from "./HelpModal";
@@ -8,11 +8,21 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 export default function HelpButton() {
     const [isOpen, setIsOpen] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
     const pathname = usePathname();
     const [isLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
     const [isGachaLightMode] = useLocalStorage<boolean>("gacha-light-mode", false);
-    const isGatcha = pathname?.includes("gatcha");
-    const effectiveLightMode = isGatcha ? isGachaLightMode : isLightMode;
+    const isGacha = pathname?.includes("gacha");
+    const effectiveLightMode = isGacha ? isGachaLightMode : isLightMode;
+
+    useEffect(() => {
+        const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
+        check();
+        window.addEventListener("resize", check);
+        return () => window.removeEventListener("resize", check);
+    }, []);
+
+    const gachaBottom = isGacha && isMobile ? "72px" : "16px";
 
     return (
         <>
@@ -21,8 +31,8 @@ export default function HelpButton() {
                 onClick={() => setIsOpen(true)}
                 className={`fixed z-40 w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 group`}
                 style={{
-                    top: isGatcha ? "auto" : "70px",
-                    bottom: isGatcha ? "16px" : "auto",
+                    top: isGacha ? "auto" : "70px",
+                    bottom: isGacha ? gachaBottom : "auto",
                     right: "16px",
                     background: effectiveLightMode ? "rgba(255, 255, 255, 0.4)" : "rgba(20, 10, 40, 0.4)",
                     backdropFilter: "blur(8px)",

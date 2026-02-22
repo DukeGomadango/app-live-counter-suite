@@ -27,6 +27,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { motion, AnimatePresence } from "framer-motion";
 import HamburgerMenu, { SavedFlowChart } from "@/components/HamburgerMenu";
 import SettingsModal, { AppSettings } from "@/components/SettingsModal";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 const nodeTypes = {
     counter: CounterNode,
@@ -67,6 +68,8 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
     // Header States
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
+    const [chartToDelete, setChartToDelete] = useState<string | null>(null);
 
     // Save flowchart state to local storage
     const [nodes, setNodes] = useLocalStorage<Node[]>("flowchart-nodes", INITIAL_NODES);
@@ -253,6 +256,8 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
         setNodes((nds) => nds.filter((n) => n.id !== id));
     }, [nodes, edges, setNodes, setEdges, saveHistory]);
 
+    const requestDeleteNode = useCallback((id: string) => setNodeToDelete(id), []);
+
     const onNodeDragStart = useCallback(() => {
         saveHistory(nodes, edges);
     }, [nodes, edges, saveHistory]);
@@ -345,7 +350,7 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
                         onIncrement: handleIncrement,
                         onDecrement: handleDecrement,
                         onUpdateConfig: handleUpdateConfig,
-                        onDelete: handleDelete,
+                        onDelete: requestDeleteNode,
                         onSourceHover: handleSourceHover,
                         onSourceClick: handleSourceClick,
                         onQuickAdd: handleQuickAdd,
@@ -365,7 +370,7 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
             }
             return node;
         });
-    }, [nodes, isLightMode, handleIncrement, handleDecrement, handleUpdateConfig, handleUpdateTotalLabel, handleDelete, globalTarget, handleSourceHover, handleSourceClick, handleQuickAdd, accentColor]);
+    }, [nodes, isLightMode, handleIncrement, handleDecrement, handleUpdateConfig, handleUpdateTotalLabel, requestDeleteNode, globalTarget, handleSourceHover, handleSourceClick, handleQuickAdd, accentColor]);
 
     const displayNodes = useMemo(() => {
         if (!ghostSourceId) return nodesWithCallbacks;
@@ -628,7 +633,7 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
                 savedCharts={savedCharts}
                 onSaveChart={handleSaveChart}
                 onLoadChart={handleLoadChart}
-                onDeleteChart={handleDeleteChart}
+                onDeleteChart={(id) => setChartToDelete(id)}
                 globalTarget={globalTarget}
                 onSetGlobalTarget={setGlobalTarget}
                 viewMode="flowchart"
@@ -648,6 +653,33 @@ export default function FlowChartPage({ isSplitMode = false, isRightPane = false
                     />
                 )}
             </AnimatePresence>
+
+            <ConfirmDialog
+                open={nodeToDelete !== null}
+                message="本当に削除しますか？"
+                confirmLabel="削除する"
+                cancelLabel="キャンセル"
+                onConfirm={() => {
+                    if (nodeToDelete) {
+                        handleDelete(nodeToDelete);
+                        setNodeToDelete(null);
+                    }
+                }}
+                onCancel={() => setNodeToDelete(null)}
+            />
+            <ConfirmDialog
+                open={chartToDelete !== null}
+                message="本当に削除しますか？"
+                confirmLabel="削除する"
+                cancelLabel="キャンセル"
+                onConfirm={() => {
+                    if (chartToDelete) {
+                        handleDeleteChart(chartToDelete);
+                        setChartToDelete(null);
+                    }
+                }}
+                onCancel={() => setChartToDelete(null)}
+            />
 
             {/* Background Orbs (Expanded and scattered for Flowchart) */}
             <div className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${isLightMode ? 'mix-blend-multiply opacity-20' : 'opacity-80'}`}>

@@ -27,6 +27,14 @@ export interface GachaPool {
     pityGuaranteedRarityId: string; // 天井で確定するレア度ID
 }
 
+/** 保存したガチャ設定（プリセット） */
+export interface GachaPoolPreset {
+    id: string;
+    name: string;
+    pool: GachaPool;
+    savedAt: number;
+}
+
 export interface GachaResult {
     resultId: string;  // 一意のID（キー重複防止）
     itemId: string;
@@ -39,9 +47,13 @@ export interface GachaResult {
 
 export interface GachaSettings {
     bgColor: string;          // 背景配色
+    /** 背景の濃さ 0=薄い 100=そのまま（ダークは黒、ライトは白でオーバーレイ） */
+    bgIntensity?: number;
     accentColor: string;      // ガチャUI配色
     showTitle: boolean;       // コンセプト名表示
     enableAnimation: boolean; // 演出ON/OFF
+    /** 共有ツイートに付与する追加ハッシュタグ（スペース区切り）。#だんごツールは常に付与される */
+    shareHashtags: string;
 }
 
 export const GACHA_BG_COLORS = [
@@ -73,9 +85,11 @@ export const GACHA_ACCENT_COLORS = [
 export function createDefaultSettings(): GachaSettings {
     return {
         bgColor: "default",
+        bgIntensity: 100,
         accentColor: "#a855f7",
         showTitle: true,
         enableAnimation: true,
+        shareHashtags: "#ライブカウンター #ガチャ",
     };
 }
 
@@ -85,13 +99,25 @@ export interface InventoryItem {
     rarityId: string;
 }
 
+/** 1回のガチャの要約（品目と数だけ。履歴用のコンパクト保存） */
+export interface RunSummary {
+    runIndex: number;
+    timestamp: number;
+    pullCount: number;
+    items: { itemId: string; itemName: string; rarityId: string; count: number }[];
+}
+
 export interface Player {
     id: string;
     name: string;
     results: GachaResult[];
+    /** 過去のガチャ回ごとの要約（直近1回の生結果は results に保持） */
+    runHistory?: RunSummary[];
     inventory?: Record<string, InventoryItem>;
     totalPulls: number;
     pityCounter: number; // 天井カウント (最高レア出たらリセット)
+    /** 天井に到達した回数（天井発動のたびに+1） */
+    pityReachCount?: number;
 }
 
 export type SortMode = "rarity-asc" | "rarity-desc" | "name" | "count";
@@ -123,13 +149,92 @@ export function createDefaultPool(): GachaPool {
     };
 }
 
+/** サンプルテンプレート（保存・読み込みタブで選択可能） */
+export interface SampleTemplate {
+    id: string;
+    name: string;
+    pool: GachaPool;
+}
+
+const _sampleRarities3: RarityTier[] = [
+    { id: "n", name: "N", color: "#9ca3af", glowColor: "rgba(156,163,175,0.3)", bgColor: "rgba(156,163,175,0.1)", sortOrder: 1 },
+    { id: "r", name: "R", color: "#3b82f6", glowColor: "rgba(59,130,246,0.3)", bgColor: "rgba(59,130,246,0.1)", sortOrder: 2 },
+    { id: "sr", name: "SR", color: "#a855f7", glowColor: "rgba(168,85,247,0.4)", bgColor: "rgba(168,85,247,0.15)", sortOrder: 3 },
+];
+
+/** プリセット・サンプル読み込み用に pool をクローンし、id を新規発行する */
+export function clonePoolWithNewIds(pool: GachaPool): GachaPool {
+    const newId = () => crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const newRarities = pool.rarities.map((r, i) => ({ ...r, id: newId() }));
+    const oldToNewRarity = new Map(pool.rarities.map((r, i) => [r.id, newRarities[i].id]));
+    const newItems = pool.items.map(it => ({
+        ...it,
+        id: newId(),
+        rarityId: oldToNewRarity.get(it.rarityId) ?? newRarities[0]?.id ?? it.rarityId,
+    }));
+    return {
+        ...pool,
+        id: newId(),
+        rarities: newRarities,
+        items: newItems,
+        pityGuaranteedRarityId: oldToNewRarity.get(pool.pityGuaranteedRarityId) ?? newRarities[newRarities.length - 1]?.id ?? pool.pityGuaranteedRarityId,
+    };
+}
+
+export function getSampleTemplates(): SampleTemplate[] {
+    const r1 = [..._sampleRarities3];
+    const pool1: GachaPool = {
+        id: "sample-1",
+        conceptName: "初回1万",
+        rarities: r1,
+        items: [{ id: "sample-1-item", name: "景品", rarityId: r1[0].id, weight: 1 }],
+        pullCount: 10000,
+        pityEnabled: false,
+        pityThreshold: 100,
+        pityGuaranteedRarityId: r1[r1.length - 1].id,
+    };
+    const r2 = [..._sampleRarities3];
+    const pool2: GachaPool = {
+        id: "sample-2",
+        conceptName: "シンプル N/R/SR",
+        rarities: r2,
+        items: [
+            { id: "s2-1", name: "ノーマル景品", rarityId: r2[0].id, weight: 70 },
+            { id: "s2-2", name: "レア景品", rarityId: r2[1].id, weight: 25 },
+            { id: "s2-3", name: "SR景品", rarityId: r2[2].id, weight: 5 },
+        ],
+        pullCount: 10,
+        pityEnabled: false,
+        pityThreshold: 100,
+        pityGuaranteedRarityId: r2[2].id,
+    };
+    const r3 = DEFAULT_RARITIES.map(r => ({ ...r }));
+    const pool3: GachaPool = {
+        id: "sample-3",
+        conceptName: "フルレア度",
+        rarities: r3,
+        items: r3.map((rar, i) => ({ id: `s3-${i}`, name: `${rar.name}景品`, rarityId: rar.id, weight: Math.max(1, 10 - i) })),
+        pullCount: 10,
+        pityEnabled: true,
+        pityThreshold: 100,
+        pityGuaranteedRarityId: "ur",
+    };
+    return [
+        { id: "tpl-1", name: "初回1万", pool: pool1 },
+        { id: "tpl-2", name: "シンプル（N/R/SR）", pool: pool2 },
+        { id: "tpl-3", name: "フルレア度＋天井", pool: pool3 },
+    ];
+}
+
 export function createDefaultPlayer(name: string): Player {
     return {
         id: crypto.randomUUID ? crypto.randomUUID() : `player-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         name,
         results: [],
+        runHistory: [],
         totalPulls: 0,
         pityCounter: 0,
+        pityReachCount: 0,
     };
 }
 
@@ -228,16 +333,24 @@ export function performGachaPull(
         inventory[picked.id].count += 1;
     }
 
-    const MAX_RESULTS = 300;
-    const combinedResults = [...player.results, ...results];
-    const trimmedResults = combinedResults.slice(-MAX_RESULTS);
+    const runHistory = player.runHistory ?? [];
+    const runIndex = runHistory.length + 1;
+    const summaryItems = organizeResults(results, pool.rarities, "rarity-asc");
+    const runSummary: RunSummary = {
+        runIndex,
+        timestamp: now,
+        pullCount: count,
+        items: summaryItems.map(o => ({ itemId: o.itemId, itemName: o.itemName, rarityId: o.rarityId, count: o.count })),
+    };
 
     const updatedPlayer: Player = {
         ...player,
-        results: trimmedResults,
+        results,
+        runHistory: [...runHistory, runSummary],
         inventory,
         totalPulls: player.totalPulls + count,
         pityCounter,
+        pityReachCount: (player.pityReachCount ?? 0) + (pityTriggered ? 1 : 0),
     };
 
     return { results, updatedPlayer, pityTriggered };
@@ -319,9 +432,11 @@ export function containsHighestRarity(
 
 // ========== SNS共有 ==========
 
+/** 追加ハッシュタグ（スペース区切り）。#だんごツールは常に先頭で付与される */
 export function formatResultsForShare(
     results: GachaResult[],
     pool: GachaPool,
+    extraHashtags: string = "#ライブカウンター #ガチャ",
 ): string {
     const organized = organizeResults(results, pool.rarities, "rarity-asc");
     const rarityMap = new Map(pool.rarities.map(r => [r.id, r.name]));
@@ -340,8 +455,9 @@ export function formatResultsForShare(
         lines.push(`【${rarityName}】${item.itemName} ×${item.count}`);
     }
 
+    const tagLine = ["#だんごツール", extraHashtags.trim()].filter(Boolean).join(" ");
     lines.push("");
-    lines.push("#ライブカウンター #ガチャ");
+    lines.push(tagLine);
 
     return lines.join("\n");
 }
@@ -366,7 +482,7 @@ export function ensureResultIds(results: GachaResult[]): GachaResult[] {
     });
 }
 
-// Playerのresultsに対してresultIdを付与し、inventoryを初期化する
+// Playerのresultsに対してresultIdを付与し、inventoryを初期化する。runHistoryがない既存データは1回分のRunSummaryにまとめる。
 export function migratePlayerData(players: Player[]): Player[] {
     return players.map(p => {
         const inventory: Record<string, InventoryItem> = p.inventory ? { ...p.inventory } : {};
@@ -378,10 +494,27 @@ export function migratePlayerData(players: Player[]): Player[] {
                 inventory[r.itemId].count += 1;
             }
         }
+        const results = ensureResultIds(p.results);
+        let runHistory = p.runHistory;
+        if (!runHistory || runHistory.length === 0) {
+            if (results.length > 0) {
+                const organized = organizeResults(results, [], "rarity-asc");
+                runHistory = [{
+                    runIndex: 1,
+                    timestamp: results[0]?.timestamp ?? Date.now(),
+                    pullCount: results.length,
+                    items: organized.map(o => ({ itemId: o.itemId, itemName: o.itemName, rarityId: o.rarityId, count: o.count })),
+                }];
+            } else {
+                runHistory = [];
+            }
+        }
         return {
             ...p,
-            results: ensureResultIds(p.results).slice(-300),
-            inventory
+            results,
+            runHistory,
+            inventory,
+            pityReachCount: p.pityReachCount ?? 0,
         };
     });
 }

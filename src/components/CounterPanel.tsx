@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp, ChevronDown, Trash2, Pencil } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -15,6 +15,7 @@ interface CounterPanelProps {
     target: number;
     onIncrement: (id: string) => void;
     onDecrement: (id: string) => void;
+    onSetCount?: (id: string, value: number) => void;
     onDeleteItem: (id: string) => void;
     onEditItem: (id: string) => void;
     isLightMode: boolean;
@@ -30,25 +31,56 @@ export default function CounterPanel({
     target,
     onIncrement,
     onDecrement,
+    onSetCount,
     onDeleteItem,
     onEditItem,
     isLightMode,
     isOverlay = false,
 }: CounterPanelProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: isOverlay });
+    const lastIncrementAt = useRef<number>(0);
+    const pointerHandled = useRef(false);
     const [isPop, setIsPop] = useState(false);
     const [popDirection, setPopDirection] = useState<"up" | "down">("up");
     const [isHovered, setIsHovered] = useState(false);
+    const [isEditingCount, setIsEditingCount] = useState(false);
+    const [editCountValue, setEditCountValue] = useState("");
+
+    const doIncrement = useCallback(() => {
+        if (isEditingCount) return;
+        const now = Date.now();
+        if (now - lastIncrementAt.current < 400) return;
+        lastIncrementAt.current = now;
+        pointerHandled.current = true;
+        onIncrement(id);
+        setPopDirection("up");
+        setIsPop(true);
+        setTimeout(() => setIsPop(false), 300);
+    }, [id, onIncrement, isEditingCount]);
+
+    const handlePointerDown = useCallback(
+        (e: React.PointerEvent) => {
+            if (e.button !== 0) return;
+            const el = e.target as HTMLElement;
+            if (el.closest("button") || el.closest("[data-count-editable]") || el.closest("input")) return;
+            e.preventDefault();
+            e.stopPropagation();
+            doIncrement();
+        },
+        [doIncrement]
+    );
 
     const handleLeftClick = useCallback(
         (e: React.MouseEvent) => {
             e.preventDefault();
-            onIncrement(id);
-            setPopDirection("up");
-            setIsPop(true);
-            setTimeout(() => setIsPop(false), 300);
+            e.stopPropagation();
+            if (pointerHandled.current) {
+                pointerHandled.current = false;
+                return;
+            }
+            doIncrement();
         },
-        [id, onIncrement]
+        [doIncrement]
     );
 
     const handleIncrement = useCallback(
@@ -120,6 +152,7 @@ export default function CounterPanel({
         >
             <div
                 onClick={handleLeftClick}
+                onPointerDown={handlePointerDown}
                 onContextMenu={handleContextMenu}
                 className="relative flex flex-col items-center justify-center gap-0.5 rounded-2xl cursor-pointer transition-all duration-300 overflow-hidden w-full h-full"
                 style={{
@@ -154,40 +187,88 @@ export default function CounterPanel({
 
                 {/* Count row: △ count/target ▽ */}
                 <div className="relative z-10 flex items-center gap-0.5">
-                    {/* Count number with animation */}
+                    {/* Count number with animation or edit input */}
                     <div className="flex items-baseline gap-0.5">
-                        <AnimatePresence mode="popLayout">
-                            <motion.span
-                                key={count}
-                                initial={{
-                                    opacity: 0,
-                                    y: popDirection === "up" ? 10 : -10,
-                                    scale: 0.5,
+                        {isEditingCount && onSetCount ? (
+                            <input
+                                type="number"
+                                min={0}
+                                value={editCountValue}
+                                onChange={(e) => setEditCountValue(e.target.value.replace(/[^0-9]/g, ""))}
+                                onBlur={() => {
+                                    const n = Math.max(0, parseInt(editCountValue, 10) || 0);
+                                    onSetCount(id, n);
+                                    setIsEditingCount(false);
                                 }}
-                                animate={{
-                                    opacity: 1,
-                                    y: 0,
-                                    scale: isPop ? 1.3 : 1,
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                    }
                                 }}
-                                exit={{
-                                    opacity: 0,
-                                    y: popDirection === "up" ? -10 : 10,
-                                    scale: 0.5,
+                                autoFocus
+                                className="font-bold tabular-nums text-2xl sm:text-3xl lg:text-4xl w-16 sm:w-20 bg-transparent border-b-2 outline-none text-center"
+                                style={{
+                                    color: countColor,
+                                    borderColor: color,
                                 }}
-                                transition={{
-                                    type: "spring",
-                                    stiffness: 500,
-                                    damping: 25,
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        ) : (
+                            <span
+                                data-count-editable
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (onSetCount) {
+                                        setIsEditingCount(true);
+                                        setEditCountValue(String(count));
+                                    }
                                 }}
-                                className="font-bold tabular-nums text-2xl sm:text-3xl lg:text-4xl"
+                                onKeyDown={(e) => {
+                                    if ((e.key === "Enter" || e.key === " ") && onSetCount) {
+                                        e.preventDefault();
+                                        setIsEditingCount(true);
+                                        setEditCountValue(String(count));
+                                    }
+                                }}
+                                className={`font-bold tabular-nums text-2xl sm:text-3xl lg:text-4xl ${onSetCount ? "cursor-text rounded px-0.5 hover:bg-black/5 dark:hover:bg-white/5" : ""}`}
                                 style={{
                                     color: countColor,
                                     textShadow: countShadow,
                                 }}
+                                title={onSetCount ? "クリックで数を直接編集" : undefined}
                             >
-                                {count}
-                            </motion.span>
-                        </AnimatePresence>
+                                <AnimatePresence mode="popLayout">
+                                    <motion.span
+                                        key={count}
+                                        initial={{
+                                            opacity: 0,
+                                            y: popDirection === "up" ? 10 : -10,
+                                            scale: 0.5,
+                                        }}
+                                        animate={{
+                                            opacity: 1,
+                                            y: 0,
+                                            scale: isPop ? 1.3 : 1,
+                                        }}
+                                        exit={{
+                                            opacity: 0,
+                                            y: popDirection === "up" ? -10 : 10,
+                                            scale: 0.5,
+                                        }}
+                                        transition={{
+                                            type: "spring",
+                                            stiffness: 500,
+                                            damping: 25,
+                                        }}
+                                        className="inline-block"
+                                    >
+                                        {count}
+                                    </motion.span>
+                                </AnimatePresence>
+                            </span>
+                        )}
 
                         {/* Target */}
                         {target > 0 && (

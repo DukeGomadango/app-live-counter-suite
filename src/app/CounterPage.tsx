@@ -26,6 +26,7 @@ import AddItemPanel from "@/components/AddItemPanel";
 import HamburgerMenu from "@/components/HamburgerMenu";
 import EditItemModal from "@/components/EditItemModal";
 import SettingsModal, { type AppSettings, type CardSize } from "@/components/SettingsModal";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { TEMPLATES, createCounterItems, type CounterItem, type Template } from "@/lib/templates";
 
@@ -62,6 +63,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   );
   const [addPanelExpanded, setAddPanelExpanded] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [appSettings, setAppSettings] = useLocalStorage<AppSettings>(
     "counter-app-settings",
@@ -189,6 +191,17 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
           item.id === id && item.count > 0
             ? { ...item, count: item.count - 1 }
             : item
+        )
+      );
+    },
+    [setItems]
+  );
+
+  const handleSetCount = useCallback(
+    (id: string, value: number) => {
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === id ? { ...item, count: Math.max(0, value) } : item
         )
       );
     },
@@ -384,7 +397,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
         onSelectTemplate={handleSelectTemplate}
         onAddItem={handleAddItem}
         onEditItem={handleEditItem}
-        onDeleteItem={handleDeleteItem}
+        onDeleteItem={(id) => setItemToDelete(id)}
         onSetTarget={handleSetTarget}
         onSetAllTargets={handleSetAllTargets}
         currentTemplateId={currentTemplateId}
@@ -450,7 +463,8 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                     target={item.target}
                     onIncrement={handleIncrement}
                     onDecrement={handleDecrement}
-                    onDeleteItem={handleDeleteItem}
+                    onSetCount={handleSetCount}
+                    onDeleteItem={(id) => setItemToDelete(id)}
                     onEditItem={(id) => setEditingItemId(id)}
                     isLightMode={isLightMode}
                   />
@@ -482,7 +496,8 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                     target={activeItem.target}
                     onIncrement={handleIncrement}
                     onDecrement={handleDecrement}
-                    onDeleteItem={handleDeleteItem}
+                    onSetCount={handleSetCount}
+                    onDeleteItem={(id) => setItemToDelete(id)}
                     onEditItem={(id) => setEditingItemId(id)}
                     isLightMode={isLightMode}
                     isOverlay
@@ -524,6 +539,20 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
           onClose={() => setIsSettingsOpen(false)}
         />
       )}
+
+      <ConfirmDialog
+        open={itemToDelete !== null}
+        message="本当に削除しますか？"
+        confirmLabel="削除する"
+        cancelLabel="キャンセル"
+        onConfirm={() => {
+          if (itemToDelete) {
+            setItems((prev) => prev.filter((item) => item.id !== itemToDelete));
+            setItemToDelete(null);
+          }
+        }}
+        onCancel={() => setItemToDelete(null)}
+      />
     </div>
   );
 }

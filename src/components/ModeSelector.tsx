@@ -39,9 +39,9 @@ const MODES = [
         activeBorder: "border-emerald-500/40",
     },
     {
-        id: "gatcha",
-        path: "/gatcha",
-        label: "Gatcha",
+        id: "gacha",
+        path: "/gacha",
+        label: "Gacha",
         icon: Sparkles,
         color: "text-yellow-400",
         activeBg: "bg-yellow-500/20",

@@ -20,6 +20,8 @@ interface GachaRollAnimationProps {
     accentColor?: string;
     showTitle?: boolean;
     enableAnimation?: boolean;
+    /** 誰が引くか（idle時に「〇〇のターン」表示） */
+    activePlayerName?: string;
 }
 
 // パーティクル生成
@@ -63,8 +65,9 @@ export default function GachaRollAnimation({
     accentColor = "#a855f7",
     showTitle = true,
     enableAnimation = true,
+    activePlayerName = "ゲスト",
 }: GachaRollAnimationProps) {
-    const [phase, setPhase] = useState<"idle" | "spinning" | "reveal-setup" | "revealing" | "summary" | "done">("idle");
+    const [phase, setPhase] = useState<"idle" | "build-up" | "spinning" | "reveal-setup" | "revealing" | "summary" | "done">("idle");
     const [revealIndex, setRevealIndex] = useState(0);
     const [showConfirmedEffect, setShowConfirmedEffect] = useState(false);
     const [skipRequested, setSkipRequested] = useState(false);
@@ -91,23 +94,29 @@ export default function GachaRollAnimation({
         return results.filter(r => r.rarityId === highestRarity.id);
     }, [results, highestRarity]);
 
-    // フェーズ管理
+    // フェーズ管理: ロール開始 → タメ(0.6s) → スピン
     useEffect(() => {
         if (!isRolling || !results) return;
 
         if (!enableAnimation) {
-            // 演出OFF: 即完了
             setPhase("done");
             return;
         }
 
-        setPhase("spinning");
+        setPhase("build-up");
         setRevealIndex(0);
         setSkipRequested(false);
         setShowConfirmedEffect(false);
 
-        const spinDuration = isMassRoll ? 2000 : 3500;
+        const buildUpTimer = setTimeout(() => setPhase("spinning"), 600);
+        return () => clearTimeout(buildUpTimer);
+    }, [isRolling, results, enableAnimation]);
 
+    // スピン開始後のタイマー（確定演出・リベールへ）
+    useEffect(() => {
+        if (phase !== "spinning" || !results) return;
+
+        const spinDuration = isMassRoll ? 2000 : 3500;
         const spinTimer = setTimeout(() => {
             if (hasHighestRarity && !isMassRoll) {
                 setShowConfirmedEffect(true);
@@ -124,14 +133,14 @@ export default function GachaRollAnimation({
         }, spinDuration);
 
         return () => clearTimeout(spinTimer);
-    }, [isRolling, results, hasHighestRarity, isMassRoll, enableAnimation]);
+    }, [phase, results, hasHighestRarity, isMassRoll]);
 
-    // カード1枚ずつ表示
+    // カード1枚ずつ表示（最後の1枚表示後は余韻を入れてから summary へ）
     useEffect(() => {
         if (phase !== "revealing" || skipRequested) return;
         if (revealIndex >= sortedResults.length) {
-            setPhase("summary");
-            return;
+            const timer = setTimeout(() => setPhase("summary"), 1000);
+            return () => clearTimeout(timer);
         }
         const delay = sortedResults.length > 50 ? 20 : sortedResults.length > 10 ? 50 : 150;
         const timer = setTimeout(() => setRevealIndex(prev => prev + 1), delay);
@@ -140,17 +149,17 @@ export default function GachaRollAnimation({
 
     // スキップ
     useEffect(() => {
-        if (skipRequested && (phase === "revealing" || phase === "spinning")) {
+        if (skipRequested && (phase === "revealing" || phase === "spinning" || phase === "build-up")) {
             setRevealIndex(sortedResults.length);
             setShowConfirmedEffect(false);
             setPhase("summary");
         }
     }, [skipRequested, phase, sortedResults.length]);
 
-    // summary → done
+    // summary → done（○○連の結果表示時間を長めに）
     useEffect(() => {
         if (phase === "summary") {
-            const timer = setTimeout(() => setPhase("done"), 2500);
+            const timer = setTimeout(() => setPhase("done"), 3800);
             return () => clearTimeout(timer);
         }
     }, [phase]);
@@ -209,12 +218,17 @@ export default function GachaRollAnimation({
                     </div>
                 </motion.div>
 
+                {/* 誰が引くか */}
+                <p className={`text-sm font-medium ${isLightMode ? "text-gray-800" : "text-white/90"}`}>
+                    {activePlayerName}のターン
+                </p>
+
                 {/* コンセプト名 */}
                 {showTitle && pool.conceptName && (
                     <motion.h2
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className={`text-lg sm:text-xl font-bold tracking-wider ${isLightMode ? "text-gray-700" : "text-white/80"}`}
+                        className={`text-lg sm:text-xl font-bold tracking-wider ${isLightMode ? "text-gray-900" : "text-white/95"}`}
                     >
                         {pool.conceptName}
                     </motion.h2>
@@ -224,8 +238,8 @@ export default function GachaRollAnimation({
                 {pityEnabled && (
                     <div className="w-48 sm:w-64">
                         <div className="flex justify-between mb-1">
-                            <span className={`text-[10px] ${isLightMode ? "text-gray-500" : "text-white/40"}`}>天井</span>
-                            <span className={`text-[10px] font-bold ${isLightMode ? "text-gray-600" : "text-white/60"}`}>
+                            <span className={`text-[10px] ${isLightMode ? "text-gray-700" : "text-white/70"}`}>天井</span>
+                            <span className={`text-[10px] font-bold ${isLightMode ? "text-gray-800" : "text-white/90"}`}>
                                 {pityCounter} / {pityThreshold}
                             </span>
                         </div>
@@ -272,10 +286,40 @@ export default function GachaRollAnimation({
                 </motion.button>
 
                 {pool.items.length === 0 && (
-                    <p className={`text-xs ${isLightMode ? "text-red-500" : "text-red-400/80"}`}>
+                    <p className={`text-xs ${isLightMode ? "text-red-500" : "text-red-300"}`}>
                         ※ 品目を追加してください
                     </p>
                 )}
+            </div>
+        );
+    }
+
+    // タメ（0.6秒）
+    if (phase === "build-up") {
+        return (
+            <div className="flex flex-col items-center justify-center h-full gap-4 p-4 relative overflow-hidden">
+                <motion.div
+                    className="absolute inset-0 pointer-events-none"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 0.2 }}
+                    style={{
+                        background: `radial-gradient(circle, ${accentColor}15 0%, transparent 70%)`,
+                    }}
+                />
+                <motion.p
+                    animate={{ opacity: [0.3, 1, 0.3] }}
+                    transition={{ duration: 0.5, repeat: 1 }}
+                    className={`text-lg font-bold ${isLightMode ? "text-gray-600" : "text-white/70"}`}
+                >
+                    ...
+                </motion.p>
+                <button
+                    onClick={handleSkip}
+                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${isLightMode ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                >
+                    <SkipForward size={12} /> スキップ
+                </button>
             </div>
         );
     }
@@ -362,44 +406,52 @@ export default function GachaRollAnimation({
                     )}
                 </AnimatePresence>
 
-                {/* スロット回転モチーフ */}
+                {/* スパークル回転（枠とアイコン逆回転・徐々に加速） */}
                 <motion.div
-                    className="w-32 h-32 sm:w-48 sm:h-48 rounded-3xl overflow-hidden relative"
+                    className="w-40 h-40 sm:w-56 sm:h-56 rounded-3xl flex items-center justify-center relative"
                     style={{
-                        background: glassBg,
-                        border: `2px solid ${glassBorder}`,
-                        backdropFilter: "blur(12px)",
+                        background: isLightMode
+                            ? `linear-gradient(135deg, ${accentColor}22, ${accentColor}18)`
+                            : `linear-gradient(135deg, ${accentColor}33, ${accentColor}22)`,
+                        border: `2px solid ${accentColor}55`,
+                        backdropFilter: "blur(16px)",
+                        boxShadow: `0 0 60px ${accentColor}25, inset 0 0 30px ${accentColor}10`,
                     }}
-                    animate={{
-                        boxShadow: [
-                            `0 0 20px ${accentColor}20`,
-                            `0 0 40px ${accentColor}40`,
-                            `0 0 20px ${accentColor}20`,
-                        ],
+                    animate={{ rotate: 360 }}
+                    transition={{
+                        duration: 0.9,
+                        repeat: Infinity,
+                        ease: "linear",
                     }}
-                    transition={{ duration: 1, repeat: Infinity }}
                 >
                     <motion.div
-                        className="absolute inset-0 flex flex-col items-center justify-center"
-                        animate={{ y: [0, -200, -400, -200, 0, -300, -100, 0] }}
-                        transition={{ duration: isMassRoll ? 1.5 : 3, ease: "easeInOut" }}
+                        className="flex items-center justify-center"
+                        animate={{
+                            rotate: -360,
+                            color: [...[...pool.rarities].sort((a, b) => a.sortOrder - b.sortOrder).map(r => r.color), accentColor],
+                        }}
+                        transition={{
+                            rotate: {
+                                duration: 0.9,
+                                repeat: Infinity,
+                                ease: "linear",
+                            },
+                            color: {
+                                duration: 3,
+                                repeat: Infinity,
+                                ease: "linear",
+                            },
+                        }}
+                        style={{ color: pool.rarities[0]?.color ?? accentColor }}
                     >
-                        {pool.rarities.sort((a, b) => a.sortOrder - b.sortOrder).map((r) => (
-                            <motion.div
-                                key={r.id}
-                                className="flex items-center justify-center w-full py-4"
-                                style={{ color: r.color }}
-                            >
-                                <span className="text-2xl sm:text-4xl font-black">{r.name}</span>
-                            </motion.div>
-                        ))}
+                        <Sparkles className="w-20 h-20 sm:w-28 sm:h-28" strokeWidth={1.5} />
                     </motion.div>
                 </motion.div>
 
                 <motion.p
                     animate={{ opacity: [0.3, 1, 0.3] }}
                     transition={{ duration: 1, repeat: Infinity }}
-                    className={`text-sm ${isLightMode ? "text-gray-500" : "text-white/50"}`}
+                    className={`text-sm ${isLightMode ? "text-gray-700" : "text-white/80"}`}
                 >
                     抽選中...
                 </motion.p>
@@ -407,7 +459,7 @@ export default function GachaRollAnimation({
                 {/* スキップボタン */}
                 <button
                     onClick={handleSkip}
-                    className={`absolute bottom-6 right-6 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${isLightMode ? "bg-white/50 text-gray-600 hover:bg-white/70" : "bg-white/10 text-white/50 hover:bg-white/20"}`}
+                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${isLightMode ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
                 >
                     <SkipForward size={12} /> スキップ
                 </button>
@@ -421,12 +473,12 @@ export default function GachaRollAnimation({
         return (
             <div className="flex flex-col h-full p-4 relative overflow-hidden">
                 <div className="flex items-center justify-between mb-3">
-                    <span className={`text-xs ${isLightMode ? "text-gray-500" : "text-white/50"}`}>
+                    <span className={`text-xs ${isLightMode ? "text-gray-700" : "text-white/75"}`}>
                         {revealIndex} / {sortedResults.length}
                     </span>
                     <button
                         onClick={handleSkip}
-                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${isLightMode ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
+                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${isLightMode ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
                     >
                         <SkipForward size={12} /> スキップ
                     </button>
@@ -518,7 +570,7 @@ export default function GachaRollAnimation({
                     initial={{ scale: 0, rotate: -10 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: "spring", stiffness: 200 }}
-                    className={`text-2xl sm:text-3xl font-black ${isLightMode ? "text-gray-700" : "text-white/90"}`}
+                    className={`text-2xl sm:text-3xl font-black ${isLightMode ? "text-gray-900" : "text-white/90"}`}
                 >
                     🎉 {results.length.toLocaleString()}連の結果
                 </motion.div>
@@ -594,7 +646,7 @@ export default function GachaRollAnimation({
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1.5 }}
                     onClick={handleSkip}
-                    className={`text-xs mt-2 ${isLightMode ? "text-gray-400" : "text-white/30"} hover:underline`}
+                    className={`text-xs mt-2 ${isLightMode ? "text-gray-600" : "text-white/65"} hover:underline`}
                 >
                     スキップ →
                 </motion.button>

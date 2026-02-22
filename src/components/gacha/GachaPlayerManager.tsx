@@ -1,16 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-    UserPlus,
-    Trash2,
-    RotateCcw,
-    ChevronRight,
-    User,
-} from "lucide-react";
+import { UserPlus, Trash2, RotateCcw, ChevronRight, User } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
-import GachaResultDisplay from "./GachaResultDisplay";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface GachaPlayerManagerProps {
     players: Player[];
@@ -19,8 +13,10 @@ interface GachaPlayerManagerProps {
     onAddPlayer: (name: string) => void;
     onRemovePlayer: (id: string) => void;
     onResetPlayer: (id: string) => void;
+    onViewPlayerHistory?: (playerId: string) => void;
     pool: GachaPool;
     isLightMode: boolean;
+    shareHashtags?: string;
 }
 
 export default function GachaPlayerManager({
@@ -30,19 +26,43 @@ export default function GachaPlayerManager({
     onAddPlayer,
     onRemovePlayer,
     onResetPlayer,
+    onViewPlayerHistory,
     pool,
     isLightMode,
+    shareHashtags = "#ライブカウンター #ガチャ",
 }: GachaPlayerManagerProps) {
     const [newPlayerName, setNewPlayerName] = useState("");
-    const [showPlayerResults, setShowPlayerResults] = useState<string | null>(null);
-    const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-    const [confirmReset, setConfirmReset] = useState<string | null>(null);
+    const [playerToDelete, setPlayerToDelete] = useState<string | null>(null);
+    const [bulkDeleteTargets, setBulkDeleteTargets] = useState<string[] | null>(null);
+    const [playerToReset, setPlayerToReset] = useState<string | null>(null);
+    const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
+
+    const allSelected = players.length > 0 && selectedPlayerIds.size === players.length;
+    const someSelected = selectedPlayerIds.size > 0;
+    const toggleSelectAll = () => {
+        if (allSelected) setSelectedPlayerIds(new Set());
+        else setSelectedPlayerIds(new Set(players.map(p => p.id)));
+    };
+    const toggleSelect = (id: string) => {
+        setSelectedPlayerIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const selectAllRef = useRef<HTMLInputElement>(null);
+    useEffect(() => {
+        const el = selectAllRef.current;
+        if (el) el.indeterminate = someSelected && !allSelected;
+    }, [someSelected, allSelected]);
 
     const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
     const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
-    const textPrimary = isLightMode ? "text-gray-800" : "text-white/90";
-    const textSecondary = isLightMode ? "text-gray-500" : "text-white/50";
-    const textMuted = isLightMode ? "text-gray-400" : "text-white/30";
+    const textPrimary = isLightMode ? "text-gray-900" : "text-white/90";
+    const textSecondary = isLightMode ? "text-gray-900" : "text-white/50";
+    const textMuted = isLightMode ? "text-gray-800" : "text-white/30";
     const inputBg = isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
     const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
 
@@ -52,81 +72,11 @@ export default function GachaPlayerManager({
         setNewPlayerName("");
     };
 
-    const handleDelete = (id: string) => {
-        if (confirmDelete === id) {
-            onRemovePlayer(id);
-            setConfirmDelete(null);
-            if (showPlayerResults === id) setShowPlayerResults(null);
-        } else {
-            setConfirmDelete(id);
-            setTimeout(() => setConfirmDelete(null), 3000);
-        }
-    };
-
-    const handleReset = (id: string) => {
-        if (confirmReset === id) {
-            onResetPlayer(id);
-            setConfirmReset(null);
-        } else {
-            setConfirmReset(id);
-            setTimeout(() => setConfirmReset(null), 3000);
-        }
-    };
-
-    // プレイヤー詳細ビュー
-    if (showPlayerResults) {
-        const player = players.find(p => p.id === showPlayerResults);
-        if (!player) {
-            setShowPlayerResults(null);
-            return null;
-        }
-
-        return (
-            <div className="flex flex-col h-full">
-                {/* 戻るヘッダー */}
-                <button
-                    onClick={() => setShowPlayerResults(null)}
-                    className={`flex items-center gap-2 px-4 py-2.5 text-xs font-semibold transition-all ${isLightMode ? "text-purple-600 hover:bg-purple-50" : "text-purple-400 hover:bg-white/5"}`}
-                >
-                    <ChevronRight size={14} className="rotate-180" />
-                    {player.name} の履歴
-                </button>
-
-                {/* 天井ゲージ */}
-                {pool.pityEnabled && (
-                    <div className="px-4 mb-2">
-                        <div className="flex justify-between mb-1">
-                            <span className={`text-[10px] ${textMuted}`}>天井カウント</span>
-                            <span className={`text-[10px] font-bold ${textSecondary}`}>
-                                {player.pityCounter} / {pool.pityThreshold}
-                            </span>
-                        </div>
-                        <div className={`h-1.5 rounded-full overflow-hidden ${isLightMode ? "bg-gray-200" : "bg-white/10"}`}>
-                            <div
-                                className="h-full rounded-full transition-all"
-                                style={{
-                                    width: `${Math.min((player.pityCounter / pool.pityThreshold) * 100, 100)}%`,
-                                    background: "linear-gradient(90deg, #a855f7, #ef4444)",
-                                }}
-                            />
-                        </div>
-                    </div>
-                )}
-
-                <div className="flex-1 overflow-hidden">
-                    <GachaResultDisplay
-                        results={player.results}
-                        pool={pool}
-                        isLightMode={isLightMode}
-                        title={`${player.name}: ${player.totalPulls.toLocaleString()}連`}
-                    />
-                </div>
-            </div>
-        );
-    }
+    const handleRequestDelete = (id: string) => setPlayerToDelete(id);
+    const handleRequestReset = (id: string) => setPlayerToReset(id);
 
     return (
-        <div className="flex flex-col gap-3 h-full overflow-y-auto pr-1 pb-4">
+        <div className="flex flex-col gap-3 pr-1 pb-4">
             {/* プレイヤー追加 */}
             <div
                 className="rounded-2xl p-4"
@@ -141,7 +91,7 @@ export default function GachaPlayerManager({
                         value={newPlayerName}
                         onChange={e => setNewPlayerName(e.target.value)}
                         placeholder="名前を入力..."
-                        className={`flex-1 px-3 py-2 rounded-lg text-sm ${textPrimary} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm ${textPrimary} ${isLightMode ? "placeholder:text-gray-600" : "placeholder:text-white/50"} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
                         style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                         onKeyDown={e => e.key === "Enter" && handleAddPlayer()}
                     />
@@ -158,13 +108,31 @@ export default function GachaPlayerManager({
 
             {/* プレイヤーリスト */}
             <div
-                className="rounded-2xl overflow-hidden flex-1"
+                className="rounded-2xl overflow-hidden"
                 style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}
             >
-                <div className={`px-4 py-2.5 border-b ${textSecondary}`} style={{ borderColor: glassBorder }}>
-                    <span className="text-xs font-semibold uppercase tracking-wider">
-                        プレイヤー ({players.length})
-                    </span>
+                <div className={`flex items-center justify-between gap-2 px-4 py-2.5 border-b ${textSecondary}`} style={{ borderColor: glassBorder }}>
+                    <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                        <input
+                            ref={selectAllRef}
+                            type="checkbox"
+                            checked={allSelected}
+                            onChange={toggleSelectAll}
+                            className="rounded border-gray-400 text-purple-500 focus:ring-purple-500"
+                        />
+                        <span className="text-xs font-semibold uppercase tracking-wider">
+                            プレイヤー ({players.length})
+                        </span>
+                    </label>
+                    {someSelected && (
+                        <button
+                            type="button"
+                            onClick={() => setBulkDeleteTargets(Array.from(selectedPlayerIds))}
+                            className="text-[10px] px-2 py-1 rounded-lg bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/30 transition-colors"
+                        >
+                            選択を削除
+                        </button>
+                    )}
                 </div>
 
                 {players.length === 0 ? (
@@ -187,6 +155,13 @@ export default function GachaPlayerManager({
                                     style={{ borderColor: glassBorder }}
                                     onClick={() => onSelectPlayer(player.id)}
                                 >
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedPlayerIds.has(player.id)}
+                                        onChange={e => { e.stopPropagation(); toggleSelect(player.id); }}
+                                        onClick={e => e.stopPropagation()}
+                                        className="rounded border-gray-400 text-purple-500 focus:ring-purple-500 shrink-0"
+                                    />
                                     {/* アクティブインジケーター */}
                                     <div
                                         className={`w-2 h-2 rounded-full shrink-0 transition-all ${isActive ? "bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.5)]" : (isLightMode ? "bg-gray-300" : "bg-white/20")
@@ -199,36 +174,33 @@ export default function GachaPlayerManager({
                                         <p className={`text-[10px] ${textMuted}`}>
                                             {player.totalPulls.toLocaleString()}連
                                             {pool.pityEnabled && ` • 天井: ${player.pityCounter}/${pool.pityThreshold}`}
+                                            {pool.pityEnabled && (player.pityReachCount ?? 0) > 0 && ` • 到達${player.pityReachCount}回`}
                                         </p>
                                     </div>
 
                                     {/* 操作ボタン */}
                                     <div className="flex items-center gap-0.5 shrink-0">
+                                        {onViewPlayerHistory && (
+                                            <button
+                                                onClick={e => { e.stopPropagation(); onViewPlayerHistory(player.id); }}
+                                                className={`p-1 rounded text-[10px] transition-all ${isLightMode ? "text-blue-700 hover:bg-blue-50" : "text-blue-400 hover:bg-blue-500/10"
+                                                    }`}
+                                                title="履歴を見る"
+                                            >
+                                                <ChevronRight size={12} />
+                                            </button>
+                                        )}
                                         <button
-                                            onClick={e => { e.stopPropagation(); setShowPlayerResults(player.id); }}
-                                            className={`p-1 rounded text-[10px] transition-all ${isLightMode ? "text-blue-600 hover:bg-blue-50" : "text-blue-400 hover:bg-blue-500/10"
-                                                }`}
-                                            title="履歴を見る"
-                                        >
-                                            <ChevronRight size={12} />
-                                        </button>
-                                        <button
-                                            onClick={e => { e.stopPropagation(); handleReset(player.id); }}
-                                            className={`p-1 rounded text-[10px] transition-all ${confirmReset === player.id
-                                                ? "text-orange-400 bg-orange-500/10"
-                                                : (isLightMode ? "text-gray-400 hover:bg-gray-100" : "text-white/30 hover:bg-white/5")
-                                                }`}
-                                            title={confirmReset === player.id ? "もう一度押して確認" : "リセット"}
+                                            onClick={e => { e.stopPropagation(); handleRequestReset(player.id); }}
+                                            className={`p-1 rounded text-[10px] transition-all ${isLightMode ? "text-gray-700 hover:bg-gray-100" : "text-white/30 hover:bg-white/5"}`}
+                                            title="リセット"
                                         >
                                             <RotateCcw size={11} />
                                         </button>
                                         <button
-                                            onClick={e => { e.stopPropagation(); handleDelete(player.id); }}
-                                            className={`p-1 rounded text-[10px] transition-all ${confirmDelete === player.id
-                                                ? "text-red-400 bg-red-500/10"
-                                                : (isLightMode ? "text-gray-400 hover:bg-gray-100" : "text-white/30 hover:bg-white/5")
-                                                }`}
-                                            title={confirmDelete === player.id ? "もう一度押して削除" : "削除"}
+                                            onClick={e => { e.stopPropagation(); handleRequestDelete(player.id); }}
+                                            className={`p-1 rounded text-[10px] transition-all ${isLightMode ? "text-gray-700 hover:bg-gray-100" : "text-white/30 hover:bg-white/5"}`}
+                                            title="削除"
                                         >
                                             <Trash2 size={11} />
                                         </button>
@@ -239,6 +211,49 @@ export default function GachaPlayerManager({
                     </div>
                 )}
             </div>
+
+            <ConfirmDialog
+                open={playerToDelete !== null}
+                message="本当に削除しますか？"
+                confirmLabel="削除する"
+                cancelLabel="キャンセル"
+                onConfirm={() => {
+                    if (playerToDelete) {
+                        onRemovePlayer(playerToDelete);
+                        setPlayerToDelete(null);
+                    }
+                }}
+                onCancel={() => setPlayerToDelete(null)}
+            />
+            <ConfirmDialog
+                open={bulkDeleteTargets !== null}
+                title="一括削除"
+                message={bulkDeleteTargets?.length ? `選択した ${bulkDeleteTargets.length} 人を削除しますか？` : ""}
+                confirmLabel="削除する"
+                cancelLabel="キャンセル"
+                onConfirm={() => {
+                    if (bulkDeleteTargets) {
+                        bulkDeleteTargets.forEach(id => onRemovePlayer(id));
+                        setSelectedPlayerIds(new Set());
+                        setBulkDeleteTargets(null);
+                    }
+                }}
+                onCancel={() => setBulkDeleteTargets(null)}
+            />
+            <ConfirmDialog
+                open={playerToReset !== null}
+                message="本当にリセットしますか？"
+                confirmLabel="リセットする"
+                cancelLabel="キャンセル"
+                onConfirm={() => {
+                    if (playerToReset) {
+                        onResetPlayer(playerToReset);
+                        setPlayerToReset(null);
+                    }
+                }}
+                onCancel={() => setPlayerToReset(null)}
+                danger={false}
+            />
         </div>
     );
 }

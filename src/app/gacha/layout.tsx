@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     ],
 };
 
-export default function GatchaLayout({
+export default function GachaLayout({
     children,
 }: {
     children: React.ReactNode;

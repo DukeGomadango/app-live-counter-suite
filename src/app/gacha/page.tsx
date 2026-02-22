@@ -1,19 +1,21 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Settings, Users, Sparkles, BarChart3, Sun, Moon, Menu, X, Package } from "lucide-react";
+import { Settings, Users, Sparkles, BarChart3, Sun, Moon, Menu, X, Package, ChevronDown, Save } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import GachaSetup from "@/components/gacha/GachaSetup";
+import GachaPresetsPanel from "@/components/gacha/GachaPresetsPanel";
 import GachaRollAnimation from "@/components/gacha/GachaRollAnimation";
 import GachaResultDisplay from "@/components/gacha/GachaResultDisplay";
 import GachaPlayerManager from "@/components/gacha/GachaPlayerManager";
+import PlayerHistoryCard from "@/components/gacha/PlayerHistoryCard";
 import type { GachaPool, Player, GachaResult, GachaSettings } from "@/lib/gacha";
 import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_BG_COLORS, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds } from "@/lib/gacha";
 
 type MobileTab = "setup" | "gacha" | "results" | "players" | "items";
-type SidebarTab = "setup" | "players" | "items";
+type SidebarTab = "setup" | "players" | "items" | "presets";
 
 // ===== 歯車メニューコンポーネント =====
 function GachaSettingsPanel({
@@ -30,7 +32,7 @@ function GachaSettingsPanel({
     const glassBg = isLightMode ? "rgba(255,255,255,0.95)" : "rgba(10,5,30,0.95)";
     const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
     const textPrimary = isLightMode ? "text-gray-800" : "text-white/90";
-    const textSecondary = isLightMode ? "text-gray-500" : "text-white/50";
+    const textSecondary = isLightMode ? "text-gray-700" : "text-white/50";
 
     return (
         <>
@@ -47,18 +49,18 @@ function GachaSettingsPanel({
                 initial={{ opacity: 0, scale: 0.95, y: -10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                className="fixed top-14 right-4 z-[100] w-72 rounded-2xl overflow-hidden shadow-2xl"
+                className="fixed top-14 right-4 z-[100] w-72 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]"
                 style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(20px)" }}
             >
                 {/* ヘッダー */}
-                <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: glassBorder }}>
+                <div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: glassBorder }}>
                     <span className={`text-sm font-bold ${textPrimary}`}>⚙️ ガチャ設定</span>
                     <button onClick={onClose} className={`p-1 rounded-lg ${isLightMode ? "hover:bg-gray-100" : "hover:bg-white/10"}`}>
                         <X size={16} className={textSecondary} />
                     </button>
                 </div>
 
-                <div className="px-4 py-3 flex flex-col gap-4 max-h-[70vh] overflow-y-auto">
+                <div className="px-4 py-3 flex flex-col gap-4 min-h-0 flex-1 overflow-y-auto">
                     {/* 背景配色 */}
                     <div>
                         <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
@@ -75,6 +77,22 @@ function GachaSettingsPanel({
                                 />
                             ))}
                         </div>
+                    </div>
+
+                    {/* 背景の濃さ */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
+                            背景の濃さ
+                        </label>
+                        <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={settings.bgIntensity ?? 100}
+                            onChange={e => onSettingsChange({ ...settings, bgIntensity: Number(e.target.value) })}
+                            className="w-full h-2 rounded-full accent-purple-500"
+                        />
+                        <p className={`text-[10px] ${textSecondary} mt-0.5`}>0=薄い / 100=そのまま</p>
                     </div>
 
                     {/* ガチャ配色 */}
@@ -116,6 +134,22 @@ function GachaSettingsPanel({
                             <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all shadow ${settings.enableAnimation ? "left-5" : "left-0.5"}`} />
                         </div>
                     </div>
+
+                    {/* 共有時のハッシュタグ */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-1 block`}>
+                            共有時のハッシュタグ
+                        </label>
+                        <p className={`text-[10px] ${textSecondary} mb-1`}>固定: #だんごツール</p>
+                        <input
+                            type="text"
+                            value={settings.shareHashtags ?? "#ライブカウンター #ガチャ"}
+                            onChange={e => onSettingsChange({ ...settings, shareHashtags: e.target.value })}
+                            placeholder="#ライブカウンター #ガチャ"
+                            className={`w-full px-2 py-1.5 rounded-lg text-xs ${textPrimary} outline-none`}
+                            style={{ background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)", border: `1px solid ${glassBorder}` }}
+                        />
+                    </div>
                 </div>
             </motion.div>
         </>
@@ -134,9 +168,9 @@ function ItemHistoryPanel({
 }) {
     const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
     const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
-    const textPrimary = isLightMode ? "text-gray-800" : "text-white/90";
-    const textSecondary = isLightMode ? "text-gray-500" : "text-white/50";
-    const textMuted = isLightMode ? "text-gray-400" : "text-white/30";
+    const textPrimary = isLightMode ? "text-gray-900" : "text-white/90";
+    const textSecondary = isLightMode ? "text-gray-800" : "text-white/50";
+    const textMuted = isLightMode ? "text-gray-700" : "text-white/30";
 
     // 品目→プレイヤー別排出数を計算
     const itemPlayerMap = useMemo(() => {
@@ -181,7 +215,7 @@ function ItemHistoryPanel({
     }
 
     return (
-        <div className="flex flex-col gap-2 h-full overflow-y-auto pr-1 pb-4">
+        <div className="flex flex-col gap-2 pr-1 pb-4">
             <div className={`px-2 py-1.5 ${textSecondary}`}>
                 <span className="text-[10px] font-bold uppercase tracking-wider">
                     排出品目別 — {itemPlayerMap.length}種類
@@ -233,7 +267,7 @@ function ItemHistoryPanel({
 }
 
 // ===== メインページ =====
-export default function GatchaPage() {
+export default function GachaPage() {
     // 永続化される状態
     const [pool, setPool] = useLocalStorage<GachaPool>("gacha-pool", createDefaultPool());
     const [players, setPlayers] = useLocalStorage<Player[]>("gacha-players", []);
@@ -247,9 +281,26 @@ export default function GatchaPage() {
     const [showResults, setShowResults] = useState(false);
     const [mobileTab, setMobileTab] = useState<MobileTab>("gacha");
     const [isMobile, setIsMobile] = useState(false);
-    const [sidebarOpen, setSidebarOpen] = useState(true);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [sidebarTab, setSidebarTab] = useState<SidebarTab>("setup");
     const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+    const [showScrollHint, setShowScrollHint] = useState(true);
+    const setupScrollRef = useRef<HTMLDivElement>(null);
+    const [showSidebarScrollHint, setShowSidebarScrollHint] = useState(true);
+    const sidebarScrollRef = useRef<HTMLDivElement>(null);
+    const [playerHistoryViewId, setPlayerHistoryViewId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (mobileTab === "setup") setShowScrollHint(true);
+    }, [mobileTab]);
+
+    useEffect(() => {
+        setShowSidebarScrollHint(true);
+    }, [sidebarTab]);
+
+    useEffect(() => {
+        if (playerHistoryViewId && !(players || []).some(p => p.id === playerHistoryViewId)) setPlayerHistoryViewId(null);
+    }, [playerHistoryViewId, players]);
 
     // レガシーデータマイグレーション - localStorageから直接読み取り
     useEffect(() => {
@@ -289,20 +340,15 @@ export default function GatchaPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hasMigrated]);
 
-    // テーマ + 背景色適用（body.style.backgroundで直接上書き）
+    // テーマ + 背景色適用（body.style.backgroundで直接上書き。ライト/ダーク両方で選択した背景を反映）
     useEffect(() => {
         if (isLightMode) {
             document.body.classList.add("light-mode");
         } else {
             document.body.classList.remove("light-mode");
         }
-        // 背景色をbodyに直接適用（globals.cssの既存backgroundを上書き）
-        if (!isLightMode) {
-            const found = GACHA_BG_COLORS.find(c => c.value === gachaSettings.bgColor);
-            document.body.style.background = found?.bg || GACHA_BG_COLORS[0].bg;
-        } else {
-            document.body.style.background = '';
-        }
+        const found = GACHA_BG_COLORS.find(c => c.value === gachaSettings.bgColor);
+        document.body.style.background = found?.bg || GACHA_BG_COLORS[0].bg;
         return () => {
             document.body.classList.remove("light-mode");
             document.body.style.background = '';
@@ -337,7 +383,7 @@ export default function GatchaPage() {
 
     const resetPlayer = useCallback((id: string) => {
         setPlayers(prev =>
-            (prev || []).map(p => p.id === id ? { ...p, results: [], inventory: {}, totalPulls: 0, pityCounter: 0 } : p)
+            (prev || []).map(p => p.id === id ? { ...p, results: [], runHistory: [], inventory: {}, totalPulls: 0, pityCounter: 0, pityReachCount: 0 } : p)
         );
     }, [setPlayers]);
 
@@ -402,14 +448,26 @@ export default function GatchaPage() {
         accentColor: gachaSettings.accentColor,
         showTitle: gachaSettings.showTitle,
         enableAnimation: gachaSettings.enableAnimation,
+        activePlayerName: activePlayer?.name ?? "ゲスト",
     };
 
     // ===== モバイルレイアウト =====
     if (isMobile) {
         return (
             <div className="h-screen w-screen flex flex-col overflow-hidden relative z-10">
-                {/* カスタム背景 */}
-                {/* 背景はbody.style.backgroundで直接適用済み */}
+                {/* カスタム背景はbodyで適用済み。濃さオーバーレイ */}
+                <div
+                    aria-hidden
+                    className="fixed inset-0 z-0 pointer-events-none"
+                    style={{
+                        background: (() => {
+                            const intensity = gachaSettings.bgIntensity ?? 100;
+                            const t = (100 - intensity) / 100;
+                            if (isLightMode) return `rgba(0,0,0,${t * 0.25})`;
+                            return `rgba(255,255,255,${t * 0.55})`;
+                        })(),
+                    }}
+                />
 
                 {/* ヘッダー */}
                 <div
@@ -422,6 +480,12 @@ export default function GatchaPage() {
                 >
                     <div className="flex items-center gap-2">
                         <ModeSelector isLightMode={isLightMode} />
+                        {activePlayer && (
+                            <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${isLightMode ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
+                                <Users size={12} />
+                                <span>{activePlayer.name}</span>
+                            </div>
+                        )}
                     </div>
                     <div className="flex items-center gap-1">
                         <button
@@ -451,11 +515,29 @@ export default function GatchaPage() {
                     )}
                 </AnimatePresence>
 
-                {/* メインコンテンツ */}
-                <div className="flex-1 overflow-hidden pt-12 pb-14 relative z-10">
+                {/* メインコンテンツ（設定タブ時はスクロール可能なボックス） */}
+                <div
+                    ref={mobileTab === "setup" ? setupScrollRef : undefined}
+                    className={`flex-1 min-h-0 pt-12 pb-14 relative z-10 ${mobileTab === "setup" ? "overflow-y-auto overflow-x-hidden scroll-smooth rounded-t-2xl mx-2 border border-t border-l border-r" : "overflow-hidden"}`}
+                    style={mobileTab === "setup" ? { borderColor: glassBorder, WebkitOverflowScrolling: "touch" } : undefined}
+                    onScroll={mobileTab === "setup" ? (e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowScrollHint(false); } : undefined}
+                >
+                    {mobileTab === "setup" && showScrollHint && (
+                        <div
+                            className="fixed left-0 right-0 z-40 flex items-center justify-center gap-1.5 py-2 pointer-events-none"
+                            style={{
+                                bottom: "3.25rem",
+                                background: isLightMode
+                                    ? "linear-gradient(to top, rgba(255,255,255,0.95) 0%, transparent 100%)"
+                                    : "linear-gradient(to top, rgba(10,5,30,0.92) 0%, transparent 100%)",
+                            }}
+                        >
+                            <ChevronDown size={14} className={`animate-bounce ${isLightMode ? "text-gray-600" : "text-white/70"}`} />
+                        </div>
+                    )}
                     <AnimatePresence mode="wait">
                         {mobileTab === "setup" && (
-                            <motion.div key="setup" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full px-3 pt-2">
+                            <motion.div key="setup" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="px-3 pt-2 min-h-full pb-2">
                                 <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
                             </motion.div>
                         )}
@@ -476,26 +558,33 @@ export default function GatchaPage() {
                                     results={latestResults || []}
                                     pool={pool}
                                     isLightMode={isLightMode}
+                                    shareHashtags={gachaSettings.shareHashtags ?? "#ライブカウンター #ガチャ"}
+                                    isMobile={true}
                                 />
                             </motion.div>
                         )}
                         {mobileTab === "players" && (
-                            <motion.div key="players" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full px-3 pt-2">
-                                <GachaPlayerManager
+                            <motion.div key="players" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
+                                <div className="flex-1 min-h-0 overflow-y-auto">
+                                    <GachaPlayerManager
                                     players={players}
                                     activePlayerId={activePlayerId}
                                     onSelectPlayer={setActivePlayerId}
                                     onAddPlayer={addPlayer}
                                     onRemovePlayer={removePlayer}
                                     onResetPlayer={resetPlayer}
-                                    pool={pool}
-                                    isLightMode={isLightMode}
-                                />
+pool={pool}
+                                        isLightMode={isLightMode}
+                                        shareHashtags={gachaSettings.shareHashtags ?? "#ライブカウンター #ガチャ"}
+                                    />
+                                </div>
                             </motion.div>
                         )}
                         {mobileTab === "items" && (
-                            <motion.div key="items" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full px-3 pt-2">
-                                <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} />
+                            <motion.div key="items" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
+                                <div className="flex-1 min-h-0 overflow-y-auto">
+                                    <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} />
+                                </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
@@ -541,8 +630,19 @@ export default function GatchaPage() {
     // ===== デスクトップレイアウト =====
     return (
         <div className="h-screen w-screen flex flex-col overflow-hidden relative z-10">
-            {/* カスタム背景 */}
-            {/* 背景はbody.style.backgroundで直接適用済み */}
+            {/* カスタム背景はbodyで適用済み。濃さオーバーレイ */}
+            <div
+                aria-hidden
+                className="fixed inset-0 z-0 pointer-events-none"
+                style={{
+                    background: (() => {
+                        const intensity = gachaSettings.bgIntensity ?? 100;
+                        const t = (100 - intensity) / 100;
+                        if (isLightMode) return `rgba(0,0,0,${t * 0.25})`;
+                        return `rgba(255,255,255,${t * 0.55})`;
+                    })(),
+                }}
+            />
 
             {/* ヘッダー */}
             <div
@@ -554,12 +654,6 @@ export default function GatchaPage() {
                 }}
             >
                 <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setSidebarOpen(!sidebarOpen)}
-                        className={`p-1.5 rounded-lg transition-all ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
-                    >
-                        {sidebarOpen ? <X size={18} /> : <Menu size={18} />}
-                    </button>
                     <ModeSelector isLightMode={isLightMode} />
                     {activePlayer && (
                         <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${isLightMode ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
@@ -599,25 +693,20 @@ export default function GatchaPage() {
 
             {/* メインエリア */}
             <div className="flex-1 flex overflow-hidden pt-12 relative z-10">
-                {/* サイドバー */}
-                <AnimatePresence>
-                    {sidebarOpen && (
-                        <motion.aside
-                            initial={{ width: 0, opacity: 0 }}
-                            animate={{ width: 320, opacity: 1 }}
-                            exit={{ width: 0, opacity: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="h-full flex flex-col overflow-hidden shrink-0"
-                            style={{
-                                borderRight: `1px solid ${glassBorder}`,
-                            }}
-                        >
-                            {/* サイドバータブ */}
-                            <div className="flex px-3 pt-3 gap-1 shrink-0 flex-wrap">
+                {/* サイドバー（常時展開） */}
+                <aside
+                    className="h-full w-80 flex flex-col overflow-hidden shrink-0"
+                    style={{
+                        borderRight: `1px solid ${glassBorder}`,
+                    }}
+                >
+                            {/* サイドバータブ + ガチャボタン */}
+                            <div className="flex px-3 pt-3 gap-1 shrink-0 flex-wrap items-center">
                                 {([
                                     { id: "setup" as SidebarTab, icon: Settings, label: "設定" },
                                     { id: "players" as SidebarTab, icon: Users, label: "プレイヤー" },
                                     { id: "items" as SidebarTab, icon: Package, label: "品目別" },
+                                    { id: "presets" as SidebarTab, icon: Save, label: "保存・読み込み" },
                                 ]).map(tab => {
                                     const Icon = tab.icon;
                                     return (
@@ -626,7 +715,7 @@ export default function GatchaPage() {
                                             onClick={() => setSidebarTab(tab.id)}
                                             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${sidebarTab === tab.id
                                                 ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
-                                                : (isLightMode ? "text-gray-500 hover:bg-gray-100" : "text-white/40 hover:bg-white/5")
+                                                : (isLightMode ? "text-gray-700 hover:bg-gray-100" : "text-white/40 hover:bg-white/5")
                                                 }`}
                                         >
                                             <Icon size={14} /> {tab.label}
@@ -638,35 +727,78 @@ export default function GatchaPage() {
                                         </button>
                                     );
                                 })}
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowResults(false); setPlayerHistoryViewId(null); }}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isLightMode ? "text-purple-700 hover:bg-purple-50 border border-purple-200" : "text-purple-400 hover:bg-purple-500/20 border border-purple-500/30"}`}
+                                    title="ガチャを引く画面へ"
+                                >
+                                    <Sparkles size={14} /> ガチャ
+                                </button>
                             </div>
 
-                            {/* サイドバーコンテンツ */}
-                            <div className="flex-1 overflow-hidden p-3">
-                                {sidebarTab === "setup" ? (
-                                    <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
-                                ) : sidebarTab === "players" ? (
-                                    <GachaPlayerManager
-                                        players={players}
-                                        activePlayerId={activePlayerId}
-                                        onSelectPlayer={setActivePlayerId}
-                                        onAddPlayer={addPlayer}
-                                        onRemovePlayer={removePlayer}
-                                        onResetPlayer={resetPlayer}
-                                        pool={pool}
-                                        isLightMode={isLightMode}
-                                    />
-                                ) : (
-                                    <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} />
+                            {/* サイドバーコンテンツ（スクロール可能・ヒント表示） */}
+                            <div className="flex-1 min-h-0 relative flex flex-col">
+                                {showSidebarScrollHint && (
+                                    <div
+                                        className="absolute left-0 right-0 bottom-0 z-10 flex items-center justify-center gap-1.5 py-2 pointer-events-none"
+                                        style={{
+                                            background: isLightMode
+                                                ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, transparent 100%)"
+                                                : "linear-gradient(to top, rgba(10,5,30,0.95) 0%, transparent 100%)",
+                                        }}
+                                    >
+                                        <ChevronDown size={12} className={`animate-bounce ${isLightMode ? "text-gray-700" : "text-white/75"}`} />
+                                    </div>
                                 )}
+                                <div
+                                    ref={sidebarScrollRef}
+                                    onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }}
+                                    className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth"
+                                    style={{ WebkitOverflowScrolling: "touch" }}
+                                >
+                                    {sidebarTab === "setup" ? (
+                                        <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
+                                    ) : sidebarTab === "players" ? (
+                                        <GachaPlayerManager
+                                            players={players}
+                                            activePlayerId={activePlayerId}
+                                            onSelectPlayer={setActivePlayerId}
+                                            onAddPlayer={addPlayer}
+                                            onRemovePlayer={removePlayer}
+                                            onResetPlayer={resetPlayer}
+                                            onViewPlayerHistory={setPlayerHistoryViewId}
+                                            pool={pool}
+                                            isLightMode={isLightMode}
+                                            shareHashtags={gachaSettings.shareHashtags ?? "#ライブカウンター #ガチャ"}
+                                        />
+                                    ) : sidebarTab === "items" ? (
+                                        <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} />
+                                    ) : (
+                                        <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
+                                    )}
+                                </div>
                             </div>
-                        </motion.aside>
-                    )}
-                </AnimatePresence>
+                </aside>
 
                 {/* メインステージ */}
                 <main className="flex-1 overflow-hidden relative">
                     <AnimatePresence mode="wait">
-                        {isRolling ? (
+                        {playerHistoryViewId ? (() => {
+                            const player = (players || []).find(p => p.id === playerHistoryViewId);
+                            if (!player) return null;
+                            return (
+                                <motion.div key="player-history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full p-4">
+                                    <PlayerHistoryCard
+                                        player={player}
+                                        pool={pool}
+                                        isLightMode={isLightMode}
+                                        shareHashtags={gachaSettings.shareHashtags ?? "#ライブカウンター #ガチャ"}
+                                        onClose={() => setPlayerHistoryViewId(null)}
+                                    />
+                                </motion.div>
+                            );
+                        })() : isRolling ? (
                             <motion.div key="rolling" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
                                 <GachaRollAnimation
                                     {...rollAnimationProps}
@@ -682,21 +814,11 @@ export default function GatchaPage() {
                                     results={latestResults}
                                     pool={pool}
                                     isLightMode={isLightMode}
+                                    shareHashtags={gachaSettings.shareHashtags ?? "#ライブカウンター #ガチャ"}
+                                    isMobile={false}
+                                    onBackToGacha={() => { setShowResults(false); setLatestResults(null); }}
+                                    accentColor={gachaSettings.accentColor}
                                 />
-                                {/* もう一回ボタン */}
-                                <div className="shrink-0 p-4 flex justify-center" style={{ borderTop: `1px solid ${glassBorder}` }}>
-                                    <button
-                                        onClick={() => { setShowResults(false); setLatestResults(null); }}
-                                        className={`px-6 py-2 rounded-xl text-sm font-bold transition-all hover:scale-105`}
-                                        style={{
-                                            background: `${gachaSettings.accentColor}22`,
-                                            color: gachaSettings.accentColor,
-                                            border: `1px solid ${gachaSettings.accentColor}55`,
-                                        }}
-                                    >
-                                        🎰 もう一度引く
-                                    </button>
-                                </div>
                             </motion.div>
                         ) : (
                             <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">

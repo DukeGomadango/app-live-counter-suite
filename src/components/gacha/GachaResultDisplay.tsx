@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { motion } from "framer-motion";
+import { toPng } from "html-to-image";
 import {
     Share2,
     Copy,
@@ -9,15 +10,26 @@ import {
     ArrowUpDown,
     Filter,
     BarChart3,
+    ImageDown,
 } from "lucide-react";
 import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode, OrganizedResult } from "@/lib/gacha";
 import { organizeResults, formatResultsForShare, generateShareUrl } from "@/lib/gacha";
+
+const DEFAULT_SHARE_HASHTAGS = "#ライブカウンター #ガチャ";
 
 interface GachaResultDisplayProps {
     results: GachaResult[];
     pool: GachaPool;
     isLightMode: boolean;
     title?: string;
+    /** 共有ツイートに付与する追加ハッシュタグ。#だんごツールは常に付与される */
+    shareHashtags?: string;
+    /** モバイル表示時は下端余白を多めに（タブバー回避） */
+    isMobile?: boolean;
+    /** デスクトップでヘッダーに「もう一度引く」を表示するときに渡す */
+    onBackToGacha?: () => void;
+    /** onBackToGacha ボタンのアクセント色（未指定時は紫） */
+    accentColor?: string;
 }
 
 export default function GachaResultDisplay({
@@ -25,7 +37,12 @@ export default function GachaResultDisplay({
     pool,
     isLightMode,
     title,
+    shareHashtags = DEFAULT_SHARE_HASHTAGS,
+    isMobile = false,
+    onBackToGacha,
+    accentColor = "#a855f7",
 }: GachaResultDisplayProps) {
+    const resultAreaRef = useRef<HTMLDivElement>(null);
     const [sortMode, setSortMode] = useState<SortMode>("rarity-asc");
     const [filterMode, setFilterMode] = useState<FilterMode>("all");
     const [copied, setCopied] = useState(false);
@@ -34,8 +51,8 @@ export default function GachaResultDisplay({
     const glassBg = isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)";
     const glassBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
     const textPrimary = isLightMode ? "text-gray-800" : "text-white/90";
-    const textSecondary = isLightMode ? "text-gray-500" : "text-white/50";
-    const textMuted = isLightMode ? "text-gray-400" : "text-white/30";
+    const textSecondary = isLightMode ? "text-gray-700" : "text-white/50";
+    const textMuted = isLightMode ? "text-gray-600" : "text-white/30";
     const selectOptionStyle = isLightMode
         ? { background: "#fff", color: "#1f2937" }
         : { background: "#1e1b4b", color: "#e2e8f0" };
@@ -64,13 +81,30 @@ export default function GachaResultDisplay({
         .filter(s => s.count > 0);
 
     const handleShare = () => {
-        const text = formatResultsForShare(results, pool);
+        const text = formatResultsForShare(results, pool, shareHashtags);
         const url = generateShareUrl(text);
         window.open(url, "_blank", "noopener,noreferrer");
     };
 
+    const handleShareAsImage = async () => {
+        const el = resultAreaRef.current;
+        if (!el) return;
+        try {
+            const dataUrl = await toPng(el, { backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e", pixelRatio: 2 });
+            const a = document.createElement("a");
+            a.href = dataUrl;
+            a.download = "gacha-result.png";
+            a.click();
+            const tagLine = ["#だんごツール", shareHashtags.trim()].filter(Boolean).join(" ");
+            const tweetText = `ガチャ結果（画像を添付してください）\n\n${tagLine}`;
+            window.open(generateShareUrl(tweetText), "_blank", "noopener,noreferrer");
+        } catch (err) {
+            console.warn("Image export failed:", err);
+        }
+    };
+
     const handleCopy = async () => {
-        const text = formatResultsForShare(results, pool);
+        const text = formatResultsForShare(results, pool, shareHashtags);
         try {
             await navigator.clipboard.writeText(text);
             setCopied(true);
@@ -98,11 +132,25 @@ export default function GachaResultDisplay({
     return (
         <div className="flex flex-col h-full overflow-hidden">
             {/* ヘッダー */}
-            <div className="flex items-center justify-between px-4 py-2 shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 shrink-0 gap-2 flex-wrap">
                 <h3 className={`text-sm font-bold ${textPrimary}`}>
                     {title || `${results.length.toLocaleString()}連の結果`}
                 </h3>
                 <div className="flex items-center gap-1">
+                    {onBackToGacha && (
+                        <button
+                            type="button"
+                            onClick={onBackToGacha}
+                            className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all hover:scale-105 shrink-0"
+                            style={{
+                                background: `${accentColor}22`,
+                                color: accentColor,
+                                border: `1px solid ${accentColor}55`,
+                            }}
+                        >
+                            🎰 もう一度引く
+                        </button>
+                    )}
                     <button
                         onClick={handleCopy}
                         className={`p-1.5 rounded-lg text-xs transition-all ${copied
@@ -121,9 +169,19 @@ export default function GachaResultDisplay({
                     >
                         <Share2 size={14} />
                     </button>
+                    <button
+                        onClick={handleShareAsImage}
+                        className={`p-1.5 rounded-lg text-xs transition-all ${isLightMode ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                            }`}
+                        title="結果を画像で共有"
+                    >
+                        <ImageDown size={14} />
+                    </button>
                 </div>
             </div>
 
+            {/* 画像化・共有用の領域 */}
+            <div ref={resultAreaRef} className="px-4 pb-2">
             {/* レア度別集計バー */}
             <div className="px-4 mb-2 shrink-0">
                 <div className="h-3 rounded-full overflow-hidden flex" style={{ background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)" }}>
@@ -158,7 +216,7 @@ export default function GachaResultDisplay({
                         onClick={() => setViewMode("summary")}
                         className={`px-2 py-1 text-[10px] transition-all ${viewMode === "summary"
                             ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
-                            : (isLightMode ? "text-gray-500" : "text-white/40")
+                            : (isLightMode ? "text-gray-600" : "text-white/40")
                             }`}
                     >
                         <BarChart3 size={10} className="inline mr-0.5" /> 集計
@@ -167,7 +225,7 @@ export default function GachaResultDisplay({
                         onClick={() => setViewMode("list")}
                         className={`px-2 py-1 text-[10px] transition-all ${viewMode === "list"
                             ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400")
-                            : (isLightMode ? "text-gray-500" : "text-white/40")
+                            : (isLightMode ? "text-gray-600" : "text-white/40")
                             }`}
                     >
                         一覧
@@ -211,7 +269,7 @@ export default function GachaResultDisplay({
             </div>
 
             {/* 結果リスト */}
-            <div className="flex-1 overflow-y-auto px-4 pb-4">
+            <div className={`flex-1 overflow-y-auto pb-4 ${isMobile ? "pb-24" : ""}`}>
                 {viewMode === "summary" ? (
                     <div className="flex flex-col gap-1">
                         {organized.map((item, idx) => {
@@ -262,6 +320,7 @@ export default function GachaResultDisplay({
                         })}
                     </div>
                 )}
+            </div>
             </div>
         </div>
     );

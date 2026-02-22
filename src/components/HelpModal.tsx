@@ -73,7 +73,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                     }
                 ]
             };
-        } else if (currentPath.includes("gatcha")) {
+        } else if (currentPath.includes("gacha")) {
             return {
                 title: "Gacha モード",
                 icon: <Sparkles className="text-purple-400" size={24} />,
