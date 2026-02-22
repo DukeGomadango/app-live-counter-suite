@@ -45,6 +45,7 @@ export default function GachaPlayerManager({
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
     const [linkCollectionPlayerId, setLinkCollectionPlayerId] = useState<string | null>(null);
     const [zipLoadingPlayerId, setZipLoadingPlayerId] = useState<string | null>(null);
+    const [playerToZip, setPlayerToZip] = useState<Player | null>(null);
 
     const handleDownloadZip = useCallback(
         async (player: Player) => {
@@ -224,7 +225,7 @@ export default function GachaPlayerManager({
                                             <Link size={12} />
                                         </button>
                                         <button
-                                            onClick={e => { e.stopPropagation(); handleDownloadZip(player); }}
+                                            onClick={e => { e.stopPropagation(); setPlayerToZip(player); }}
                                             disabled={zipLoadingPlayerId === player.id}
                                             className={`p-1 rounded text-[10px] transition-all disabled:opacity-50 ${isLightMode ? "text-amber-700 hover:bg-amber-50" : "text-amber-400 hover:bg-amber-500/10"}`}
                                             title="景品をZIPでダウンロード"
@@ -303,6 +304,21 @@ export default function GachaPlayerManager({
                     }
                 }}
                 onCancel={() => setPlayerToReset(null)}
+                danger={false}
+            />
+            <ConfirmDialog
+                open={playerToZip !== null}
+                title="Zip化"
+                message="獲得景品の画像・音声をZip化してダウンロードしますか？"
+                confirmLabel="Zip化する"
+                cancelLabel="キャンセル"
+                onConfirm={() => {
+                    if (playerToZip) {
+                        handleDownloadZip(playerToZip);
+                        setPlayerToZip(null);
+                    }
+                }}
+                onCancel={() => setPlayerToZip(null)}
                 danger={false}
             />
 
