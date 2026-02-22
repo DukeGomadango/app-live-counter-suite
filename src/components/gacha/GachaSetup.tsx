@@ -13,6 +13,7 @@ import {
     Palette,
     Pencil,
     Check,
+    Link as LinkIcon,
     } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, calculateProbabilities, getRarityProbabilities } from "@/lib/gacha";
@@ -547,6 +548,57 @@ interface SortableItemProps {
 
 const MIN_WEIGHT = 0.000001;
 
+/** 品目ごとのリンクURL入力（アイコンクリックで入力表示） */
+function LinkInputCell({
+    link,
+    onUpdate,
+    textPrimary,
+    inputBg,
+    inputBorder,
+    onCellClick,
+}: {
+    link?: string;
+    onUpdate: (url: string) => void;
+    textPrimary: string;
+    inputBg: string;
+    inputBorder: string;
+    onCellClick: (e: React.MouseEvent) => void;
+}) {
+    const [editing, setEditing] = useState(false);
+    const [value, setValue] = useState(link ?? "");
+
+    if (editing) {
+        return (
+            <div className="shrink-0 flex items-center gap-0.5" onClick={onCellClick}>
+                <input
+                    type="url"
+                    value={value}
+                    onChange={e => setValue(e.target.value)}
+                    onBlur={() => {
+                        onUpdate(value.trim());
+                        setEditing(false);
+                    }}
+                    onKeyDown={e => e.key === "Enter" && (onUpdate(value.trim()), setEditing(false))}
+                    placeholder="https://..."
+                    autoFocus
+                    className={`w-24 min-w-0 text-[10px] px-1.5 py-0.5 rounded ${textPrimary} outline-none placeholder:opacity-60`}
+                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                />
+            </div>
+        );
+    }
+    return (
+        <button
+            type="button"
+            onClick={e => { e.stopPropagation(); setEditing(true); setValue(link ?? ""); }}
+            className={`shrink-0 p-1 rounded transition-colors ${link ? "text-purple-400" : "text-gray-500/60 hover:text-purple-400"}`}
+            title={link || "リンクを設定"}
+        >
+            <LinkIcon size={12} />
+        </button>
+    );
+}
+
 function SortableItem({
     item,
     pool,
@@ -658,6 +710,16 @@ function SortableItem({
             <span className={`text-[10px] w-12 text-right tabular-nums ${textMuted}`}>
                 {prob < 0.01 ? prob.toFixed(4) : prob.toFixed(2)}%
             </span>
+
+            {/* リンク（任意） */}
+            <LinkInputCell
+                link={item.link}
+                onUpdate={(url) => updateItem(item.id, { link: url || undefined })}
+                textPrimary={textPrimary}
+                inputBg={inputBg}
+                inputBorder={inputBorder}
+                onCellClick={e => e.stopPropagation()}
+            />
 
             {/* 操作ボタン（モバイルでは常表示、sm以上でホバー時表示） */}
             <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">

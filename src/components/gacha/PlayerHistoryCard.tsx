@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { X, ChevronDown, ChevronUp } from "lucide-react";
+import { X, ChevronDown, ChevronUp, Link } from "lucide-react";
 import type { Player, GachaPool, RunSummary } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import GachaResultDisplay from "./GachaResultDisplay";
+import PlayerLinkCollectionModal from "./PlayerLinkCollectionModal";
 
 interface PlayerHistoryCardProps {
     player: Player;
@@ -16,6 +17,7 @@ interface PlayerHistoryCardProps {
 
 export default function PlayerHistoryCard({ player, pool, isLightMode, shareHashtags, onClose }: PlayerHistoryCardProps) {
     const [expandedRunIndex, setExpandedRunIndex] = useState<number | null>(null);
+    const [showLinkCollection, setShowLinkCollection] = useState(false);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
@@ -27,14 +29,32 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
             {/* ヘッダー */}
             <div className="flex items-center justify-between px-4 py-3 shrink-0" style={{ borderBottom: `1px solid ${glassBorder}` }}>
                 <h2 className={`text-sm font-bold ${textPrimary}`}>{player.name} の履歴</h2>
-                <button
-                    onClick={onClose}
-                    className={`p-2 rounded-lg transition-all ${isLightMode ? "hover:bg-gray-100 text-gray-600" : "hover:bg-white/10 text-white/85"}`}
-                    title="閉じる"
-                >
-                    <X size={18} />
-                </button>
+                <div className="flex items-center gap-1">
+                    <button
+                        onClick={() => setShowLinkCollection(true)}
+                        className={`p-2 rounded-lg transition-all ${isLightMode ? "hover:bg-purple-50 text-purple-600" : "hover:bg-purple-500/10 text-purple-400"}`}
+                        title="リンク集"
+                    >
+                        <Link size={18} />
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className={`p-2 rounded-lg transition-all ${isLightMode ? "hover:bg-gray-100 text-gray-600" : "hover:bg-white/10 text-white/85"}`}
+                        title="閉じる"
+                    >
+                        <X size={18} />
+                    </button>
+                </div>
             </div>
+
+            {showLinkCollection && (
+                <PlayerLinkCollectionModal
+                    player={player}
+                    pool={pool}
+                    isLightMode={isLightMode}
+                    onClose={() => setShowLinkCollection(false)}
+                />
+            )}
 
             {/* 天井ゲージ */}
             {pool.pityEnabled && (
@@ -69,13 +89,16 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
                     title={`${player.name}: ${player.totalPulls.toLocaleString()}連`}
                     shareHashtags={shareHashtags}
                 />
-                {((player.runHistory?.length ?? 0) > 0) && (
+                {(() => {
+                    const runsForPool = (player.runHistory ?? []).filter((r) => r.poolId === pool.id);
+                    return runsForPool.length > 0;
+                })() && (
                     <div className="rounded-2xl overflow-hidden shrink-0" style={{ background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.05)", border: `1px solid ${glassBorder}` }}>
                         <div className={`px-4 py-3 border-b ${textSecondary}`} style={{ borderColor: glassBorder }}>
-                            <span className="text-xs font-semibold uppercase tracking-wider">過去の結果（全件）</span>
+                            <span className="text-xs font-semibold uppercase tracking-wider">過去の結果（このガチャ）</span>
                         </div>
                         <div className="flex flex-col max-h-80 overflow-y-auto">
-                            {[...(player.runHistory ?? [])].reverse().map((run: RunSummary) => {
+                            {[...(player.runHistory ?? [])].filter((r) => r.poolId === pool.id).reverse().map((run: RunSummary) => {
                                 const isExpanded = expandedRunIndex === run.runIndex;
                                 return (
                                     <div

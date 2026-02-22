@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UserPlus, Trash2, RotateCcw, ChevronRight, User } from "lucide-react";
+import { UserPlus, Trash2, RotateCcw, ChevronRight, User, Link } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import PlayerLinkCollectionModal from "@/components/gacha/PlayerLinkCollectionModal";
 
 interface GachaPlayerManagerProps {
     players: Player[];
@@ -41,6 +42,7 @@ export default function GachaPlayerManager({
     const [bulkDeleteTargets, setBulkDeleteTargets] = useState<string[] | null>(null);
     const [playerToReset, setPlayerToReset] = useState<string | null>(null);
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
+    const [linkCollectionPlayerId, setLinkCollectionPlayerId] = useState<string | null>(null);
 
     const allSelected = players.length > 0 && selectedPlayerIds.size === players.length;
     const someSelected = selectedPlayerIds.size > 0;
@@ -185,6 +187,13 @@ export default function GachaPlayerManager({
 
                                     {/* 操作ボタン */}
                                     <div className="flex items-center gap-0.5 shrink-0">
+                                        <button
+                                            onClick={e => { e.stopPropagation(); setLinkCollectionPlayerId(player.id); }}
+                                            className={`p-1 rounded text-[10px] transition-all ${isLightMode ? "text-purple-700 hover:bg-purple-50" : "text-purple-400 hover:bg-purple-500/10"}`}
+                                            title="リンク集"
+                                        >
+                                            <Link size={12} />
+                                        </button>
                                         {onViewPlayerHistory && (
                                             <button
                                                 onClick={e => { e.stopPropagation(); onViewPlayerHistory(player.id); }}
@@ -259,6 +268,19 @@ export default function GachaPlayerManager({
                 onCancel={() => setPlayerToReset(null)}
                 danger={false}
             />
+
+            {linkCollectionPlayerId && (() => {
+                const player = players.find((p) => p.id === linkCollectionPlayerId);
+                if (!player) return null;
+                return (
+                    <PlayerLinkCollectionModal
+                        player={player}
+                        pool={pool}
+                        isLightMode={isLightMode}
+                        onClose={() => setLinkCollectionPlayerId(null)}
+                    />
+                );
+            })()}
         </div>
     );
 }

@@ -17,6 +17,8 @@ export interface GachaItem {
     name: string;
     rarityId: string;
     weight: number; // 排出重み（確率 = weight / 全weightの合計）
+    /** 排出物ごとのリンクURL（プレイヤーリンク集で使用） */
+    link?: string;
 }
 
 export interface GachaPool {
@@ -108,6 +110,8 @@ export interface RunSummary {
     timestamp: number;
     pullCount: number;
     items: { itemId: string; itemName: string; rarityId: string; count: number }[];
+    /** どのガチャ（プール）の結果か。ガチャごとに履歴を分けるために使用 */
+    poolId?: string;
 }
 
 export interface Player {
@@ -344,6 +348,7 @@ export function performGachaPull(
         timestamp: now,
         pullCount: count,
         items: summaryItems.map(o => ({ itemId: o.itemId, itemName: o.itemName, rarityId: o.rarityId, count: o.count })),
+        poolId: pool.id,
     };
 
     // localStorage の容量制限を避けるため、件数が多すぎる場合は生結果を保存しない（runHistory に集計は残る）

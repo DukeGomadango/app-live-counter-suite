@@ -177,26 +177,19 @@ function ItemHistoryPanel({
     const textSecondary = textLight ? "text-gray-800" : "text-white/75";
     const textMuted = textLight ? "text-gray-700" : "text-white/65";
 
-    // 品目→プレイヤー別排出数を計算
+    // 品目→プレイヤー別排出数（このガチャの履歴のみ）
     const itemPlayerMap = useMemo(() => {
         const map = new Map<string, { itemName: string; rarityId: string; players: Map<string, number> }>();
 
         for (const player of (players || [])) {
-            if (player.inventory) {
-                for (const [itemId, item] of Object.entries(player.inventory)) {
-                    if (!map.has(itemId)) {
-                        map.set(itemId, { itemName: item.name, rarityId: item.rarityId, players: new Map() });
+            const runs = (player.runHistory ?? []).filter((r) => r.poolId === pool.id);
+            for (const run of runs) {
+                for (const it of run.items) {
+                    if (!map.has(it.itemId)) {
+                        map.set(it.itemId, { itemName: it.itemName, rarityId: it.rarityId, players: new Map() });
                     }
-                    const entry = map.get(itemId)!;
-                    entry.players.set(player.id, (entry.players.get(player.id) || 0) + item.count);
-                }
-            } else {
-                for (const result of (player.results || [])) {
-                    if (!map.has(result.itemId)) {
-                        map.set(result.itemId, { itemName: result.itemName, rarityId: result.rarityId, players: new Map() });
-                    }
-                    const entry = map.get(result.itemId)!;
-                    entry.players.set(player.id, (entry.players.get(player.id) || 0) + 1);
+                    const entry = map.get(it.itemId)!;
+                    entry.players.set(player.id, (entry.players.get(player.id) || 0) + it.count);
                 }
             }
         }
@@ -208,7 +201,7 @@ function ItemHistoryPanel({
                 (sortOrderMap.get(b.rarityId) || 0) - (sortOrderMap.get(a.rarityId) || 0)
                 || a.itemName.localeCompare(b.itemName)
             );
-    }, [players, pool.rarities]);
+    }, [players, pool.id, pool.rarities]);
 
     if ((players || []).length === 0 || itemPlayerMap.length === 0) {
         return (
@@ -310,20 +303,23 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
 
     const sidebarResizeRafRef = useRef<number | null>(null);
     const sidebarResizePendingRef = useRef<number | null>(null);
+
+    const applyResize = useCallback((clientX: number, startX: number, startW: number) => {
+        const newW = Math.min(720, Math.max(200, startW + (clientX - startX)));
+        sidebarResizePendingRef.current = newW;
+        if (sidebarResizeRafRef.current !== null) return;
+        sidebarResizeRafRef.current = requestAnimationFrame(() => {
+            sidebarResizeRafRef.current = null;
+            const w = sidebarResizePendingRef.current;
+            if (w !== null) setSidebarWidthPx(w);
+        });
+    }, [setSidebarWidthPx]);
+
     const handleSidebarResizeStart = useCallback((e: React.MouseEvent) => {
         if (e.button !== 0) return;
         const startX = e.clientX;
         const startW = sidebarWidthPx;
-        const onMove = (moveEvent: MouseEvent) => {
-            const newW = Math.min(720, Math.max(200, startW + (moveEvent.clientX - startX)));
-            sidebarResizePendingRef.current = newW;
-            if (sidebarResizeRafRef.current !== null) return;
-            sidebarResizeRafRef.current = requestAnimationFrame(() => {
-                sidebarResizeRafRef.current = null;
-                const w = sidebarResizePendingRef.current;
-                if (w !== null) setSidebarWidthPx(w);
-              });
-        };
+        const onMove = (moveEvent: MouseEvent) => applyResize(moveEvent.clientX, startX, startW);
         const onUp = () => {
             if (sidebarResizeRafRef.current !== null) {
                 cancelAnimationFrame(sidebarResizeRafRef.current);
@@ -341,7 +337,30 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
         document.body.style.cursor = "col-resize";
         document.addEventListener("mousemove", onMove);
         document.addEventListener("mouseup", onUp);
-    }, [sidebarWidthPx, setSidebarWidthPx]);
+    }, [sidebarWidthPx, setSidebarWidthPx, applyResize]);
+
+    // タブレットなどタッチデバイスでサイドバー幅を調節できるようにする
+    const handleSidebarResizeTouchStart = useCallback((e: React.TouchEvent) => {
+        if (e.changedTouches.length === 0) return;
+        const startX = e.changedTouches[0]!.clientX;
+        const startW = sidebarWidthPx;
+        const onMove = (moveEvent: TouchEvent) => {
+            if (moveEvent.changedTouches.length === 0) return;
+            moveEvent.preventDefault();
+            applyResize(moveEvent.changedTouches[0]!.clientX, startX, startW);
+        };
+        const onEnd = () => {
+            const pending = sidebarResizePendingRef.current;
+            if (pending !== null) setSidebarWidthPx(pending);
+            sidebarResizePendingRef.current = null;
+            document.removeEventListener("touchmove", onMove, { capture: true });
+            document.removeEventListener("touchend", onEnd);
+            document.removeEventListener("touchcancel", onEnd);
+        };
+        document.addEventListener("touchmove", onMove, { passive: false, capture: true });
+        document.addEventListener("touchend", onEnd);
+        document.addEventListener("touchcancel", onEnd);
+    }, [sidebarWidthPx, setSidebarWidthPx, applyResize]);
 
     useEffect(() => {
         if (playerHistoryViewId && !(players || []).some(p => p.id === playerHistoryViewId)) setPlayerHistoryViewId(null);
@@ -403,9 +422,9 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
         };
     }, [isLightMode, gachaSettings.bgColor, isSplitMode]);
 
-    // レスポンシブ
+    // レスポンシブ（768px未満: モバイル / 1024px未満: タブレットもモバイルレイアウトでサイドバー幅調節の問題を避ける）
     useEffect(() => {
-        const check = () => setIsMobile(window.innerWidth < 768);
+        const check = () => setIsMobile(window.innerWidth < 1024);
         check();
         window.addEventListener("resize", check);
         return () => window.removeEventListener("resize", check);
@@ -1047,7 +1066,8 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                         role="separator"
                         aria-label="サイドバー幅を調節"
                         onMouseDown={handleSidebarResizeStart}
-                        className="shrink-0 w-4 h-full cursor-col-resize select-none flex items-center justify-center group touch-none"
+                        onTouchStart={handleSidebarResizeTouchStart}
+                        className="shrink-0 w-4 h-full cursor-col-resize select-none flex items-center justify-center group touch-manipulation"
                         style={{ minWidth: 16 }}
                     >
                         <span
