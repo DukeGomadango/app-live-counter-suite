@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  async redirects() {
+    return [
+      { source: "/gatcha", destination: "/gacha", permanent: true },
+      { source: "/gatcha/:path*", destination: "/gacha/:path*", permanent: true },
+    ];
+  },
 };
 
 export default nextConfig;

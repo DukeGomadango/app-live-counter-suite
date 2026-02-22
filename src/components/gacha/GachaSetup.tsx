@@ -262,7 +262,8 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode }: GachaSet
                                             {pool.rarities.length > 1 && (
                                                 <button
                                                     onClick={() => setPendingDelete({ type: "rarity", id: rarity.id })}
-                                                    className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors"
+                                                    className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors shrink-0"
+                                                    aria-label="このレア度を削除"
                                                 >
                                                     <Trash2 size={12} />
                                                 </button>
@@ -520,6 +521,8 @@ interface SortableItemProps {
     prob: number;
 }
 
+const MIN_WEIGHT = 0.000001;
+
 function SortableItem({
     item,
     pool,
@@ -536,6 +539,9 @@ function SortableItem({
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
     const isEditing = editingItemId === item.id;
     const rarity = pool.rarities.find(r => r.id === item.rarityId);
+    // 重み入力中は文字列で保持し、blurで確定。入力のたびにparseFloatすると「0.」などが消えてバグるため
+    const [weightInput, setWeightInput] = useState<string | null>(null);
+    const weightDisplay = weightInput !== null ? weightInput : String(item.weight);
 
     const sortableStyle = {
         transform: CSS.Transform.toString(transform),
@@ -608,13 +614,20 @@ function SortableItem({
                 </span>
             )}
 
-            {/* ウェイト */}
+            {/* ウェイト（入力中は文字列のまま表示し、blurで数値確定） */}
             <input
-                type="number"
-                min={0.000001}
-                step="any"
-                value={item.weight}
-                onChange={e => updateItem(item.id, { weight: Math.max(0.000001, parseFloat(e.target.value) || 0.000001) })}
+                type="text"
+                inputMode="decimal"
+                value={weightDisplay}
+                onFocus={() => setWeightInput(String(item.weight))}
+                onChange={e => setWeightInput(e.target.value)}
+                onBlur={() => {
+                    const s = weightInput !== null ? weightInput.trim() : String(item.weight);
+                    const n = parseFloat(s);
+                    const valid = !Number.isNaN(n) && n >= MIN_WEIGHT ? n : MIN_WEIGHT;
+                    updateItem(item.id, { weight: valid });
+                    setWeightInput(null);
+                }}
                 className={`w-14 text-[10px] px-1.5 py-0.5 rounded text-right ${textPrimary} outline-none`}
                 style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
             />
@@ -622,8 +635,8 @@ function SortableItem({
                 {prob < 0.01 ? prob.toFixed(4) : prob.toFixed(2)}%
             </span>
 
-            {/* 操作ボタン */}
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* 操作ボタン（モバイルでは常表示、sm以上でホバー時表示） */}
+            <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                 {isEditing ? (
                     <button
                         onClick={finishEditing}
