@@ -19,7 +19,7 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
-    const textSecondary = isLightMode ? "text-gray-800" : "text-white/75";
+    const textSecondary = isLightMode ? "text-gray-700" : "text-white/80";
 
     const inputBg = isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
     const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
@@ -68,7 +68,7 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
                 </div>
                 <div className="px-4 pb-4 pt-3 flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
                     {presets.length === 0 ? (
-                        <p className={`text-[11px] ${isLightMode ? "text-gray-600" : "text-white/50"}`}>保存したプリセットがありません</p>
+                        <p className={`text-[11px] ${isLightMode ? "text-gray-600" : "text-white/70"}`}>保存したプリセットがありません</p>
                     ) : (
                         [...presets].sort((a, b) => b.savedAt - a.savedAt).map(pre => (
                             <div
@@ -114,7 +114,7 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
                             style={{ border: `1px solid ${glassBorder}` }}
                         >
                             <span className="text-xs font-medium">{t.name}</span>
-                            <span className={`text-[10px] ${isLightMode ? "text-gray-600" : "text-white/50"}`}>
+                            <span className={`text-[10px] ${isLightMode ? "text-gray-600" : "text-white/70"}`}>
                                 {t.pool.conceptName} · {t.pool.pullCount}連
                             </span>
                         </button>

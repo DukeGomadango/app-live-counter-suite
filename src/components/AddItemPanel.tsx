@@ -38,7 +38,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
         if (label.trim()) {
             onAddItem(label.trim(), emoji);
             setLabel("");
-            setEmoji(EMOJI_OPTIONS[0]);
+            setEmoji(EMOJI_OPTIONS[0] ?? "");
             setIsEditing(false);
             setIsHovered(false);
             setIsModalOpen(false);

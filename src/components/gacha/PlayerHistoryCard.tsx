@@ -18,9 +18,9 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
     const [expandedRunIndex, setExpandedRunIndex] = useState<number | null>(null);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
-    const textPrimary = isLightMode ? "text-gray-900" : "text-white/90";
-    const textSecondary = isLightMode ? "text-gray-900" : "text-white/50";
-    const textMuted = isLightMode ? "text-gray-800" : "text-white/30";
+    const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
+    const textSecondary = isLightMode ? "text-gray-700" : "text-white/75";
+    const textMuted = isLightMode ? "text-gray-600" : "text-white/65";
 
     return (
         <div className="h-full flex flex-col rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
@@ -29,7 +29,7 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
                 <h2 className={`text-sm font-bold ${textPrimary}`}>{player.name} の履歴</h2>
                 <button
                     onClick={onClose}
-                    className={`p-2 rounded-lg transition-all ${isLightMode ? "hover:bg-gray-100 text-gray-600" : "hover:bg-white/10 text-white/70"}`}
+                    className={`p-2 rounded-lg transition-all ${isLightMode ? "hover:bg-gray-100 text-gray-600" : "hover:bg-white/10 text-white/85"}`}
                     title="閉じる"
                 >
                     <X size={18} />

@@ -23,21 +23,22 @@ export default function HelpButton() {
         return () => window.removeEventListener("resize", check);
     }, []);
 
-    // ガチャまたはSplit時は右下に配置（PC版Splitでガチャの時も邪魔にならないように）
-    const useBottomRight = isGacha || isSplit;
+    // ガチャまたはSplit時は下側に配置（PC版Splitでは左下にしてガチャの右下モード切替と被らないように）
+    const useBottom = isGacha || isSplit;
     const gachaBottom = isGacha && isMobile ? "72px" : "16px";
-    const bottomPos = useBottomRight ? (isGacha && isMobile ? gachaBottom : "16px") : "auto";
+    const bottomPos = useBottom ? (isGacha && isMobile ? gachaBottom : "16px") : "auto";
+    const onLeft = isSplit && !isMobile; // PC版Split時は左下
 
     return (
         <>
-            {/* The Help Button: top-right normally, bottom-right on Gacha/Split */}
+            {/* The Help Button: top-right normally, bottom on Gacha/Split (Split+PCは左下でガチャUIと重ならないように) */}
             <button
                 onClick={() => setIsOpen(true)}
                 className={`fixed z-40 w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 group`}
                 style={{
-                    top: useBottomRight ? "auto" : "70px",
+                    top: useBottom ? "auto" : "70px",
                     bottom: bottomPos,
-                    right: "16px",
+                    ...(onLeft ? { left: "16px" } : { right: "16px" }),
                     background: effectiveLightMode ? "rgba(255, 255, 255, 0.4)" : "rgba(20, 10, 40, 0.4)",
                     backdropFilter: "blur(8px)",
                     border: `1px solid ${effectiveLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"}`,

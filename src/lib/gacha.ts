@@ -168,7 +168,7 @@ const _sampleRarities3: RarityTier[] = [
 export function clonePoolWithNewIds(pool: GachaPool): GachaPool {
     const newId = () => crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const newRarities = pool.rarities.map((r, i) => ({ ...r, id: newId() }));
-    const oldToNewRarity = new Map(pool.rarities.map((r, i) => [r.id, newRarities[i].id]));
+    const oldToNewRarity = new Map(pool.rarities.map((r, i) => [r.id, newRarities[i]!.id]));
     const newItems = pool.items.map(it => ({
         ...it,
         id: newId(),
@@ -189,11 +189,11 @@ export function getSampleTemplates(): SampleTemplate[] {
         id: "sample-1",
         conceptName: "初回10万",
         rarities: r1,
-        items: [{ id: "sample-1-item", name: "景品", rarityId: r1[0].id, weight: 1 }],
+        items: [{ id: "sample-1-item", name: "景品", rarityId: r1[0]!.id, weight: 1 }],
         pullCount: 100000,
         pityEnabled: false,
         pityThreshold: 100,
-        pityGuaranteedRarityId: r1[r1.length - 1].id,
+        pityGuaranteedRarityId: r1[r1.length - 1]!.id,
     };
     const r2 = [..._sampleRarities3];
     const pool2: GachaPool = {
@@ -201,14 +201,14 @@ export function getSampleTemplates(): SampleTemplate[] {
         conceptName: "シンプル N/R/SR",
         rarities: r2,
         items: [
-            { id: "s2-1", name: "ノーマル景品", rarityId: r2[0].id, weight: 70 },
-            { id: "s2-2", name: "レア景品", rarityId: r2[1].id, weight: 25 },
-            { id: "s2-3", name: "SR景品", rarityId: r2[2].id, weight: 5 },
+            { id: "s2-1", name: "ノーマル景品", rarityId: r2[0]!.id, weight: 70 },
+            { id: "s2-2", name: "レア景品", rarityId: r2[1]!.id, weight: 25 },
+            { id: "s2-3", name: "SR景品", rarityId: r2[2]!.id, weight: 5 },
         ],
         pullCount: 10,
         pityEnabled: false,
         pityThreshold: 100,
-        pityGuaranteedRarityId: r2[2].id,
+        pityGuaranteedRarityId: r2[2]!.id,
     };
     const r3 = DEFAULT_RARITIES.map(r => ({ ...r }));
     const pool3: GachaPool = {
@@ -275,7 +275,7 @@ function pickOne(items: GachaItem[], totalWeight: number): GachaItem {
         rand -= item.weight;
         if (rand <= 0) return item;
     }
-    return items[items.length - 1]; // fallback
+    return items[items.length - 1]!; // fallback
 }
 
 export function performGachaPull(
@@ -309,7 +309,7 @@ export function performGachaPull(
         // 天井チェック
         if (pool.pityEnabled && pityCounter >= pool.pityThreshold && pityRarityItems.length > 0) {
             // 天井到達: 確定レア度からランダム
-            picked = pityRarityItems[Math.floor(Math.random() * pityRarityItems.length)];
+            picked = pityRarityItems[Math.floor(Math.random() * pityRarityItems.length)]!;
             pityCounter = 0;
             pityTriggered = true;
         } else {
@@ -332,7 +332,7 @@ export function performGachaPull(
         if (!inventory[picked.id]) {
             inventory[picked.id] = { count: 0, name: picked.name, rarityId: picked.rarityId };
         }
-        inventory[picked.id].count += 1;
+        inventory[picked.id]!.count += 1;
     }
 
     const runHistory = player.runHistory ?? [];
@@ -439,7 +439,7 @@ export function containsHighestRarity(
 ): boolean {
     if (rarities.length === 0) return false;
     const highest = [...rarities].sort((a, b) => b.sortOrder - a.sortOrder)[0];
-    return results.some(r => r.rarityId === highest.id);
+    return results.some(r => r.rarityId === highest?.id);
 }
 
 // ========== SNS共有 ==========
@@ -503,7 +503,7 @@ export function migratePlayerData(players: Player[]): Player[] {
                 if (!inventory[r.itemId]) {
                     inventory[r.itemId] = { count: 0, name: r.itemName, rarityId: r.rarityId };
                 }
-                inventory[r.itemId].count += 1;
+                inventory[r.itemId]!.count += 1;
             }
         }
         const results = ensureResultIds(p.results);
