@@ -12,6 +12,8 @@ interface GachaSwitchDropdownProps {
     presets: GachaPoolPreset[];
     onSelect: (value: string) => void;
     isLightMode: boolean;
+    /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
+    textContrastLight?: boolean;
     className?: string;
     size?: "sm" | "md";
 }
@@ -21,6 +23,7 @@ export default function GachaSwitchDropdown({
     presets,
     onSelect,
     isLightMode,
+    textContrastLight = false,
     className = "",
     size = "md",
 }: GachaSwitchDropdownProps) {
@@ -37,9 +40,10 @@ export default function GachaSwitchDropdown({
         return () => document.removeEventListener("mousedown", close);
     }, [open]);
 
-    const textCls = isLightMode ? "text-gray-900" : "text-white/90";
-    const textMuted = isLightMode ? "text-gray-500" : "text-white/50";
-    const hoverCls = isLightMode ? "hover:bg-black/5" : "hover:bg-white/10";
+    const textLight = isLightMode || textContrastLight;
+    const textCls = textLight ? "text-gray-900" : "text-white/90";
+    const textMuted = textLight ? "text-gray-500" : "text-white/50";
+    const hoverCls = textLight ? "hover:bg-black/5" : "hover:bg-white/10";
     const pad = size === "sm" ? "px-2 py-1" : "px-2 py-1.5";
     const widthCls = size === "sm" ? "max-w-[140px]" : "w-40";
 

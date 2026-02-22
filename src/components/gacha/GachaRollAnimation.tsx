@@ -14,6 +14,8 @@ interface GachaRollAnimationProps {
     onRollStart: () => void;
     onAnimationComplete: () => void;
     isLightMode: boolean;
+    /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
+    textContrastLight?: boolean;
     disabled: boolean;
     pityCounter?: number;
     pityThreshold?: number;
@@ -59,6 +61,7 @@ export default function GachaRollAnimation({
     onRollStart,
     onAnimationComplete,
     isLightMode,
+    textContrastLight = false,
     disabled,
     pityCounter = 0,
     pityThreshold = 100,
@@ -78,6 +81,7 @@ export default function GachaRollAnimation({
     const [bulkRevealVisibleUpTo, setBulkRevealVisibleUpTo] = useState(-1);
     const completedRef = useRef(false);
 
+    const textLight = isLightMode || textContrastLight;
     const hasHighestRarity = results ? containsHighestRarity(results, pool.rarities) : false;
     const sortedResults = results ? sortResultsForPresentation(results, pool.rarities) : [];
     const isMassRoll = (results?.length || 0) > 20;
@@ -269,7 +273,7 @@ export default function GachaRollAnimation({
                     <div
                         className="w-40 h-40 sm:w-56 sm:h-56 rounded-3xl flex items-center justify-center relative overflow-hidden"
                         style={{
-                            background: isLightMode
+                            background: textLight
                                 ? `linear-gradient(135deg, ${accentColor}22, ${accentColor}18)`
                                 : `linear-gradient(135deg, ${accentColor}33, ${accentColor}22)`,
                             border: `2px solid ${accentColor}55`,
@@ -294,7 +298,7 @@ export default function GachaRollAnimation({
                 </motion.div>
 
                 {/* 誰が引くか */}
-                <p className={`text-sm font-medium ${isLightMode ? "text-gray-800" : "text-white/90"}`}>
+                <p className={`text-sm font-medium ${textLight ? "text-gray-800" : "text-white/90"}`}>
                     {activePlayerName}のターン
                 </p>
 
@@ -303,7 +307,7 @@ export default function GachaRollAnimation({
                     <motion.h2
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className={`text-lg sm:text-xl font-bold tracking-wider ${isLightMode ? "text-gray-900" : "text-white/95"}`}
+                        className={`text-lg sm:text-xl font-bold tracking-wider ${textLight ? "text-gray-900" : "text-white/95"}`}
                     >
                         {pool.conceptName}
                     </motion.h2>
@@ -313,12 +317,12 @@ export default function GachaRollAnimation({
                 {pityEnabled && (
                     <div className="w-48 sm:w-64">
                         <div className="flex justify-between mb-1">
-                            <span className={`text-[10px] ${isLightMode ? "text-gray-700" : "text-white/70"}`}>天井</span>
-                            <span className={`text-[10px] font-bold ${isLightMode ? "text-gray-800" : "text-white/90"}`}>
+                            <span className={`text-[10px] ${textLight ? "text-gray-700" : "text-white/70"}`}>天井</span>
+                            <span className={`text-[10px] font-bold ${textLight ? "text-gray-800" : "text-white/90"}`}>
                                 {pityCounter} / {pityThreshold}
                             </span>
                         </div>
-                        <div className={`h-1.5 rounded-full overflow-hidden ${isLightMode ? "bg-gray-200" : "bg-white/10"}`}>
+                        <div className={`h-1.5 rounded-full overflow-hidden ${textLight ? "bg-gray-200" : "bg-white/10"}`}>
                             <motion.div
                                 className="h-full rounded-full"
                                 style={{
@@ -361,7 +365,7 @@ export default function GachaRollAnimation({
                 </motion.button>
 
                 {pool.items.length === 0 && (
-                    <p className={`text-xs ${isLightMode ? "text-red-500" : "text-red-300"}`}>
+                    <p className={`text-xs ${textLight ? "text-red-500" : "text-red-300"}`}>
                         ※ 品目を追加してください
                     </p>
                 )}
@@ -385,13 +389,13 @@ export default function GachaRollAnimation({
                 <motion.p
                     animate={{ opacity: [0.3, 1, 0.3] }}
                     transition={{ duration: 0.5, repeat: 1 }}
-                    className={`text-lg font-bold ${isLightMode ? "text-gray-600" : "text-white/70"}`}
+                    className={`text-lg font-bold ${textLight ? "text-gray-600" : "text-white/70"}`}
                 >
                     ...
                 </motion.p>
                 <button
                     onClick={handleSkip}
-                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${isLightMode ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${textLight ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
                 >
                     <SkipForward size={12} /> スキップ
                 </button>
@@ -485,7 +489,7 @@ export default function GachaRollAnimation({
                 <motion.div
                     className="w-40 h-40 sm:w-56 sm:h-56 rounded-3xl flex items-center justify-center relative"
                     style={{
-                        background: isLightMode
+                        background: textLight
                             ? `linear-gradient(135deg, ${accentColor}22, ${accentColor}18)`
                             : `linear-gradient(135deg, ${accentColor}33, ${accentColor}22)`,
                         border: `2px solid ${accentColor}55`,
@@ -526,7 +530,7 @@ export default function GachaRollAnimation({
                 <motion.p
                     animate={{ opacity: [0.3, 1, 0.3] }}
                     transition={{ duration: 1, repeat: Infinity }}
-                    className={`text-sm ${isLightMode ? "text-gray-700" : "text-white/80"}`}
+                    className={`text-sm ${textLight ? "text-gray-700" : "text-white/80"}`}
                 >
                     抽選中...
                 </motion.p>
@@ -534,7 +538,7 @@ export default function GachaRollAnimation({
                 {/* スキップボタン */}
                 <button
                     onClick={handleSkip}
-                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${isLightMode ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
+                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${textLight ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/10 text-white/80 hover:bg-white/20"}`}
                 >
                     <SkipForward size={12} /> スキップ
                 </button>
@@ -548,12 +552,12 @@ export default function GachaRollAnimation({
         return (
             <div className="flex flex-col h-full p-4 relative overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-bold ${isLightMode ? "text-gray-700" : "text-white/90"}`}>
+                    <span className={`text-xs font-bold ${textLight ? "text-gray-700" : "text-white/90"}`}>
                         🎲 {results!.length.toLocaleString()}連の結果
                     </span>
                     <button
                         onClick={handleSkip}
-                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${isLightMode ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
+                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${textLight ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
                     >
                         <SkipForward size={12} /> スキップ
                     </button>
@@ -642,8 +646,8 @@ export default function GachaRollAnimation({
                                     >
                                         {rarity?.name || "?"}
                                     </span>
-                                    <span className={`text-xs flex-1 relative z-10 ${isLightMode ? "text-gray-800" : "text-white/90"}`}>{item.itemName}</span>
-                                    <span className={`text-sm font-black tabular-nums relative z-10 ${isLightMode ? "text-gray-900" : "text-white"}`}>
+                                    <span className={`text-xs flex-1 relative z-10 ${textLight ? "text-gray-800" : "text-white/90"}`}>{item.itemName}</span>
+                                    <span className={`text-sm font-black tabular-nums relative z-10 ${textLight ? "text-gray-900" : "text-white"}`}>
                                         ×{displayCount.toLocaleString()}
                                     </span>
                                 </motion.div>
@@ -661,12 +665,12 @@ export default function GachaRollAnimation({
         return (
             <div className="flex flex-col h-full p-4 relative overflow-hidden">
                 <div className="flex items-center justify-between mb-3">
-                    <span className={`text-xs ${isLightMode ? "text-gray-700" : "text-white/75"}`}>
+                    <span className={`text-xs ${textLight ? "text-gray-700" : "text-white/75"}`}>
                         {revealIndex} / {sortedResults.length}
                     </span>
                     <button
                         onClick={handleSkip}
-                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${isLightMode ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
+                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${textLight ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/10 text-white/60 hover:bg-white/20"}`}
                     >
                         <SkipForward size={12} /> スキップ
                     </button>
@@ -758,7 +762,7 @@ export default function GachaRollAnimation({
                     initial={{ scale: 0, rotate: -10 }}
                     animate={{ scale: 1, rotate: 0 }}
                     transition={{ type: "spring", stiffness: 200 }}
-                    className={`text-2xl sm:text-3xl font-black ${isLightMode ? "text-gray-900" : "text-white/90"}`}
+                    className={`text-2xl sm:text-3xl font-black ${textLight ? "text-gray-900" : "text-white/90"}`}
                 >
                     🎉 {results.length.toLocaleString()}連の結果
                 </motion.div>
@@ -834,7 +838,7 @@ export default function GachaRollAnimation({
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1.5 }}
                     onClick={handleSkip}
-                    className={`text-xs mt-2 ${isLightMode ? "text-gray-600" : "text-white/65"} hover:underline`}
+                    className={`text-xs mt-2 ${textLight ? "text-gray-600" : "text-white/65"} hover:underline`}
                 >
                     スキップ →
                 </motion.button>
