@@ -131,9 +131,9 @@ export default function RouletteContent({
                 />
             </div>
 
-            {/* ヘッダー */}
+            {/* ヘッダー（Split時は他モジュールと高さを揃える） */}
             <div
-                className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2`}
+                className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 ${isSplitMode ? "min-h-[56px]" : ""}`}
                 style={{
                     background: headerBg,
                     backdropFilter: "blur(12px)",

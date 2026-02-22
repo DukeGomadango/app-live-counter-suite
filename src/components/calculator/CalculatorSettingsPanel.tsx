@@ -22,6 +22,8 @@ interface CalculatorSettingsPanelProps {
     onSettingsChange: (s: CalculatorSettings) => void;
     isLightMode: boolean;
     onClose?: () => void;
+    /** Split時はペイン内に絶対配置（左ペインでもモーダルが開く） */
+    isSplitMode?: boolean;
 }
 
 export default function CalculatorSettingsPanel({
@@ -29,11 +31,19 @@ export default function CalculatorSettingsPanel({
     onSettingsChange,
     isLightMode,
     onClose,
+    isSplitMode = false,
 }: CalculatorSettingsPanelProps) {
     const { glassBorder } = useGlassStyle(isLightMode);
     const overlayBg = isLightMode ? "rgba(255,255,255,0.95)" : "rgba(10,5,30,0.95)";
     const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-600" : "text-white/70";
+
+    const overlayClass = isSplitMode
+        ? "absolute inset-0 z-[90] bg-black/30 backdrop-blur-sm"
+        : "fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm";
+    const panelClass = isSplitMode
+        ? "absolute top-14 right-2 z-[100] w-72 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]"
+        : "fixed top-14 right-4 z-[100] w-72 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]";
 
     return (
         <>
@@ -41,14 +51,14 @@ export default function CalculatorSettingsPanel({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm"
+                className={overlayClass}
                 onClick={onClose ?? (() => {})}
             />
             <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: -10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                className="fixed top-14 right-4 z-[100] w-72 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]"
+                className={panelClass}
                 style={{ background: overlayBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(20px)" }}
             >
                 <div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: glassBorder }}>

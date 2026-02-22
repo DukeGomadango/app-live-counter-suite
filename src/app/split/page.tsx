@@ -83,6 +83,10 @@ export default function SplitPage() {
     if (isMobileView) {
         return (
             <div className={`h-screen w-screen flex flex-col overflow-hidden ${isLightMode ? 'bg-[#f8f9fa]' : 'bg-[#0a051e]'}`}>
+                {/* モード切替（Counter / FlowChart / Gacha 等） */}
+                <div className="flex shrink-0 items-center justify-center py-2 px-2 border-b" style={{ ...paneSelectorStyle, borderLeft: "none", borderRight: "none", borderTop: "none" }}>
+                    <ModeSelector isLightMode={isLightMode} />
+                </div>
                 {/* 上部タブ: 左ペイン | 右ペイン */}
                 <div
                     className="flex shrink-0 border-b z-50"

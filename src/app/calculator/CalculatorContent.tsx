@@ -127,9 +127,13 @@ export default function CalculatorContent({
     const iconColor = isLightMode ? "text-gray-800" : "text-white";
     const iconHover = isLightMode ? "hover:bg-gray-200" : "hover:bg-white/20";
 
+    const splitPaneBg = isSplitMode ? (isLightMode ? "#f8f9fa" : "#0a051e") : undefined;
+    const splitTopBg = splitPaneBg ?? headerBgStrong;
+
     return (
         <div
-            className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0 pt-12" : "h-screen w-screen"}`}
+            className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`}
+            style={splitPaneBg ? { background: splitPaneBg } : undefined}
         >
             {/* 背景オーブ */}
             <div
@@ -155,13 +159,13 @@ export default function CalculatorContent({
                 />
             </div>
 
-            {/* ヘッダー（Split時は上部余白の下に表示し、背景を濃くしてアイコン視認性を確保） */}
+            {/* ヘッダー（Split時は他モジュールと上端・高さを揃える） */}
             <div
-                className={`shrink-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 ${isSplitMode ? "relative" : "fixed top-0"}`}
+                className={`shrink-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 ${isSplitMode ? "relative min-h-[56px]" : "fixed top-0"}`}
                 style={{
-                    background: headerBgStrong,
-                    backdropFilter: "blur(12px)",
-                    borderBottom: `1px solid ${isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)"}`,
+                    background: isSplitMode ? splitTopBg : headerBgStrong,
+                    backdropFilter: isSplitMode ? "none" : "blur(12px)",
+                    borderBottom: isSplitMode ? "none" : `1px solid ${isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)"}`,
                 }}
             >
                 <div className="flex items-center gap-2">
@@ -194,6 +198,7 @@ export default function CalculatorContent({
                         onSettingsChange={setSettings}
                         isLightMode={isLightMode}
                         onClose={() => setShowSettingsPanel(false)}
+                        isSplitMode={isSplitMode}
                     />
                 )}
             </AnimatePresence>
