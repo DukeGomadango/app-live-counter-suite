@@ -13,8 +13,7 @@ import {
     Palette,
     Pencil,
     Check,
-    Image,
-    Music,
+    Upload,
     } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, calculateProbabilities, getRarityProbabilities } from "@/lib/gacha";
@@ -38,6 +37,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import GachaFileRegisterModal from "@/components/gacha/GachaFileRegisterModal";
 
 interface GachaSetupProps {
     pool: GachaPool;
@@ -549,61 +549,6 @@ interface SortableItemProps {
 
 const MIN_WEIGHT = 0.000001;
 
-/** 品目ごとのURL入力（アイコンクリックで入力表示）。画像URL・音声URL用 */
-function UrlInputCell({
-    value,
-    onUpdate,
-    title,
-    icon: Icon,
-    textPrimary,
-    inputBg,
-    inputBorder,
-    onCellClick,
-}: {
-    value?: string;
-    onUpdate: (url: string) => void;
-    title: string;
-    icon: React.ComponentType<{ size?: number; className?: string }>;
-    textPrimary: string;
-    inputBg: string;
-    inputBorder: string;
-    onCellClick: (e: React.MouseEvent) => void;
-}) {
-    const [editing, setEditing] = useState(false);
-    const [inputValue, setInputValue] = useState(value ?? "");
-
-    if (editing) {
-        return (
-            <div className="shrink-0 flex items-center gap-0.5" onClick={onCellClick}>
-                <input
-                    type="url"
-                    value={inputValue}
-                    onChange={e => setInputValue(e.target.value)}
-                    onBlur={() => {
-                        onUpdate(inputValue.trim());
-                        setEditing(false);
-                    }}
-                    onKeyDown={e => e.key === "Enter" && (onUpdate(inputValue.trim()), setEditing(false))}
-                    placeholder="https://..."
-                    autoFocus
-                    className={`w-24 min-w-0 text-[10px] px-1.5 py-0.5 rounded ${textPrimary} outline-none placeholder:opacity-60`}
-                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                />
-            </div>
-        );
-    }
-    return (
-        <button
-            type="button"
-            onClick={e => { e.stopPropagation(); setEditing(true); setInputValue(value ?? ""); }}
-            className={`shrink-0 p-1 rounded transition-colors ${value ? "text-purple-400" : "text-gray-500/60 hover:text-purple-400"}`}
-            title={value || title}
-        >
-            <Icon size={12} />
-        </button>
-    );
-}
-
 function SortableItem({
     item,
     pool,
@@ -623,6 +568,7 @@ function SortableItem({
     // 重み入力中は文字列で保持し、blurで確定。入力のたびにparseFloatすると「0.」などが消えてバグるため
     const [weightInput, setWeightInput] = useState<string | null>(null);
     const weightDisplay = weightInput !== null ? weightInput : String(item.weight);
+    const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
 
     const sortableStyle = {
         transform: CSS.Transform.toString(transform),
@@ -716,27 +662,28 @@ function SortableItem({
                 {prob < 0.01 ? prob.toFixed(4) : prob.toFixed(2)}%
             </span>
 
-            {/* 画像URL・音声URL（任意） */}
-            <UrlInputCell
-                value={item.imageUrl}
-                onUpdate={(url) => updateItem(item.id, { imageUrl: url || undefined })}
-                title="画像URL"
-                icon={Image}
-                textPrimary={textPrimary}
-                inputBg={inputBg}
-                inputBorder={inputBorder}
-                onCellClick={e => e.stopPropagation()}
-            />
-            <UrlInputCell
-                value={item.audioUrl}
-                onUpdate={(url) => updateItem(item.id, { audioUrl: url || undefined })}
-                title="音声URL"
-                icon={Music}
-                textPrimary={textPrimary}
-                inputBg={inputBg}
-                inputBorder={inputBorder}
-                onCellClick={e => e.stopPropagation()}
-            />
+            {/* 添付（画像・音声）：1ボタンでモーダルを開き、モーダル内でファイル or URL を登録 */}
+            <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setAttachmentModalOpen(true); }}
+                className={`shrink-0 p-1 rounded transition-colors ${item.imageUrl || item.audioUrl ? "text-purple-400" : "text-gray-500/60 hover:text-purple-400"}`}
+                title="画像・音声を登録"
+                aria-label="画像・音声を登録"
+            >
+                <Upload size={12} />
+            </button>
+
+            {attachmentModalOpen && (
+                <GachaFileRegisterModal
+                    poolId={pool.id}
+                    item={item}
+                    isLightMode={isLightMode}
+                    onClose={() => setAttachmentModalOpen(false)}
+                    onUpdate={(updates) => {
+                        updateItem(item.id, updates);
+                    }}
+                />
+            )}
 
             {/* 操作ボタン（モバイルでは常表示、sm以上でホバー時表示） */}
             <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">

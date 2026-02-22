@@ -14,7 +14,7 @@ import PlayerHistoryCard from "@/components/gacha/PlayerHistoryCard";
 import GachaSwitchDropdown from "@/components/gacha/GachaSwitchDropdown";
 import type { GachaPool, Player, GachaResult, GachaSettings, GachaPoolPreset } from "@/lib/gacha";
 import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_BG_COLORS, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds, clonePoolWithNewIds, getSampleTemplates, migratePoolItemsForLink } from "@/lib/gacha";
-import { DEFAULT_EXTRA_HASHTAG, DEFAULT_SHARE_HASHTAG } from "@/lib/site";
+import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 
 type MobileTab = "setup" | "gacha" | "results" | "players" | "items";

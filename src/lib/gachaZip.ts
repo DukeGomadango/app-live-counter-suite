@@ -1,5 +1,6 @@
 import JSZip from "jszip";
-import type { Player, GachaPool, GachaItem } from "./gacha";
+import type { Player, GachaPool } from "./gacha";
+import { isLocalUrl, getGachaFile } from "./gachaFileStore";
 
 export interface ItemAttachment {
     itemId: string;
@@ -65,15 +66,21 @@ export async function buildPlayerAttachmentsZip(player: Player, pool: GachaPool)
     for (const att of attachments) {
         const ext = extensionFor(att.url, att.kind);
         const baseName = sanitizeFileName(att.itemName) + (att.kind === "audio" ? "_audio" : "");
-        let count = usedNames.get(baseName) ?? 0;
+        const count = usedNames.get(baseName) ?? 0;
         usedNames.set(baseName, count + 1);
         const fileName = count === 0 ? `${baseName}${ext}` : `${baseName}_${count}${ext}`;
 
         try {
-            const res = await fetch(att.url, { mode: "cors" });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const blob = await res.blob();
-            zip.file(fileName, blob);
+            if (isLocalUrl(att.url)) {
+                const blob = await getGachaFile(att.url);
+                if (blob) zip.file(fileName, blob);
+                else manifestLines.push(`${att.itemName}\t${att.kind}\t${att.url}`);
+            } else {
+                const res = await fetch(att.url, { mode: "cors" });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const blob = await res.blob();
+                zip.file(fileName, blob);
+            }
         } catch {
             manifestLines.push(`${att.itemName}\t${att.kind}\t${att.url}`);
         }

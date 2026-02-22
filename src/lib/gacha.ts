@@ -179,12 +179,13 @@ export function migratePoolItemsForLink(pool: GachaPool): GachaPool {
         const it = item as LegacyItem;
         if (it.link != null && it.link !== "" && !it.imageUrl) {
             changed = true;
-            const { link: _link, ...rest } = it;
-            return { ...rest, imageUrl: _link };
+            const { link, ...rest } = it;
+            return { ...rest, imageUrl: link };
         }
         if ("link" in it && it.link !== undefined) {
             changed = true;
-            const { link: _link, ...rest } = it;
+            const { link: _dropped, ...rest } = it;
+            void _dropped;
             return rest;
         }
         return it;
@@ -195,7 +196,7 @@ export function migratePoolItemsForLink(pool: GachaPool): GachaPool {
 /** プリセット・サンプル読み込み用に pool をクローンし、id を新規発行する */
 export function clonePoolWithNewIds(pool: GachaPool): GachaPool {
     const newId = () => crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const newRarities = pool.rarities.map((r, i) => ({ ...r, id: newId() }));
+    const newRarities = pool.rarities.map((r) => ({ ...r, id: newId() }));
     const oldToNewRarity = new Map(pool.rarities.map((r, i) => [r.id, newRarities[i]!.id]));
     const newItems = pool.items.map(it => ({
         ...it,

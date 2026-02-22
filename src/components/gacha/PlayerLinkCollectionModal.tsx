@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
-import { X, ExternalLink, Copy, Check } from "lucide-react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
+import { X, ExternalLink, Copy, Check, Music } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import { isLocalUrl, getGachaFile } from "@/lib/gachaFileStore";
 
-/** 1行分のコピー用テキスト（項目名 + 種別 + リンク） */
+/** 1行分のコピー用テキスト（項目名 + 種別 + リンク）。local:// は「ローカル登録」と表記 */
 function formatLine(item: { name: string; link: string; kindLabel: string }): string {
-    return `${item.name} (${item.kindLabel})\t${item.link}`;
+    const linkDisplay = isLocalUrl(item.link) ? "ローカル登録" : item.link;
+    return `${item.name} (${item.kindLabel})\t${linkDisplay}`;
 }
 
 interface PlayerLinkCollectionModalProps {
@@ -26,7 +28,6 @@ export default function PlayerLinkCollectionModal({
 }: PlayerLinkCollectionModalProps) {
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
-    const textSecondary = isLightMode ? "text-gray-700" : "text-white/75";
     const textMuted = isLightMode ? "text-gray-600" : "text-white/65";
 
     // このガチャの履歴から獲得品目を集計し、imageUrl/audioUrl が設定されているものを抽出（1URL＝1行）
@@ -67,6 +68,56 @@ export default function PlayerLinkCollectionModal({
 
     const [copiedAll, setCopiedAll] = useState(false);
     const [copiedId, setCopiedId] = useState<string | null>(null);
+    const [localPreviewUrls, setLocalPreviewUrls] = useState<Record<string, string>>({});
+    const localPreviewUrlRef = useRef<Record<string, string>>({});
+
+    // local:// の品目について IndexedDB から Blob を取得しプレビュー用 URL を生成
+    useEffect(() => {
+        const localItems = linkItems.filter((i) => isLocalUrl(i.link));
+        if (localItems.length === 0) {
+            setLocalPreviewUrls((prev) => {
+                Object.values(prev).forEach(URL.revokeObjectURL);
+                localPreviewUrlRef.current = {};
+                return {};
+            });
+            return;
+        }
+        let cancelled = false;
+        const next: Record<string, string> = {};
+        (async () => {
+            for (const item of localItems) {
+                if (cancelled) break;
+                try {
+                    const blob = await getGachaFile(item.link);
+                    if (blob && item.kindLabel === "画像" && blob.type.startsWith("image/")) {
+                        next[item.itemId] = URL.createObjectURL(blob);
+                    }
+                } catch {
+                    // ignore
+                }
+            }
+            if (!cancelled) {
+                setLocalPreviewUrls((prev) => {
+                    Object.values(prev).forEach(URL.revokeObjectURL);
+                    localPreviewUrlRef.current = next;
+                    return next;
+                });
+            } else {
+                Object.values(next).forEach(URL.revokeObjectURL);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [linkItems]);
+
+    // アンマウント時にローカルプレビュー URL を破棄
+    useEffect(() => {
+        return () => {
+            Object.values(localPreviewUrlRef.current).forEach(URL.revokeObjectURL);
+            localPreviewUrlRef.current = {};
+        };
+    }, []);
 
     const copyAllText = useMemo(
         () => linkItems.map((item) => formatLine(item)).join("\n"),
@@ -154,14 +205,29 @@ export default function PlayerLinkCollectionModal({
                                             >
                                                 {rarity?.name ?? "?"}
                                             </span>
-                                            <a
-                                                href={item.link}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className={`flex-1 text-sm truncate min-w-0 ${textPrimary} hover:underline`}
-                                            >
-                                                {item.name} <span className="text-[10px] opacity-80">({item.kindLabel})</span>
-                                            </a>
+                                            {localPreviewUrls[item.itemId] && item.kindLabel === "画像" ? (
+                                                <img
+                                                    src={localPreviewUrls[item.itemId]}
+                                                    alt=""
+                                                    className="w-8 h-8 rounded object-cover shrink-0"
+                                                />
+                                            ) : isLocalUrl(item.link) && item.kindLabel === "音声" ? (
+                                                <Music size={16} className={`shrink-0 ${textMuted}`} aria-hidden />
+                                            ) : null}
+                                            {isLocalUrl(item.link) ? (
+                                                <span className={`flex-1 text-sm truncate min-w-0 ${textPrimary}`}>
+                                                    {item.name} <span className="text-[10px] opacity-80">({item.kindLabel}) ローカル登録</span>
+                                                </span>
+                                            ) : (
+                                                <a
+                                                    href={item.link}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className={`flex-1 text-sm truncate min-w-0 ${textPrimary} hover:underline`}
+                                                >
+                                                    {item.name} <span className="text-[10px] opacity-80">({item.kindLabel})</span>
+                                                </a>
+                                            )}
                                             <div className="flex items-center gap-1 shrink-0">
                                                 <button
                                                     type="button"
@@ -172,16 +238,18 @@ export default function PlayerLinkCollectionModal({
                                                 >
                                                     {rowCopied ? <Check size={14} /> : <Copy size={14} />}
                                                 </button>
-                                                <a
-                                                    href={item.link}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className={`p-1.5 rounded-lg transition-colors ${isLightMode ? "text-gray-500 hover:bg-gray-200" : "text-white/60 hover:bg-white/10"}`}
-                                                    title="リンクを開く"
-                                                    aria-label="リンクを開く"
-                                                >
-                                                    <ExternalLink size={14} />
-                                                </a>
+                                                {!isLocalUrl(item.link) && (
+                                                    <a
+                                                        href={item.link}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className={`p-1.5 rounded-lg transition-colors ${isLightMode ? "text-gray-500 hover:bg-gray-200" : "text-white/60 hover:bg-white/10"}`}
+                                                        title="リンクを開く"
+                                                        aria-label="リンクを開く"
+                                                    >
+                                                        <ExternalLink size={14} />
+                                                    </a>
+                                                )}
                                             </div>
                                         </div>
                                     </li>

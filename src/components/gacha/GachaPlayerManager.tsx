@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { UserPlus, Trash2, RotateCcw, ChevronRight, User, Link, FileArchive } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
 import { getPlayerItemAttachments, buildPlayerAttachmentsZip } from "@/lib/gachaZip";
@@ -36,7 +36,7 @@ export default function GachaPlayerManager({
     pool,
     isLightMode,
     textContrastLight = false,
-    shareHashtags = DEFAULT_EXTRA_HASHTAG,
+    shareHashtags: _shareHashtags = DEFAULT_EXTRA_HASHTAG,
 }: GachaPlayerManagerProps) {
     const [newPlayerName, setNewPlayerName] = useState("");
     const [playerToDelete, setPlayerToDelete] = useState<string | null>(null);
