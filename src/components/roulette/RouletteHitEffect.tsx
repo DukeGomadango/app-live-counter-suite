@@ -9,9 +9,11 @@ interface RouletteHitEffectProps {
     show: boolean;
     onComplete?: () => void;
     accentColor: string;
+    /** 当たった予想者の名前一覧（表示用） */
+    hitNames?: string[];
 }
 
-export default function RouletteHitEffect({ show, onComplete, accentColor }: RouletteHitEffectProps) {
+export default function RouletteHitEffect({ show, onComplete, accentColor, hitNames = [] }: RouletteHitEffectProps) {
     const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; color: string; delay: number; duration: number; size: number; rotate: number }>>([]);
 
     useEffect(() => {
@@ -74,9 +76,9 @@ export default function RouletteHitEffect({ show, onComplete, accentColor }: Rou
                     />
                 ))}
 
-                {/* 当たりテキスト */}
+                {/* 当たりテキスト + 誰が当たったか */}
                 <motion.div
-                    className="absolute inset-0 flex items-center justify-center"
+                    className="absolute inset-0 flex flex-col items-center justify-center gap-2"
                     initial={{ scale: 0.5, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 1.2, opacity: 0 }}
@@ -91,6 +93,11 @@ export default function RouletteHitEffect({ show, onComplete, accentColor }: Rou
                     >
                         当たり!
                     </span>
+                    {hitNames.length > 0 && (
+                        <p className="text-lg md:text-xl font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] text-center px-4">
+                            当たった人: {hitNames.join("、")}
+                        </p>
+                    )}
                 </motion.div>
             </motion.div>
         </AnimatePresence>

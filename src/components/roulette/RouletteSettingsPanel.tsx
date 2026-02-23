@@ -74,26 +74,129 @@ export default function RouletteSettingsPanel({
                         <p className={`text-[10px] ${textSecondary} mt-0.5`}>{settings.orbIntensity}%</p>
                     </div>
 
-                    {/* 表示方式: 針 / カジノ */}
+                    {/* 表示方式: ミニマル / カジノ / クラシック / 木目調 */}
                     <div>
                         <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
                             表示方式
                         </label>
-                        <div className="flex gap-2">
-                            {(["needle", "casino"] as RouletteStyle[]).map((style) => (
+                        <div className="flex flex-wrap gap-2">
+                            {(["minimal", "casino", "classic", "orbit"] as RouletteStyle[]).map((s) => (
                                 <button
-                                    key={style}
-                                    onClick={() => onSettingsChange({ ...settings, style })}
-                                    className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
-                                        settings.style === style
+                                    key={s}
+                                    onClick={() => onSettingsChange({ ...settings, style: s })}
+                                    className={`flex-1 min-w-[72px] py-2 rounded-lg text-xs font-medium transition-all ${
+                                        settings.style === s
                                             ? "bg-purple-500/30 text-purple-200 border border-purple-500/50"
                                             : isLightMode ? "bg-black/5 text-gray-600 border border-black/10" : "bg-white/10 text-white/70 border border-white/10"
                                     }`}
                                 >
-                                    {style === "needle" ? "針で指す" : "ボール転がり"}
+                                    {s === "minimal" ? "ミニマル" : s === "casino" ? "カジノ" : s === "classic" ? "クラシック" : "木目調"}
                                 </button>
                             ))}
                         </div>
+                    </div>
+
+                    {/* 簡易表示の閾値 */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
+                            簡易表示の閾値
+                        </label>
+                        <p className={`text-[10px] ${textSecondary} mb-1`}>この数より多いスロットでラベルを非表示に</p>
+                        <input
+                            type="number"
+                            min={10}
+                            max={500}
+                            value={settings.maxVisibleLabels ?? 80}
+                            onChange={(e) => {
+                                const v = e.target.value === "" ? undefined : Number(e.target.value);
+                                onSettingsChange({ ...settings, maxVisibleLabels: v === undefined || Number.isNaN(v) ? 80 : Math.min(500, Math.max(10, v)) });
+                            }}
+                            className={`w-full px-2 py-1.5 rounded-lg text-sm border ${isLightMode ? "bg-white border-gray-200 text-gray-800" : "bg-white/10 border-white/20 text-white"}`}
+                        />
+                    </div>
+
+                    {/* 盤の一番下に表示するスロット */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
+                            盤の一番下に表示するスロット
+                        </label>
+                        <p className={`text-[10px] ${textSecondary} mb-1`}>0=1番目、5=6番目（例: 1〜13のハイアンドローで6を下にしたいときは5）</p>
+                        <input
+                            type="number"
+                            min={0}
+                            value={settings.wheelOffsetIndex ?? 0}
+                            onChange={(e) => {
+                                const v = e.target.value === "" ? 0 : Number(e.target.value);
+                                onSettingsChange({ ...settings, wheelOffsetIndex: Number.isNaN(v) || v < 0 ? 0 : v });
+                            }}
+                            className={`w-full px-2 py-1.5 rounded-lg text-sm border ${isLightMode ? "bg-white border-gray-200 text-gray-800" : "bg-white/10 border-white/20 text-white"}`}
+                        />
+                    </div>
+
+                    {/* 背景 */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
+                            背景
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer mb-2">
+                            <input
+                                type="checkbox"
+                                checked={settings.backgroundEnabled === true}
+                                onChange={(e) => onSettingsChange({ ...settings, backgroundEnabled: e.target.checked })}
+                                className="rounded accent-purple-500"
+                            />
+                            <span className={`text-sm ${textPrimary}`}>背景色を表示する</span>
+                        </label>
+                        {settings.backgroundEnabled && (
+                            <>
+                                <div className="grid grid-cols-4 gap-1.5 mb-2">
+                                    {ACCENT_COLORS.map((c) => (
+                                        <button
+                                            key={c.value}
+                                            onClick={() => onSettingsChange({ ...settings, backgroundColor: c.value })}
+                                            className={`h-7 rounded-lg transition-all ${(settings.backgroundColor ?? "#1a1a2e") === c.value ? "ring-2 ring-purple-500 ring-offset-1" : ""}`}
+                                            style={{ background: c.value }}
+                                            title={c.label}
+                                        />
+                                    ))}
+                                </div>
+                                <div>
+                                    <span className={`text-[10px] ${textSecondary}`}>不透明度</span>
+                                    <input
+                                        type="range"
+                                        min={0}
+                                        max={100}
+                                        value={settings.backgroundOpacity ?? 100}
+                                        onChange={(e) => onSettingsChange({ ...settings, backgroundOpacity: Number(e.target.value) })}
+                                        className="w-full h-2 rounded-full accent-purple-500"
+                                    />
+                                    <p className={`text-[10px] ${textSecondary}`}>{settings.backgroundOpacity ?? 100}%</p>
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    {/* 企画名（ルーレット名） */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
+                            企画名（ルーレット名）
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer mb-2">
+                            <input
+                                type="checkbox"
+                                checked={settings.showProjectName === true}
+                                onChange={(e) => onSettingsChange({ ...settings, showProjectName: e.target.checked })}
+                                className="rounded accent-purple-500"
+                            />
+                            <span className={`text-sm ${textPrimary}`}>画面上に企画名を表示する</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={settings.projectName ?? ""}
+                            onChange={(e) => onSettingsChange({ ...settings, projectName: e.target.value })}
+                            placeholder="ルーレット名や企画名を入力"
+                            className={`w-full px-2 py-1.5 rounded-lg text-sm border ${isLightMode ? "bg-white border-gray-200 text-gray-800 placeholder:text-gray-400" : "bg-white/10 border-white/20 text-white placeholder:text-white/40"}`}
+                        />
                     </div>
 
                     {/* 統計: バーチャート・円グラフ表示 */}
