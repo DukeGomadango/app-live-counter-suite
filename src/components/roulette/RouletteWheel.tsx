@@ -5,8 +5,10 @@ import { motion, useAnimationControls } from "framer-motion";
 import type { RouletteStyle } from "@/lib/roulette";
 
 const FULL_TURNS = 12;
-const SPIN_DURATION_NEEDLE = 8;
-const SPIN_DURATION_CASINO = 12;
+const SPIN_DURATION_NEEDLE_LOW = 5;
+const SPIN_DURATION_NEEDLE_HIGH = 8;
+const SPIN_DURATION_CASINO_LOW = 7;
+const SPIN_DURATION_CASINO_HIGH = 12;
 /** 終盤でゆっくり止まるベジェ（じらし用） */
 const SPIN_EASE = [0.12, 0.5, 0.35, 1] as const;
 /** 0°=3時なので、12時を基準にするためのオフセット（度） */
@@ -31,6 +33,8 @@ interface RouletteWheelProps {
     maxVisibleLabels?: number;
     /** 盤の一番下に表示するスロットの0-basedインデックス。未設定時は0 */
     wheelOffsetIndex?: number;
+    /** 演出量: high=回転長め / low=回転短め */
+    effectLevel?: "high" | "low";
 }
 
 const DEFAULT_MAX_VISIBLE_LABELS = 80;
@@ -50,6 +54,7 @@ export default function RouletteWheel({
     isLightMode,
     maxVisibleLabels,
     wheelOffsetIndex,
+    effectLevel = "low",
 }: RouletteWheelProps) {
     const effectiveMaxLabels = maxVisibleLabels ?? DEFAULT_MAX_VISIBLE_LABELS;
     const wheelControls = useAnimationControls();
@@ -104,7 +109,8 @@ export default function RouletteWheel({
         if (isNeedle) {
             const idx = targetIndex;
             resolvedTargetRef.current = idx;
-            const transition = { duration: SPIN_DURATION_NEEDLE, ease: SPIN_EASE };
+            const duration = effectLevel === "high" ? SPIN_DURATION_NEEDLE_HIGH : SPIN_DURATION_NEEDLE_LOW;
+            const transition = { duration, ease: SPIN_EASE };
             wheelControls.set({ rotate: restRotation });
             /** 当たりスロットを12時に持ってくるための盤の回転（時計回り） */
             const finalDeg = FULL_TURNS * 360 + (360 - (idx + 0.5) * segmentAngle);
@@ -122,7 +128,8 @@ export default function RouletteWheel({
         } else {
             const idx = targetIndex;
             resolvedTargetRef.current = idx;
-            const transition = { duration: SPIN_DURATION_CASINO, ease: SPIN_EASE };
+            const duration = effectLevel === "high" ? SPIN_DURATION_CASINO_HIGH : SPIN_DURATION_CASINO_LOW;
+            const transition = { duration, ease: SPIN_EASE };
             const rO = wheelSize / 2 - 4;
             const rI = wheelSize / 2 - 11;
             ballControls.set({ rotate: 0 });
@@ -150,7 +157,7 @@ export default function RouletteWheel({
                     });
                 });
         }
-    }, [isSpinning, targetIndex, spinKey, N, segmentAngle, holesPerNumber, holeSegmentAngle, isNeedle, wheelControls, ballControls, dropControls, wheelSize, onSpinEnd, restRotation]);
+    }, [isSpinning, targetIndex, spinKey, N, segmentAngle, holesPerNumber, holeSegmentAngle, isNeedle, effectLevel, wheelControls, ballControls, dropControls, wheelSize, onSpinEnd, restRotation]);
 
     // 回転演出スキップ: 即座に結果位置へ飛ばして onSpinEnd を呼ぶ
     useEffect(() => {

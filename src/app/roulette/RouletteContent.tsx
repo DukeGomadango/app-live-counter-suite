@@ -238,9 +238,9 @@ export default function RouletteContent({
                 />
             </div>
 
-            {/* ヘッダー（高さを固定してメイン・ドロワーとの被りを防ぐ） */}
+            {/* ヘッダー（高さを固定してメイン・ドロワーとの被りを防ぐ・スマホはh-14で盤面との隙間を確保） */}
             <div
-                className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 min-h-[56px] shrink-0`}
+                className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 min-h-[56px] max-md:h-14 max-md:min-h-0 shrink-0`}
                 style={{
                     background: headerBg,
                     backdropFilter: "blur(12px)",
@@ -285,6 +285,7 @@ export default function RouletteContent({
                 onComplete={() => setShowHitEffect(false)}
                 accentColor={accentColor}
                 hitNames={hitNames}
+                effectLevel={effectiveSettings.effectLevel ?? "low"}
             />
 
             <AnimatePresence>
@@ -298,8 +299,8 @@ export default function RouletteContent({
                 )}
             </AnimatePresence>
 
-            {/* メイン: 上部余白（ヘッダーに盤面が被らないよう多めに確保） */}
-            <main className="flex-1 min-h-0 flex flex-col md:flex-row gap-0 p-4 pt-20 overflow-auto">
+            {/* メイン: 上部余白（スマホSplit含め盤面がヘッダーに被らないよう確保） */}
+            <main className="flex-1 min-h-0 flex flex-col md:flex-row gap-0 p-4 pt-20 max-md:pt-24 overflow-auto">
                 {/* 左: サイドバー（デスクトップ時はリサイズ可能 / モバイル・Split時はオーバーレイ） */}
                 {!isSplitMode && isDesktop ? (
                     <>
@@ -410,7 +411,7 @@ export default function RouletteContent({
                                 exit={isDesktop ? { width: 0, opacity: 0 } : { x: "-100%" }}
                                 transition={isDesktop ? undefined : { type: "spring", damping: 25, stiffness: 300 }}
                                 className={`shrink-0 flex flex-col min-h-0 overflow-hidden ${
-                                    isSplitMode ? "absolute top-20 left-0 right-0 bottom-0 z-40" : "max-md:fixed max-md:left-0 max-md:top-20 max-md:bottom-0 max-md:z-40 max-md:shadow-2xl md:relative md:w-72"
+                                    isSplitMode ? "absolute top-20 left-0 right-0 bottom-0 max-md:top-24 z-40" : "max-md:fixed max-md:left-0 max-md:top-24 max-md:bottom-0 max-md:z-40 max-md:shadow-2xl md:relative md:w-72"
                                 }`}
                                 style={
                                     !isDesktop && !isSplitMode
@@ -499,8 +500,8 @@ export default function RouletteContent({
                     </AnimatePresence>
                 )}
 
-                {/* 右: ルーレット盤（スマホで見切れないよう幅に応じてスケール） */}
-                <div ref={wheelAreaRef} className="flex-1 min-w-0 flex flex-col items-center justify-center gap-4 md:pl-4 overflow-hidden">
+                {/* 右: ルーレット盤（スマホ・Splitで少し下にずらして見やすく） */}
+                <div ref={wheelAreaRef} className="flex-1 min-w-0 flex flex-col items-center justify-center gap-4 md:pl-4 overflow-hidden max-md:pt-10">
                     {!isSplitMode && settings.showProjectName && (settings.projectName ?? "").trim() && (
                         <p
                             className="text-center text-lg sm:text-xl font-bold tracking-wide"
@@ -544,6 +545,7 @@ export default function RouletteContent({
                         isLightMode={isLightMode}
                         maxVisibleLabels={settings.maxVisibleLabels}
                         wheelOffsetIndex={settings.wheelOffsetIndex}
+                        effectLevel={effectiveSettings.effectLevel ?? "low"}
                     />
                         </div>
                     </div>

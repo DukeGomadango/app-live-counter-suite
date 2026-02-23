@@ -26,6 +26,8 @@ export interface RouletteSettings {
     statsShowBarChart?: boolean;
     /** 統計タブで円グラフを表示する */
     statsShowPieChart?: boolean;
+    /** 演出量: high=回転長め・当たり演出派手 / low=回転短め・当たり演出控えめ */
+    effectLevel?: "high" | "low";
 }
 
 export interface RouletteSlot {
@@ -59,6 +61,7 @@ export function createDefaultRouletteSettings(): RouletteSettings {
         projectName: "",
         statsShowBarChart: true,
         statsShowPieChart: false,
+        effectLevel: "low",
     };
 }
 

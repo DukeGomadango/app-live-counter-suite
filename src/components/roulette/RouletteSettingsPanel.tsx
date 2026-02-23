@@ -96,6 +96,38 @@ export default function RouletteSettingsPanel({
                         </div>
                     </div>
 
+                    {/* 演出量: 多め=回転長め・当たり派手 / 少なめ=回転短め・当たり控えめ */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
+                            演出
+                        </label>
+                        <div className="flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => onSettingsChange({ ...settings, effectLevel: "low" })}
+                                className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+                                    (settings.effectLevel ?? "low") === "low"
+                                        ? "bg-purple-500/30 text-purple-200 border border-purple-500/50"
+                                        : isLightMode ? "bg-black/5 text-gray-600 border border-black/10" : "bg-white/10 text-white/70 border border-white/10"
+                                }`}
+                            >
+                                少なめ
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => onSettingsChange({ ...settings, effectLevel: "high" })}
+                                className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all ${
+                                    settings.effectLevel === "high"
+                                        ? "bg-purple-500/30 text-purple-200 border border-purple-500/50"
+                                        : isLightMode ? "bg-black/5 text-gray-600 border border-black/10" : "bg-white/10 text-white/70 border border-white/10"
+                                }`}
+                            >
+                                多め
+                            </button>
+                        </div>
+                        <p className={`text-[10px] ${textSecondary} mt-1`}>多め: 回転じらし長め・当たり演出派手</p>
+                    </div>
+
                     {/* 簡易表示の閾値 */}
                     <div>
                         <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
