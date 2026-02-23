@@ -26,7 +26,7 @@ export const metadata: Metadata = {
         images: [SITE_CONFIG.ogImage],
         creator: "@Dukegomadango",
     },
-    keywords: ["電卓", "四則演算", "分数", "確率", "組み合わせ", "配信", "ツール"],
+    keywords: ["だんごツール", "電卓", "四則演算", "分数", "確率", "組み合わせ", "配信", "ツール"],
 };
 
 export default function CalculatorLayout({

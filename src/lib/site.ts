@@ -1,5 +1,6 @@
 /**
  * サイト共通設定（OGP・sitemap・robots・JsonLd で共有）
+ * OGP用画像: public/screenshot-light.png, screenshot-dark.png を 1200x630 で配置すると SNS シェア時に表示されます。
  */
 export const SITE_CONFIG = {
   name: "だんごツール",

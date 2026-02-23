@@ -3,6 +3,7 @@
 import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { SITE_CONFIG } from "@/lib/site";
+import { getToolLabelJa } from "@/lib/tools";
 
 export default function JsonLd() {
     const pathname = usePathname();
@@ -43,7 +44,23 @@ export default function JsonLd() {
         name = "スプリットビュー | だんごツール";
         description = "カウンター・フローチャート・ガチャを1画面で切り替え。配信やイベントで便利なスプリット表示。";
         features = ["カウンター・フローチャート・ガチャの切替", "1画面で複数ツールを利用"];
+    } else if (pathname === "/counter") {
+        name = "人数カウンター | だんごツール";
+        description = "IRIAMやYouTube配信で役立つ登録不要・完全無料の人数カウンター。入室カウント・項目集計を複数同時に。テンプレートや目標値で配信・イベントをサポート。";
+        features = ["複数項目の同時カウント", "項目の追加・削除・並べ替え", "テンプレート機能", "ローカルストレージへの自動保存", "モバイル対応のUI"];
+    } else if (pathname === "/roulette") {
+        name = "ルーレット | だんごツール";
+        description = "スロットを回して抽選。配信やイベントで使えるルーレットツール。";
+        features = ["スロット抽選", "予測・履歴"];
     }
+
+    const organizationId = `${SITE_CONFIG.url}/#organization`;
+    const organizationLd = {
+        "@type": "Organization",
+        "@id": organizationId,
+        "name": "Dukegomadango",
+        "url": SITE_CONFIG.url,
+    };
 
     const appLd = {
         "@type": "SoftwareApplication",
@@ -56,10 +73,7 @@ export default function JsonLd() {
             "price": "0",
             "priceCurrency": "JPY"
         },
-        "author": {
-            "@type": "Person",
-            "name": "Dukegomadango"
-        },
+        "author": { "@id": organizationId },
         "featureList": features,
         "screenshot": [
             {
@@ -79,12 +93,9 @@ export default function JsonLd() {
     const breadcrumbItems: { position: number; name: string; item: string }[] = [
         { position: 1, name: "ホーム", item: SITE_CONFIG.url },
     ];
-    if (pathname === "/flowchart") {
-        breadcrumbItems.push({ position: 2, name: "フローチャート", item: `${SITE_CONFIG.url}/flowchart` });
-    } else if (pathname === "/gacha") {
-        breadcrumbItems.push({ position: 2, name: "ガチャシミュレーター", item: `${SITE_CONFIG.url}/gacha` });
-    } else if (pathname === "/split") {
-        breadcrumbItems.push({ position: 2, name: "スプリットビュー", item: `${SITE_CONFIG.url}/split` });
+    const toolLabel = getToolLabelJa(pathname);
+    if (toolLabel) {
+        breadcrumbItems.push({ position: 2, name: toolLabel, item: `${SITE_CONFIG.url}${pathname}` });
     }
     const breadcrumbLd = {
         "@type": "BreadcrumbList",
@@ -96,9 +107,22 @@ export default function JsonLd() {
         })),
     };
 
+    const graph: object[] = [organizationLd, appLd, breadcrumbLd];
+    if (pathname === "/") {
+        graph.push({
+            "@type": "WebSite",
+            "@id": `${SITE_CONFIG.url}/#website`,
+            "name": SITE_CONFIG.name,
+            "url": SITE_CONFIG.url,
+            "description": SITE_CONFIG.description,
+            "inLanguage": "ja",
+            "publisher": { "@id": organizationId },
+        });
+    }
+
     const jsonLd = {
         "@context": "https://schema.org",
-        "@graph": [appLd, breadcrumbLd],
+        "@graph": graph,
     };
 
     // 中身は pathname と SITE_CONFIG のみ。ユーザー入力を渡さないこと。

@@ -26,6 +26,7 @@ export const metadata: Metadata = {
         creator: "@Dukegomadango",
     },
     keywords: [
+        "だんごツール",
         "フローチャート",
         "マインドマップ",
         "数値計算",

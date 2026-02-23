@@ -26,6 +26,7 @@ export const metadata: Metadata = {
         creator: "@Dukegomadango",
     },
     keywords: [
+        "だんごツール",
         "スプリットビュー",
         "分割",
         "カウンター",

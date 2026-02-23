@@ -70,12 +70,17 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ja">
-      <body
-        className={`${montserrat.variable} antialiased`}
-      >
+      <body className={`${montserrat.variable} antialiased`}>
         <JsonLd />
-        {children}
+        <div className="h-screen overflow-y-auto">
+          {children}
+        </div>
         <HelpButton />
+        <footer className="fixed bottom-2 right-2 pointer-events-none z-[5]">
+          <span className="text-[10px] text-zinc-500 dark:text-zinc-600 opacity-70">
+            ごまだんご伯爵
+          </span>
+        </footer>
       </body>
     </html>
   );

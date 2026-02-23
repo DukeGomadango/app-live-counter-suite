@@ -436,7 +436,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
 
       <main className="flex-1 overflow-auto" style={{ paddingTop: "56px" }}>
         <div className="min-h-full flex flex-col items-center justify-center py-4 px-3 sm:px-4">
-          {/* Project Name */}
+          {/* Project Name (not h1 to keep single h1 for SEO) */}
           {!isSplitMode && appSettings.showProjectName && appSettings.projectName && (
             <motion.div
               drag
@@ -444,7 +444,8 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
               className="mb-4 text-center cursor-grab active:cursor-grabbing z-[60] relative pointer-events-auto"
               style={{ maxWidth: `${gridMaxWidth}px`, width: "100%" }}
             >
-              <h1
+              <div
+                role="presentation"
                 className={`${appSettings.projectNameSize === "S" ? "text-sm sm:text-base" :
                   appSettings.projectNameSize === "L" ? "text-xl sm:text-2xl" :
                     appSettings.projectNameSize === "XL" ? "text-4xl sm:text-5xl" :
@@ -458,7 +459,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                 }}
               >
                 {appSettings.projectName}
-              </h1>
+              </div>
             </motion.div>
           )}
           <DndContext

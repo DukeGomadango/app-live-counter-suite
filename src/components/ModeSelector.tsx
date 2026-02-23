@@ -4,67 +4,34 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Users, Network, Sparkles, ChevronDown, LayoutGrid, CircleDot, Calculator } from "lucide-react";
+import { ChevronDown, Home } from "lucide-react";
+import { TOOLS } from "@/lib/tools";
 
 interface ModeSelectorProps {
     isLightMode?: boolean;
 }
 
+const TOP_ENTRY = {
+    id: "top",
+    path: "/",
+    label: "Top",
+    icon: Home,
+    color: "text-gray-400",
+    activeBg: "bg-gray-500/20",
+    activeBorder: "border-gray-500/40",
+};
+
 const MODES = [
-    {
-        id: "counter",
-        path: "/",
-        label: "Counter",
-        icon: Users,
-        color: "text-purple-400",
-        activeBg: "bg-purple-500/20",
-        activeBorder: "border-purple-500/40",
-    },
-    {
-        id: "flowchart",
-        path: "/flowchart",
-        label: "FlowChart",
-        icon: Network,
-        color: "text-blue-400",
-        activeBg: "bg-blue-500/20",
-        activeBorder: "border-blue-500/40",
-    },
-    {
-        id: "split",
-        path: "/split",
-        label: "Split",
-        icon: LayoutGrid,
-        color: "text-emerald-400",
-        activeBg: "bg-emerald-500/20",
-        activeBorder: "border-emerald-500/40",
-    },
-    {
-        id: "gacha",
-        path: "/gacha",
-        label: "Gacha",
-        icon: Sparkles,
-        color: "text-yellow-400",
-        activeBg: "bg-yellow-500/20",
-        activeBorder: "border-yellow-500/40",
-    },
-    {
-        id: "roulette",
-        path: "/roulette",
-        label: "Roulette",
-        icon: CircleDot,
-        color: "text-amber-400",
-        activeBg: "bg-amber-500/20",
-        activeBorder: "border-amber-500/40",
-    },
-    {
-        id: "calculator",
-        path: "/calculator",
-        label: "Calculator",
-        icon: Calculator,
-        color: "text-cyan-400",
-        activeBg: "bg-cyan-500/20",
-        activeBorder: "border-cyan-500/40",
-    },
+    TOP_ENTRY,
+    ...TOOLS.map((t) => ({
+        id: t.id,
+        path: t.path,
+        label: t.labelEn,
+        icon: t.icon,
+        color: t.colorClass,
+        activeBg: t.activeBg,
+        activeBorder: t.activeBorder,
+    })),
 ];
 
 export default function ModeSelector({ isLightMode = false }: ModeSelectorProps) {
@@ -72,7 +39,6 @@ export default function ModeSelector({ isLightMode = false }: ModeSelectorProps)
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    // Find the current mode based on exact path match, default to counter if not found
     const currentMode = MODES.find((m) => m.path === pathname) ?? MODES[0]!;
 
     useEffect(() => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, GitMerge, LayoutGrid, HelpCircle, Sparkles, Calculator } from "lucide-react";
+import { X, Users, GitMerge, LayoutGrid, HelpCircle, Sparkles, Calculator, Home, CircleDot } from "lucide-react";
 import { useEffect } from "react";
 
 interface HelpModalProps {
@@ -31,7 +31,35 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
     const bgSubtle = isLightMode ? "bg-black/5" : "bg-white/5";
 
     const getContent = () => {
-        if (currentPath.includes("flowchart")) {
+        const path = currentPath || "/";
+        if (path === "/" || path === "") {
+            return {
+                title: "だんごツール（トップ）",
+                icon: <Home className="text-purple-400" size={24} />,
+                description: "各ツールの入口です。カードから使いたいツールを選ぶか、上部のメニューでモードを切り替えて利用できます。",
+                sections: [
+                    {
+                        title: "ツール一覧",
+                        items: [
+                            "人数カウンター: 入室カウント・項目集計を複数同時に。テンプレートや目標値で配信をサポート",
+                            "フローチャート: ノードを繋いで数値演算。分岐・確率・集計を視覚的に整理",
+                            "ガチャシミュレーター: 確率・レア度・天井をカスタマイズして配信やイベントで使用",
+                            "ルーレット: スロットを回して抽選。予測や履歴で盛り上げる",
+                            "スプリットビュー: カウンター・フローチャート・ガチャなどを1画面で切り替え",
+                            "電卓: 四則演算・分数・確率の簡易計算",
+                        ]
+                    },
+                    {
+                        title: "操作",
+                        items: [
+                            "上部のドロップダウン（Top / Counter / FlowChart …）でツールを切り替えられます",
+                            "太陽・月アイコンでライト/ダークテーマを切り替えられます",
+                        ]
+                    }
+                ]
+            };
+        }
+        if (path.includes("flowchart")) {
             return {
                 title: "FlowChart モード",
                 icon: <GitMerge className="text-blue-400" size={24} />,
@@ -56,7 +84,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                     }
                 ]
             };
-        } else if (currentPath.includes("split")) {
+        } else if (path.includes("split")) {
             return {
                 title: "Split モード",
                 icon: <LayoutGrid className="text-green-400" size={24} />,
@@ -73,7 +101,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                     }
                 ]
             };
-        } else if (currentPath.includes("calculator")) {
+        } else if (path.includes("calculator")) {
             return {
                 title: "Calculator モード",
                 icon: <Calculator className="text-cyan-400" size={24} />,
@@ -109,7 +137,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                     }
                 ]
             };
-        } else if (currentPath.includes("gacha")) {
+        } else if (path.includes("gacha")) {
             return {
                 title: "Gacha モード",
                 icon: <Sparkles className="text-purple-400" size={24} />,
@@ -135,20 +163,44 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                     }
                 ]
             };
-        } else {
-            // Default to Counter
+        } else if (path.includes("roulette")) {
             return {
-                title: "Counter モード",
-                icon: <Users className="text-purple-400" size={24} />,
-                description: "シンプルで使いやすいオンラインカウンターです。",
+                title: "Roulette モード",
+                icon: <CircleDot className="text-amber-400" size={24} />,
+                description: "スロットを回して抽選するルーレットです。配信やイベントで誰が当たるか盛り上げるツールとして使えます。",
                 sections: [
                     {
                         title: "基本操作",
                         items: [
-                            "画面中央の大きなボタンを押してカウントアップします",
-                            "左上のメニュー（≡）からカウンタの項目名や目標値、色を変更できます",
-                            "「テンプレート」を使って素早く構成を切り替えられます",
-                            "右上の設定(歯車)アイコンから、カードサイズなどの見た目を変更できます"
+                            "スロット（項目）を編集して、抽選の候補を設定します",
+                            "回転ボタンでルーレットを回し、止まった位置が結果です",
+                            "予測者（ predictor ）を登録すると、誰が当たるか予想して楽しめます",
+                            "履歴で過去の結果を確認できます",
+                        ]
+                    },
+                    {
+                        title: "設定",
+                        items: [
+                            "テンプレートでスロット構成を保存・読み込みできます",
+                            "太陽・月アイコンでライト/ダークを切り替えられます",
+                        ]
+                    }
+                ]
+            };
+        } else {
+            // Counter ( /counter )
+            return {
+                title: "Counter モード",
+                icon: <Users className="text-purple-400" size={24} />,
+                description: "入室カウント・項目集計を複数同時に行えるカウンターです。テンプレートや目標値で配信・イベントをサポートします。",
+                sections: [
+                    {
+                        title: "基本操作",
+                        items: [
+                            "カードの中央をタップまたはクリックしてカウントアップします。長押しで連続増加",
+                            "左上のメニュー（≡）からテンプレート選択・項目の追加・目標値・色の変更ができます",
+                            "「テンプレート」で星座や干支などあらかじめ用意した構成に切り替えられます",
+                            "右上の設定（歯車）でカードサイズ・アクセント色・オーブの濃さなどを変更できます",
                         ]
                     }
                 ]
