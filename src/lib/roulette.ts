@@ -28,6 +28,8 @@ export interface RouletteSettings {
     statsShowPieChart?: boolean;
     /** 演出量: high=回転長め・当たり演出派手 / low=回転短め・当たり演出控えめ */
     effectLevel?: "high" | "low";
+    /** 予想入力: default=スロット選択 / highLow=ハイ・ロー・中心（真ん中=中心） */
+    predictorMode?: "default" | "highLow";
 }
 
 export interface RouletteSlot {
@@ -101,6 +103,28 @@ export function createRouletteTemplate(name: string, slots: string[], settings: 
     };
 }
 
+/** ハイアンドロー: 真ん中=中心、前半=ロー、後半=ハイ（スロット数は任意） */
+export type HighLowZone = "high" | "low" | "6pin";
+
+export function getHighLowZone(resultIndex: number, slotCount: number): HighLowZone | null {
+    if (slotCount < 1 || resultIndex < 0 || resultIndex >= slotCount) return null;
+    const N = slotCount;
+    if (N % 2 === 1) {
+        const center = (N - 1) / 2;
+        if (resultIndex < center) return "low";
+        if (resultIndex === center) return "6pin";
+        return "high";
+    }
+    const center0 = N / 2 - 1;
+    const center1 = N / 2;
+    if (resultIndex < center0) return "low";
+    if (resultIndex === center0 || resultIndex === center1) return "6pin";
+    return "high";
+}
+
+/** ハイアンドローモードで予想として有効な値 */
+export const HIGH_LOW_PREDICTIONS: HighLowZone[] = ["low", "6pin", "high"];
+
 /** サンプルテンプレート（読み込み専用・コード上で固定） */
 export function getSampleRouletteTemplates(): RouletteTemplate[] {
     return [
@@ -108,6 +132,7 @@ export function getSampleRouletteTemplates(): RouletteTemplate[] {
             id: "sample-hilo",
             name: "1〜13 ハイアンドロー",
             slots: Array.from({ length: 13 }, (_, i) => String(i + 1)),
+            settings: { predictorMode: "highLow" },
             savedAt: 0,
         },
         {

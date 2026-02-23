@@ -128,6 +128,23 @@ export default function RouletteSettingsPanel({
                         <p className={`text-[10px] ${textSecondary} mt-1`}>多め: 回転じらし長め・当たり演出派手</p>
                     </div>
 
+                    {/* 予想モード: ハイアンドロー（ハイ・ロー・中心のみ選択） */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
+                            予想の入力
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={settings.predictorMode === "highLow"}
+                                onChange={(e) => onSettingsChange({ ...settings, predictorMode: e.target.checked ? "highLow" : "default" })}
+                                className="rounded accent-purple-500"
+                            />
+                            <span className={`text-sm ${textPrimary}`}>ハイアンドローモード（ハイ・ロー・中心のみ）</span>
+                        </label>
+                        <p className={`text-[10px] ${textSecondary} mt-1`}>ONのとき真ん中=中心、前半=ロー、後半=ハイで予想を選択</p>
+                    </div>
+
                     {/* 簡易表示の閾値 */}
                     <div>
                         <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>

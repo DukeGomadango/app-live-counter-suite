@@ -4,13 +4,20 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, History } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
-import type { RoulettePredictor, RouletteHitHistoryEntry } from "@/lib/roulette";
+import type { RoulettePredictor, RouletteHitHistoryEntry, HighLowZone } from "@/lib/roulette";
+import { HIGH_LOW_PREDICTIONS } from "@/lib/roulette";
+
+const HIGH_LOW_LABELS: Record<HighLowZone, string> = { low: "ロー", "6pin": "中心", high: "ハイ" };
 
 interface RoulettePredictorsPanelProps {
     predictors: RoulettePredictor[];
     onChange: (predictors: RoulettePredictor[]) => void;
     slots: string[];
     resultLabel: string | null;
+    /** ハイアンドローモード時の結果ゾーン（当たり表示用） */
+    resultZone?: HighLowZone | null;
+    /** 予想入力モード（highLow のときハイ/ロー/中心のみ選択） */
+    predictorMode?: "default" | "highLow";
     isLightMode: boolean;
     hitHistory?: RouletteHitHistoryEntry[];
     onViewPredictorHistory?: (predictorId: string) => void;
@@ -27,11 +34,14 @@ export default function RoulettePredictorsPanel({
     onChange,
     slots,
     resultLabel,
+    resultZone = null,
+    predictorMode = "default",
     isLightMode,
     hitHistory = [],
     onViewPredictorHistory,
     onRequestClearHitHistory,
 }: RoulettePredictorsPanelProps) {
+    const isHighLowMode = predictorMode === "highLow" && slots.length >= 2;
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const ref = useRef<HTMLDivElement>(null);
@@ -127,7 +137,9 @@ export default function RoulettePredictorsPanel({
             <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
                 <AnimatePresence mode="popLayout">
                     {predictors.map((p) => {
-                        const isHit = resultLabel != null && p.prediction.trim() === resultLabel;
+                        const isHit = isHighLowMode
+                            ? resultZone != null && p.prediction === resultZone
+                            : resultLabel != null && p.prediction.trim() === resultLabel;
                         return (
                             <motion.div
                                 key={p.id}
@@ -183,52 +195,73 @@ export default function RoulettePredictorsPanel({
                                         </button>
                                     )}
                                 </div>
-                                <div className="flex gap-1">
-                                    <input
-                                        type="text"
-                                        value={p.prediction}
-                                        onChange={(e) => updateOne(p.id, { prediction: e.target.value })}
-                                        placeholder="予想を入力または選択"
-                                        className={`flex-1 min-w-0 px-2 py-1.5 rounded-lg text-sm border ${isLightMode ? "bg-white/90 border-gray-200 text-gray-800" : "bg-white/10 border-white/20 text-white"}`}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={() => setOpenDropdownId(openDropdownId === p.id ? null : p.id)}
-                                        className={`shrink-0 px-2 py-1.5 rounded-lg text-xs border ${isLightMode ? "bg-white/90 border-gray-200 text-gray-600" : "bg-white/10 border-white/20 text-white/80"}`}
-                                        title="候補から選ぶ"
-                                    >
-                                        候補
-                                    </button>
-                                </div>
-                                <AnimatePresence>
-                                    {openDropdownId === p.id && (
-                                        <motion.div
-                                            initial={{ opacity: 0, y: -4 }}
-                                            animate={{ opacity: 1, y: 0 }}
-                                            exit={{ opacity: 0, y: -4 }}
-                                            className="rounded-lg border shadow-xl z-50 max-h-40 overflow-y-auto"
-                                            style={{ background: dropdownBg, borderColor: glassBorder }}
-                                        >
+                                {isHighLowMode ? (
+                                    <div className="flex gap-1.5 flex-wrap">
+                                        {HIGH_LOW_PREDICTIONS.map((zone) => (
+                                            <button
+                                                key={zone}
+                                                type="button"
+                                                onClick={() => updateOne(p.id, { prediction: p.prediction === zone ? "" : zone })}
+                                                className={`shrink-0 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                                                    p.prediction === zone
+                                                        ? isLightMode ? "bg-purple-500 text-white" : "bg-purple-500/80 text-white"
+                                                        : isLightMode ? "bg-white/90 border border-gray-200 text-gray-700 hover:bg-gray-100" : "bg-white/10 border border-white/20 text-white/90 hover:bg-white/20"
+                                                }`}
+                                            >
+                                                {HIGH_LOW_LABELS[zone]}
+                                            </button>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="flex gap-1">
+                                            <input
+                                                type="text"
+                                                value={p.prediction}
+                                                onChange={(e) => updateOne(p.id, { prediction: e.target.value })}
+                                                placeholder="予想を入力または選択"
+                                                className={`flex-1 min-w-0 px-2 py-1.5 rounded-lg text-sm border ${isLightMode ? "bg-white/90 border-gray-200 text-gray-800" : "bg-white/10 border-white/20 text-white"}`}
+                                            />
                                             <button
                                                 type="button"
-                                                onClick={() => { updateOne(p.id, { prediction: "" }); setOpenDropdownId(null); }}
-                                                className={`w-full px-2 py-1.5 text-left text-sm ${isLightMode ? "text-gray-500 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                                                onClick={() => setOpenDropdownId(openDropdownId === p.id ? null : p.id)}
+                                                className={`shrink-0 px-2 py-1.5 rounded-lg text-xs border ${isLightMode ? "bg-white/90 border-gray-200 text-gray-600" : "bg-white/10 border-white/20 text-white/80"}`}
+                                                title="候補から選ぶ"
                                             >
-                                                クリア
+                                                候補
                                             </button>
-                                            {[...new Set(slots)].map((label) => (
-                                                <button
-                                                    key={label}
-                                                    type="button"
-                                                    onClick={() => { updateOne(p.id, { prediction: label }); setOpenDropdownId(null); }}
-                                                    className={`w-full px-2 py-1.5 text-left text-sm truncate ${p.prediction === label ? (isLightMode ? "bg-purple-100 text-purple-800" : "bg-purple-500/20 text-purple-200") : isLightMode ? "text-gray-800 hover:bg-gray-100" : "text-white/90 hover:bg-white/10"}`}
+                                        </div>
+                                        <AnimatePresence>
+                                            {openDropdownId === p.id && (
+                                                <motion.div
+                                                    initial={{ opacity: 0, y: -4 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -4 }}
+                                                    className="rounded-lg border shadow-xl z-50 max-h-40 overflow-y-auto"
+                                                    style={{ background: dropdownBg, borderColor: glassBorder }}
                                                 >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { updateOne(p.id, { prediction: "" }); setOpenDropdownId(null); }}
+                                                        className={`w-full px-2 py-1.5 text-left text-sm ${isLightMode ? "text-gray-500 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                                                    >
+                                                        クリア
+                                                    </button>
+                                                    {[...new Set(slots)].map((label) => (
+                                                        <button
+                                                            key={label}
+                                                            type="button"
+                                                            onClick={() => { updateOne(p.id, { prediction: label }); setOpenDropdownId(null); }}
+                                                            className={`w-full px-2 py-1.5 text-left text-sm truncate ${p.prediction === label ? (isLightMode ? "bg-purple-100 text-purple-800" : "bg-purple-500/20 text-purple-200") : isLightMode ? "text-gray-800 hover:bg-gray-100" : "text-white/90 hover:bg-white/10"}`}
+                                                        >
+                                                            {label}
+                                                        </button>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </>
+                                )}
                                 {isHit && p.participating !== false && (
                                     <p className={`text-[10px] font-bold ${isLightMode ? "text-green-700" : "text-green-400"}`}>当たり!</p>
                                 )}

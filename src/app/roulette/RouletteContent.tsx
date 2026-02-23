@@ -19,6 +19,7 @@ import {
     createDefaultPredictors,
     createRouletteTemplate,
     getSampleRouletteTemplates,
+    getHighLowZone,
     pickRandomIndex,
     trimRouletteHistory,
     trimRouletteHitHistory,
@@ -152,7 +153,11 @@ export default function RouletteContent({
         setSpinTargetIndex(null);
         setHistory((prev) => trimRouletteHistory([index, ...prev]));
         const resultLabel = slots[index] ?? "";
-        const hitPredictors = predictors.filter((p) => p.participating !== false && p.prediction.trim() === resultLabel);
+        const isHighLow = settings.predictorMode === "highLow";
+        const resultZone = getHighLowZone(index, slots.length);
+        const hitPredictors = isHighLow && resultZone != null
+            ? predictors.filter((p) => p.participating !== false && p.prediction === resultZone)
+            : predictors.filter((p) => p.participating !== false && p.prediction.trim() === resultLabel);
         const whoHit = hitPredictors.map((p) => p.name.trim() || "名前なし");
         const hitPredictorIds = hitPredictors.map((p) => p.id);
         setHitHistory((prev) => trimRouletteHitHistory([{ resultLabel, hitPredictorIds }, ...prev]));
@@ -356,6 +361,8 @@ export default function RouletteContent({
                                         onChange={setPredictors}
                                         slots={slots}
                                         resultLabel={resultIndex !== null ? (slots[resultIndex] ?? null) : null}
+                                        resultZone={settings.predictorMode === "highLow" && resultIndex !== null ? getHighLowZone(resultIndex, slots.length) : null}
+                                        predictorMode={settings.predictorMode}
                                         isLightMode={isLightMode}
                                         hitHistory={hitHistory}
                                         onViewPredictorHistory={setPredictorHistoryId}
@@ -477,6 +484,8 @@ export default function RouletteContent({
                                             onChange={setPredictors}
                                             slots={slots}
                                             resultLabel={resultIndex !== null ? (slots[resultIndex] ?? null) : null}
+                                            resultZone={settings.predictorMode === "highLow" && resultIndex !== null ? getHighLowZone(resultIndex, slots.length) : null}
+                                            predictorMode={settings.predictorMode}
                                             isLightMode={isLightMode}
                                             hitHistory={hitHistory}
                                             onViewPredictorHistory={setPredictorHistoryId}
