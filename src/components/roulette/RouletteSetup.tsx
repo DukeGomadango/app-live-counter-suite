@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Pencil, Check, X, Save, FolderOpen } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Save, FolderOpen, FileStack, Copy } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { MAX_SLOTS, type RouletteTemplate, type RouletteSettings } from "@/lib/roulette";
 
@@ -13,6 +13,8 @@ interface RouletteSetupProps {
     onSlotsChange: (slots: string[]) => void;
     isLightMode: boolean;
     templates?: RouletteTemplate[];
+    /** サンプルテンプレート（読み込み専用） */
+    sampleTemplates?: RouletteTemplate[];
     currentSettings?: RouletteSettings;
     onSaveTemplate?: (name: string) => void;
     onLoadTemplate?: (templateId: string) => void;
@@ -20,12 +22,15 @@ interface RouletteSetupProps {
     section?: RouletteSetupSection;
 }
 
-export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templates = [], currentSettings, onSaveTemplate, onLoadTemplate, section = "all" }: RouletteSetupProps) {
+export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templates = [], sampleTemplates = [], currentSettings, onSaveTemplate, onLoadTemplate, section = "all" }: RouletteSetupProps) {
     const [newLabel, setNewLabel] = useState("");
     const [bulkCount, setBulkCount] = useState("13");
+    const [bulkDeleteCount, setBulkDeleteCount] = useState("1");
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editValue, setEditValue] = useState("");
     const [templateName, setTemplateName] = useState("");
+    const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+    const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
@@ -48,10 +53,41 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
         onSlotsChange([...slots, ...added]);
     };
 
+    const handleBulkRemove = () => {
+        const n = Math.min(slots.length, Math.max(1, parseInt(bulkDeleteCount, 10) || 1));
+        if (n <= 0 || slots.length === 0) return;
+        onSlotsChange(slots.slice(0, -n));
+        if (editingIndex !== null && editingIndex >= slots.length - n) setEditingIndex(null);
+    };
+
     const handleRemove = (index: number) => {
         onSlotsChange(slots.filter((_, i) => i !== index));
+        setSelectedIndices((prev) => new Set([...prev].filter((i) => i !== index).map((i) => (i > index ? i - 1 : i))));
         if (editingIndex === index) setEditingIndex(null);
         else if (editingIndex !== null && editingIndex > index) setEditingIndex(editingIndex - 1);
+    };
+
+    const toggleSlotSelect = (index: number) => {
+        setSelectedIndices((prev) => { const n = new Set(prev); if (n.has(index)) n.delete(index); else n.add(index); return n; });
+    };
+    const selectAllSlots = () => setSelectedIndices(new Set(slots.map((_, i) => i)));
+    const clearSlotSelection = () => setSelectedIndices(new Set());
+    const removeSelectedSlots = () => {
+        if (selectedIndices.size === 0) return;
+        onSlotsChange(slots.filter((_, i) => !selectedIndices.has(i)));
+        setEditingIndex(null);
+        setSelectedIndices(new Set());
+    };
+
+    const addSelectedSlotsToWheel = () => {
+        if (selectedIndices.size === 0) return;
+        const selectedLabels = slots
+            .map((label, i) => (selectedIndices.has(i) ? label : null))
+            .filter((x): x is string => x != null);
+        const space = Math.max(0, MAX_SLOTS - slots.length);
+        const toAdd = selectedLabels.slice(0, space);
+        if (toAdd.length === 0) return;
+        onSlotsChange([...slots, ...toAdd]);
     };
 
     const startEdit = (index: number) => {
@@ -70,17 +106,44 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
         setEditingIndex(null);
     };
 
+    useEffect(() => {
+        const el = selectAllCheckboxRef.current;
+        if (!el) return;
+        el.indeterminate = slots.length > 0 && selectedIndices.size > 0 && selectedIndices.size < slots.length;
+    }, [slots.length, selectedIndices.size]);
+
     const showSlots = section === "slots" || section === "all";
     const showTemplates = section === "templates" || section === "all";
 
     if (section === "templates" && onSaveTemplate && onLoadTemplate && currentSettings) {
         return (
             <div
-                className="rounded-2xl overflow-hidden border flex flex-col min-h-0 flex-1"
-                style={{ background: glassBg, borderColor: glassBorder, backdropFilter: "blur(16px)" }}
+                className="w-full min-w-0 overflow-hidden flex flex-col min-h-0 flex-1 rounded-2xl border"
+                style={{ borderColor: glassBorder, background: glassBg, backdropFilter: "blur(16px)" }}
             >
-                <div className="px-3 py-2 border-b shrink-0 space-y-2" style={{ borderColor: glassBorder }}>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>テンプレート</span>
+                <div className="px-3 py-2 border-b shrink-0 space-y-3 overflow-y-auto" style={{ borderColor: glassBorder }}>
+                    {/* サンプルのテンプレート */}
+                    {sampleTemplates.length > 0 && (
+                        <div className="space-y-2">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${textSecondary}`}>
+                                <FileStack size={12} /> サンプルのテンプレート
+                            </span>
+                            <div className="flex flex-col gap-1.5">
+                                {sampleTemplates.map((t) => (
+                                    <button
+                                        key={t.id}
+                                        type="button"
+                                        onClick={() => onLoadTemplate(t.id)}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all border ${isLightMode ? "hover:bg-purple-50 text-gray-800 border-gray-200" : "hover:bg-white/10 text-white/90 border-white/20"}`}
+                                    >
+                                        {t.name}
+                                        <span className={`text-[10px] ml-1 ${textSecondary}`}>（{t.slots.length}件）</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>保存・読み込み</span>
                     <div className="flex gap-2">
                         <input
                             type="text"
@@ -121,15 +184,15 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
 
     return (
         <div
-            className="rounded-2xl overflow-hidden border flex flex-col max-h-[320px] min-h-0"
-            style={{ background: glassBg, borderColor: glassBorder, backdropFilter: "blur(16px)" }}
+            className="w-full min-w-0 overflow-hidden flex flex-col min-h-0 flex-1 rounded-2xl border"
+            style={{ borderColor: glassBorder, background: glassBg, backdropFilter: "blur(16px)" }}
         >
             <div className="px-4 py-3 border-b shrink-0 flex items-center justify-between" style={{ borderColor: glassBorder }}>
                 <span className={`text-sm font-bold ${textPrimary}`}>スロット一覧</span>
                 <span className={`text-xs ${textSecondary}`}>{slots.length} / {MAX_SLOTS}</span>
             </div>
 
-            {/* 連番で N 件追加 */}
+            {/* 連番追加・連番削除 */}
             <div className="px-4 py-2 flex flex-wrap items-center gap-2 shrink-0" style={{ borderBottom: `1px solid ${glassBorder}` }}>
                 <span className={`text-xs ${textSecondary}`}>連番で</span>
                 <input
@@ -149,6 +212,25 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
                 >
                     追加
                 </button>
+                <span className={`text-xs ${textSecondary}`}>|</span>
+                <span className={`text-xs ${textSecondary}`}>末尾から</span>
+                <input
+                    type="number"
+                    min={1}
+                    max={slots.length}
+                    value={bulkDeleteCount}
+                    onChange={(e) => setBulkDeleteCount(e.target.value)}
+                    className={`w-14 px-2 py-1 rounded-lg text-sm border ${isLightMode ? "bg-white border-gray-200 text-gray-800" : "bg-white/10 border-white/20 text-white"}`}
+                />
+                <span className={`text-xs ${textSecondary}`}>件削除</span>
+                <button
+                    type="button"
+                    onClick={handleBulkRemove}
+                    disabled={slots.length === 0}
+                    className="px-2 py-1 rounded-lg text-xs font-medium bg-red-500/80 text-white hover:bg-red-500 disabled:opacity-50 disabled:pointer-events-none transition-colors"
+                >
+                    削除
+                </button>
             </div>
 
             {/* 1件追加 */}
@@ -165,11 +247,42 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
                     type="button"
                     onClick={handleAddOne}
                     disabled={!newLabel.trim() || !canAdd}
-                    className="p-1.5 rounded-lg bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 disabled:opacity-50 disabled:pointer-events-none"
+                    className="p-1.5 rounded-lg bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 disabled:pointer-events-none transition-colors"
                     title="追加"
                 >
                     <Plus size={18} />
                 </button>
+            </div>
+
+            {/* 一括選択（全選択チェックボックス・解除・選択削除） */}
+            <div className="px-4 py-2 flex flex-wrap items-center gap-2 shrink-0" style={{ borderBottom: `1px solid ${glassBorder}` }}>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                        ref={selectAllCheckboxRef}
+                        type="checkbox"
+                        checked={slots.length > 0 && selectedIndices.size === slots.length}
+                        onChange={(e) => (e.target.checked ? selectAllSlots() : clearSlotSelection())}
+                        className="rounded accent-purple-500"
+                    />
+                    <span className={`text-xs ${textSecondary}`}>全選択</span>
+                </label>
+                <button type="button" onClick={clearSlotSelection} className={`text-xs ${textSecondary} hover:underline`}>解除</button>
+                {selectedIndices.size > 0 && (
+                    <>
+                        <button
+                            type="button"
+                            onClick={addSelectedSlotsToWheel}
+                            className={`text-xs flex items-center gap-1 px-1.5 py-0.5 rounded ${isLightMode ? "text-gray-600 hover:bg-gray-200" : "text-white/70 hover:bg-white/10"}`}
+                            title="選択したスロットを盤面に追加（コピーして増やす）"
+                        >
+                            <Copy size={12} />
+                            コピーして追加
+                        </button>
+                        <button type="button" onClick={removeSelectedSlots} className="text-xs text-red-400 hover:bg-red-500/20 px-1.5 py-0.5 rounded">
+                            選択削除
+                        </button>
+                    </>
+                )}
             </div>
 
             {/* リスト */}
@@ -187,6 +300,7 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
                             >
                                 {editingIndex === index ? (
                                     <>
+                                        <span className="w-4 shrink-0" aria-hidden />
                                         <input
                                             type="text"
                                             value={editValue}
@@ -204,6 +318,13 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
                                     </>
                                 ) : (
                                     <>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIndices.has(index)}
+                                            onChange={() => toggleSlotSelect(index)}
+                                            className="rounded accent-purple-500 shrink-0"
+                                            title="一括選択"
+                                        />
                                         <span className={`flex-1 min-w-0 text-sm truncate ${textPrimary}`}>{label}</span>
                                         <button
                                             type="button"
@@ -234,8 +355,28 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
 
             {/* テンプレート保存・読み込み */}
             {showTemplates && onSaveTemplate && onLoadTemplate && currentSettings && (
-                <div className="px-3 py-2 border-t shrink-0 space-y-2" style={{ borderColor: glassBorder }}>
-                    <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>テンプレート</span>
+                <div className="px-3 py-2 border-t shrink-0 space-y-3" style={{ borderColor: glassBorder }}>
+                    {sampleTemplates.length > 0 && (
+                        <div className="space-y-2">
+                            <span className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${textSecondary}`}>
+                                <FileStack size={12} /> サンプルのテンプレート
+                            </span>
+                            <div className="flex flex-col gap-1.5">
+                                {sampleTemplates.map((t) => (
+                                    <button
+                                        key={t.id}
+                                        type="button"
+                                        onClick={() => onLoadTemplate(t.id)}
+                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all border ${isLightMode ? "hover:bg-purple-50 text-gray-800 border-gray-200" : "hover:bg-white/10 text-white/90 border-white/20"}`}
+                                    >
+                                        {t.name}
+                                        <span className={`text-[10px] ml-1 ${textSecondary}`}>（{t.slots.length}件）</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary}`}>保存・読み込み</span>
                     <div className="flex gap-2">
                         <input
                             type="text"

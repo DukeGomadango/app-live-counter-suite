@@ -459,6 +459,12 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
         );
     }, [setPlayers]);
 
+    const resetAllPlayers = useCallback(() => {
+        setPlayers(prev =>
+            (prev || []).map(p => ({ ...p, results: [], runHistory: [], inventory: {}, totalPulls: 0, pityCounter: 0, pityReachCount: 0 }))
+        );
+    }, [setPlayers]);
+
     // ガチャ実行
     const handleRoll = useCallback(() => {
         if (pool.items.length === 0) return;
@@ -703,6 +709,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                         onAddPlayer={addPlayer}
                                         onRemovePlayer={removePlayer}
                                         onResetPlayer={resetPlayer}
+                                        onResetAllPlayers={resetAllPlayers}
                                         onViewPlayerHistory={setPlayerHistoryViewId}
                                         pool={pool}
                                         isLightMode={isLightMode}
@@ -960,6 +967,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                                         onAddPlayer={addPlayer}
                                                         onRemovePlayer={removePlayer}
                                                         onResetPlayer={resetPlayer}
+                                                        onResetAllPlayers={resetAllPlayers}
                                                         onViewPlayerHistory={setPlayerHistoryViewId}
                                                         pool={pool}
                                                         isLightMode={isLightMode}
@@ -1053,6 +1061,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                         onAddPlayer={addPlayer}
                                         onRemovePlayer={removePlayer}
                                         onResetPlayer={resetPlayer}
+                                        onResetAllPlayers={resetAllPlayers}
                                         onViewPlayerHistory={setPlayerHistoryViewId}
                                         pool={pool}
                                         isLightMode={isLightMode}

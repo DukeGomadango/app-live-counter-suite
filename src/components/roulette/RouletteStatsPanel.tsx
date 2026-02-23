@@ -28,12 +28,16 @@ export default function RouletteStatsPanel({
     const counts = slots.length > 0
         ? slots.map((_, i) => history.filter((idx) => idx === i).length)
         : [];
-    const maxCount = Math.max(1, ...counts);
+    const uniqueLabels = slots.length > 0 ? [...new Set(slots)] : [];
+    const labelCounts = uniqueLabels.map((label) =>
+        history.filter((idx) => slots[idx] === label).length
+    );
+    const maxCount = Math.max(1, ...labelCounts);
 
     return (
         <div
-            className="rounded-2xl border flex flex-col overflow-hidden min-h-0 flex-1 w-full md:w-64 min-w-0"
-            style={{ background: glassBg, borderColor: glassBorder, backdropFilter: "blur(16px)", maxHeight: "min(420px, 60vh)" }}
+            className="rounded-2xl border flex flex-col overflow-hidden min-h-0 flex-1 w-full min-w-0"
+            style={{ background: glassBg, borderColor: glassBorder, backdropFilter: "blur(16px)" }}
         >
             <div className="px-3 py-2 border-b flex items-center justify-between shrink-0" style={{ borderColor: glassBorder }}>
                 <span className={`text-xs font-bold uppercase tracking-wider ${textSecondary}`}>統計</span>
@@ -43,7 +47,7 @@ export default function RouletteStatsPanel({
                     className="px-2 py-1 rounded-lg text-sm border transition-colors"
                     style={{ borderColor: glassBorder }}
                 >
-                    履歴をクリア
+                    記録をリセット
                 </button>
             </div>
             <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-4">
@@ -77,11 +81,11 @@ export default function RouletteStatsPanel({
                             <span className={`text-sm ${textSecondary}`}>スロットがありません</span>
                         ) : (
                             <div className="space-y-1.5">
-                                {slots.map((label, i) => {
-                                    const count = counts[i] ?? 0;
+                                {uniqueLabels.map((label, i) => {
+                                    const count = labelCounts[i] ?? 0;
                                     const w = maxCount > 0 ? (count / maxCount) * 100 : 0;
                                     return (
-                                        <div key={i} className="flex items-center gap-2">
+                                        <div key={label} className="flex items-center gap-2">
                                             <span className={`w-8 shrink-0 text-xs truncate ${textPrimary}`} title={label}>
                                                 {label.length > 4 ? label.slice(0, 4) + "…" : label}
                                             </span>
@@ -104,15 +108,15 @@ export default function RouletteStatsPanel({
                     </div>
                 )}
                 {/* 円グラフ */}
-                {showPieChart && slots.length > 0 && (() => {
-                    const total = counts.reduce((a, b) => a + b, 0);
+                {showPieChart && uniqueLabels.length > 0 && (() => {
+                    const total = labelCounts.reduce((a, b) => a + b, 0);
                     if (total === 0) return <p className={`text-sm ${textSecondary}`}>データがありません</p>;
                     const cx = 60;
                     const cy = 60;
                     const r = 50;
-                    const hueStep = 360 / Math.max(1, counts.filter((c) => c > 0).length);
+                    const hueStep = 360 / Math.max(1, labelCounts.filter((c) => c > 0).length);
                     let acc = 0;
-                    const segments = counts
+                    const segments = labelCounts
                         .map((count, i) => {
                             if (count === 0) return null;
                             const startAngle = (acc / total) * 360;
@@ -128,7 +132,7 @@ export default function RouletteStatsPanel({
                             const d = `M ${cx} ${cy} L ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} Z`;
                             const hue = (i * hueStep) % 360;
                             const fill = `hsl(${hue}, 60%, 55%)`;
-                            return { d, fill, label: slots[i], count };
+                            return { d, fill, label: uniqueLabels[i], count };
                         })
                         .filter(Boolean) as { d: string; fill: string; label: string; count: number }[];
                     return (

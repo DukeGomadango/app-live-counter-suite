@@ -17,6 +17,7 @@ interface GachaPlayerManagerProps {
     onAddPlayer: (name: string) => void;
     onRemovePlayer: (id: string) => void;
     onResetPlayer: (id: string) => void;
+    onResetAllPlayers?: () => void;
     onViewPlayerHistory?: (playerId: string) => void;
     pool: GachaPool;
     isLightMode: boolean;
@@ -32,6 +33,7 @@ export default function GachaPlayerManager({
     onAddPlayer,
     onRemovePlayer,
     onResetPlayer,
+    onResetAllPlayers,
     onViewPlayerHistory,
     pool,
     isLightMode,
@@ -46,6 +48,7 @@ export default function GachaPlayerManager({
     const [linkCollectionPlayerId, setLinkCollectionPlayerId] = useState<string | null>(null);
     const [zipLoadingPlayerId, setZipLoadingPlayerId] = useState<string | null>(null);
     const [playerToZip, setPlayerToZip] = useState<Player | null>(null);
+    const [showBulkResetConfirm, setShowBulkResetConfirm] = useState(false);
 
     const handleDownloadZip = useCallback(
         async (player: Player) => {
@@ -161,15 +164,26 @@ export default function GachaPlayerManager({
                             プレイヤー ({players.length})
                         </span>
                     </label>
-                    {someSelected && (
-                        <button
-                            type="button"
-                            onClick={() => setBulkDeleteTargets(Array.from(selectedPlayerIds))}
-                            className="text-[10px] px-2 py-1 rounded-lg bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/30 transition-colors"
-                        >
-                            選択を削除
-                        </button>
-                    )}
+                    <div className="flex items-center gap-1">
+                        {onResetAllPlayers && players.length > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setShowBulkResetConfirm(true)}
+                                className={`text-[10px] px-2 py-1 rounded-lg transition-colors ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/70 hover:bg-white/10"}`}
+                            >
+                                一括リセット
+                            </button>
+                        )}
+                        {someSelected && (
+                            <button
+                                type="button"
+                                onClick={() => setBulkDeleteTargets(Array.from(selectedPlayerIds))}
+                                className="text-[10px] px-2 py-1 rounded-lg bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/30 transition-colors"
+                            >
+                                選択を削除
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {players.length === 0 ? (
@@ -294,7 +308,7 @@ export default function GachaPlayerManager({
             />
             <ConfirmDialog
                 open={playerToReset !== null}
-                message="本当にリセットしますか？"
+                message="記録をリセットしますか？"
                 confirmLabel="リセットする"
                 cancelLabel="キャンセル"
                 onConfirm={() => {
@@ -304,6 +318,18 @@ export default function GachaPlayerManager({
                     }
                 }}
                 onCancel={() => setPlayerToReset(null)}
+                danger={false}
+            />
+            <ConfirmDialog
+                open={showBulkResetConfirm}
+                message="記録をリセットしますか？全プレイヤーの記録がクリアされます。"
+                confirmLabel="リセットする"
+                cancelLabel="キャンセル"
+                onConfirm={() => {
+                    onResetAllPlayers?.();
+                    setShowBulkResetConfirm(false);
+                }}
+                onCancel={() => setShowBulkResetConfirm(false)}
                 danger={false}
             />
             <ConfirmDialog

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sun, Moon, Menu, Settings } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -11,16 +11,21 @@ import RouletteWheel from "@/components/roulette/RouletteWheel";
 import RoulettePredictorsPanel from "@/components/roulette/RoulettePredictorsPanel";
 import RouletteStatsPanel from "@/components/roulette/RouletteStatsPanel";
 import RouletteHitEffect from "@/components/roulette/RouletteHitEffect";
+import RoulettePredictorHistoryCard from "@/components/roulette/RoulettePredictorHistoryCard";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import {
     createDefaultSlots,
     createDefaultRouletteSettings,
     createDefaultPredictors,
     createRouletteTemplate,
+    getSampleRouletteTemplates,
     pickRandomIndex,
     trimRouletteHistory,
+    trimRouletteHitHistory,
     type RouletteSettings,
     type RoulettePredictor,
     type RouletteTemplate,
+    type RouletteHitHistoryEntry,
 } from "@/lib/roulette";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -36,16 +41,80 @@ export default function RouletteContent({
     const [settings, setSettings] = useLocalStorage<RouletteSettings>("roulette-settings", createDefaultRouletteSettings());
     const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("roulette-light-mode", false);
     const [isSpinning, setIsSpinning] = useState(false);
+    const [skipRequested, setSkipRequested] = useState(false);
     const [spinTargetIndex, setSpinTargetIndex] = useState<number | null>(null);
     const [spinKey, setSpinKey] = useState(0);
     const [resultIndex, setResultIndex] = useState<number | null>(null);
     const [predictors, setPredictors] = useLocalStorage<RoulettePredictor[]>("roulette-predictors", createDefaultPredictors());
     const [showHitEffect, setShowHitEffect] = useState(false);
+    const [hitNames, setHitNames] = useState<string[]>([]);
     const [sidebarOpen, setSidebarOpen] = useState(!isSplitMode);
     const [showSettingsPanel, setShowSettingsPanel] = useState(false);
     const [sidebarTab, setSidebarTab] = useState<"slots" | "templates" | "predictors" | "stats">("slots");
     const [templates, setTemplates] = useLocalStorage<RouletteTemplate[]>("roulette-templates", []);
     const [history, setHistory] = useLocalStorage<number[]>("roulette-history", []);
+    const [hitHistory, setHitHistory] = useLocalStorage<RouletteHitHistoryEntry[]>("roulette-hit-history", []);
+    const [predictorHistoryId, setPredictorHistoryId] = useState<string | null>(null);
+    const [showClearHistoryConfirm, setShowClearHistoryConfirm] = useState(false);
+    const [showClearHitHistoryConfirm, setShowClearHitHistoryConfirm] = useState(false);
+    const [sidebarWidthPx, setSidebarWidthPx] = useLocalStorage<number>("roulette-sidebar-width", 288);
+
+    const sidebarResizeRafRef = useRef<number | null>(null);
+    const sidebarResizePendingRef = useRef<number | null>(null);
+    const applyResize = useCallback((clientX: number, startX: number, startW: number) => {
+        const newW = Math.min(720, Math.max(200, startW + (clientX - startX)));
+        sidebarResizePendingRef.current = newW;
+        if (sidebarResizeRafRef.current !== null) return;
+        sidebarResizeRafRef.current = requestAnimationFrame(() => {
+            sidebarResizeRafRef.current = null;
+            const w = sidebarResizePendingRef.current;
+            if (w !== null) setSidebarWidthPx(w);
+        });
+    }, [setSidebarWidthPx]);
+    const handleSidebarResizeStart = useCallback((e: React.MouseEvent) => {
+        if (e.button !== 0) return;
+        const startX = e.clientX;
+        const startW = sidebarWidthPx;
+        const onMove = (moveEvent: MouseEvent) => applyResize(moveEvent.clientX, startX, startW);
+        const onUp = () => {
+            if (sidebarResizeRafRef.current !== null) {
+                cancelAnimationFrame(sidebarResizeRafRef.current);
+                sidebarResizeRafRef.current = null;
+            }
+            const pending = sidebarResizePendingRef.current;
+            if (pending !== null) setSidebarWidthPx(pending);
+            sidebarResizePendingRef.current = null;
+            document.removeEventListener("mousemove", onMove);
+            document.removeEventListener("mouseup", onUp);
+            document.body.style.userSelect = "";
+            document.body.style.cursor = "";
+        };
+        document.body.style.userSelect = "none";
+        document.body.style.cursor = "col-resize";
+        document.addEventListener("mousemove", onMove);
+        document.addEventListener("mouseup", onUp);
+    }, [sidebarWidthPx, setSidebarWidthPx, applyResize]);
+    const handleSidebarResizeTouchStart = useCallback((e: React.TouchEvent) => {
+        if (e.changedTouches.length === 0) return;
+        const startX = e.changedTouches[0]!.clientX;
+        const startW = sidebarWidthPx;
+        const onMove = (moveEvent: TouchEvent) => {
+            if (moveEvent.changedTouches.length === 0) return;
+            moveEvent.preventDefault();
+            applyResize(moveEvent.changedTouches[0]!.clientX, startX, startW);
+        };
+        const onEnd = () => {
+            const pending = sidebarResizePendingRef.current;
+            if (pending !== null) setSidebarWidthPx(pending);
+            sidebarResizePendingRef.current = null;
+            document.removeEventListener("touchmove", onMove, { capture: true });
+            document.removeEventListener("touchend", onEnd);
+            document.removeEventListener("touchcancel", onEnd);
+        };
+        document.addEventListener("touchmove", onMove, { passive: false, capture: true });
+        document.addEventListener("touchend", onEnd);
+        document.addEventListener("touchcancel", onEnd);
+    }, [sidebarWidthPx, setSidebarWidthPx, applyResize]);
 
     const { glassBorder } = useGlassStyle(isLightMode);
     const headerBg = isLightMode ? "rgba(255,255,255,0.7)" : "rgba(20,10,40,0.6)";
@@ -64,17 +133,30 @@ export default function RouletteContent({
     const handleSpinEnd = (index: number) => {
         setResultIndex(index);
         setIsSpinning(false);
+        setSkipRequested(false);
         setSpinTargetIndex(null);
         setHistory((prev) => trimRouletteHistory([index, ...prev]));
         const resultLabel = slots[index] ?? "";
-        const anyHit = predictors.some((p) => p.prediction.trim() === resultLabel);
-        if (anyHit) setShowHitEffect(true);
+        const hitPredictors = predictors.filter((p) => p.participating !== false && p.prediction.trim() === resultLabel);
+        const whoHit = hitPredictors.map((p) => p.name.trim() || "名前なし");
+        const hitPredictorIds = hitPredictors.map((p) => p.id);
+        setHitHistory((prev) => trimRouletteHitHistory([{ resultLabel, hitPredictorIds }, ...prev]));
+        if (whoHit.length > 0) {
+            setHitNames(whoHit);
+            setShowHitEffect(true);
+        }
+    };
+
+    const handleClearHistory = () => {
+        setHistory([]);
+        setHitHistory([]);
     };
 
     const handleSpin = () => {
         if (slots.length === 0 || isSpinning) return;
         const target = pickRandomIndex(slots.length);
         setResultIndex(null);
+        setSkipRequested(false);
         setSpinKey((k) => k + 1);
         setSpinTargetIndex(target);
         setIsSpinning(true);
@@ -82,6 +164,14 @@ export default function RouletteContent({
 
     const accentColor = settings.accentColor ?? "#a855f7";
     const orbIntensity = settings.orbIntensity ?? 50;
+    /** 旧 "needle" を "minimal" に正規化（表示用）。保存時は useEffect で移行 */
+    const effectiveSettings = useMemo<RouletteSettings>(() => ({
+        ...settings,
+        style: (settings.style as string) === "needle" ? "minimal" : settings.style,
+    }), [settings]);
+    useEffect(() => {
+        if ((settings.style as string) === "needle") setSettings((prev) => ({ ...prev, style: "minimal" }));
+    }, [settings.style, setSettings]);
 
     const handleSaveTemplate = (name: string) => {
         const t = createRouletteTemplate(name, slots, settings);
@@ -89,7 +179,8 @@ export default function RouletteContent({
     };
 
     const handleLoadTemplate = (templateId: string) => {
-        const t = templates.find((x) => x.id === templateId);
+        const sample = getSampleRouletteTemplates().find((x) => x.id === templateId);
+        const t = sample ?? templates.find((x) => x.id === templateId);
         if (t) {
             setSlots(t.slots.length > 0 ? [...t.slots] : createDefaultSlots(13));
             if (t.settings && Object.keys(t.settings).length > 0) {
@@ -99,16 +190,17 @@ export default function RouletteContent({
     };
 
     return (
-        <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`}>
-            {/* 開発中オーバーレイ（ヘッダーは隠さず、背景は透かす） */}
-            <div
-                className="absolute top-14 left-0 right-0 bottom-0 z-40 flex items-center justify-center bg-black/35 backdrop-blur-sm"
-                aria-hidden="false"
-            >
-                <p className="text-xl font-bold text-white/95 tracking-wider drop-shadow-[0_2px_8px_rgba(0,0,0,0.4)]">
-                    開発中です
-                </p>
-            </div>
+        <div className={`flex flex-col overflow-hidden relative z-10 min-w-0 ${isSplitMode ? "h-full w-full" : "h-screen w-screen"}`}>
+            {/* 背景色レイヤー（設定で有効時のみ・オーブの背後） */}
+            {settings.backgroundEnabled && (
+                <div
+                    className="absolute inset-0 pointer-events-none z-0"
+                    style={{
+                        background: settings.backgroundColor ?? "#1a1a2e",
+                        opacity: (settings.backgroundOpacity ?? 100) / 100,
+                    }}
+                />
+            )}
             {/* 背景オーブ */}
             <div className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${isLightMode ? "mix-blend-multiply opacity-20" : "opacity-80"}`}>
                 <motion.div
@@ -177,12 +269,13 @@ export default function RouletteContent({
                 show={showHitEffect}
                 onComplete={() => setShowHitEffect(false)}
                 accentColor={accentColor}
+                hitNames={hitNames}
             />
 
             <AnimatePresence>
                 {showSettingsPanel && (
                     <RouletteSettingsPanel
-                        settings={settings}
+                        settings={effectiveSettings}
                         onSettingsChange={setSettings}
                         isLightMode={isLightMode}
                         onClose={() => setShowSettingsPanel(false)}
@@ -191,24 +284,26 @@ export default function RouletteContent({
             </AnimatePresence>
 
             {/* メイン: 上部余白 + コンテンツ */}
-            <main className={`flex-1 min-h-0 flex flex-col md:flex-row gap-4 p-4 ${!isSplitMode ? "pt-14" : ""} overflow-auto`}>
-                {/* 左: 1本サイドバー（タブ: スロット / テンプレート / 設定 / 予想 / 統計） */}
-                <AnimatePresence>
-                    {showSidebar && (
-                        <motion.aside
-                            initial={{ width: 0, opacity: 0 }}
-                            animate={{ width: "auto", opacity: 1 }}
-                            exit={{ width: 0, opacity: 0 }}
-                            className={`shrink-0 w-full md:w-72 flex flex-col min-h-0 overflow-hidden ${isSplitMode ? "fixed inset-0 z-40" : "max-md:fixed max-md:inset-0 max-md:z-40 md:relative"}`}
+            <main className={`flex-1 min-h-0 flex flex-col md:flex-row gap-0 p-4 ${!isSplitMode ? "pt-14" : ""} overflow-auto`}>
+                {/* 左: サイドバー（デスクトップ時はリサイズ可能 / モバイル・Split時はオーバーレイ） */}
+                {!isSplitMode && isDesktop ? (
+                    <>
+                        <aside
+                            className="h-full flex flex-col overflow-hidden shrink-0 pr-3 min-w-0"
+                            style={{
+                                width: sidebarWidthPx,
+                                minWidth: 200,
+                                maxWidth: 720,
+                                borderRight: `1px solid ${glassBorder}`,
+                            }}
                         >
-                            <div className="flex border-b overflow-x-auto shrink-0" style={{ borderColor: glassBorder }}>
+                            <div className="flex border-b shrink-0 flex-wrap gap-1 px-2 pt-2" style={{ borderColor: glassBorder }}>
                                 {(["slots", "templates", "predictors", "stats"] as const).map((tab) => (
                                     <button
                                         key={tab}
                                         type="button"
                                         onClick={() => setSidebarTab(tab)}
-                                        className={`shrink-0 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap ${sidebarTab === tab ? (isLightMode ? "bg-white/90 text-gray-800 border-b-2 border-purple-500" : "bg-white/10 text-white border-b-2 border-purple-400") : (isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/5")}`}
-                                        style={sidebarTab === tab ? undefined : { borderBottomColor: "transparent" }}
+                                        className={`shrink-0 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap rounded-lg ${sidebarTab === tab ? (isLightMode ? "bg-white/90 text-gray-800 border border-purple-500" : "bg-white/10 text-white border border-purple-400") : (isLightMode ? "text-gray-600 hover:bg-gray-100 border border-transparent" : "text-white/60 hover:bg-white/5 border border-transparent")}`}
                                     >
                                         {tab === "slots" && "スロット"}
                                         {tab === "templates" && "テンプレート"}
@@ -217,7 +312,7 @@ export default function RouletteContent({
                                     </button>
                                 ))}
                             </div>
-                            <div className="flex-1 min-h-0 overflow-hidden flex flex-col mt-2">
+                            <div className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col mt-2">
                                 {sidebarTab === "slots" && (
                                     <RouletteSetup
                                         slots={slots}
@@ -232,6 +327,7 @@ export default function RouletteContent({
                                         onSlotsChange={setSlots}
                                         isLightMode={isLightMode}
                                         templates={templates}
+                                        sampleTemplates={getSampleRouletteTemplates()}
                                         currentSettings={settings}
                                         onSaveTemplate={handleSaveTemplate}
                                         onLoadTemplate={handleLoadTemplate}
@@ -245,13 +341,16 @@ export default function RouletteContent({
                                         slots={slots}
                                         resultLabel={resultIndex !== null ? (slots[resultIndex] ?? null) : null}
                                         isLightMode={isLightMode}
+                                        hitHistory={hitHistory}
+                                        onViewPredictorHistory={setPredictorHistoryId}
+                                        onRequestClearHitHistory={() => setShowClearHitHistoryConfirm(true)}
                                     />
                                 )}
                                 {sidebarTab === "stats" && (
                                     <RouletteStatsPanel
                                         history={history}
                                         slots={slots}
-                                        onClear={() => setHistory([])}
+                                        onClear={() => setShowClearHistoryConfirm(true)}
                                         isLightMode={isLightMode}
                                         accentColor={accentColor}
                                         showBarChart={settings.statsShowBarChart !== false}
@@ -259,22 +358,121 @@ export default function RouletteContent({
                                     />
                                 )}
                             </div>
-                        </motion.aside>
-                    )}
-                </AnimatePresence>
+                        </aside>
+                        <div
+                            role="separator"
+                            aria-label="サイドバー幅を調節"
+                            onMouseDown={handleSidebarResizeStart}
+                            onTouchStart={handleSidebarResizeTouchStart}
+                            className="shrink-0 w-4 h-full cursor-col-resize select-none flex items-center justify-center group touch-manipulation"
+                            style={{ minWidth: 16 }}
+                        >
+                            <span
+                                className="w-0.5 h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                                style={{ background: glassBorder }}
+                            />
+                        </div>
+                    </>
+                ) : (
+                    <AnimatePresence>
+                        {showSidebar && (
+                            <motion.aside
+                                initial={{ width: 0, opacity: 0 }}
+                                animate={{ width: "auto", opacity: 1 }}
+                                exit={{ width: 0, opacity: 0 }}
+                                className={`shrink-0 w-full md:w-72 flex flex-col min-h-0 overflow-hidden ${isSplitMode ? "fixed inset-0 z-40" : "max-md:fixed max-md:inset-0 max-md:z-40 md:relative"}`}
+                            >
+                                <div className="flex border-b shrink-0 flex-wrap gap-1 px-2 pt-2" style={{ borderColor: glassBorder }}>
+                                    {(["slots", "templates", "predictors", "stats"] as const).map((tab) => (
+                                        <button
+                                            key={tab}
+                                            type="button"
+                                            onClick={() => setSidebarTab(tab)}
+                                            className={`shrink-0 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap rounded-lg ${sidebarTab === tab ? (isLightMode ? "bg-white/90 text-gray-800 border border-purple-500" : "bg-white/10 text-white border border-purple-400") : (isLightMode ? "text-gray-600 hover:bg-gray-100 border border-transparent" : "text-white/60 hover:bg-white/5 border border-transparent")}`}
+                                        >
+                                            {tab === "slots" && "スロット"}
+                                            {tab === "templates" && "テンプレート"}
+                                            {tab === "predictors" && "予想"}
+                                            {tab === "stats" && "統計"}
+                                        </button>
+                                    ))}
+                                </div>
+                                <div className="flex-1 min-h-0 overflow-hidden flex flex-col mt-2">
+                                    {sidebarTab === "slots" && (
+                                        <RouletteSetup
+                                            slots={slots}
+                                            onSlotsChange={setSlots}
+                                            isLightMode={isLightMode}
+                                            section="slots"
+                                        />
+                                    )}
+                                    {sidebarTab === "templates" && (
+                                        <RouletteSetup
+                                            slots={slots}
+                                            onSlotsChange={setSlots}
+                                            isLightMode={isLightMode}
+                                            templates={templates}
+                                            sampleTemplates={getSampleRouletteTemplates()}
+                                            currentSettings={settings}
+                                            onSaveTemplate={handleSaveTemplate}
+                                            onLoadTemplate={handleLoadTemplate}
+                                            section="templates"
+                                        />
+                                    )}
+                                    {sidebarTab === "predictors" && (
+                                        <RoulettePredictorsPanel
+                                            predictors={predictors}
+                                            onChange={setPredictors}
+                                            slots={slots}
+                                            resultLabel={resultIndex !== null ? (slots[resultIndex] ?? null) : null}
+                                            isLightMode={isLightMode}
+                                            hitHistory={hitHistory}
+                                            onViewPredictorHistory={setPredictorHistoryId}
+                                            onRequestClearHitHistory={() => setShowClearHitHistoryConfirm(true)}
+                                        />
+                                    )}
+                                    {sidebarTab === "stats" && (
+                                        <RouletteStatsPanel
+                                            history={history}
+                                            slots={slots}
+                                            onClear={() => setShowClearHistoryConfirm(true)}
+                                            isLightMode={isLightMode}
+                                            accentColor={accentColor}
+                                            showBarChart={settings.statsShowBarChart !== false}
+                                            showPieChart={settings.statsShowPieChart === true}
+                                        />
+                                    )}
+                                </div>
+                            </motion.aside>
+                        )}
+                    </AnimatePresence>
+                )}
 
-                {/* 中央: ルーレット + 結果 */}
-                <div className="flex-1 min-w-0 flex flex-col items-center justify-center gap-4">
+                {/* 右: ルーレット盤 */}
+                <div className="flex-1 min-w-0 flex flex-col items-center justify-center gap-4 md:pl-4 overflow-hidden">
+                    {!isSplitMode && settings.showProjectName && (settings.projectName ?? "").trim() && (
+                        <p
+                            className="text-center text-lg sm:text-xl font-bold tracking-wide"
+                            style={{ color: accentColor, textShadow: `0 0 20px ${accentColor}40` }}
+                        >
+                            {(settings.projectName ?? "").trim()}
+                        </p>
+                    )}
                     <RouletteWheel
                         slots={slots}
-                        style={settings.style}
+                        style={effectiveSettings.style}
                         isSpinning={isSpinning}
                         targetIndex={spinTargetIndex}
+                        resultIndex={resultIndex}
                         spinKey={spinKey}
                         onSpin={handleSpin}
                         onSpinEnd={handleSpinEnd}
+                        skipRequested={skipRequested}
+                        onSkipRequest={() => setSkipRequested(true)}
                         accentColor={accentColor}
                         isLightMode={isLightMode}
+                        maxVisibleLabels={settings.maxVisibleLabels}
+                        wheelOffsetIndex={settings.wheelOffsetIndex}
                     />
                     {resultIndex !== null && slots[resultIndex] !== undefined && (
                         <p className={`text-lg font-bold ${isLightMode ? "text-gray-800" : "text-white"}`}>
@@ -283,6 +481,56 @@ export default function RouletteContent({
                     )}
                 </div>
             </main>
+
+            {/* 予想者あたり履歴モーダル */}
+            {predictorHistoryId != null && (() => {
+                const predictor = predictors.find((p) => p.id === predictorHistoryId);
+                return predictor ? (
+                    <div
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-4"
+                        style={{ background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)" }}
+                        onClick={() => setPredictorHistoryId(null)}
+                    >
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <RoulettePredictorHistoryCard
+                                predictor={predictor}
+                                hitHistory={hitHistory}
+                                isLightMode={isLightMode}
+                                onClose={() => setPredictorHistoryId(null)}
+                            />
+                        </div>
+                    </div>
+                ) : null;
+            })()}
+
+            {/* 記録リセット確認（抽選・あたり履歴まとめて） */}
+            <ConfirmDialog
+                open={showClearHistoryConfirm}
+                title="確認"
+                message="記録をリセットしますか？"
+                confirmLabel="リセットする"
+                cancelLabel="キャンセル"
+                onConfirm={() => {
+                    handleClearHistory();
+                    setShowClearHistoryConfirm(false);
+                }}
+                onCancel={() => setShowClearHistoryConfirm(false)}
+                danger={false}
+            />
+            {/* あたり履歴のみリセット確認 */}
+            <ConfirmDialog
+                open={showClearHitHistoryConfirm}
+                title="確認"
+                message="記録をリセットしますか？予想のあたり履歴のみクリアされます。"
+                confirmLabel="リセットする"
+                cancelLabel="キャンセル"
+                onConfirm={() => {
+                    setHitHistory([]);
+                    setShowClearHitHistoryConfirm(false);
+                }}
+                onCancel={() => setShowClearHitHistoryConfirm(false)}
+                danger={false}
+            />
         </div>
     );
 }

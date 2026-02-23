@@ -50,7 +50,7 @@ export default function HelpButton() {
                     className={`transition-colors duration-200 ${effectiveLightMode
                         ? "text-gray-500 group-hover:text-purple-600"
                         : "text-white/40 group-hover:text-purple-400"
-                        }`}
+                    }`}
                 />
             </button>
 
