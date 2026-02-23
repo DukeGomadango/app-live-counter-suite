@@ -329,16 +329,18 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
                                         <button
                                             type="button"
                                             onClick={() => startEdit(index)}
-                                            className="p-1 rounded opacity-0 group-hover:opacity-100 text-white/50 hover:text-white/80 hover:bg-white/10 transition-opacity"
+                                            className="p-1.5 rounded opacity-100 md:opacity-0 md:group-hover:opacity-100 text-white/50 hover:text-white/80 hover:bg-white/10 transition-opacity touch-manipulation"
                                             title="編集"
+                                            aria-label="編集"
                                         >
                                             <Pencil size={14} />
                                         </button>
                                         <button
                                             type="button"
                                             onClick={() => handleRemove(index)}
-                                            className="p-1 rounded opacity-0 group-hover:opacity-100 text-red-400/80 hover:text-red-400 hover:bg-red-500/20 transition-opacity"
+                                            className="p-1.5 rounded opacity-100 md:opacity-0 md:group-hover:opacity-100 text-red-400/80 hover:text-red-400 hover:bg-red-500/20 transition-opacity touch-manipulation"
                                             title="削除"
+                                            aria-label="削除"
                                         >
                                             <Trash2 size={14} />
                                         </button>

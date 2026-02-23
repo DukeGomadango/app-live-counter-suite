@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, Menu, Settings } from "lucide-react";
+import { Sun, Moon, Menu, Settings, X } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import RouletteSetup from "@/components/roulette/RouletteSetup";
@@ -48,7 +48,7 @@ export default function RouletteContent({
     const [predictors, setPredictors] = useLocalStorage<RoulettePredictor[]>("roulette-predictors", createDefaultPredictors());
     const [showHitEffect, setShowHitEffect] = useState(false);
     const [hitNames, setHitNames] = useState<string[]>([]);
-    const [sidebarOpen, setSidebarOpen] = useState(!isSplitMode);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
     const [showSettingsPanel, setShowSettingsPanel] = useState(false);
     const [sidebarTab, setSidebarTab] = useState<"slots" | "templates" | "predictors" | "stats">("slots");
     const [templates, setTemplates] = useLocalStorage<RouletteTemplate[]>("roulette-templates", []);
@@ -61,6 +61,21 @@ export default function RouletteContent({
 
     const sidebarResizeRafRef = useRef<number | null>(null);
     const sidebarResizePendingRef = useRef<number | null>(null);
+    const wheelAreaRef = useRef<HTMLDivElement>(null);
+    const [wheelScale, setWheelScale] = useState(1);
+    const WHEEL_OUTER_PX = 380 + 48;
+    useLayoutEffect(() => {
+        const el = wheelAreaRef.current;
+        if (!el) return;
+        const update = () => {
+            const w = el.clientWidth;
+            setWheelScale(w <= 0 ? 1 : Math.min(1, (w - 16) / WHEEL_OUTER_PX));
+        };
+        update();
+        const ro = new ResizeObserver(update);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
     const applyResize = useCallback((clientX: number, startX: number, startW: number) => {
         const newW = Math.min(720, Math.max(200, startW + (clientX - startX)));
         sidebarResizePendingRef.current = newW;
@@ -223,9 +238,9 @@ export default function RouletteContent({
                 />
             </div>
 
-            {/* ヘッダー（Split時は他モジュールと高さを揃える） */}
+            {/* ヘッダー（高さを固定してメイン・ドロワーとの被りを防ぐ） */}
             <div
-                className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 ${isSplitMode ? "min-h-[56px]" : ""}`}
+                className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 min-h-[56px] shrink-0`}
                 style={{
                     background: headerBg,
                     backdropFilter: "blur(12px)",
@@ -283,8 +298,8 @@ export default function RouletteContent({
                 )}
             </AnimatePresence>
 
-            {/* メイン: 上部余白 + コンテンツ */}
-            <main className={`flex-1 min-h-0 flex flex-col md:flex-row gap-0 p-4 ${!isSplitMode ? "pt-14" : ""} overflow-auto`}>
+            {/* メイン: 上部余白（ヘッダーに盤面が被らないよう多めに確保） */}
+            <main className="flex-1 min-h-0 flex flex-col md:flex-row gap-0 p-4 pt-20 overflow-auto">
                 {/* 左: サイドバー（デスクトップ時はリサイズ可能 / モバイル・Split時はオーバーレイ） */}
                 {!isSplitMode && isDesktop ? (
                     <>
@@ -297,7 +312,7 @@ export default function RouletteContent({
                                 borderRight: `1px solid ${glassBorder}`,
                             }}
                         >
-                            <div className="flex border-b shrink-0 flex-wrap gap-1 px-2 pt-2" style={{ borderColor: glassBorder }}>
+                            <div className="flex border-b shrink-0 flex-wrap gap-2 px-3 pt-3 pb-2" style={{ borderColor: glassBorder }}>
                                 {(["slots", "templates", "predictors", "stats"] as const).map((tab) => (
                                     <button
                                         key={tab}
@@ -312,7 +327,7 @@ export default function RouletteContent({
                                     </button>
                                 ))}
                             </div>
-                            <div className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col mt-2">
+                            <div className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col mt-3 px-3">
                                 {sidebarTab === "slots" && (
                                     <RouletteSetup
                                         slots={slots}
@@ -375,29 +390,65 @@ export default function RouletteContent({
                     </>
                 ) : (
                     <AnimatePresence>
+                        {showSidebar && !isDesktop && (
+                            <motion.div
+                                key="roulette-sidebar-backdrop"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="fixed inset-0 z-[38] bg-black/50"
+                                onClick={() => setSidebarOpen(false)}
+                                aria-hidden
+                            />
+                        )}
                         {showSidebar && (
                             <motion.aside
-                                initial={{ width: 0, opacity: 0 }}
-                                animate={{ width: "auto", opacity: 1 }}
-                                exit={{ width: 0, opacity: 0 }}
-                                className={`shrink-0 w-full md:w-72 flex flex-col min-h-0 overflow-hidden ${isSplitMode ? "fixed inset-0 z-40" : "max-md:fixed max-md:inset-0 max-md:z-40 md:relative"}`}
+                                key="roulette-sidebar"
+                                initial={isDesktop ? { width: 0, opacity: 0 } : { x: "-100%" }}
+                                animate={isDesktop ? { width: "auto", opacity: 1 } : { x: 0 }}
+                                exit={isDesktop ? { width: 0, opacity: 0 } : { x: "-100%" }}
+                                transition={isDesktop ? undefined : { type: "spring", damping: 25, stiffness: 300 }}
+                                className={`shrink-0 flex flex-col min-h-0 overflow-hidden ${
+                                    isSplitMode ? "absolute top-20 left-0 right-0 bottom-0 z-40" : "max-md:fixed max-md:left-0 max-md:top-20 max-md:bottom-0 max-md:z-40 max-md:shadow-2xl md:relative md:w-72"
+                                }`}
+                                style={
+                                    !isDesktop && !isSplitMode
+                                        ? { width: "min(320px, 90vw)", maxWidth: "min(320px, 90vw)", background: headerBg, backdropFilter: "blur(12px)" }
+                                        : undefined
+                                }
                             >
-                                <div className="flex border-b shrink-0 flex-wrap gap-1 px-2 pt-2" style={{ borderColor: glassBorder }}>
-                                    {(["slots", "templates", "predictors", "stats"] as const).map((tab) => (
+                                <div
+                                    className={`flex items-center border-b shrink-0 gap-2 px-3 pb-2 ${!isDesktop && !isSplitMode ? "pt-3 mt-1" : "pt-3"}`}
+                                    style={{ borderColor: glassBorder, background: !isDesktop && !isSplitMode ? headerBg : undefined }}
+                                >
+                                    <div className="flex flex-wrap gap-2 flex-1 min-w-0">
+                                        {(["slots", "templates", "predictors", "stats"] as const).map((tab) => (
+                                            <button
+                                                key={tab}
+                                                type="button"
+                                                onClick={() => setSidebarTab(tab)}
+                                                className={`shrink-0 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap rounded-lg touch-manipulation ${sidebarTab === tab ? (isLightMode ? "bg-white/90 text-gray-800 border border-purple-500" : "bg-white/10 text-white border border-purple-400") : (isLightMode ? "text-gray-600 hover:bg-gray-100 border border-transparent" : "text-white/60 hover:bg-white/5 border border-transparent")}`}
+                                            >
+                                                {tab === "slots" && "スロット"}
+                                                {tab === "templates" && "テンプレート"}
+                                                {tab === "predictors" && "予想"}
+                                                {tab === "stats" && "統計"}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {showHamburger && (
                                         <button
-                                            key={tab}
                                             type="button"
-                                            onClick={() => setSidebarTab(tab)}
-                                            className={`shrink-0 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap rounded-lg ${sidebarTab === tab ? (isLightMode ? "bg-white/90 text-gray-800 border border-purple-500" : "bg-white/10 text-white border border-purple-400") : (isLightMode ? "text-gray-600 hover:bg-gray-100 border border-transparent" : "text-white/60 hover:bg-white/5 border border-transparent")}`}
+                                            onClick={() => setSidebarOpen(false)}
+                                            className={`shrink-0 p-2 rounded-lg touch-manipulation ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                                            aria-label="メニューを閉じる"
                                         >
-                                            {tab === "slots" && "スロット"}
-                                            {tab === "templates" && "テンプレート"}
-                                            {tab === "predictors" && "予想"}
-                                            {tab === "stats" && "統計"}
+                                            <X size={20} />
                                         </button>
-                                    ))}
+                                    )}
                                 </div>
-                                <div className="flex-1 min-h-0 overflow-hidden flex flex-col mt-2">
+                                <div className="flex-1 min-h-0 overflow-hidden flex flex-col mt-3 px-3 pb-4">
                                     {sidebarTab === "slots" && (
                                         <RouletteSetup
                                             slots={slots}
@@ -448,8 +499,8 @@ export default function RouletteContent({
                     </AnimatePresence>
                 )}
 
-                {/* 右: ルーレット盤 */}
-                <div className="flex-1 min-w-0 flex flex-col items-center justify-center gap-4 md:pl-4 overflow-hidden">
+                {/* 右: ルーレット盤（スマホで見切れないよう幅に応じてスケール） */}
+                <div ref={wheelAreaRef} className="flex-1 min-w-0 flex flex-col items-center justify-center gap-4 md:pl-4 overflow-hidden">
                     {!isSplitMode && settings.showProjectName && (settings.projectName ?? "").trim() && (
                         <p
                             className="text-center text-lg sm:text-xl font-bold tracking-wide"
@@ -458,7 +509,27 @@ export default function RouletteContent({
                             {(settings.projectName ?? "").trim()}
                         </p>
                     )}
-                    <RouletteWheel
+                    <div
+                        style={{
+                            position: "relative",
+                            width: "100%",
+                            maxWidth: WHEEL_OUTER_PX * wheelScale,
+                            margin: "0 auto",
+                            height: (WHEEL_OUTER_PX + 200) * wheelScale,
+                            flexShrink: 0,
+                        }}
+                    >
+                        <div
+                            style={{
+                                position: "absolute",
+                                left: "50%",
+                                top: 0,
+                                transform: `translateX(-50%) scale(${wheelScale})`,
+                                transformOrigin: "center top",
+                                width: WHEEL_OUTER_PX,
+                            }}
+                        >
+                            <RouletteWheel
                         slots={slots}
                         style={effectiveSettings.style}
                         isSpinning={isSpinning}
@@ -474,6 +545,8 @@ export default function RouletteContent({
                         maxVisibleLabels={settings.maxVisibleLabels}
                         wheelOffsetIndex={settings.wheelOffsetIndex}
                     />
+                        </div>
+                    </div>
                     {resultIndex !== null && slots[resultIndex] !== undefined && (
                         <p className={`text-lg font-bold ${isLightMode ? "text-gray-800" : "text-white"}`}>
                             結果: {slots[resultIndex]}

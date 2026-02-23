@@ -151,6 +151,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
         showStep10: prev.showStep10 ?? (hadLegacy || true),
         showStepFree: prev.showStepFree ?? hadLegacy ?? false,
         stepFreeValue: prev.stepFreeValue ?? 1,
+        showCardEditDelete: prev.showCardEditDelete ?? true,
       };
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -498,6 +499,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                     onDeleteItem={(id) => setItemToDelete(id)}
                     onEditItem={(id) => setEditingItemId(id)}
                     isLightMode={isLightMode}
+                    showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
                   />
                 ))}
                 {/* Add Panel Slot */}
@@ -537,6 +539,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                     onEditItem={(id) => setEditingItemId(id)}
                     isLightMode={isLightMode}
                     isOverlay
+                    showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
                   />
                 </div>
               ) : null}

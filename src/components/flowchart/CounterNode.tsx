@@ -107,7 +107,7 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                     e.stopPropagation();
                     data.onQuickAdd?.(id, position);
                 }}
-                className="w-5 h-5 rounded-full border border-dashed flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all hover:scale-110 active:scale-95 bg-black/5 dark:bg-white/5 backdrop-blur-md pointer-events-auto"
+                className="w-5 h-5 rounded-full border border-dashed flex items-center justify-center opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all hover:scale-110 active:scale-95 bg-black/5 dark:bg-white/5 backdrop-blur-md pointer-events-auto touch-manipulation"
                 style={{ borderColor: accentColor, color: accentColor }}
             >
                 <Plus size={10} strokeWidth={3} />
@@ -232,11 +232,12 @@ function CounterNode({ id, data }: NodeProps<CounterNodeType>) {
                 )}
             </div>
 
-            {/* Config & Delete (Hidden by default, show on hover) */}
-            <div className="absolute -top-3 -right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1 z-10">
+            {/* Config & Delete (常時表示 on mobile / ホバーで表示 on desktop) */}
+            <div className="absolute -top-3 -right-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 z-10">
                 <button
                     onClick={() => data.onDelete(id)}
-                    className="w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-transform"
+                    className="w-7 h-7 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:scale-110 active:scale-95 transition-transform touch-manipulation"
+                    aria-label="削除"
                 >
                     <Trash2 size={12} />
                 </button>

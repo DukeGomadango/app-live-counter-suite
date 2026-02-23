@@ -5,6 +5,7 @@ import { ChevronUp, ChevronDown, Trash2, Pencil } from "lucide-react";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 function StepBtn({
     label,
@@ -56,6 +57,8 @@ interface CounterPanelProps {
     onEditItem: (id: string) => void;
     isLightMode: boolean;
     isOverlay?: boolean;
+    /** カード上に編集・削除ボタンを表示する（設定でオフにできる） */
+    showEditDeleteOnCard?: boolean;
 }
 
 export default function CounterPanel({
@@ -77,6 +80,7 @@ export default function CounterPanel({
     onEditItem,
     isLightMode,
     isOverlay = false,
+    showEditDeleteOnCard = true,
 }: CounterPanelProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: isOverlay });
     const lastIncrementAt = useRef<number>(0);
@@ -90,6 +94,8 @@ export default function CounterPanel({
     const [isPop, setIsPop] = useState(false);
     const [popDirection, setPopDirection] = useState<"up" | "down">("up");
     const [isHovered, setIsHovered] = useState(false);
+    const isDesktop = useMediaQuery("(min-width: 768px)");
+    const showHoverControls = isHovered || !isDesktop;
     const [isEditingCount, setIsEditingCount] = useState(false);
     const [editCountValue, setEditCountValue] = useState("");
 
@@ -337,9 +343,9 @@ export default function CounterPanel({
 
                 {/* Count row: 左△▽ / 中央 数字 / 右 ステップボタン */}
                 <div className="relative z-10 flex items-center justify-center gap-1 min-w-0">
-                    {/* 左: △▽ */}
+                    {/* 左: △▽（スマホでは常時表示） */}
                     <AnimatePresence>
-                        {isHovered && (
+                        {showHoverControls && (
                             <motion.div
                                 initial={{ opacity: 0, x: -5 }}
                                 animate={{ opacity: 1, x: 0 }}
@@ -434,10 +440,10 @@ export default function CounterPanel({
                         </div>
                     </div>
 
-                    {/* 右: ステップボタン（＋を上段・－を下段で縦に積む） */}
+                    {/* 右: ステップボタン（＋を上段・－を下段で縦に積む）（スマホでは常時表示） */}
                     {(showStep5 || showStep10 || showStepFree) && onAdjustBy && (
                         <AnimatePresence>
-                            {isHovered && (
+                            {showHoverControls && (
                                 <motion.div
                                     initial={{ opacity: 0, x: 5 }}
                                     animate={{ opacity: 1, x: 0 }}
@@ -482,9 +488,10 @@ export default function CounterPanel({
                     </span>
                 )}
 
-                {/* Edit & Delete buttons - top right on hover */}
+                {/* Edit & Delete buttons（設定でオフ可・スマホでは常時表示） */}
+                {showEditDeleteOnCard && (
                 <AnimatePresence>
-                    {isHovered && (
+                    {showHoverControls && (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.5 }}
                             animate={{ opacity: 1, scale: 1 }}
@@ -495,7 +502,7 @@ export default function CounterPanel({
                             <button
                                 onClick={(e) => { e.stopPropagation(); onEditItem(id); }}
                                 aria-label={`${label}を編集`}
-                                className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
+                                className="w-6 h-6 rounded-full flex items-center justify-center transition-colors touch-manipulation"
                                 style={{
                                     background: isLightMode ? "rgba(139,92,246,0.1)" : "rgba(139,92,246,0.15)",
                                     border: isLightMode ? "1px solid rgba(139,92,246,0.2)" : "1px solid rgba(139,92,246,0.25)",
@@ -508,7 +515,7 @@ export default function CounterPanel({
                             <button
                                 onClick={(e) => { e.stopPropagation(); onDeleteItem(id); }}
                                 aria-label={`${label}を削除`}
-                                className="w-6 h-6 rounded-full flex items-center justify-center transition-colors"
+                                className="w-6 h-6 rounded-full flex items-center justify-center transition-colors touch-manipulation"
                                 style={{
                                     background: isLightMode ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.15)",
                                     border: isLightMode ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(239,68,68,0.25)",
@@ -521,6 +528,7 @@ export default function CounterPanel({
                         </motion.div>
                     )}
                 </AnimatePresence>
+                )}
 
                 {/* Ripple effect */}
                 <AnimatePresence>
