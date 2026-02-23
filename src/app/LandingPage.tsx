@@ -17,7 +17,10 @@ export default function LandingPage() {
   const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
   const [layoutMode, setLayoutMode] = useLocalStorage<LayoutMode>("lp-layout-mode", "cards");
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setMounted(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   useEffect(() => {
     if (isLightMode) {
