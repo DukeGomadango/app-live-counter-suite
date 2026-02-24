@@ -381,11 +381,16 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   const effectiveCols = Math.min(gridCols, totalSlots || 1);
   const gridMaxWidth = effectiveCols * colMaxPx;
 
+  const splitLightBg = "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)";
   return (
     <div
       className="h-full w-full flex flex-col relative z-10"
       style={{ "--accent-color": appSettings.accentColor } as React.CSSProperties}
     >
+      {/* Split時ライト: body.light-mode 相当のベース背景（通常版と同じ見た目） */}
+      {isSplitMode && isLightMode && (
+        <div className="absolute inset-0 pointer-events-none z-0" style={{ background: splitLightBg }} />
+      )}
       {/* Inline Background Orbs for Split mode (body::before is hidden behind split container) */}
       {isSplitMode && (
         <div className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${isLightMode ? 'mix-blend-multiply opacity-20' : 'opacity-80'}`}>
@@ -431,7 +436,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
         onDeleteCustomTemplate={handleDeleteCustomTemplate}
         onOpenSettings={() => setIsSettingsOpen(true)}
         accentColor={appSettings.accentColor}
-        hideThemeToggle={isSplitMode && !isRightPane}
+        hideThemeToggle={false}
         hideModeSelector={isSplitMode}
       />
 

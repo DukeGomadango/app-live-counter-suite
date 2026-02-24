@@ -639,7 +639,7 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane = fa
                 viewMode="flowchart"
                 flowchartNodes={nodes}
                 onSetNodeTarget={handleSetNodeTarget}
-                hideThemeToggle={isSplitMode && !isRightPane}
+                hideThemeToggle={false}
                 hideModeSelector={isSplitMode}
             />
 

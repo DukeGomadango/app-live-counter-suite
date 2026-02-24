@@ -63,6 +63,8 @@ export default function RouletteContent({
     const sidebarResizeRafRef = useRef<number | null>(null);
     const sidebarResizePendingRef = useRef<number | null>(null);
     const wheelAreaRef = useRef<HTMLDivElement>(null);
+    const wheelContainerRef = useRef<HTMLDivElement>(null);
+    const projectNameDragStartRef = useRef<{ clientX: number; clientY: number; posX: number; posY: number } | null>(null);
     const [wheelScale, setWheelScale] = useState(1);
     const WHEEL_OUTER_PX = 380 + 48;
     useLayoutEffect(() => {
@@ -132,8 +134,43 @@ export default function RouletteContent({
         document.addEventListener("touchcancel", onEnd);
     }, [sidebarWidthPx, setSidebarWidthPx, applyResize]);
 
+    const projectNamePosition = settings.projectNamePosition ?? { x: 0, y: 0 };
+    const handleProjectNamePointerDown = useCallback(
+        (e: React.PointerEvent) => {
+            if (e.button !== 0) return;
+            e.currentTarget.setPointerCapture(e.pointerId);
+            projectNameDragStartRef.current = {
+                clientX: e.clientX,
+                clientY: e.clientY,
+                posX: projectNamePosition.x,
+                posY: projectNamePosition.y,
+            };
+        },
+        [projectNamePosition.x, projectNamePosition.y]
+    );
+    const handleProjectNamePointerMove = useCallback(
+        (e: React.PointerEvent) => {
+            const start = projectNameDragStartRef.current;
+            if (!start) return;
+            const el = wheelAreaRef.current;
+            if (!el) return;
+            const rect = el.getBoundingClientRect();
+            const maxX = Math.max(0, rect.width - 20);
+            const maxY = Math.max(0, rect.height - 20);
+            const newX = Math.max(0, Math.min(maxX, start.posX + (e.clientX - start.clientX)));
+            const newY = Math.max(0, Math.min(maxY, start.posY + (e.clientY - start.clientY)));
+            setSettings((prev) => ({ ...prev, projectNamePosition: { x: newX, y: newY } }));
+        },
+        [setSettings]
+    );
+    const handleProjectNamePointerUp = useCallback((e: React.PointerEvent) => {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+        projectNameDragStartRef.current = null;
+    }, []);
+
     const { glassBorder } = useGlassStyle(isLightMode);
-    const headerBg = isLightMode ? "rgba(255,255,255,0.7)" : "rgba(20,10,40,0.6)";
+    /** ヘッダーは不透明。メイン・サイドバーは背景なしでオーブを見せる */
+    const headerBgSolid = isLightMode ? "rgb(255,255,255)" : "rgb(20,10,40)";
     const displayLight = isLightMode;
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const showHamburger = isSplitMode || !isDesktop;
@@ -209,8 +246,16 @@ export default function RouletteContent({
         }
     };
 
+    const splitLightBg = "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)";
     return (
-        <div className={`flex flex-col overflow-hidden relative z-10 min-w-0 ${isSplitMode ? "h-full w-full" : "h-screen w-screen"}`}>
+        <div className={`flex flex-col overflow-hidden relative z-10 min-w-0 pt-14 ${isSplitMode ? "h-full w-full" : "h-screen w-screen"}`}>
+            {/* Split時ライト: body.light-mode 相当のベース背景（通常版と同じ見た目） */}
+            {isSplitMode && isLightMode && (
+                <div
+                    className="absolute inset-0 pointer-events-none z-0"
+                    style={{ background: splitLightBg }}
+                />
+            )}
             {/* 背景色レイヤー（設定で有効時のみ・オーブの背後） */}
             {settings.backgroundEnabled && (
                 <div
@@ -247,8 +292,7 @@ export default function RouletteContent({
             <div
                 className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 min-h-[56px] max-md:h-14 max-md:min-h-0 shrink-0`}
                 style={{
-                    background: headerBg,
-                    backdropFilter: "blur(12px)",
+                    background: headerBgSolid,
                     borderBottom: `1px solid ${glassBorder}`,
                 }}
             >
@@ -274,14 +318,14 @@ export default function RouletteContent({
                     >
                         <Settings size={16} />
                     </button>
-                    {(!isSplitMode || isRightPane) && (
-                        <button
-                            onClick={() => setIsLightMode(!isLightMode)}
-                            className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
-                        >
-                            {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
-                        </button>
-                    )}
+                    <button
+                        onClick={() => setIsLightMode(!isLightMode)}
+                        className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                        title={isLightMode ? "ダークモード" : "ライトモード"}
+                        aria-label={isLightMode ? "ダークモード" : "ライトモード"}
+                    >
+                        {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
+                    </button>
                 </div>
             </div>
 
@@ -304,8 +348,8 @@ export default function RouletteContent({
                 )}
             </AnimatePresence>
 
-            {/* メイン: 上部余白（スマホSplit含め盤面がヘッダーに被らないよう確保） */}
-            <main className="flex-1 min-h-0 flex flex-col md:flex-row gap-0 p-4 pt-20 max-md:pt-24 overflow-auto">
+            {/* メイン: 背景なし（Calculator/Counter同様オーブが背面に見える） */}
+            <main className="flex-1 min-h-0 flex flex-col md:flex-row gap-0 p-4 overflow-auto relative z-10">
                 {/* 左: サイドバー（デスクトップ時はリサイズ可能 / モバイル・Split時はオーバーレイ） */}
                 {!isSplitMode && isDesktop ? (
                     <>
@@ -418,17 +462,17 @@ export default function RouletteContent({
                                 exit={isDesktop ? { width: 0, opacity: 0 } : { x: "-100%" }}
                                 transition={isDesktop ? undefined : { type: "spring", damping: 25, stiffness: 300 }}
                                 className={`shrink-0 flex flex-col min-h-0 overflow-hidden ${
-                                    isSplitMode ? "absolute top-20 left-0 right-0 bottom-0 max-md:top-24 z-40" : "max-md:fixed max-md:left-0 max-md:top-24 max-md:bottom-0 max-md:z-40 max-md:shadow-2xl md:relative md:w-72"
+                                    isSplitMode ? "absolute top-14 left-0 right-0 bottom-0 max-md:top-14 z-40" : "max-md:fixed max-md:left-0 max-md:top-14 max-md:bottom-0 max-md:z-40 max-md:shadow-2xl md:relative md:w-72"
                                 }`}
                                 style={
                                     !isDesktop && !isSplitMode
-                                        ? { width: "min(320px, 90vw)", maxWidth: "min(320px, 90vw)", background: headerBg, backdropFilter: "blur(12px)" }
+                                        ? { width: "min(320px, 90vw)", maxWidth: "min(320px, 90vw)", background: headerBgSolid }
                                         : undefined
                                 }
                             >
                                 <div
                                     className={`flex items-center border-b shrink-0 gap-2 px-3 pb-2 ${!isDesktop && !isSplitMode ? "pt-3 mt-1" : "pt-3"}`}
-                                    style={{ borderColor: glassBorder, background: !isDesktop && !isSplitMode ? headerBg : undefined }}
+                                    style={{ borderColor: glassBorder, background: !isDesktop && !isSplitMode ? headerBgSolid : undefined }}
                                 >
                                     <div className="flex flex-wrap gap-2 flex-1 min-w-0">
                                         {(["slots", "templates", "predictors", "stats"] as const).map((tab) => (
@@ -509,60 +553,84 @@ export default function RouletteContent({
                     </AnimatePresence>
                 )}
 
-                {/* 右: ルーレット盤（スマホ・Splitで少し下にずらして見やすく） */}
-                <div ref={wheelAreaRef} className="flex-1 min-w-0 flex flex-col items-center justify-center gap-4 md:pl-4 overflow-hidden max-md:pt-10">
+                {/* 右: ルーレット盤（企画名はエリア直下で独立・D&D可能、盤は中央で一塊） */}
+                <div ref={wheelAreaRef} className="flex-1 min-w-0 flex flex-col overflow-hidden pt-14 pb-10 max-md:pt-14 max-md:pb-8 md:pl-4 relative">
                     {!isSplitMode && settings.showProjectName && (settings.projectName ?? "").trim() && (
                         <p
-                            className="text-center text-lg sm:text-xl font-bold tracking-wide"
-                            style={{ color: accentColor, textShadow: `0 0 20px ${accentColor}40` }}
+                            role="presentation"
+                            className="absolute text-lg sm:text-xl font-bold tracking-wide select-none z-20 cursor-grab active:cursor-grabbing touch-none"
+                            style={{
+                                left: projectNamePosition.x,
+                                top: projectNamePosition.y,
+                                color: accentColor,
+                                textShadow: `0 0 20px ${accentColor}40`,
+                                background: "transparent",
+                                border: "none",
+                                outline: "none",
+                                padding: 0,
+                                margin: 0,
+                            }}
+                            onPointerDown={handleProjectNamePointerDown}
+                            onPointerMove={handleProjectNamePointerMove}
+                            onPointerUp={handleProjectNamePointerUp}
+                            onPointerCancel={handleProjectNamePointerUp}
                         >
                             {(settings.projectName ?? "").trim()}
                         </p>
                     )}
-                    <div
-                        style={{
-                            position: "relative",
-                            width: "100%",
-                            maxWidth: WHEEL_OUTER_PX * wheelScale,
-                            margin: "0 auto",
-                            height: (WHEEL_OUTER_PX + 200) * wheelScale,
-                            flexShrink: 0,
-                        }}
-                    >
+                    <div className="flex-1 min-h-0 flex justify-center items-center w-full">
                         <div
-                            style={{
-                                position: "absolute",
-                                left: "50%",
-                                top: 0,
-                                transform: `translateX(-50%) scale(${wheelScale})`,
-                                transformOrigin: "center top",
-                                width: WHEEL_OUTER_PX,
-                            }}
+                            className={`flex flex-col items-center gap-3 shrink-0 ${isSplitMode ? "mt-[68px] max-md:mt-[72px]" : "mt-8"}`}
                         >
-                            <RouletteWheel
-                        slots={slots}
-                        style={effectiveSettings.style}
-                        isSpinning={isSpinning}
-                        targetIndex={spinTargetIndex}
-                        resultIndex={resultIndex}
-                        spinKey={spinKey}
-                        onSpin={handleSpin}
-                        onSpinEnd={handleSpinEnd}
-                        skipRequested={skipRequested}
-                        onSkipRequest={() => setSkipRequested(true)}
-                        accentColor={accentColor}
-                        isLightMode={isLightMode}
-                        maxVisibleLabels={settings.maxVisibleLabels}
-                        wheelOffsetIndex={settings.wheelOffsetIndex}
-                        effectLevel={effectiveSettings.effectLevel ?? "low"}
-                    />
+                            <div
+                                ref={wheelContainerRef}
+                                style={{
+                                    position: "relative",
+                                    width: "100%",
+                                    maxWidth: WHEEL_OUTER_PX * wheelScale,
+                                    margin: "0 auto",
+                                    height: (WHEEL_OUTER_PX + 200) * wheelScale,
+                                    flexShrink: 0,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        position: "absolute",
+                                        left: "50%",
+                                        top: 0,
+                                        transform: `translateX(-50%) scale(${wheelScale})`,
+                                        transformOrigin: "center top",
+                                        width: WHEEL_OUTER_PX,
+                                    }}
+                                >
+                                    <RouletteWheel
+                                        slots={slots}
+                                        style={effectiveSettings.style}
+                                        isSpinning={isSpinning}
+                                        targetIndex={spinTargetIndex}
+                                        resultIndex={resultIndex}
+                                        spinKey={spinKey}
+                                        onSpin={handleSpin}
+                                        onSpinEnd={handleSpinEnd}
+                                        skipRequested={skipRequested}
+                                        onSkipRequest={() => setSkipRequested(true)}
+                                        accentColor={accentColor}
+                                        isLightMode={isLightMode}
+                                        maxVisibleLabels={settings.maxVisibleLabels}
+                                        wheelOffsetIndex={settings.wheelOffsetIndex}
+                                        effectLevel={effectiveSettings.effectLevel ?? "low"}
+                                        resultSlot={
+                                            resultIndex !== null && slots[resultIndex] !== undefined ? (
+                                                <p className={`text-lg font-bold ${isLightMode ? "text-gray-800" : "text-white"}`}>
+                                                    結果: {slots[resultIndex]}
+                                                </p>
+                                            ) : undefined
+                                        }
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    {resultIndex !== null && slots[resultIndex] !== undefined && (
-                        <p className={`text-lg font-bold ${isLightMode ? "text-gray-800" : "text-white"}`}>
-                            結果: {slots[resultIndex]}
-                        </p>
-                    )}
                 </div>
             </main>
 

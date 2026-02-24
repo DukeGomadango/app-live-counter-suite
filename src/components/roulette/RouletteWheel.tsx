@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { motion, useAnimationControls } from "framer-motion";
 import type { RouletteStyle } from "@/lib/roulette";
@@ -35,6 +36,8 @@ interface RouletteWheelProps {
     wheelOffsetIndex?: number;
     /** 演出量: high=回転長め / low=回転短め */
     effectLevel?: "high" | "low";
+    /** 「回す」の横に表示する結果用スロット（例: 結果: ○○） */
+    resultSlot?: ReactNode;
 }
 
 const DEFAULT_MAX_VISIBLE_LABELS = 80;
@@ -55,6 +58,7 @@ export default function RouletteWheel({
     maxVisibleLabels,
     wheelOffsetIndex,
     effectLevel = "low",
+    resultSlot,
 }: RouletteWheelProps) {
     const effectiveMaxLabels = maxVisibleLabels ?? DEFAULT_MAX_VISIBLE_LABELS;
     const wheelControls = useAnimationControls();
@@ -205,7 +209,7 @@ export default function RouletteWheel({
     const textStrokeColor = isLightMode ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.7)";
 
     return (
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-4 max-md:gap-2">
             <div className="relative overflow-hidden" style={{ width: wheelSize + 48, height: wheelSize + 48 }}>
                 {/* 針（needle のときのみ・上部中央に固定） */}
                 {isNeedle && (
@@ -547,6 +551,7 @@ export default function RouletteWheel({
                 >
                     {isSpinning ? "回転中…" : "回す"}
                 </button>
+                {resultSlot != null && <span className="flex items-center min-h-[3rem]">{resultSlot}</span>}
                 {isSpinning && onSkipRequest && (
                     <button
                         type="button"

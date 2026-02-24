@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 const RouletteContent = dynamic(
     () => import("./RouletteContent"),
     {
-        ssr: true,
+        ssr: false,
         loading: () => (
             <div className="flex items-center justify-center min-h-[50vh] text-gray-500 dark:text-white/60">
                 読み込み中…

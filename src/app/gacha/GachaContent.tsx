@@ -585,7 +585,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                     }}
                 >
                     <div className="flex items-center gap-2">
-                        <ModeSelector isLightMode={isLightMode} />
+                        {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
                         {activePlayer && (
                             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${displayLight ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
                                 <Users size={12} />
@@ -608,14 +608,14 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                         >
                             <Settings size={16} />
                         </button>
-                        {(!isSplitMode || isRightPane) && (
-                            <button
-                                onClick={() => setIsLightMode(!isLightMode)}
-                                className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
-                            >
+                        <button
+                            onClick={() => setIsLightMode(!isLightMode)}
+                            className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                            title={isLightMode ? "ダークモード" : "ライトモード"}
+                            aria-label={isLightMode ? "ダークモード" : "ライトモード"}
+                        >
                                 {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
                             </button>
-                        )}
                     </div>
                 </div>
 
@@ -772,8 +772,12 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
 
     return (
         <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`}>
-            {/* Split時のみ：ペイン内にガチャ背景を表示（bodyはSplitページが占有するため） */}
-            {isSplitMode && gachaBgValue && (
+            {/* Split時ライト: body.light-mode 相当のベース背景（通常版と同じ見た目） */}
+            {isSplitMode && isLightMode && (
+                <div aria-hidden className="absolute inset-0 z-0" style={{ background: "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)" }} />
+            )}
+            {/* Split時ダーク：ペイン内にガチャ背景を表示（bodyはSplitページが占有するため） */}
+            {isSplitMode && !isLightMode && gachaBgValue && (
                 <div aria-hidden className="absolute inset-0 z-0" style={{ background: gachaBgValue }} />
             )}
             {/* 濃さオーバーレイ（Split時はペイン内に収める） */}
@@ -835,14 +839,14 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                     >
                         <Settings size={16} />
                     </button>
-                    {(!isSplitMode || isRightPane) && (
-                        <button
-                            onClick={() => setIsLightMode(!isLightMode)}
-                            className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
-                        >
-                            {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
-                        </button>
-                    )}
+                    <button
+                        onClick={() => setIsLightMode(!isLightMode)}
+                        className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+                        title={isLightMode ? "ダークモード" : "ライトモード"}
+                        aria-label={isLightMode ? "ダークモード" : "ライトモード"}
+                    >
+                        {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
+                    </button>
                 </div>
             </div>
 

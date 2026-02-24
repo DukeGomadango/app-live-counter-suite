@@ -18,6 +18,8 @@ export interface RouletteSettings {
     showProjectName?: boolean;
     /** 企画名（ルーレット名） */
     projectName?: string;
+    /** 企画名の位置（盤左上基準の px）。D&Dで変更可能 */
+    projectNamePosition?: { x: number; y: number };
     /** 盤の一番下（6時方向）に表示するスロットの0-basedインデックス。未設定時は0（1番目） */
     wheelOffsetIndex?: number;
     /** この数より多いスロットで簡易表示（ラベル非表示）。未設定時は 80 */

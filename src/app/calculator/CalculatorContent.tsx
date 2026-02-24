@@ -127,14 +127,22 @@ export default function CalculatorContent({
     const iconColor = isLightMode ? "text-gray-800" : "text-white";
     const iconHover = isLightMode ? "hover:bg-gray-200" : "hover:bg-white/20";
 
-    const splitPaneBg = isSplitMode ? (isLightMode ? "#f8f9fa" : "#0a051e") : undefined;
-    const splitTopBg = splitPaneBg ?? headerBgStrong;
+    const splitPaneBg = isSplitMode ? (isLightMode ? undefined : "#0a051e") : undefined;
+    const splitLightBg = "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)";
+    const splitTopBg = isSplitMode && isLightMode ? "#f8f9fa" : (splitPaneBg ?? headerBgStrong);
 
     return (
         <div
             className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`}
             style={splitPaneBg ? { background: splitPaneBg } : undefined}
         >
+            {/* Split時ライト: body.light-mode 相当のベース背景（通常版と同じ見た目） */}
+            {isSplitMode && isLightMode && (
+                <div
+                    className="absolute inset-0 pointer-events-none z-0"
+                    style={{ background: splitLightBg }}
+                />
+            )}
             {/* 背景オーブ */}
             <div
                 className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${isLightMode ? "mix-blend-multiply opacity-20" : "opacity-80"}`}
@@ -180,14 +188,14 @@ export default function CalculatorContent({
                     >
                         <Settings size={16} />
                     </button>
-                    {(!isSplitMode || isRightPane) && (
-                        <button
-                            onClick={() => setIsLightMode(!isLightMode)}
-                            className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
-                        >
-                            {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
-                        </button>
-                    )}
+                    <button
+                        onClick={() => setIsLightMode(!isLightMode)}
+                        className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
+                        title={isLightMode ? "ダークモード" : "ライトモード"}
+                        aria-label={isLightMode ? "ダークモード" : "ライトモード"}
+                    >
+                        {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
+                    </button>
                 </div>
             </div>
 
@@ -204,7 +212,7 @@ export default function CalculatorContent({
             </AnimatePresence>
 
             <main
-                className={`flex-1 min-h-0 flex flex-col p-4 ${!isSplitMode ? "pt-14" : ""} overflow-auto`}
+                className={`flex-1 min-h-0 flex flex-col overflow-auto ${!isSplitMode ? "pt-14 p-4" : "p-5"}`}
             >
                 {/* タブ（背景・枠を強めてどの背景でも視認しやすく） */}
                 <div
