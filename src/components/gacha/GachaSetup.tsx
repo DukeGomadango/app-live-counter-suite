@@ -165,7 +165,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const normalizeFirstWeight = (items: GachaItem[]): GachaItem[] => {
         if (items.length === 0) return items;
         const rest = items.slice(1).reduce((s, i) => s + Math.max(0, i.weight), 0);
-        let firstWeight = 100 - rest;
+        const firstWeight = 100 - rest;
         let newItems = items.map((it, i) => (i === 0 ? { ...it, weight: Math.max(0, firstWeight) } : { ...it }));
         if (rest > 100) {
             const scale = 100 / rest;
