@@ -92,10 +92,12 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
-    const [newItemWeight, setNewItemWeight] = useState("1");
+    const [newItemProb, setNewItemProb] = useState("10");
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editName, setEditName] = useState("");
     const [pendingDelete, setPendingDelete] = useState<{ type: "rarity"; id: string } | { type: "item"; id: string } | null>(null);
+    const [pullCountInput, setPullCountInput] = useState<string | null>(null);
+    const [pityThresholdInput, setPityThresholdInput] = useState<string | null>(null);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
@@ -159,18 +161,43 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         });
     };
 
+    // 一番上の weight を「100 - 2番目以降の合計」にし、2番目以降の合計が100超なら按分して合計100に
+    const normalizeFirstWeight = (items: GachaItem[]): GachaItem[] => {
+        if (items.length === 0) return items;
+        const rest = items.slice(1).reduce((s, i) => s + Math.max(0, i.weight), 0);
+        let firstWeight = 100 - rest;
+        let newItems = items.map((it, i) => (i === 0 ? { ...it, weight: Math.max(0, firstWeight) } : { ...it }));
+        if (rest > 100) {
+            const scale = 100 / rest;
+            newItems = newItems.map((it, i) =>
+                i === 0 ? { ...it, weight: 0 } : { ...it, weight: Math.max(0, it.weight) * scale }
+            );
+        }
+        return newItems;
+    };
+
+    const applyProbabilityEdit = (itemIndex: number, newPercent: number) => {
+        if (itemIndex < 0 || itemIndex >= pool.items.length) return;
+        const p = newPercent >= 0 ? newPercent : 0;
+        const items = pool.items.map((it, i) => (i === itemIndex ? { ...it, weight: p } : { ...it }));
+        onPoolChange({ ...pool, items: normalizeFirstWeight(items) });
+    };
+
     // -- 品目操作 --
     const addItem = () => {
         if (!newItemName.trim() || !newItemRarityId) return;
+        const prob = parseFloat(newItemProb);
+        const w = Number.isNaN(prob) || prob < 0 ? 10 : prob;
         const newItem: GachaItem = {
             id: generateId(),
             name: newItemName.trim(),
             rarityId: newItemRarityId,
-            weight: Math.max(0.000001, parseFloat(newItemWeight) || 1),
+            weight: w,
         };
-        onPoolChange({ ...pool, items: [...pool.items, newItem] });
+        const nextItems = normalizeFirstWeight([...pool.items, newItem]);
+        onPoolChange({ ...pool, items: nextItems });
         setNewItemName("");
-        setNewItemWeight("1");
+        setNewItemProb("10");
     };
 
     const removeItem = (id: string) => {
@@ -224,11 +251,18 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                     1回の排出枚数
                 </label>
                 <input
-                    type="number"
-                    min={1}
-                    max={100000}
-                    value={pool.pullCount}
-                    onChange={e => onPoolChange({ ...pool, pullCount: Math.max(1, Math.min(100000, parseInt(e.target.value) || 1)) })}
+                    type="text"
+                    inputMode="numeric"
+                    value={pullCountInput !== null ? pullCountInput : String(pool.pullCount)}
+                    onFocus={() => setPullCountInput(String(pool.pullCount))}
+                    onChange={e => setPullCountInput(e.target.value)}
+                    onBlur={() => {
+                        const s = pullCountInput !== null ? pullCountInput.trim() : String(pool.pullCount);
+                        const n = parseInt(s, 10);
+                        const valid = !Number.isNaN(n) ? Math.max(1, Math.min(100000, n)) : pool.pullCount;
+                        onPoolChange({ ...pool, pullCount: valid });
+                        setPullCountInput(null);
+                    }}
                     className={`w-full px-3 py-2 rounded-lg text-sm ${textPrimary} ${placeholderCls} outline-none transition-all focus:ring-2 focus:ring-purple-500/30`}
                     style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                 />
@@ -335,7 +369,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         className="text-[10px] px-2 py-0.5 rounded-full font-bold"
                                                         style={{ color: r.color, background: r.bgColor, border: `1px solid ${r.glowColor}` }}
                                                     >
-                                                        {r.name}: {prob < 0.01 ? prob.toFixed(4) : prob.toFixed(2)}%
+                                                        {r.name}: {formatProb(prob)}%
                                                     </span>
                                                 );
                                             })}
@@ -346,12 +380,15 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                 <div className="flex flex-col gap-1.5 mb-3 max-h-64 overflow-y-auto pr-1">
                                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                         <SortableContext items={pool.items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                                            {pool.items.map(item => {
+                                            {pool.items.map((item, index) => {
                                                 const pt = probabilities.get(item.id) || 0;
+                                                const isFirst = index === 0;
                                                 return (
                                                     <SortableItem
                                                         key={item.id}
                                                         item={item}
+                                                        itemIndex={index}
+                                                        isFirstItem={isFirst}
                                                         pool={pool}
                                                         isLightMode={textLight}
                                                         editingItemId={editingItemId}
@@ -360,6 +397,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         startEditing={startEditing}
                                                         finishEditing={finishEditing}
                                                         updateItem={updateItem}
+                                                        onProbabilityBlur={applyProbabilityEdit}
                                                         onRequestRemoveItem={(id) => setPendingDelete({ type: "item", id })}
                                                         prob={pt}
                                                     />
@@ -400,12 +438,11 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                     </div>
                                     <div className="flex gap-2">
                                         <input
-                                            type="number"
-                                            min={0.000001}
-                                            step="any"
-                                            value={newItemWeight}
-                                            onChange={e => setNewItemWeight(e.target.value)}
-                                            placeholder="重み"
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={newItemProb}
+                                            onChange={e => setNewItemProb(e.target.value)}
+                                            placeholder="確率(%)"
                                             className={`w-24 px-2 py-1.5 rounded-lg text-xs ${textPrimary} ${placeholderCls} outline-none`}
                                             style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                         />
@@ -462,10 +499,18 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         <div>
                                             <label className={`text-[10px] ${textSecondary} mb-1 block`}>天井回数</label>
                                             <input
-                                                type="number"
-                                                min={1}
-                                                value={pool.pityThreshold}
-                                                onChange={e => onPoolChange({ ...pool, pityThreshold: Math.max(1, parseInt(e.target.value) || 1) })}
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={pityThresholdInput !== null ? pityThresholdInput : String(pool.pityThreshold)}
+                                                onFocus={() => setPityThresholdInput(String(pool.pityThreshold))}
+                                                onChange={e => setPityThresholdInput(e.target.value)}
+                                                onBlur={() => {
+                                                    const s = pityThresholdInput !== null ? pityThresholdInput.trim() : String(pool.pityThreshold);
+                                                    const n = parseInt(s, 10);
+                                                    const valid = !Number.isNaN(n) ? Math.max(1, n) : pool.pityThreshold;
+                                                    onPoolChange({ ...pool, pityThreshold: valid });
+                                                    setPityThresholdInput(null);
+                                                }}
                                                 className={`w-full px-2 py-1.5 rounded-lg text-xs ${textPrimary} outline-none`}
                                                 style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                             />
@@ -532,9 +577,20 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     );
 }
 
+// 極小確率は指数表記、それ以外は桁数に応じて toFixed
+function formatProb(prob: number): string {
+    if (prob >= 0.01) return prob.toFixed(2);
+    if (prob >= 0.0001) return prob.toFixed(4);
+    if (prob >= 1e-6) return prob.toFixed(6);
+    if (prob > 0) return prob.toExponential(2);
+    return "0";
+}
+
 // DnD用の子コンポーネント
 interface SortableItemProps {
     item: GachaItem;
+    itemIndex: number;
+    isFirstItem: boolean;
     pool: GachaPool;
     isLightMode: boolean;
     editingItemId: string | null;
@@ -543,14 +599,15 @@ interface SortableItemProps {
     startEditing: (item: GachaItem) => void;
     finishEditing: () => void;
     updateItem: (id: string, updates: Partial<GachaItem>) => void;
+    onProbabilityBlur: (itemIndex: number, percent: number) => void;
     onRequestRemoveItem: (id: string) => void;
     prob: number;
 }
 
-const MIN_WEIGHT = 0.000001;
-
 function SortableItem({
     item,
+    itemIndex,
+    isFirstItem,
     pool,
     isLightMode,
     editingItemId,
@@ -559,15 +616,15 @@ function SortableItem({
     startEditing,
     finishEditing,
     updateItem,
+    onProbabilityBlur,
     onRequestRemoveItem,
     prob
 }: SortableItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
     const isEditing = editingItemId === item.id;
     const rarity = pool.rarities.find(r => r.id === item.rarityId);
-    // 重み入力中は文字列で保持し、blurで確定。入力のたびにparseFloatすると「0.」などが消えてバグるため
-    const [weightInput, setWeightInput] = useState<string | null>(null);
-    const weightDisplay = weightInput !== null ? weightInput : String(item.weight);
+    const [probInput, setProbInput] = useState<string | null>(null);
+    const probDisplay = probInput !== null ? probInput : formatProb(prob);
     const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
 
     const sortableStyle = {
@@ -641,26 +698,32 @@ function SortableItem({
                 </span>
             )}
 
-            {/* ウェイト（入力中は文字列のまま表示し、blurで数値確定） */}
-            <input
-                type="text"
-                inputMode="decimal"
-                value={weightDisplay}
-                onFocus={() => setWeightInput(String(item.weight))}
-                onChange={e => setWeightInput(e.target.value)}
-                onBlur={() => {
-                    const s = weightInput !== null ? weightInput.trim() : String(item.weight);
-                    const n = parseFloat(s);
-                    const valid = !Number.isNaN(n) && n >= MIN_WEIGHT ? n : MIN_WEIGHT;
-                    updateItem(item.id, { weight: valid });
-                    setWeightInput(null);
-                }}
-                className={`w-14 text-[10px] px-1.5 py-0.5 rounded text-right ${textPrimary} outline-none`}
-                style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-            />
-            <span className={`text-[10px] w-12 text-right tabular-nums ${textMuted}`}>
-                {prob < 0.01 ? prob.toFixed(4) : prob.toFixed(2)}%
-            </span>
+            {/* 確率(%)：並びの一番上だけ編集不可（残り%）、2番目以降は入力可。表示は1列に統一 */}
+            {isFirstItem ? (
+                <span
+                    className={`w-16 text-[10px] px-1.5 py-0.5 text-right tabular-nums select-none cursor-default ${textMuted}`}
+                    title="並びの一番上は残り%のため編集できません（ドラッグで並べ替え可）"
+                    aria-label="残り%（編集不可）"
+                >
+                    {formatProb(prob)}%
+                </span>
+            ) : (
+                <input
+                    type="text"
+                    inputMode="decimal"
+                    value={probDisplay}
+                    onFocus={() => setProbInput(formatProb(prob))}
+                    onChange={e => setProbInput(e.target.value)}
+                    onBlur={() => {
+                        const s = probInput !== null ? probInput.trim() : formatProb(prob);
+                        const n = parseFloat(s);
+                        if (!Number.isNaN(n) && n >= 0) onProbabilityBlur(itemIndex, n);
+                        setProbInput(null);
+                    }}
+                    className={`w-16 text-[10px] px-1.5 py-0.5 rounded text-right ${textPrimary} outline-none`}
+                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                />
+            )}
 
             {/* 添付（画像・音声）：1ボタンでモーダルを開き、モーダル内でファイル or URL を登録 */}
             <button
