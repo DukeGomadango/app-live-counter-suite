@@ -23,16 +23,9 @@ import { useState, useCallback, useMemo } from "react";
 import { TEMPLATES, type Template, type CounterItem } from "@/lib/templates";
 import { EMOJI_OPTIONS, COLOR_OPTIONS } from "@/lib/constants";
 import ModeSelector from "@/components/ModeSelector";
-import { Node, Edge } from "@xyflow/react";
+import type { SavedFlowChart, FlowchartNodeForMenu } from "@/lib/flowchartTypes";
 
-export type SavedFlowChart = {
-    id: string;
-    name: string;
-    notes?: string;
-    nodes: Node[];
-    edges: Edge[];
-    updatedAt: number;
-};
+export type { SavedFlowChart } from "@/lib/flowchartTypes";
 
 interface HamburgerMenuProps {
     isOpen: boolean;
@@ -69,7 +62,7 @@ interface HamburgerMenuProps {
     onDeleteChart?: (id: string) => void;
     globalTarget?: number;
     onSetGlobalTarget?: (t: number) => void;
-    flowchartNodes?: Node[];
+    flowchartNodes?: FlowchartNodeForMenu[];
     onSetNodeTarget?: (id: string, target: number) => void;
 }
 
@@ -204,11 +197,11 @@ export default function HamburgerMenu({
 
     // FlowChart nodes grouped by operation for targets
     const groupedFlowchartNodes = useMemo(() => {
-        if (viewMode !== "flowchart" || !flowchartNodes) return {} as Record<string, Node[]>;
-        const counterNodes = flowchartNodes.filter(n => n.type === "counter" && !n.data.isGhost);
-        const grouped: Record<string, Node[]> = { "+": [], "-": [], "*": [], "/": [] };
+        if (viewMode !== "flowchart" || !flowchartNodes) return {} as Record<string, FlowchartNodeForMenu[]>;
+        const counterNodes = flowchartNodes.filter(n => n.type === "counter" && !n.data?.isGhost);
+        const grouped: Record<string, FlowchartNodeForMenu[]> = { "+": [], "-": [], "*": [], "/": [] };
         counterNodes.forEach(n => {
-            const op = String(n.data.operation);
+            const op = String(n.data?.operation);
             if (grouped[op]) grouped[op].push(n);
         });
         return grouped;

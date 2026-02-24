@@ -576,8 +576,8 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane = fa
     }, [nodes, edges, setSavedCharts]);
 
     const handleLoadChart = useCallback((chart: SavedFlowChart) => {
-        setNodes(chart.nodes);
-        setEdges(chart.edges);
+        setNodes(chart.nodes as Node[]);
+        setEdges(chart.edges as Edge[]);
     }, [setNodes, setEdges]);
 
     const handleDeleteChart = useCallback((id: string) => {

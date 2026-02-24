@@ -1,9 +1,12 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import CounterPage from "@/app/CounterPage";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
+const CounterPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
+  () => import("@/app/CounterPage"),
+  { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
+);
 const FlowChartPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
   () => import("@/app/flowchart/FlowchartContent"),
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }

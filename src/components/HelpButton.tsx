@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { HelpCircle } from "lucide-react";
-import HelpModal from "./HelpModal";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+
+const HelpModal = dynamic(() => import("./HelpModal"), { ssr: false });
 
 export default function HelpButton() {
     const [isOpen, setIsOpen] = useState(false);
