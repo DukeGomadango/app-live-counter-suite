@@ -5,13 +5,13 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { motion, useAnimationControls } from "framer-motion";
 import type { RouletteStyle } from "@/lib/roulette";
 
-const FULL_TURNS = 12;
-const SPIN_DURATION_NEEDLE_LOW = 5;
-const SPIN_DURATION_NEEDLE_HIGH = 8;
+const FULL_TURNS = 5;
+const SPIN_DURATION_NEEDLE_LOW = 7;
+const SPIN_DURATION_NEEDLE_HIGH = 12;
 const SPIN_DURATION_CASINO_LOW = 7;
 const SPIN_DURATION_CASINO_HIGH = 12;
-/** 終盤でゆっくり止まるベジェ（じらし用） */
-const SPIN_EASE = [0.12, 0.5, 0.35, 1] as const;
+/** 進みの8割を前半1/5で消化し、残り4/5でのんびり減速。最後はもうひと伸び感で止まる */
+const SPIN_EASE = [0.1, 0.78, 0.55, 0.96] as const;
 /** 0°=3時なので、12時を基準にするためのオフセット（度） */
 const DEG_12_O_CLOCK = -90;
 interface RouletteWheelProps {
