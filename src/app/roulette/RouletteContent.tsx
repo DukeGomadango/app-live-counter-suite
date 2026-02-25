@@ -20,6 +20,7 @@ import {
     createRouletteTemplate,
     getSampleRouletteTemplates,
     getHighLowZone,
+    getHighLowCenterIndex,
     pickRandomIndex,
     trimRouletteHistory,
     trimRouletteHitHistory,
@@ -626,6 +627,7 @@ export default function RouletteContent({
                                                 </p>
                                             ) : undefined
                                         }
+                                        highlightCenterIndex={settings.predictorMode === "highLow" ? getHighLowCenterIndex(slots.length) : null}
                                     />
                                 </div>
                             </div>

@@ -38,6 +38,8 @@ interface RouletteWheelProps {
     effectLevel?: "high" | "low";
     /** 「回す」の横に表示する結果用スロット（例: 結果: ○○） */
     resultSlot?: ReactNode;
+    /** ハイローモード時、このインデックスのスロットを盤上で金に光らせる。未設定時は光らせない */
+    highlightCenterIndex?: number | null;
 }
 
 const DEFAULT_MAX_VISIBLE_LABELS = 80;
@@ -59,6 +61,7 @@ export default function RouletteWheel({
     wheelOffsetIndex,
     effectLevel = "low",
     resultSlot,
+    highlightCenterIndex = null,
 }: RouletteWheelProps) {
     const effectiveMaxLabels = maxVisibleLabels ?? DEFAULT_MAX_VISIBLE_LABELS;
     const wheelControls = useAnimationControls();
@@ -298,6 +301,16 @@ export default function RouletteWheel({
                             <clipPath id="roulette-wheel-clip">
                                 <circle cx={wheelSize / 2} cy={wheelSize / 2} r={wheelSize / 2} />
                             </clipPath>
+                            {/* ハイローモード用: 中心スロットの金の光 */}
+                            <filter id="roulette-gold-glow" x="-50%" y="-50%" width="200%" height="200%">
+                                <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+                                <feFlood floodColor="#ca8a04" floodOpacity="0.7" result="gold" />
+                                <feComposite in="gold" in2="blur" operator="in" result="glow" />
+                                <feMerge>
+                                    <feMergeNode in="glow" />
+                                    <feMergeNode in="SourceGraphic" />
+                                </feMerge>
+                            </filter>
                             {/* オービット用 木目パターン */}
                             <pattern id="orbit-wood-grain" patternUnits="userSpaceOnUse" width="8" height="32" patternTransform="rotate(-3)">
                                 <rect width="8" height="32" fill="#d4b896" />
@@ -404,12 +417,13 @@ export default function RouletteWheel({
                                             const rot = (i + 0.5) * anglePerSegment;
                                             const label = slots[i]!;
                                             const fontSize = Math.max(10, Math.min(14, 260 / N));
-                                            const segmentFill = isClassic ? (i % 2 === 0 ? "#b91c1c" : "#1f2937") : "transparent";
-                                            const segmentStroke = isClassic ? "#ca8a04" : isMinimal ? (isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.25)") : strokeColor;
+                                            const isCenterHighlight = highlightCenterIndex === i;
+                                            const segmentFill = isCenterHighlight ? "rgba(202,138,4,0.4)" : isClassic ? (i % 2 === 0 ? "#b91c1c" : "#1f2937") : "transparent";
+                                            const segmentStroke = isCenterHighlight ? "#ca8a04" : isClassic ? "#ca8a04" : isMinimal ? (isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.25)") : strokeColor;
                                             const labelFill = isClassic ? "#fef3c7" : isMinimal ? (isLightMode ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.9)") : textColor;
                                             const labelStroke = isClassic ? "rgba(0,0,0,0.35)" : textStrokeColor;
                                             return (
-                                                <g key={i}>
+                                                <g key={i} filter={isCenterHighlight ? "url(#roulette-gold-glow)" : undefined}>
                                                     <path d={d} fill={segmentFill} stroke={segmentStroke} strokeWidth={segStrokeWidth} />
                                                     {!simplified && (
                                                         <text x={textX} y={textY} fill={labelFill} stroke={labelStroke} strokeWidth={1.8} paintOrder="stroke fill" fontSize={fontSize} fontWeight="600" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${rot}, ${textX}, ${textY})`}>
@@ -452,9 +466,10 @@ export default function RouletteWheel({
                                             const rot = (i + 0.5) * anglePerSegment;
                                             const label = slots[i]!;
                                             const fontSize = Math.max(10, Math.min(14, 260 / N));
+                                            const isCenterHighlight = highlightCenterIndex === i;
                                             return (
-                                                <g key={i}>
-                                                    <path d={d} fill="url(#orbit-wood-grain)" stroke={orbitStroke} strokeWidth={1} />
+                                                <g key={i} filter={isCenterHighlight ? "url(#roulette-gold-glow)" : undefined}>
+                                                    <path d={d} fill={isCenterHighlight ? "rgba(202,138,4,0.35)" : "url(#orbit-wood-grain)"} stroke={isCenterHighlight ? "#ca8a04" : orbitStroke} strokeWidth={isCenterHighlight ? 1.5 : 1} />
                                                     {!simplified && (
                                                         <text x={textX} y={textY} fill="url(#orbit-wood-grain-dark)" stroke={isLightMode ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.25)"} strokeWidth={1.8} paintOrder="stroke fill" fontSize={fontSize} fontWeight="600" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${rot}, ${textX}, ${textY})`}>
                                                             {label.length > 6 ? label.slice(0, 5) + "…" : label}
@@ -493,9 +508,10 @@ export default function RouletteWheel({
                                         const textY = cy + rInnerForText * Math.sin(midAngle);
                                         const rot = (i + 0.5) * anglePerSegmentInner;
                                         const label = slots[i]!;
+                                        const isCenterHighlight = highlightCenterIndex === i;
                                         return (
-                                            <g key={`inner-${i}`}>
-                                                <path d={d} fill="transparent" stroke={strokeColor} strokeWidth={innerStrokeWidth} />
+                                            <g key={`inner-${i}`} filter={isCenterHighlight ? "url(#roulette-gold-glow)" : undefined}>
+                                                <path d={d} fill={isCenterHighlight ? "rgba(202,138,4,0.35)" : "transparent"} stroke={isCenterHighlight ? "#ca8a04" : strokeColor} strokeWidth={innerStrokeWidth} />
                                                 {!simplified && (
                                                     <text x={textX} y={textY} fill={textColor} stroke={textStrokeColor} strokeWidth={1.8} paintOrder="stroke fill" fontSize={innerFontSize} fontWeight="600" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${rot}, ${textX}, ${textY})`}>
                                                         {label.length > 6 ? label.slice(0, 5) + "…" : label}

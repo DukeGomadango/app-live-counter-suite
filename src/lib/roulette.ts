@@ -106,13 +106,14 @@ export function createRouletteTemplate(name: string, slots: string[], settings: 
 }
 
 /** ハイアンドロー: 真ん中=中心、前半=ロー、後半=ハイ（スロット数は任意） */
+/** 奇数時: 中心は「N/2 番目」のスロット（1〜13 なら 6 番目＝index 5、表示上の「6」） */
 export type HighLowZone = "high" | "low" | "6pin";
 
 export function getHighLowZone(resultIndex: number, slotCount: number): HighLowZone | null {
     if (slotCount < 1 || resultIndex < 0 || resultIndex >= slotCount) return null;
     const N = slotCount;
     if (N % 2 === 1) {
-        const center = (N - 1) / 2;
+        const center = Math.floor(N / 2) - 1;
         if (resultIndex < center) return "low";
         if (resultIndex === center) return "6pin";
         return "high";
@@ -126,6 +127,13 @@ export function getHighLowZone(resultIndex: number, slotCount: number): HighLowZ
 
 /** ハイアンドローモードで予想として有効な値 */
 export const HIGH_LOW_PREDICTIONS: HighLowZone[] = ["low", "6pin", "high"];
+
+/** ハイローモードで盤上で光らせる「中心」スロットの 0-based インデックス（1〜13 なら 5＝表示の「6」） */
+export function getHighLowCenterIndex(slotCount: number): number | null {
+    if (slotCount < 2) return null;
+    const idx = Math.floor(slotCount / 2) - 1;
+    return idx >= 0 ? idx : null;
+}
 
 /** サンプルテンプレート（読み込み専用・コード上で固定） */
 export function getSampleRouletteTemplates(): RouletteTemplate[] {
