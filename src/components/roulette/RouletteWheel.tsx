@@ -50,6 +50,8 @@ interface RouletteWheelProps {
     segmentColors?: string[];
     /** スロット番号（0-based）ごとの色上書き。全表示方式で共通 */
     slotColorOverrides?: Record<number, string>;
+    /** ハイローモードで「中心」としてハイライトするスロットの 0-based インデックス。未設定時はハイライトなし */
+    highlightCenterIndex?: number | null;
 }
 
 const DEFAULT_CUSTOM_SEGMENT_COLORS = ["#b91c1c", "#1f2937"];
@@ -76,6 +78,7 @@ export default function RouletteWheel({
     resultSlot,
     segmentColors,
     slotColorOverrides,
+    highlightCenterIndex: _highlightCenterIndex,
 }: RouletteWheelProps) {
     const effectiveMaxLabels = maxVisibleLabels ?? DEFAULT_MAX_VISIBLE_LABELS;
     const wheelControls = useAnimationControls();
