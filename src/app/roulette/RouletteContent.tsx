@@ -20,7 +20,6 @@ import {
     createRouletteTemplate,
     getSampleRouletteTemplates,
     getHighLowZone,
-    getHighLowCenterIndex,
     pickRandomIndex,
     trimRouletteHistory,
     trimRouletteHitHistory,
@@ -29,6 +28,7 @@ import {
     type RouletteTemplate,
     type RouletteHitHistoryEntry,
 } from "@/lib/roulette";
+import { createWheelSound, createBallSound } from "@/lib/rouletteSpinSound";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
@@ -64,6 +64,10 @@ export default function RouletteContent({
     const sidebarResizeRafRef = useRef<number | null>(null);
     const sidebarResizePendingRef = useRef<number | null>(null);
     const wheelAreaRef = useRef<HTMLDivElement>(null);
+    /** 回転中に再生中の合成音のハンドル。停止時に stop() を呼ぶ */
+    const spinLoopHandleRef = useRef<{ stop: () => void } | null>(null);
+    /** Web Audio API のコンテキスト（ユーザー操作後に生成） */
+    const audioContextRef = useRef<AudioContext | null>(null);
     const wheelContainerRef = useRef<HTMLDivElement>(null);
     const projectNameDragStartRef = useRef<{ clientX: number; clientY: number; posX: number; posY: number } | null>(null);
     const [wheelScale, setWheelScale] = useState(1);
@@ -169,6 +173,32 @@ export default function RouletteContent({
         projectNameDragStartRef.current = null;
     }, []);
 
+    const stopSpinLoop = useCallback(() => {
+        spinLoopHandleRef.current?.stop();
+        spinLoopHandleRef.current = null;
+    }, []);
+
+    const playSpinLoop = useCallback(
+        (kind: "wheel" | "ball") => {
+            if (settings.soundEnabled === false) return;
+            stopSpinLoop();
+            const ctx = audioContextRef.current ?? new AudioContext();
+            audioContextRef.current = ctx;
+            if (ctx.state === "suspended") {
+                ctx.resume().catch(() => {});
+            }
+            const handle = kind === "wheel" ? createWheelSound(ctx) : createBallSound(ctx);
+            spinLoopHandleRef.current = handle;
+        },
+        [settings.soundEnabled, stopSpinLoop]
+    );
+
+    const playFanfare = useCallback(() => {
+        if (settings.soundEnabled === false) return;
+        const audio = new Audio("/sounds/roulette/fanfare.mp3");
+        audio.play().catch(() => {});
+    }, [settings.soundEnabled]);
+
     const { glassBorder } = useGlassStyle(isLightMode);
     /** ヘッダーは不透明。メイン・サイドバーは背景なしでオーブを見せる */
     const headerBgSolid = isLightMode ? "rgb(255,255,255)" : "rgb(20,10,40)";
@@ -184,7 +214,14 @@ export default function RouletteContent({
         return () => document.body.classList.remove("light-mode");
     }, [isLightMode, isSplitMode]);
 
+    useEffect(() => {
+        if (skipRequested && isSpinning) {
+            stopSpinLoop();
+        }
+    }, [skipRequested, isSpinning, stopSpinLoop]);
+
     const handleSpinEnd = (index: number) => {
+        stopSpinLoop();
         setResultIndex(index);
         setIsSpinning(false);
         setSkipRequested(false);
@@ -202,6 +239,7 @@ export default function RouletteContent({
         if (whoHit.length > 0) {
             setHitNames(whoHit);
             setShowHitEffect(true);
+            playFanfare();
         }
     };
 
@@ -385,6 +423,15 @@ export default function RouletteContent({
                                         onSlotsChange={setSlots}
                                         isLightMode={isLightMode}
                                         section="slots"
+                                        slotColorOverrides={settings.slotColorOverrides}
+                                        onSlotColorChange={(index, color) => {
+                                            setSettings((prev) => {
+                                                const next = { ...(prev.slotColorOverrides ?? {}) };
+                                                if (color === null) delete next[index];
+                                                else next[index] = color;
+                                                return { ...prev, slotColorOverrides: next };
+                                            });
+                                        }}
                                     />
                                 )}
                                 {sidebarTab === "templates" && (
@@ -508,6 +555,15 @@ export default function RouletteContent({
                                             onSlotsChange={setSlots}
                                             isLightMode={isLightMode}
                                             section="slots"
+                                            slotColorOverrides={settings.slotColorOverrides}
+                                            onSlotColorChange={(index, color) => {
+                                                setSettings((prev) => {
+                                                    const next = { ...(prev.slotColorOverrides ?? {}) };
+                                                    if (color === null) delete next[index];
+                                                    else next[index] = color;
+                                                    return { ...prev, slotColorOverrides: next };
+                                                });
+                                            }}
                                         />
                                     )}
                                     {sidebarTab === "templates" && (
@@ -555,7 +611,7 @@ export default function RouletteContent({
                 )}
 
                 {/* 右: ルーレット盤（企画名はエリア直下で独立・D&D可能、盤は中央で一塊） */}
-                <div ref={wheelAreaRef} className="flex-1 min-w-0 flex flex-col overflow-hidden pt-14 pb-10 max-md:pt-14 max-md:pb-8 md:pl-4 relative">
+                <div ref={wheelAreaRef} className="flex-1 min-w-0 flex flex-col overflow-auto pt-14 pb-10 max-md:pt-14 max-md:pb-8 md:pl-4 relative">
                     {!isSplitMode && settings.showProjectName && (settings.projectName ?? "").trim() && (
                         <p
                             role="presentation"
@@ -579,7 +635,8 @@ export default function RouletteContent({
                             {(settings.projectName ?? "").trim()}
                         </p>
                     )}
-                    <div className="flex-1 min-h-0 flex justify-center items-center w-full">
+                    <div className="min-h-full flex flex-col w-full">
+                        <div className="flex-1 min-h-0 shrink-0" aria-hidden />
                         <div
                             className={`flex flex-col items-center gap-3 shrink-0 ${isSplitMode ? "mt-[68px] max-md:mt-[72px]" : "mt-8"}`}
                         >
@@ -588,9 +645,9 @@ export default function RouletteContent({
                                 style={{
                                     position: "relative",
                                     width: "100%",
-                                    maxWidth: WHEEL_OUTER_PX * wheelScale,
+                                    maxWidth: WHEEL_OUTER_PX * wheelScale * ((settings.wheelSizePercent ?? 100) / 100),
                                     margin: "0 auto",
-                                    height: (WHEEL_OUTER_PX + 200) * wheelScale,
+                                    height: (WHEEL_OUTER_PX + 200) * wheelScale * ((settings.wheelSizePercent ?? 100) / 100),
                                     flexShrink: 0,
                                 }}
                             >
@@ -599,7 +656,7 @@ export default function RouletteContent({
                                         position: "absolute",
                                         left: "50%",
                                         top: 0,
-                                        transform: `translateX(-50%) scale(${wheelScale})`,
+                                        transform: `translateX(-50%) scale(${wheelScale * ((settings.wheelSizePercent ?? 100) / 100)})`,
                                         transformOrigin: "center top",
                                         width: WHEEL_OUTER_PX,
                                     }}
@@ -613,6 +670,7 @@ export default function RouletteContent({
                                         spinKey={spinKey}
                                         onSpin={handleSpin}
                                         onSpinEnd={handleSpinEnd}
+                                        onSpinStart={playSpinLoop}
                                         skipRequested={skipRequested}
                                         onSkipRequest={() => setSkipRequested(true)}
                                         accentColor={accentColor}
@@ -627,11 +685,13 @@ export default function RouletteContent({
                                                 </p>
                                             ) : undefined
                                         }
-                                        highlightCenterIndex={settings.predictorMode === "highLow" ? getHighLowCenterIndex(slots.length) : null}
+                                        segmentColors={effectiveSettings.style === "custom" ? (effectiveSettings.segmentColors?.length ? effectiveSettings.segmentColors : ["#b91c1c", "#1f2937"]) : undefined}
+                                        slotColorOverrides={settings.slotColorOverrides}
                                     />
                                 </div>
                             </div>
                         </div>
+                        <div className="flex-1 min-h-0 shrink-0" aria-hidden />
                     </div>
                 </div>
             </main>

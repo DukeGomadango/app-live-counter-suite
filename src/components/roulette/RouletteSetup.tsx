@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Pencil, Check, X, Save, FolderOpen, FileStack, Copy } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
-import { MAX_SLOTS, type RouletteTemplate, type RouletteSettings } from "@/lib/roulette";
+import { MAX_SLOTS, ROULETTE_PALETTE_COLORS, type RouletteTemplate, type RouletteSettings } from "@/lib/roulette";
+import { Palette } from "lucide-react";
 
 export type RouletteSetupSection = "slots" | "templates" | "all";
 
@@ -20,9 +21,13 @@ interface RouletteSetupProps {
     onLoadTemplate?: (templateId: string) => void;
     /** 表示するブロック: slots=スロット一覧のみ, templates=テンプレートのみ, all=両方（従来どおり） */
     section?: RouletteSetupSection;
+    /** スロット番号（0-based）ごとの色上書き。未指定はデフォルト表示 */
+    slotColorOverrides?: Record<number, string>;
+    /** スロットの色を設定／解除したときに呼ぶ */
+    onSlotColorChange?: (index: number, color: string | null) => void;
 }
 
-export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templates = [], sampleTemplates = [], currentSettings, onSaveTemplate, onLoadTemplate, section = "all" }: RouletteSetupProps) {
+export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templates = [], sampleTemplates = [], currentSettings, onSaveTemplate, onLoadTemplate, section = "all", slotColorOverrides, onSlotColorChange }: RouletteSetupProps) {
     const [newLabel, setNewLabel] = useState("");
     const [bulkCount, setBulkCount] = useState("13");
     const [bulkDeleteCount, setBulkDeleteCount] = useState("1");
@@ -30,7 +35,9 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
     const [editValue, setEditValue] = useState("");
     const [templateName, setTemplateName] = useState("");
     const [selectedIndices, setSelectedIndices] = useState<Set<number>>(new Set());
+    const [openColorIndex, setOpenColorIndex] = useState<number | null>(null);
     const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
+    const colorPopoverRef = useRef<HTMLDivElement>(null);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
@@ -111,6 +118,16 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
         if (!el) return;
         el.indeterminate = slots.length > 0 && selectedIndices.size > 0 && selectedIndices.size < slots.length;
     }, [slots.length, selectedIndices.size]);
+
+    useEffect(() => {
+        if (openColorIndex === null) return;
+        const onDocClick = (e: MouseEvent) => {
+            if (colorPopoverRef.current?.contains(e.target as Node)) return;
+            setOpenColorIndex(null);
+        };
+        document.addEventListener("mousedown", onDocClick);
+        return () => document.removeEventListener("mousedown", onDocClick);
+    }, [openColorIndex]);
 
     const showSlots = section === "slots" || section === "all";
     const showTemplates = section === "templates" || section === "all";
@@ -326,6 +343,62 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
                                             title="一括選択"
                                         />
                                         <span className={`flex-1 min-w-0 text-sm truncate ${textPrimary}`}>{label}</span>
+                                        {onSlotColorChange != null && (
+                                            <div className="relative shrink-0" ref={openColorIndex === index ? colorPopoverRef : undefined}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setOpenColorIndex((prev) => (prev === index ? null : index))}
+                                                    className="p-1 rounded border opacity-100 md:opacity-80 md:group-hover:opacity-100 transition-opacity touch-manipulation"
+                                                    style={{
+                                                        background: slotColorOverrides?.[index] ?? "transparent",
+                                                        borderColor: isLightMode ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.25)",
+                                                    }}
+                                                    title="盤面の色"
+                                                    aria-label="盤面の色"
+                                                >
+                                                    {slotColorOverrides?.[index] ? (
+                                                        <span className="block w-4 h-4 rounded-sm" style={{ background: slotColorOverrides[index] }} />
+                                                    ) : (
+                                                        <Palette size={16} className={textSecondary} />
+                                                    )}
+                                                </button>
+                                                {openColorIndex === index && (
+                                                    <div
+                                                        className="absolute right-0 top-full z-50 mt-1 p-2 rounded-lg border shadow-lg min-w-[120px]"
+                                                        style={{
+                                                            background: isLightMode ? "rgba(255,255,255,0.98)" : "rgba(20,10,40,0.98)",
+                                                            borderColor: isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.2)",
+                                                        }}
+                                                    >
+                                                        <div className="grid grid-cols-4 gap-1 mb-1.5">
+                                                            {ROULETTE_PALETTE_COLORS.map((c) => (
+                                                                <button
+                                                                    key={c.value}
+                                                                    type="button"
+                                                                    onClick={() => {
+                                                                        onSlotColorChange(index, c.value);
+                                                                        setOpenColorIndex(null);
+                                                                    }}
+                                                                    className={`h-6 w-6 rounded border-2 transition-all ${slotColorOverrides?.[index] === c.value ? "ring-2 ring-purple-400 ring-offset-1 border-white" : "border-transparent"}`}
+                                                                    style={{ background: c.value }}
+                                                                    title={c.label}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                onSlotColorChange(index, null);
+                                                                setOpenColorIndex(null);
+                                                            }}
+                                                            className={`w-full text-xs py-1 rounded ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/70 hover:bg-white/10"}`}
+                                                        >
+                                                            解除
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                         <button
                                             type="button"
                                             onClick={() => startEdit(index)}

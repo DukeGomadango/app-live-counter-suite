@@ -3,19 +3,7 @@
 import { motion } from "framer-motion";
 import { X } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
-import type { RouletteSettings, RouletteStyle } from "@/lib/roulette";
-
-const ACCENT_COLORS = [
-    { value: "#a855f7", label: "パープル" },
-    { value: "#8b5cf6", label: "バイオレット" },
-    { value: "#3b82f6", label: "ブルー" },
-    { value: "#06b6d4", label: "シアン" },
-    { value: "#22c55e", label: "グリーン" },
-    { value: "#eab308", label: "イエロー" },
-    { value: "#f97316", label: "オレンジ" },
-    { value: "#ec4899", label: "ピンク" },
-    { value: "#ef4444", label: "レッド" },
-];
+import { ROULETTE_PALETTE_COLORS, type RouletteSettings, type RouletteStyle } from "@/lib/roulette";
 
 interface RouletteSettingsPanelProps {
     settings: RouletteSettings;
@@ -46,7 +34,7 @@ export default function RouletteSettingsPanel({
                             オーブの色
                         </label>
                         <div className="grid grid-cols-4 gap-1.5">
-                            {ACCENT_COLORS.map((c) => (
+                            {ROULETTE_PALETTE_COLORS.map((c) => (
                                 <button
                                     key={c.value}
                                     onClick={() => onSettingsChange({ ...settings, accentColor: c.value })}
@@ -74,27 +62,92 @@ export default function RouletteSettingsPanel({
                         <p className={`text-[10px] ${textSecondary} mt-0.5`}>{settings.orbIntensity}%</p>
                     </div>
 
-                    {/* 表示方式: ミニマル / カジノ / クラシック / 木目調 */}
+                    {/* 表示方式: ミニマル / カジノ / クラシック / 木目調 / カスタム */}
                     <div>
                         <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
                             表示方式
                         </label>
                         <div className="flex flex-wrap gap-2">
-                            {(["minimal", "casino", "classic", "orbit"] as RouletteStyle[]).map((s) => (
+                            {(["minimal", "casino", "classic", "orbit", "custom"] as RouletteStyle[]).map((s) => (
                                 <button
                                     key={s}
-                                    onClick={() => onSettingsChange({ ...settings, style: s })}
+                                    onClick={() => {
+                                        const next = { ...settings, style: s };
+                                        if (s === "custom" && (!next.segmentColors || next.segmentColors.length === 0)) {
+                                            next.segmentColors = ["#b91c1c", "#1f2937"];
+                                        }
+                                        onSettingsChange(next);
+                                    }}
                                     className={`flex-1 min-w-[72px] py-2 rounded-lg text-xs font-medium transition-all ${
                                         settings.style === s
                                             ? "bg-purple-500/30 text-purple-200 border border-purple-500/50"
                                             : isLightMode ? "bg-black/5 text-gray-600 border border-black/10" : "bg-white/10 text-white/70 border border-white/10"
                                     }`}
                                 >
-                                    {s === "minimal" ? "ミニマル" : s === "casino" ? "カジノ" : s === "classic" ? "クラシック" : "木目調"}
+                                    {s === "minimal" ? "ミニマル" : s === "casino" ? "カジノ" : s === "classic" ? "クラシック" : s === "orbit" ? "木目調" : "カスタム"}
                                 </button>
                             ))}
                         </div>
                     </div>
+
+                    {/* カスタム時の盤面の色 */}
+                    {settings.style === "custom" && (
+                        <div>
+                            <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
+                                盤面の色
+                            </label>
+                            <p className={`text-[10px] ${textSecondary} mb-2`}>セグメントに順番に適用されます（2〜8色）</p>
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                                {((settings.segmentColors?.length ? settings.segmentColors : ["#b91c1c", "#1f2937"]) as string[]).map((color, idx) => (
+                                    <div key={idx} className="flex items-center gap-1">
+                                        <div className="grid grid-cols-4 gap-0.5 w-[88px]">
+                                            {ROULETTE_PALETTE_COLORS.map((c) => (
+                                                <button
+                                                    key={c.value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const cur = settings.segmentColors?.length ? [...settings.segmentColors] : ["#b91c1c", "#1f2937"];
+                                                        cur[idx] = c.value;
+                                                        onSettingsChange({ ...settings, segmentColors: cur });
+                                                    }}
+                                                    className={`h-6 w-5 rounded transition-all ${color === c.value ? "ring-2 ring-purple-500 ring-offset-0.5" : ""}`}
+                                                    style={{ background: c.value }}
+                                                    title={c.label}
+                                                />
+                                            ))}
+                                        </div>
+                                        {((settings.segmentColors?.length ?? 2) > 2) && (
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const cur = settings.segmentColors?.length ? [...settings.segmentColors] : ["#b91c1c", "#1f2937"];
+                                                    if (cur.length <= 2) return;
+                                                    cur.splice(idx, 1);
+                                                    onSettingsChange({ ...settings, segmentColors: cur });
+                                                }}
+                                                className={`text-[10px] px-1.5 py-0.5 rounded ${isLightMode ? "text-gray-500 hover:bg-gray-200" : "text-white/60 hover:bg-white/15"}`}
+                                            >
+                                                削除
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                                {(settings.segmentColors?.length ?? 2) < 8 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            const cur = settings.segmentColors?.length ? [...settings.segmentColors] : ["#b91c1c", "#1f2937"];
+                                            cur.push(ROULETTE_PALETTE_COLORS[cur.length % ROULETTE_PALETTE_COLORS.length]!.value);
+                                            onSettingsChange({ ...settings, segmentColors: cur });
+                                        }}
+                                        className={`text-xs px-2 py-1.5 rounded-lg border ${isLightMode ? "border-black/10 text-gray-600 hover:bg-black/5" : "border-white/20 text-white/80 hover:bg-white/10"}`}
+                                    >
+                                        色を追加
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* 演出量: 多め=回転長め・当たり派手 / 少なめ=回転短め・当たり控えめ */}
                     <div>
@@ -126,6 +179,37 @@ export default function RouletteSettingsPanel({
                             </button>
                         </div>
                         <p className={`text-[10px] ${textSecondary} mt-1`}>多め: 回転じらし長め・当たり演出派手</p>
+                    </div>
+
+                    {/* 効果音（SE） */}
+                    <div>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={settings.soundEnabled !== false}
+                                onChange={(e) => onSettingsChange({ ...settings, soundEnabled: e.target.checked })}
+                                className="rounded accent-purple-500"
+                            />
+                            <span className={`text-sm ${textPrimary}`}>SEを再生する</span>
+                        </label>
+                        <p className={`text-[10px] ${textSecondary} mt-1`}>回転音・ボール音・的中ファンファーレのオン/オフ</p>
+                    </div>
+
+                    {/* 盤のサイズ */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
+                            盤のサイズ
+                        </label>
+                        <input
+                            type="range"
+                            min={50}
+                            max={150}
+                            step={5}
+                            value={settings.wheelSizePercent ?? 100}
+                            onChange={(e) => onSettingsChange({ ...settings, wheelSizePercent: Number(e.target.value) })}
+                            className="w-full h-2 rounded-full accent-purple-500"
+                        />
+                        <p className={`text-[10px] ${textSecondary} mt-0.5`}>{(settings.wheelSizePercent ?? 100)}%（100%＝画面に収まる大きさ）</p>
                     </div>
 
                     {/* 予想モード: ハイアンドロー（ハイ・ロー・中心のみ選択） */}
@@ -199,7 +283,7 @@ export default function RouletteSettingsPanel({
                         {settings.backgroundEnabled && (
                             <>
                                 <div className="grid grid-cols-4 gap-1.5 mb-2">
-                                    {ACCENT_COLORS.map((c) => (
+                                    {ROULETTE_PALETTE_COLORS.map((c) => (
                                         <button
                                             key={c.value}
                                             onClick={() => onSettingsChange({ ...settings, backgroundColor: c.value })}
