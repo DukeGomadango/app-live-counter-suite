@@ -2,12 +2,16 @@
  * ルーレット用の型・デフォルト値・抽選ロジック
  */
 
-export type RouletteStyle = "minimal" | "casino" | "classic" | "orbit";
+export type RouletteStyle = "minimal" | "casino" | "classic" | "orbit" | "custom";
 
 export interface RouletteSettings {
     accentColor: string;
     orbIntensity: number; // 0-100
     style: RouletteStyle;
+    /** カスタム表示時の盤面セグメント色（2〜8色を推奨）。未設定時はクラシック同様の2色でフォールバック */
+    segmentColors?: string[];
+    /** スロット番号（0-based）ごとの色上書き。全表示方式で共通。未指定のスロットは各スタイルのデフォルト */
+    slotColorOverrides?: Record<number, string>;
     /** 背景色レイヤーを表示する */
     backgroundEnabled?: boolean;
     /** 背景色（backgroundEnabled 時）。例: #1a1a2e */
@@ -32,6 +36,10 @@ export interface RouletteSettings {
     effectLevel?: "high" | "low";
     /** 予想入力: default=スロット選択 / highLow=ハイ・ロー・中心（真ん中=中心） */
     predictorMode?: "default" | "highLow";
+    /** 盤の表示サイズ（%）。100=画面に収まる大きさ、50〜150 など。未設定時は 100 */
+    wheelSizePercent?: number;
+    /** 効果音（回転音・的中ファンファーレ）を再生する。未設定時は true */
+    soundEnabled?: boolean;
 }
 
 export interface RouletteSlot {
@@ -55,6 +63,19 @@ export function createDefaultPredictors(): RoulettePredictor[] {
 export const MAX_SLOTS = 1000;
 export const DEFAULT_SLOT_COUNT = 13;
 
+/** 盤面・スロット色選択用パレット（設定パネル・スロット一覧で共通） */
+export const ROULETTE_PALETTE_COLORS = [
+    { value: "#a855f7", label: "パープル" },
+    { value: "#8b5cf6", label: "バイオレット" },
+    { value: "#3b82f6", label: "ブルー" },
+    { value: "#06b6d4", label: "シアン" },
+    { value: "#22c55e", label: "グリーン" },
+    { value: "#eab308", label: "イエロー" },
+    { value: "#f97316", label: "オレンジ" },
+    { value: "#ec4899", label: "ピンク" },
+    { value: "#ef4444", label: "レッド" },
+] as const;
+
 export function createDefaultRouletteSettings(): RouletteSettings {
     return {
         accentColor: "#a855f7",
@@ -66,6 +87,8 @@ export function createDefaultRouletteSettings(): RouletteSettings {
         statsShowBarChart: true,
         statsShowPieChart: false,
         effectLevel: "low",
+        wheelSizePercent: 100,
+        soundEnabled: true,
     };
 }
 
@@ -73,6 +96,35 @@ export function createDefaultRouletteSettings(): RouletteSettings {
 export function createDefaultSlots(n: number = DEFAULT_SLOT_COUNT): string[] {
     const cap = Math.min(Math.max(1, n), MAX_SLOTS);
     return Array.from({ length: cap }, (_, i) => String(i + 1));
+}
+
+/**
+ * ルーレット盤の角度の唯一の定義（描画・回転・結果表示で共通）
+ * - 0° = 3時、正の向き = 時計回り。12時 = -90°（または 270°）
+ * - スロット i の中心（盤ローカル・回転0）: (i + 0.5) * segmentAngle - 90
+ */
+export function getSlotCenterAngleDeg(slotIndex: number, segmentAngleDeg: number): number {
+    return (slotIndex + 0.5) * segmentAngleDeg - 90;
+}
+
+/** 針を12時に固定したとき、スロット slotIndex の中心を12時に持ってくるための盤の回転角（度・0〜360相当） */
+export function getWheelRotationForNeedle(slotIndex: number, segmentAngleDeg: number): number {
+    const v = 360 - (slotIndex + 0.5) * segmentAngleDeg;
+    return ((v % 360) + 360) % 360;
+}
+
+/** 穴 holeIndex の位置でボールを止めるためのボール回転角のベース（度）。fullTurns*360 は呼び出し側で加算 */
+export function getBallRotationForHole(
+    holeIndex: number,
+    holeSegmentAngleDeg: number,
+    wheelRestRotationDeg: number
+): number {
+    return wheelRestRotationDeg + (holeIndex + 0.5) * holeSegmentAngleDeg;
+}
+
+/** 盤の静止角。wheelOffsetIndex で指定したスロットの中心を6時に合わせる */
+export function getRestRotation(effectiveOffset: number, segmentAngleDeg: number): number {
+    return 180 - (effectiveOffset + 0.5) * segmentAngleDeg;
 }
 
 /** string[] を RouletteSlot[] に変換（id は index ベース） */

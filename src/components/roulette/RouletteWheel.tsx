@@ -3,15 +3,21 @@
 import type { ReactNode } from "react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { motion, useAnimationControls } from "framer-motion";
-import type { RouletteStyle } from "@/lib/roulette";
+import {
+    type RouletteStyle,
+    getWheelRotationForNeedle,
+    getBallRotationForHole,
+    getRestRotation,
+} from "@/lib/roulette";
 
-const FULL_TURNS = 5;
+/** 結果表示用の固定回転数（過去スピンの回転数は保持しないため2で統一） */
+const REST_DISPLAY_TURNS = 2;
 const SPIN_DURATION_NEEDLE_LOW = 7;
 const SPIN_DURATION_NEEDLE_HIGH = 12;
 const SPIN_DURATION_CASINO_LOW = 7;
 const SPIN_DURATION_CASINO_HIGH = 12;
-/** 進みの8割を前半1/5で消化し、残り4/5でのんびり減速。最後はもうひと伸び感で止まる */
-const SPIN_EASE = [0.1, 0.78, 0.55, 0.96] as const;
+/** 進みの8割を前半1/5で消化し、残り4/5でのんびり減速。終盤はじりじりしたひと伸び（慣性感）で止まる */
+const SPIN_EASE = [0.1, 0.78, 0.62, 0.98] as const;
 /** 0°=3時なので、12時を基準にするためのオフセット（度） */
 const DEG_12_O_CLOCK = -90;
 interface RouletteWheelProps {
@@ -24,6 +30,8 @@ interface RouletteWheelProps {
     spinKey?: number;
     onSpin: () => void;
     onSpinEnd: (index: number) => void;
+    /** 回転アニメ開始時に呼ぶ（SE用）。kind: 針スタイル=wheel / カジノ・木目調=ball */
+    onSpinStart?: (kind: "wheel" | "ball") => void;
     /** 回転演出をスキップする要求。true のとき即座に結果位置へ飛ばして onSpinEnd を呼ぶ */
     skipRequested?: boolean;
     /** スキップボタン押下時に親が skipRequested を true にするためのコールバック */
@@ -38,9 +46,13 @@ interface RouletteWheelProps {
     effectLevel?: "high" | "low";
     /** 「回す」の横に表示する結果用スロット（例: 結果: ○○） */
     resultSlot?: ReactNode;
-    /** ハイローモード時、このインデックスのスロットを盤上で金に光らせる。未設定時は光らせない */
-    highlightCenterIndex?: number | null;
+    /** カスタム表示時のセグメント色配列（未設定時はクラシック同様の2色でフォールバック） */
+    segmentColors?: string[];
+    /** スロット番号（0-based）ごとの色上書き。全表示方式で共通 */
+    slotColorOverrides?: Record<number, string>;
 }
+
+const DEFAULT_CUSTOM_SEGMENT_COLORS = ["#b91c1c", "#1f2937"];
 
 const DEFAULT_MAX_VISIBLE_LABELS = 80;
 
@@ -53,6 +65,7 @@ export default function RouletteWheel({
     spinKey = 0,
     onSpin,
     onSpinEnd,
+    onSpinStart,
     skipRequested,
     onSkipRequest,
     accentColor,
@@ -61,7 +74,8 @@ export default function RouletteWheel({
     wheelOffsetIndex,
     effectLevel = "low",
     resultSlot,
-    highlightCenterIndex = null,
+    segmentColors,
+    slotColorOverrides,
 }: RouletteWheelProps) {
     const effectiveMaxLabels = maxVisibleLabels ?? DEFAULT_MAX_VISIBLE_LABELS;
     const wheelControls = useAnimationControls();
@@ -73,9 +87,16 @@ export default function RouletteWheel({
     const resolvedTargetRef = useRef<number | null>(null);
     /** カジノで選んだ holeIndex（スキップ時に同じ位置へ飛ばす用） */
     const resolvedHoleIndexRef = useRef<number | null>(null);
+    /** 今回のスピンで使う回転数（2〜3の間でランダム。スキップ時も同じ値を使う） */
+    const fullTurnsThisSpinRef = useRef<number>(2);
+    /** 針スタイルでスピン終了時に使った回転数（結果表示で同じ角度を維持する用） */
+    const lastFullTurnsForDisplayRef = useRef<number>(REST_DISPLAY_TURNS);
+    /** 前回の結果位置（針: 盤の角度 / ボール: ボールの角度）。ここから次回スピンを開始する */
+    const lastWheelRotationRef = useRef<number | null>(null);
+    const lastBallRotationRef = useRef<number | null>(null);
 
     const N = slots.length;
-    const isNeedle = style === "minimal" || style === "classic";
+    const isNeedle = style === "minimal" || style === "classic" || style === "custom";
 
     const wheelSize = 380;
 
@@ -85,25 +106,25 @@ export default function RouletteWheel({
     const H = N * holesPerNumber;
     const segmentAngle = N > 0 ? 360 / N : 0;
     const effectiveOffset = N > 0 ? Math.min(N - 1, Math.max(0, wheelOffsetIndex ?? 0)) : 0;
-    /** 盤の静止角。wheelOffsetIndex で指定したスロットを6時に合わせる */
-    const restRotation = N > 0 ? 180 - (effectiveOffset + 0.5) * segmentAngle : 0;
+    const restRotation = N > 0 ? getRestRotation(effectiveOffset, segmentAngle) : 0;
     const holeSegmentAngle = H > 0 ? 360 / H : 0;
 
     useEffect(() => {
         if (isNeedle && !isSpinning) {
             const rotate =
                 resultIndex != null && N > 0
-                    ? FULL_TURNS * 360 + (360 - (resultIndex + 0.5) * segmentAngle)
+                    ? (lastFullTurnsForDisplayRef.current ?? REST_DISPLAY_TURNS) * 360 +
+                      getWheelRotationForNeedle(resultIndex, segmentAngle)
                     : restRotation;
             wheelControls.set({ rotate });
+            lastWheelRotationRef.current = rotate;
         }
         if (!isNeedle && !isSpinning) {
-            // 結果表示中はアニメで既に正しい角度のため触れない。結果クリア時のみ rest に戻す
             if (resultIndex == null) {
                 wheelControls.set({ rotate: restRotation });
             }
         }
-    }, [isNeedle, isSpinning, resultIndex, restRotation, segmentAngle, wheelControls]);
+    }, [isNeedle, isSpinning, resultIndex, restRotation, segmentAngle, wheelControls, N]);
     const rOuter = !isNeedle ? wheelSize / 2 - 4 : 0;
     const rInner = !isNeedle ? wheelSize / 2 - 11 : 0;
 
@@ -112,21 +133,28 @@ export default function RouletteWheel({
         if (lastSpinKeyRef.current === spinKey) return;
         lastSpinKeyRef.current = spinKey;
         hasCompletedRef.current = false;
+        onSpinStart?.(isNeedle ? "wheel" : "ball");
 
         if (isNeedle) {
             const idx = targetIndex;
+            const startFrom = lastWheelRotationRef.current ?? restRotation;
+            const targetBase = getWheelRotationForNeedle(idx, segmentAngle);
+            fullTurnsThisSpinRef.current = 2 + Math.random();
+            const fullTurns = fullTurnsThisSpinRef.current;
+            const rawEnd = startFrom + fullTurns * 360;
+            const delta = ((targetBase - (rawEnd % 360)) % 360 + 360) % 360;
+            const finalDeg = rawEnd + delta;
             resolvedTargetRef.current = idx;
             const duration = effectLevel === "high" ? SPIN_DURATION_NEEDLE_HIGH : SPIN_DURATION_NEEDLE_LOW;
             const transition = { duration, ease: SPIN_EASE };
-            wheelControls.set({ rotate: restRotation });
-            /** 当たりスロットを12時に持ってくるための盤の回転（時計回り） */
-            const finalDeg = FULL_TURNS * 360 + (360 - (idx + 0.5) * segmentAngle);
             wheelControls
                 .start({ rotate: finalDeg, transition })
                 .then(() => {
                     const reported = resolvedTargetRef.current;
                     if (!hasCompletedRef.current && reported !== null) {
                         hasCompletedRef.current = true;
+                        lastWheelRotationRef.current = finalDeg;
+                        lastFullTurnsForDisplayRef.current = (finalDeg - getWheelRotationForNeedle(reported, segmentAngle)) / 360;
                         lastSpinKeyRef.current = null;
                         onSpinEnd(reported);
                         resolvedTargetRef.current = null;
@@ -134,17 +162,22 @@ export default function RouletteWheel({
                 });
         } else {
             const idx = targetIndex;
+            const holeIndex = idx * holesPerNumber + Math.floor(Math.random() * holesPerNumber);
+            resolvedHoleIndexRef.current = holeIndex;
+            const startFrom = lastBallRotationRef.current ?? 0;
+            const targetHole = getBallRotationForHole(holeIndex, holeSegmentAngle, restRotation);
+            const targetBase = ((targetHole % 360) + 360) % 360;
+            fullTurnsThisSpinRef.current = 2 + Math.random();
+            const fullTurns = fullTurnsThisSpinRef.current;
+            const rawEnd = startFrom + fullTurns * 360;
+            const delta = ((targetBase - (rawEnd % 360)) % 360 + 360) % 360;
+            const finalBallRot = rawEnd + delta;
             resolvedTargetRef.current = idx;
             const duration = effectLevel === "high" ? SPIN_DURATION_CASINO_HIGH : SPIN_DURATION_CASINO_LOW;
             const transition = { duration, ease: SPIN_EASE };
             const rO = wheelSize / 2 - 4;
             const rI = wheelSize / 2 - 11;
-            ballControls.set({ rotate: 0 });
             dropControls.set({ y: 0, scale: 1 });
-            const holeIndex = idx * holesPerNumber + Math.floor(Math.random() * holesPerNumber);
-            resolvedHoleIndexRef.current = holeIndex;
-            // 盤は固定。ボールだけ転がって穴の位置で止まり、落ちる
-            const finalBallRot = FULL_TURNS * 360 + restRotation + (holeIndex + 0.5) * holeSegmentAngle;
             wheelControls.set({ rotate: restRotation });
             ballControls
                 .start({ rotate: finalBallRot, transition })
@@ -152,6 +185,7 @@ export default function RouletteWheel({
                     const reported = resolvedTargetRef.current;
                     if (!hasCompletedRef.current && reported !== null) {
                         hasCompletedRef.current = true;
+                        lastBallRotationRef.current = finalBallRot;
                         lastSpinKeyRef.current = null;
                         onSpinEnd(reported);
                         resolvedTargetRef.current = null;
@@ -164,9 +198,9 @@ export default function RouletteWheel({
                     });
                 });
         }
-    }, [isSpinning, targetIndex, spinKey, N, segmentAngle, holesPerNumber, holeSegmentAngle, isNeedle, effectLevel, wheelControls, ballControls, dropControls, wheelSize, onSpinEnd, restRotation]);
+    }, [isSpinning, targetIndex, spinKey, N, segmentAngle, holesPerNumber, holeSegmentAngle, isNeedle, effectLevel, wheelControls, ballControls, dropControls, wheelSize, onSpinEnd, onSpinStart, restRotation]);
 
-    // 回転演出スキップ: 即座に結果位置へ飛ばして onSpinEnd を呼ぶ
+    // 回転演出スキップ: 即座に結果位置へ飛ばして onSpinEnd を呼ぶ（通常スピンと同じ式で角度を算出し set で適用）
     useEffect(() => {
         if (!skipRequested || !isSpinning || targetIndex === null || N === 0) return;
         if (lastSpinKeyRef.current !== spinKey) return; // まだアニメ開始前の場合は何もしない
@@ -176,9 +210,15 @@ export default function RouletteWheel({
 
         if (isNeedle) {
             wheelControls.stop();
-            /** 当たりスロットを12時に持ってくるための盤の回転（時計回り） */
-            const finalDeg = FULL_TURNS * 360 + (360 - (idx + 0.5) * segmentAngle);
-            wheelControls.start({ rotate: finalDeg, transition: { duration: 0 } });
+            const startFrom = lastWheelRotationRef.current ?? restRotation;
+            const targetBase = getWheelRotationForNeedle(idx, segmentAngle);
+            const fullTurns = fullTurnsThisSpinRef.current;
+            const rawEnd = startFrom + fullTurns * 360;
+            const delta = ((targetBase - (rawEnd % 360)) % 360 + 360) % 360;
+            const finalDeg = rawEnd + delta;
+            lastFullTurnsForDisplayRef.current = (finalDeg - getWheelRotationForNeedle(idx, segmentAngle)) / 360;
+            lastWheelRotationRef.current = finalDeg;
+            wheelControls.set({ rotate: finalDeg });
             onSpinEnd(idx);
             resolvedTargetRef.current = null;
         } else {
@@ -189,7 +229,14 @@ export default function RouletteWheel({
             const rI = wheelSize / 2 - 11;
             const holeIndex = resolvedHoleIndexRef.current ?? idx * holesPerNumber;
             resolvedHoleIndexRef.current = null;
-            const finalBallRot = FULL_TURNS * 360 + restRotation + (holeIndex + 0.5) * holeSegmentAngle;
+            const startFrom = lastBallRotationRef.current ?? 0;
+            const targetHole = getBallRotationForHole(holeIndex, holeSegmentAngle, restRotation);
+            const targetBase = ((targetHole % 360) + 360) % 360;
+            const fullTurns = fullTurnsThisSpinRef.current;
+            const rawEnd = startFrom + fullTurns * 360;
+            const delta = ((targetBase - (rawEnd % 360)) % 360 + 360) % 360;
+            const finalBallRot = rawEnd + delta;
+            lastBallRotationRef.current = finalBallRot;
             wheelControls.set({ rotate: restRotation });
             ballControls.set({ rotate: finalBallRot });
             const dropDistance = rO - rI;
@@ -221,7 +268,7 @@ export default function RouletteWheel({
                         style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }}
                     >
                         <svg width="24" height="32" viewBox="0 0 24 32" fill="none" className="pointer-events-none">
-                            <path d="M12 0 L14 28 L12 32 L10 28 Z" fill={style === "classic" ? "#ca8a04" : accentColor} stroke={style === "classic" ? "#a16207" : strokeColor} strokeWidth="1" />
+                            <path d="M12 0 L14 28 L12 32 L10 28 Z" fill={style === "classic" || style === "custom" ? "#ca8a04" : accentColor} stroke={style === "classic" || style === "custom" ? "#a16207" : strokeColor} strokeWidth="1" />
                         </svg>
                     </div>
                 )}
@@ -301,16 +348,6 @@ export default function RouletteWheel({
                             <clipPath id="roulette-wheel-clip">
                                 <circle cx={wheelSize / 2} cy={wheelSize / 2} r={wheelSize / 2} />
                             </clipPath>
-                            {/* ハイローモード用: 中心スロットの金の光 */}
-                            <filter id="roulette-gold-glow" x="-50%" y="-50%" width="200%" height="200%">
-                                <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
-                                <feFlood floodColor="#ca8a04" floodOpacity="0.7" result="gold" />
-                                <feComposite in="gold" in2="blur" operator="in" result="glow" />
-                                <feMerge>
-                                    <feMergeNode in="glow" />
-                                    <feMergeNode in="SourceGraphic" />
-                                </feMerge>
-                            </filter>
                             {/* オービット用 木目パターン */}
                             <pattern id="orbit-wood-grain" patternUnits="userSpaceOnUse" width="8" height="32" patternTransform="rotate(-3)">
                                 <rect width="8" height="32" fill="#d4b896" />
@@ -348,7 +385,7 @@ export default function RouletteWheel({
                         />
                         {/* 外枠 */}
                         {isNeedle ? (
-                            <circle cx={wheelSize / 2} cy={wheelSize / 2} r={wheelSize / 2 - 1} fill="none" stroke={style === "classic" ? "#ca8a04" : strokeColor} strokeWidth={style === "minimal" ? 1 : 1.5} />
+                            <circle cx={wheelSize / 2} cy={wheelSize / 2} r={wheelSize / 2 - 1} fill="none" stroke={style === "classic" || style === "custom" ? "#ca8a04" : strokeColor} strokeWidth={style === "minimal" ? 1 : 1.5} />
                         ) : (
                             <circle cx={wheelSize / 2} cy={wheelSize / 2} r={wheelSize / 2 - 1} fill="none" stroke={style === "orbit" ? "#8b5a2b" : strokeColor} strokeWidth={style === "orbit" ? 2.5 : 2} strokeOpacity={style === "orbit" ? 0.9 : 0.5} />
                         )}
@@ -398,7 +435,9 @@ export default function RouletteWheel({
                                 const rInner = r * 0.65;
                                 const simplified = N > effectiveMaxLabels;
                                 const isClassic = style === "classic";
+                                const isCustom = style === "custom";
                                 const isMinimal = style === "minimal";
+                                const customPalette = (segmentColors?.length ? segmentColors : DEFAULT_CUSTOM_SEGMENT_COLORS) as string[];
                                 const segStrokeWidth = isMinimal ? 0.8 : (simplified ? 1 : 1.5);
                                 return (
                                     <>
@@ -417,13 +456,13 @@ export default function RouletteWheel({
                                             const rot = (i + 0.5) * anglePerSegment;
                                             const label = slots[i]!;
                                             const fontSize = Math.max(10, Math.min(14, 260 / N));
-                                            const isCenterHighlight = highlightCenterIndex === i;
-                                            const segmentFill = isCenterHighlight ? "rgba(202,138,4,0.4)" : isClassic ? (i % 2 === 0 ? "#b91c1c" : "#1f2937") : "transparent";
-                                            const segmentStroke = isCenterHighlight ? "#ca8a04" : isClassic ? "#ca8a04" : isMinimal ? (isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.25)") : strokeColor;
-                                            const labelFill = isClassic ? "#fef3c7" : isMinimal ? (isLightMode ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.9)") : textColor;
-                                            const labelStroke = isClassic ? "rgba(0,0,0,0.35)" : textStrokeColor;
+                                            const overrideFill = slotColorOverrides?.[i];
+                                            const segmentFill = overrideFill ?? (isCustom ? (customPalette[i % customPalette.length] ?? customPalette[0]) : isClassic ? (i % 2 === 0 ? "#b91c1c" : "#1f2937") : "transparent");
+                                            const segmentStroke = isClassic || isCustom ? "#ca8a04" : isMinimal ? (isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.25)") : strokeColor;
+                                            const labelFill = isClassic || isCustom ? "#fef3c7" : isMinimal ? (isLightMode ? "rgba(0,0,0,0.75)" : "rgba(255,255,255,0.9)") : textColor;
+                                            const labelStroke = isClassic || isCustom ? "rgba(0,0,0,0.35)" : textStrokeColor;
                                             return (
-                                                <g key={i} filter={isCenterHighlight ? "url(#roulette-gold-glow)" : undefined}>
+                                                <g key={i}>
                                                     <path d={d} fill={segmentFill} stroke={segmentStroke} strokeWidth={segStrokeWidth} />
                                                     {!simplified && (
                                                         <text x={textX} y={textY} fill={labelFill} stroke={labelStroke} strokeWidth={1.8} paintOrder="stroke fill" fontSize={fontSize} fontWeight="600" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${rot}, ${textX}, ${textY})`}>
@@ -466,10 +505,12 @@ export default function RouletteWheel({
                                             const rot = (i + 0.5) * anglePerSegment;
                                             const label = slots[i]!;
                                             const fontSize = Math.max(10, Math.min(14, 260 / N));
-                                            const isCenterHighlight = highlightCenterIndex === i;
+                                            const overrideFill = slotColorOverrides?.[i];
+                                            const segFill = overrideFill ?? "url(#orbit-wood-grain)";
+                                            const segStroke = overrideFill ? "#8b5a2b" : orbitStroke;
                                             return (
-                                                <g key={i} filter={isCenterHighlight ? "url(#roulette-gold-glow)" : undefined}>
-                                                    <path d={d} fill={isCenterHighlight ? "rgba(202,138,4,0.35)" : "url(#orbit-wood-grain)"} stroke={isCenterHighlight ? "#ca8a04" : orbitStroke} strokeWidth={isCenterHighlight ? 1.5 : 1} />
+                                                <g key={i}>
+                                                    <path d={d} fill={segFill} stroke={segStroke} strokeWidth={1} />
                                                     {!simplified && (
                                                         <text x={textX} y={textY} fill="url(#orbit-wood-grain-dark)" stroke={isLightMode ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.25)"} strokeWidth={1.8} paintOrder="stroke fill" fontSize={fontSize} fontWeight="600" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${rot}, ${textX}, ${textY})`}>
                                                             {label.length > 6 ? label.slice(0, 5) + "…" : label}
@@ -508,10 +549,11 @@ export default function RouletteWheel({
                                         const textY = cy + rInnerForText * Math.sin(midAngle);
                                         const rot = (i + 0.5) * anglePerSegmentInner;
                                         const label = slots[i]!;
-                                        const isCenterHighlight = highlightCenterIndex === i;
+                                        const overrideFill = slotColorOverrides?.[i];
+                                        const innerFill = overrideFill ?? "transparent";
                                         return (
-                                            <g key={`inner-${i}`} filter={isCenterHighlight ? "url(#roulette-gold-glow)" : undefined}>
-                                                <path d={d} fill={isCenterHighlight ? "rgba(202,138,4,0.35)" : "transparent"} stroke={isCenterHighlight ? "#ca8a04" : strokeColor} strokeWidth={innerStrokeWidth} />
+                                            <g key={`inner-${i}`}>
+                                                <path d={d} fill={innerFill} stroke={strokeColor} strokeWidth={innerStrokeWidth} />
                                                 {!simplified && (
                                                     <text x={textX} y={textY} fill={textColor} stroke={textStrokeColor} strokeWidth={1.8} paintOrder="stroke fill" fontSize={innerFontSize} fontWeight="600" textAnchor="middle" dominantBaseline="middle" transform={`rotate(${rot}, ${textX}, ${textY})`}>
                                                         {label.length > 6 ? label.slice(0, 5) + "…" : label}
