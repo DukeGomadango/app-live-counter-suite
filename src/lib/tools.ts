@@ -2,7 +2,7 @@
  * ツール一覧の単一ソース。LP・ModeSelector・sitemap・JsonLd で共有。
  * 機能追加時はこの配列に 1 件追加するだけで拡張できる。
  */
-import { Users, Network, Sparkles, CircleDot, LayoutGrid, Calculator, type LucideIcon } from "lucide-react";
+import { Users, Network, Sparkles, CircleDot, LayoutGrid, Calculator, Clock, type LucideIcon } from "lucide-react";
 
 export interface ToolDef {
   id: string;
@@ -72,6 +72,19 @@ export const TOOLS: ToolDef[] = [
     activeBg: "bg-amber-500/20",
     activeBorder: "border-amber-500/40",
     accentHex: "#fbbf24",
+  },
+  {
+    id: "clock",
+    path: "/clock",
+    labelEn: "Clock",
+    labelJa: "時計",
+    description: "現在時刻・ストップウォッチ・タイマー。デジタルとアナログ表示に対応。",
+    descriptionNarrowBreakAfter: "タイマー。",
+    icon: Clock,
+    colorClass: "text-orange-400",
+    activeBg: "bg-orange-500/20",
+    activeBorder: "border-orange-500/40",
+    accentHex: "#f97316",
   },
   {
     id: "split",

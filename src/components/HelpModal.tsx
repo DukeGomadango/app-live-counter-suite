@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, GitMerge, LayoutGrid, HelpCircle, Sparkles, Calculator, Home, CircleDot } from "lucide-react";
+import { X, Users, GitMerge, LayoutGrid, HelpCircle, Sparkles, Calculator, Home, CircleDot, Clock } from "lucide-react";
 import { useEffect } from "react";
 
 interface HelpModalProps {
@@ -9,9 +9,11 @@ interface HelpModalProps {
     onClose: () => void;
     currentPath: string;
     isLightMode: boolean;
+    /** Split 表示中にどのモジュールを表示しているか。Clock 選択時に Clock 用ヘルプを出すために使用 */
+    activeModule?: string | null;
 }
 
-export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }: HelpModalProps) {
+export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, activeModule = null }: HelpModalProps) {
     // Prevent scrolling when modal is open
     useEffect(() => {
         if (isOpen) {
@@ -32,6 +34,49 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
 
     const getContent = () => {
         const path = currentPath || "/";
+        const showClockHelp = path.includes("clock") || (path.includes("split") && activeModule === "clock");
+        if (showClockHelp) {
+            return {
+                title: "Clock モード",
+                icon: <Clock className="text-orange-400" size={24} />,
+                description: "現在時刻・ストップウォッチ・タイマーを切り替えて使えます。デジタル表示は0.01秒まで表示できます。",
+                sections: [
+                    {
+                        title: "時計",
+                        items: [
+                            "「デジタル」で現在時刻を時:分:秒で表示できます",
+                            "「アナログ」で文字盤と針の表示に切り替えられます",
+                            "太陽・月アイコンでライト/ダークテーマを切り替えられます",
+                        ],
+                    },
+                    {
+                        title: "ストップウォッチ",
+                        items: [
+                            "「開始」で計測を開始できます",
+                            "「一時停止」で止め、「開始」で再開できます",
+                            "「リセット」で経過時間を0に戻せます",
+                        ],
+                    },
+                    {
+                        title: "タイマー",
+                        items: [
+                            "分・秒を入力するか、1分・5分・10分のプリセットで時間を設定できます",
+                            "「開始」でカウントダウンを開始できます",
+                            "0になると通知または音で知らせます。ブラウザの通知許可があると通知が表示されます",
+                        ],
+                    },
+                    {
+                        title: "設定",
+                        items: [
+                            "右上の歯車アイコンから設定モーダルを開けます",
+                            "オーブの色・オーブの濃さを変更できます",
+                            "「0.01秒単位で表示」のオン/オフで、時計・ストップウォッチ・タイマーの表示精度を切り替えられます",
+                            "「表示サイズ」のバーで時計の表示の大きさを調節できます",
+                        ],
+                    },
+                ],
+            };
+        }
         if (path === "/" || path === "") {
             return {
                 title: "だんごツール（トップ）",
@@ -45,6 +90,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                             "フローチャート: ノードを繋いで数値演算。分岐・確率・集計を視覚的に整理",
                             "ガチャシミュレーター: 確率・レア度・天井をカスタマイズして配信やイベントで使用",
                             "ルーレット: スロットを回して抽選。予測や履歴で盛り上げる",
+                            "時計: 現在時刻・ストップウォッチ・タイマー。デジタルとアナログ表示に対応",
                             "スプリットビュー: カウンター・フローチャート・ガチャなどを1画面で切り替え",
                             "電卓: 四則演算・分数・確率の簡易計算",
                         ]
@@ -205,6 +251,8 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode }:
                             "左上のメニュー（≡）からテンプレート選択・項目の追加・目標値・色の変更ができます",
                             "「テンプレート」で星座や干支などあらかじめ用意した構成に切り替えられます",
                             "右上の設定（歯車）でカードサイズ・アクセント色・オーブの濃さなどを変更できます",
+                            "カードサイズを L または XL にすると、数字と ±5・±10 や △▽ ボタンが大きくなり押しやすくなります",
+                            "タブレットや PC では、カードサイズが S/M のときも ± と △▽ は押しやすいサイズで表示されます",
                         ]
                     }
                 ]

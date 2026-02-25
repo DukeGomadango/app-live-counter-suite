@@ -52,6 +52,10 @@ export default function JsonLd() {
         name = "ルーレット | だんごツール";
         description = "スロットを回して抽選。配信やイベントで使えるルーレットツール。";
         features = ["スロット抽選", "予測・履歴"];
+    } else if (pathname === "/clock") {
+        name = "時計 | だんごツール";
+        description = "現在時刻・ストップウォッチ・タイマー。デジタルとアナログ表示に対応。配信や作業の時間管理に。";
+        features = ["現在時刻（デジタル・アナログ）", "ストップウォッチ", "タイマー", "0.01秒まで表示"];
     }
 
     const organizationId = `${SITE_CONFIG.url}/#organization`;

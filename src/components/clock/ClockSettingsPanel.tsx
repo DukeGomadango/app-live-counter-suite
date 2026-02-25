@@ -1,0 +1,160 @@
+"use client";
+
+import { motion } from "framer-motion";
+import { X } from "lucide-react";
+import { useGlassStyle } from "@/hooks/useGlassStyle";
+import type { ClockSettings } from "@/lib/clock";
+
+const ACCENT_COLORS = [
+  { value: "#a855f7", label: "パープル" },
+  { value: "#8b5cf6", label: "バイオレット" },
+  { value: "#3b82f6", label: "ブルー" },
+  { value: "#06b6d4", label: "シアン" },
+  { value: "#22c55e", label: "グリーン" },
+  { value: "#eab308", label: "イエロー" },
+  { value: "#f97316", label: "オレンジ" },
+  { value: "#ec4899", label: "ピンク" },
+  { value: "#ef4444", label: "レッド" },
+];
+
+interface ClockSettingsPanelProps {
+  settings: ClockSettings;
+  onSettingsChange: (s: ClockSettings) => void;
+  isLightMode: boolean;
+  onClose?: () => void;
+  isSplitMode?: boolean;
+}
+
+export default function ClockSettingsPanel({
+  settings,
+  onSettingsChange,
+  isLightMode,
+  onClose,
+  isSplitMode = false,
+}: ClockSettingsPanelProps) {
+  const { glassBorder } = useGlassStyle(isLightMode);
+  const overlayBg = isLightMode ? "rgba(255,255,255,0.95)" : "rgba(10,5,30,0.95)";
+  const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
+  const textSecondary = isLightMode ? "text-gray-600" : "text-white/70";
+
+  const overlayClass = isSplitMode
+    ? "absolute inset-0 z-[90] bg-black/30 backdrop-blur-sm"
+    : "fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm";
+  const panelClass = isSplitMode
+    ? "absolute top-14 right-2 z-[100] w-72 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]"
+    : "fixed top-14 right-4 z-[100] w-72 rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh]";
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className={overlayClass}
+        onClick={onClose ?? (() => {})}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: -10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: -10 }}
+        className={panelClass}
+        style={{ background: overlayBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(20px)" }}
+      >
+        <div
+          className="flex items-center justify-between px-4 py-3 border-b shrink-0"
+          style={{ borderColor: glassBorder }}
+        >
+          <span className={`text-sm font-bold ${textPrimary}`}>時計設定</span>
+          <button
+            onClick={onClose}
+            className={`p-1 rounded-lg ${isLightMode ? "hover:bg-gray-100" : "hover:bg-white/10"}`}
+          >
+            <X size={16} className={textSecondary} />
+          </button>
+        </div>
+        <div className="px-4 py-3 flex flex-col gap-4 min-h-0 flex-1 overflow-y-auto">
+          <div>
+            <label
+              className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}
+            >
+              オーブの色
+            </label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {ACCENT_COLORS.map((c) => (
+                <button
+                  key={c.value}
+                  onClick={() => onSettingsChange({ ...settings, accentColor: c.value })}
+                  className={`h-8 rounded-lg transition-all ${settings.accentColor === c.value ? "ring-2 ring-offset-1" : ""}`}
+                  style={{
+                    background: c.value,
+                    ...(settings.accentColor === c.value
+                      ? { boxShadow: `0 0 0 2px ${isLightMode ? "#fff" : "rgba(255,255,255,0.3)"}` }
+                      : {}),
+                  }}
+                  title={c.label}
+                />
+              ))}
+            </div>
+          </div>
+          <div>
+            <label
+              className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}
+            >
+              オーブの濃さ
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={settings.orbIntensity}
+              onChange={(e) =>
+                onSettingsChange({ ...settings, orbIntensity: Number(e.target.value) })
+              }
+              className="w-full h-2 rounded-full"
+              style={{ accentColor: settings.accentColor }}
+            />
+            <p className={`text-[10px] ${textSecondary} mt-0.5`}>{settings.orbIntensity}%</p>
+          </div>
+          <div>
+            <label
+              className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}
+            >
+              0.01秒単位で表示
+            </label>
+            <button
+              type="button"
+              onClick={() =>
+                onSettingsChange({ ...settings, showCentiseconds: !settings.showCentiseconds })
+              }
+              className={`w-full py-2 px-3 rounded-lg text-sm font-medium transition-all ${isLightMode ? "bg-black/8 hover:bg-black/12" : "bg-white/10 hover:bg-white/15"} ${textPrimary}`}
+            >
+              {settings.showCentiseconds ? "オン" : "オフ"}
+            </button>
+            <p className={`text-[10px] ${textSecondary} mt-0.5`}>
+              {settings.showCentiseconds ? "時・ストップウォッチ・タイマーを 0.01 秒まで表示" : "1 秒単位で表示"}
+            </p>
+          </div>
+          <div>
+            <label
+              className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}
+            >
+              表示サイズ
+            </label>
+            <input
+              type="range"
+              min={50}
+              max={150}
+              value={settings.clockSize}
+              onChange={(e) =>
+                onSettingsChange({ ...settings, clockSize: Number(e.target.value) })
+              }
+              className="w-full h-2 rounded-full"
+              style={{ accentColor: settings.accentColor }}
+            />
+            <p className={`text-[10px] ${textSecondary} mt-0.5`}>{settings.clockSize}%</p>
+          </div>
+        </div>
+      </motion.div>
+    </>
+  );
+}
