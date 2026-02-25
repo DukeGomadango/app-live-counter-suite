@@ -17,7 +17,6 @@ import {
   createOverlayId,
   createDefaultOverlay,
   createImageOverlay,
-  DEFAULT_OVERLAY_COLOR,
 } from "@/lib/panelTypes";
 
 const defaultPanelState: PanelState = {
@@ -99,7 +98,7 @@ function RotationDial({
 
 export default function PanelContent({
   isSplitMode = false,
-  isRightPane = false,
+  isRightPane: _isRightPane = false,
 }: {
   isSplitMode?: boolean;
   isRightPane?: boolean;
@@ -112,6 +111,7 @@ export default function PanelContent({
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [addShape, setAddShape] = useState<OverlayShape | null>(null);
   const [isDrawingFree, setIsDrawingFree] = useState(false);
+  const [freeDrawPreviewPoints, setFreeDrawPreviewPoints] = useState<{ x: number; y: number }[]>([]);
   const freePointsRef = useRef<{ x: number; y: number }[]>([]);
   const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
   const [renamePanelId, setRenamePanelId] = useState<string | null>(null);
@@ -567,7 +567,9 @@ export default function PanelContent({
       const rect = captureRef.current.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
       const y = ((e.clientY - rect.top) / rect.height) * 100;
-      freePointsRef.current = [{ x, y }];
+      const start = [{ x, y }];
+      freePointsRef.current = start;
+      setFreeDrawPreviewPoints(start);
       setIsDrawingFree(true);
     },
     [addShape]
@@ -579,7 +581,9 @@ export default function PanelContent({
       const rect = captureRef.current.getBoundingClientRect();
       const x = ((e.clientX - rect.left) / rect.width) * 100;
       const y = ((e.clientY - rect.top) / rect.height) * 100;
-      freePointsRef.current = [...freePointsRef.current, { x, y }];
+      const next = [...freePointsRef.current, { x, y }];
+      freePointsRef.current = next;
+      setFreeDrawPreviewPoints(next);
     },
     [isDrawingFree]
   );
@@ -589,6 +593,7 @@ export default function PanelContent({
     const points = freePointsRef.current;
     if (points.length < 3) {
       setIsDrawingFree(false);
+      setFreeDrawPreviewPoints([]);
       freePointsRef.current = [];
       return;
     }
@@ -608,6 +613,7 @@ export default function PanelContent({
     newOverlay.points = points.map((p) => ({ x: p.x - minX, y: p.y - minY }));
     setOverlays((prev) => [...prev, newOverlay]);
     setIsDrawingFree(false);
+    setFreeDrawPreviewPoints([]);
     freePointsRef.current = [];
     setAddShape(null);
   }, [isDrawingFree, setOverlays, overlays, pushOverlayHistory]);
@@ -998,6 +1004,7 @@ export default function PanelContent({
               </div>
             ) : (
               <>
+                {/* eslint-disable-next-line @next/next/no-img-element -- Data URL from upload */}
                 <img
                   src={imageDataUrl}
                   alt="パネル画像"
@@ -1094,7 +1101,10 @@ export default function PanelContent({
                       }}
                     >
                       {isImage && overlay.imageDataUrl ? (
-                        <img src={overlay.imageDataUrl} alt="" className="w-full h-full object-contain pointer-events-none" />
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element -- overlay Data URL */}
+                          <img src={overlay.imageDataUrl} alt="" className="w-full h-full object-contain pointer-events-none" />
+                        </>
                       ) : null}
                       {isFree && freePoints ? (
                         <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -1169,14 +1179,14 @@ export default function PanelContent({
                   );
                 })}
                 {/* Free draw preview */}
-                {isDrawingFree && freePointsRef.current.length > 1 && (
+                {isDrawingFree && freeDrawPreviewPoints.length > 1 && (
                   <svg
                     className="absolute inset-0 w-full h-full pointer-events-none"
                     viewBox="0 0 100 100"
                     preserveAspectRatio="none"
                   >
                     <polygon
-                      points={freePointsRef.current.map((p) => `${p.x},${p.y}`).join(" ")}
+                      points={freeDrawPreviewPoints.map((p) => `${p.x},${p.y}`).join(" ")}
                       fill="rgba(139,92,246,0.3)"
                       stroke="rgba(139,92,246,0.8)"
                       strokeWidth={0.5}
