@@ -56,6 +56,10 @@ export default function JsonLd() {
         name = "時計 | だんごツール";
         description = "現在時刻・ストップウォッチ・タイマー。デジタルとアナログ表示に対応。配信や作業の時間管理に。";
         features = ["現在時刻（デジタル・アナログ）", "ストップウォッチ", "タイマー", "0.01秒まで表示"];
+    } else if (pathname === "/panel") {
+        name = "パネル | だんごツール";
+        description = "画像に覆いをかけてタップで開け。AI読み取り防止・目標達成で覆い解除。配信やイベントのパネル開けに。";
+        features = ["画像アップロード", "AI読み取り防止フィルター（複数同時）", "覆い（丸・三角・四角）・目標・タップで達成", "編集モード/パネル明けモード", "保存・共有"];
     }
 
     const organizationId = `${SITE_CONFIG.url}/#organization`;

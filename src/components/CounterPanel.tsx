@@ -6,6 +6,36 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import type { CardSize } from "@/components/SettingsModal";
+
+const STEP_BTN_SIZE_CLASS: Record<CardSize, string> = {
+    S: "min-w-[1.25rem] h-5 px-0.5 text-[10px]",
+    M: "min-w-[1.25rem] h-5 px-0.5 text-[10px]",
+    L: "min-w-[1.5rem] h-6 px-1 text-xs",
+    XL: "min-w-[2rem] h-8 px-1.5 text-sm",
+};
+
+const ARROW_BTN_SIZE_CLASS: Record<CardSize, string> = {
+    S: "w-5 h-4 sm:w-6 sm:h-5",
+    M: "w-5 h-4 sm:w-6 sm:h-5",
+    L: "w-6 h-5 sm:w-7 sm:h-6",
+    XL: "w-7 h-6 sm:w-8 sm:h-7",
+};
+
+const ARROW_ICON_SIZE: Record<CardSize, number> = {
+    S: 14,
+    M: 14,
+    L: 16,
+    XL: 18,
+};
+
+/** 数字表示のフォントサイズ（cardSize に連動し、行全体のスケールを揃える） */
+const COUNT_TEXT_CLASS: Record<CardSize, string> = {
+    S: "text-2xl sm:text-3xl lg:text-4xl",
+    M: "text-2xl sm:text-3xl lg:text-4xl",
+    L: "text-3xl sm:text-4xl lg:text-5xl",
+    XL: "text-4xl sm:text-5xl lg:text-6xl",
+};
 
 function StepBtn({
     label,
@@ -14,6 +44,7 @@ function StepBtn({
     arrowColor,
     arrowBg,
     arrowHoverBg,
+    cardSize = "M",
 }: {
     label: string;
     onClick: () => void;
@@ -21,14 +52,16 @@ function StepBtn({
     arrowColor: string;
     arrowBg: string;
     arrowHoverBg: string;
+    cardSize?: CardSize;
 }) {
+    const sizeClass = STEP_BTN_SIZE_CLASS[cardSize] ?? STEP_BTN_SIZE_CLASS.M;
     return (
         <button
             type="button"
             onClick={onClick}
             disabled={disabled}
             aria-label={label}
-            className={`min-w-[1.25rem] h-5 px-0.5 rounded text-[10px] font-medium tabular-nums flex items-center justify-center select-none disabled:opacity-40 disabled:cursor-not-allowed ${arrowColor}`}
+            className={`${sizeClass} rounded font-medium tabular-nums flex items-center justify-center select-none disabled:opacity-40 disabled:cursor-not-allowed ${arrowColor}`}
             style={{ background: arrowBg }}
             onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = arrowHoverBg; }}
             onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
@@ -59,6 +92,8 @@ interface CounterPanelProps {
     isOverlay?: boolean;
     /** カード上に編集・削除ボタンを表示する（設定でオフにできる） */
     showEditDeleteOnCard?: boolean;
+    /** カードサイズ（L/XL で ±5・±10 と △▽ を大きく表示） */
+    cardSize?: CardSize;
 }
 
 export default function CounterPanel({
@@ -81,6 +116,7 @@ export default function CounterPanel({
     isLightMode,
     isOverlay = false,
     showEditDeleteOnCard = true,
+    cardSize = "M",
 }: CounterPanelProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: isOverlay });
     const lastIncrementAt = useRef<number>(0);
@@ -96,6 +132,10 @@ export default function CounterPanel({
     const [isHovered, setIsHovered] = useState(false);
     const isDesktop = useMediaQuery("(min-width: 768px)");
     const showHoverControls = isHovered || !isDesktop;
+    /** タブレット/PC で S/M のときも ± と △▽ を少なくとも L サイズにし、＋と－のサイズを常に揃える */
+    const effectiveCardSizeForButtons: CardSize =
+        isDesktop && (cardSize === "S" || cardSize === "M") ? "L" : cardSize;
+    const countTextClass = COUNT_TEXT_CLASS[cardSize] ?? COUNT_TEXT_CLASS.M;
     const [isEditingCount, setIsEditingCount] = useState(false);
     const [editCountValue, setEditCountValue] = useState("");
 
@@ -361,12 +401,12 @@ export default function CounterPanel({
                                     onPointerLeave={handleIncrementPointerUp}
                                     onPointerCancel={handleIncrementPointerUp}
                                     aria-label={`${label}を1増やす（長押しで連続）`}
-                                    className={`w-5 h-4 sm:w-6 sm:h-5 rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
+                                    className={`${ARROW_BTN_SIZE_CLASS[effectiveCardSizeForButtons]} rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
                                     style={{ background: arrowBg }}
                                     onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
                                     onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
                                 >
-                                    <ChevronUp size={14} />
+                                    <ChevronUp size={ARROW_ICON_SIZE[effectiveCardSizeForButtons]} />
                                 </button>
                                 {count > 0 && (
                                     <button
@@ -377,12 +417,12 @@ export default function CounterPanel({
                                         onPointerLeave={handleDecrementPointerUp}
                                         onPointerCancel={handleDecrementPointerUp}
                                         aria-label={`${label}を1減らす（長押しで連続）`}
-                                        className={`w-5 h-4 sm:w-6 sm:h-5 rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
+                                        className={`${ARROW_BTN_SIZE_CLASS[effectiveCardSizeForButtons]} rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
                                         style={{ background: arrowBg }}
                                         onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
                                         onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
                                     >
-                                        <ChevronDown size={14} />
+                                        <ChevronDown size={ARROW_ICON_SIZE[effectiveCardSizeForButtons]} />
                                     </button>
                                 )}
                             </motion.div>
@@ -405,7 +445,7 @@ export default function CounterPanel({
                                     }}
                                     onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                                     autoFocus
-                                    className="font-bold tabular-nums text-2xl sm:text-3xl lg:text-4xl w-16 sm:w-20 bg-transparent border-b-2 outline-none text-center"
+                                    className={`font-bold tabular-nums ${countTextClass} w-16 sm:w-20 bg-transparent border-b-2 outline-none text-center`}
                                     style={{ color: countColor, borderColor: color }}
                                     onClick={(e) => e.stopPropagation()}
                                 />
@@ -416,7 +456,7 @@ export default function CounterPanel({
                                     tabIndex={0}
                                     onClick={(e) => { e.stopPropagation(); if (onSetCount) { setIsEditingCount(true); setEditCountValue(String(count)); } }}
                                     onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && onSetCount) { e.preventDefault(); setIsEditingCount(true); setEditCountValue(String(count)); } }}
-                                    className={`font-bold tabular-nums text-2xl sm:text-3xl lg:text-4xl ${onSetCount ? "cursor-text rounded px-0.5 hover:bg-black/5 dark:hover:bg-white/5" : ""}`}
+                                    className={`font-bold tabular-nums ${countTextClass} ${onSetCount ? "cursor-text rounded px-0.5 hover:bg-black/5 dark:hover:bg-white/5" : ""}`}
                                     style={{ color: countColor, textShadow: countShadow }}
                                     title={onSetCount ? "クリックで数を直接編集" : undefined}
                                 >
@@ -454,15 +494,15 @@ export default function CounterPanel({
                                 >
                                     {/* 上段: すべての ＋ */}
                                     <div className="flex items-center gap-0.5">
-                                        {showStep5 && <StepBtn label="+5" onClick={() => onAdjustBy(id, 5)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
-                                        {showStep10 && <StepBtn label="+10" onClick={() => onAdjustBy(id, 10)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
-                                        {showStepFree && stepFreeValue >= 1 && <StepBtn label={`+${stepFreeValue}`} onClick={() => onAdjustBy(id, stepFreeValue)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
+                                        {showStep5 && <StepBtn label="+5" onClick={() => onAdjustBy(id, 5)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
+                                        {showStep10 && <StepBtn label="+10" onClick={() => onAdjustBy(id, 10)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
+                                        {showStepFree && stepFreeValue >= 1 && <StepBtn label={`+${stepFreeValue}`} onClick={() => onAdjustBy(id, stepFreeValue)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
                                     </div>
                                     {/* 下段: すべての － */}
                                     <div className="flex items-center gap-0.5">
-                                        {showStep5 && <StepBtn label="-5" onClick={() => onAdjustBy(id, -5)} disabled={count < 5} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
-                                        {showStep10 && <StepBtn label="-10" onClick={() => onAdjustBy(id, -10)} disabled={count < 10} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
-                                        {showStepFree && stepFreeValue >= 1 && <StepBtn label={`-${stepFreeValue}`} onClick={() => onAdjustBy(id, -stepFreeValue)} disabled={count < stepFreeValue} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} />}
+                                        {showStep5 && <StepBtn label="-5" onClick={() => onAdjustBy(id, -5)} disabled={count < 5} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
+                                        {showStep10 && <StepBtn label="-10" onClick={() => onAdjustBy(id, -10)} disabled={count < 10} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
+                                        {showStepFree && stepFreeValue >= 1 && <StepBtn label={`-${stepFreeValue}`} onClick={() => onAdjustBy(id, -stepFreeValue)} disabled={count < stepFreeValue} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
                                     </div>
                                 </motion.div>
                             )}

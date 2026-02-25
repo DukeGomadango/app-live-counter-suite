@@ -12,7 +12,8 @@ import {
     ImageDown,
 } from "lucide-react";
 import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode, OrganizedResult } from "@/lib/gacha";
-import { organizeResults, formatResultsForShare, generateShareUrl } from "@/lib/gacha";
+import { organizeResults, formatResultsForShare } from "@/lib/gacha";
+import { generateShareUrl } from "@/lib/share";
 import { DEFAULT_EXTRA_HASHTAG, DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
 import { useGlassStyle } from "@/hooks/useGlassStyle";

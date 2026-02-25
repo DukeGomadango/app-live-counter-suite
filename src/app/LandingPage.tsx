@@ -167,7 +167,7 @@ export default function LandingPage() {
 
         {layoutMode === "strip" ? (
           /* B: ストリップ表示（大きめのチップで存在感を） */
-          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-6 py-6 md:py-8 md:flex-1 md:flex md:flex-col md:justify-center">
+          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-6 py-6 md:py-8 md:flex-1 md:flex md:flex-col md:justify-start">
             <div className="flex flex-wrap justify-center gap-4 md:gap-5">
               {TOOLS.map((tool, i) => {
                 const Icon = tool.icon;
@@ -203,7 +203,7 @@ export default function LandingPage() {
           </div>
         ) : (
           /* A: カード表示（「使ってみる」を行で揃える） */
-          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-4 py-6 md:py-8 md:flex-1 md:flex md:flex-col md:justify-center md:min-h-0">
+          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-4 py-6 md:py-8 md:flex-1 md:flex md:flex-col md:justify-start md:min-h-0">
             <div className="grid grid-cols-1 md:grid-cols-3 md:grid-rows-2 gap-4 md:gap-4 md:[grid-auto-rows:minmax(0,1fr)]">
               {TOOLS.map((tool, i) => {
                 const Icon = tool.icon;

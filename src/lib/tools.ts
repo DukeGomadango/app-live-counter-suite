@@ -2,7 +2,7 @@
  * ツール一覧の単一ソース。LP・ModeSelector・sitemap・JsonLd で共有。
  * 機能追加時はこの配列に 1 件追加するだけで拡張できる。
  */
-import { Users, Network, Sparkles, CircleDot, LayoutGrid, Calculator, Clock, type LucideIcon } from "lucide-react";
+import { Users, Network, Sparkles, CircleDot, LayoutGrid, Calculator, Clock, PanelTopOpen, type LucideIcon } from "lucide-react";
 
 export interface ToolDef {
   id: string;
@@ -111,6 +111,19 @@ export const TOOLS: ToolDef[] = [
     activeBg: "bg-cyan-500/20",
     activeBorder: "border-cyan-500/40",
     accentHex: "#22d3ee",
+  },
+  {
+    id: "panel",
+    path: "/panel",
+    labelEn: "Panel",
+    labelJa: "パネル",
+    description: "画像に覆いをかけてタップで開け。AI読み取り防止・目標達成で覆い解除。",
+    descriptionNarrowBreakAfter: "開け。",
+    icon: PanelTopOpen,
+    colorClass: "text-violet-400",
+    activeBg: "bg-violet-500/20",
+    activeBorder: "border-violet-500/40",
+    accentHex: "#8b5cf6",
   },
 ];
 

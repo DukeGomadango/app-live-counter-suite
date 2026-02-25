@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, GitMerge, LayoutGrid, HelpCircle, Sparkles, Calculator, Home, CircleDot, Clock } from "lucide-react";
+import { X, Users, GitMerge, LayoutGrid, HelpCircle, Sparkles, Calculator, Home, CircleDot, Clock, PanelTopOpen } from "lucide-react";
 import { useEffect } from "react";
 
 interface HelpModalProps {
@@ -35,6 +35,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
     const getContent = () => {
         const path = currentPath || "/";
         const showClockHelp = path.includes("clock") || (path.includes("split") && activeModule === "clock");
+        const showPanelHelp = path.includes("panel") || (path.includes("split") && activeModule === "panel");
         if (showClockHelp) {
             return {
                 title: "Clock モード",
@@ -92,6 +93,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
                             "ルーレット: スロットを回して抽選。予測や履歴で盛り上げる",
                             "時計: 現在時刻・ストップウォッチ・タイマー。デジタルとアナログ表示に対応",
                             "スプリットビュー: カウンター・フローチャート・ガチャなどを1画面で切り替え",
+                            "パネル: 画像に覆いをかけてタップで開け。AI読み取り防止・目標達成で覆い解除",
                             "電卓: 四則演算・分数・確率の簡易計算",
                         ]
                     },
@@ -100,6 +102,55 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
                         items: [
                             "上部のドロップダウン（Top / Counter / FlowChart …）でツールを切り替えられます",
                             "太陽・月アイコンでライト/ダークテーマを切り替えられます",
+                        ]
+                    }
+                ]
+            };
+        }
+        if (showPanelHelp) {
+            return {
+                title: "Panel モード",
+                icon: <PanelTopOpen className="text-violet-400" size={24} />,
+                description: "画像に覆いをかけてタップで開けるパネル機能です。AI読み取り防止フィルターや目標達成で覆いを外せます。",
+                sections: [
+                    {
+                        title: "基本操作",
+                        items: [
+                            "ここをクリックするか、画像をドラッグ＆ドロップしてアップロードできます",
+                            "画像の上にAI読み取り防止フィルターを複数パターン同時に選んでかけられます。強さスライダーでフィルターの強弱を調節できます",
+                            "画像の上に丸・三角・四角・自由描画の覆いを付けられ、各覆いに「何を」（ラベル）と「いくつ」（目標・数字）を表示・編集できます",
+                            "「自由」を選んで画像上をドラッグすると自由な形の覆いを描けます",
+                            "「画像を追加」で図形のほかに画像オーバーレイを載せられます。画像オーバーレイも移動・リサイズ・回転できます",
+                            "目標を数値で設定した覆いはタップでカウントが加算され、目標達成で「達成しますか？」→ はいで覆いが消えます",
+                            "目標を日本語で入力した覆いは、タップしたら「達成しますか？」がすぐ出て、はいで覆いが消えます",
+                            "編集モードとパネル明けモードを切り替えられます（編集モードで配置・設定、パネル明けモードでタップのみ）",
+                        ]
+                    },
+                    {
+                        title: "図形の編集",
+                        items: [
+                            "編集モードで図形を選択すると、覆いの上に削除ボタンが表示され、クリックで削除できます",
+                            "ドラッグで移動・角のハンドルで拡大縮小・上端のハンドルまたは編集パネルの円形ダイアルで回転・編集パネルで色・ラベル・透明度・回転（度）を変更できます",
+                            "選択時には円形ガイドが表示され、その円に沿ってハンドルをドラッグすると傾きを直感的に調整できます",
+                            "各覆いの透明度をスライダーで0〜100%に変更できます（デフォルトは100%）",
+                            "Ctrl+C（コピー）・Ctrl+X（切り取り）・Ctrl+V（貼り付け）・Ctrl+Z（元に戻す）が使えます",
+                            "スマホ・タブレットでは、選択した図形に二本指でピンチすると拡大縮小、二本指で回転すると傾きを変更できます",
+                        ]
+                    },
+                    {
+                        title: "MECEアシスト",
+                        items: [
+                            "覆いの配置はグリッドにスナップし、隙間やずれを減らせます",
+                            "「2×2」「3×2」ボタンで画像を等分割した四角の覆いを一括で追加できます",
+                        ]
+                    },
+                    {
+                        title: "保存・共有",
+                        items: [
+                            "ヘッダー右側（ヘルプの左）の「画像を保存して X で共有」ボタンで画像を保存し、X の投稿画面を開けます",
+                            "メニュー（≡）から現在のパネルを保存し、保存したパネル一覧で切り替えられます",
+                            "保存したパネルは名前の横のアイコンで名前変更・削除できます。削除時は確認ダイアログが表示されます",
+                            "AI読み取り防止ラベルの表示・非表示を設定で切り替えられます",
                         ]
                     }
                 ]
@@ -134,7 +185,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
             return {
                 title: "Split モード",
                 icon: <LayoutGrid className="text-green-400" size={24} />,
-                description: "画面を左右に分割し、複数の機能（カウンターやフローチャート）を同時に利用できます。",
+                description: "画面を左右に分割し、複数の機能（カウンターやフローチャート・パネルなど）を同時に利用できます。",
                 sections: [
                     {
                         title: "基本操作",
@@ -142,6 +193,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
                             "左右のペイン上部にあるドロップダウンから表示したい機能を選択できます",
                             "「Counter」を選べば左右両方で異なるカウンターを使用できます",
                             "「FlowChart」を選んで複雑な計算とカウンターを同時に使えます",
+                            "「Panel」を選んで左右でパネルを表示できます",
                             "現在の画面構成は自動で保存され、次回も同じ状態で開きます"
                         ]
                     }
@@ -253,6 +305,12 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
                             "右上の設定（歯車）でカードサイズ・アクセント色・オーブの濃さなどを変更できます",
                             "カードサイズを L または XL にすると、数字と ±5・±10 や △▽ ボタンが大きくなり押しやすくなります",
                             "タブレットや PC では、カードサイズが S/M のときも ± と △▽ は押しやすいサイズで表示されます",
+                        ]
+                    },
+                    {
+                        title: "結果と共有",
+                        items: [
+                            "「画像で共有」ボタン（ヘルプの左）で進捗を1枚の画像にし、ダウンロードとX投稿用画面を開けます",
                         ]
                     }
                 ]

@@ -27,6 +27,10 @@ const ClockPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
   () => import("@/app/clock/ClockContent"),
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
+const PanelPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
+  () => import("@/app/panel/PanelContent"),
+  { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
+);
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AppSettings } from "@/components/SettingsModal";
@@ -34,7 +38,7 @@ import ModeSelector from "@/components/ModeSelector";
 import { useSplitModule } from "@/context/SplitModuleContext";
 import { ChevronDown, LayoutGrid, PanelLeft, PanelRight } from "lucide-react";
 
-export type ModuleType = "counter" | "flowchart" | "gacha" | "roulette" | "calculator" | "clock";
+export type ModuleType = "counter" | "flowchart" | "gacha" | "roulette" | "calculator" | "clock" | "panel";
 
 const MODULE_OPTIONS: { value: ModuleType; label: string }[] = [
     { value: "counter", label: "Counter" },
@@ -43,6 +47,7 @@ const MODULE_OPTIONS: { value: ModuleType; label: string }[] = [
     { value: "roulette", label: "Roulette" },
     { value: "calculator", label: "Calculator" },
     { value: "clock", label: "Clock" },
+    { value: "panel", label: "Panel" },
 ];
 
 export default function SplitPage() {
@@ -88,6 +93,7 @@ export default function SplitPage() {
             case "roulette": return <RoulettePage isSplitMode={true} isRightPane={isRight} />;
             case "calculator": return <CalculatorPage isSplitMode={true} isRightPane={isRight} />;
             case "clock": return <ClockPage isSplitMode={true} isRightPane={isRight} />;
+            case "panel": return <PanelPage isSplitMode={true} isRightPane={isRight} />;
             default: return null;
         }
     };

@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useEffect, useState } from "react";
+import { useCallback, useMemo, useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   DndContext,
@@ -21,6 +22,8 @@ import {
   sortableKeyboardCoordinates,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
+import { toPng } from "html-to-image";
+import { ImageDown } from "lucide-react";
 import CounterPanel from "@/components/CounterPanel";
 import AddItemPanel from "@/components/AddItemPanel";
 import HamburgerMenu from "@/components/HamburgerMenu";
@@ -29,6 +32,8 @@ import SettingsModal, { type AppSettings, type CardSize } from "@/components/Set
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { TEMPLATES, createCounterItems, type CounterItem, type Template } from "@/lib/templates";
+import { generateShareUrl } from "@/lib/share";
+import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 
 function useWindowWidth() {
   const [width, setWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
@@ -82,6 +87,8 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
     }
   );
   const windowWidth = useWindowWidth();
+  const shareAreaRef = useRef<HTMLDivElement>(null);
+  const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
 
   // dnd-kit sensors and state
   const sensors = useSensors(
@@ -237,6 +244,37 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
     setItems((prev) => prev.map((item) => ({ ...item, count: 0 })));
   }, [setItems]);
 
+  const handleShareAsImage = useCallback(() => {
+    setIsCapturingShareImage(true);
+  }, []);
+
+  // キャプチャ用の portal（高さ制限なしで全カードを描画）が表示されたあとに toPng
+  useEffect(() => {
+    if (!isCapturingShareImage) return;
+    const id = setTimeout(async () => {
+      const el = shareAreaRef.current;
+      if (!el) {
+        setIsCapturingShareImage(false);
+        return;
+      }
+      try {
+        const backgroundColor = isLightMode ? "#f5f3ff" : "#0f0a1e";
+        const dataUrl = await toPng(el, { backgroundColor, pixelRatio: 3 });
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = "counter-progress.png";
+        a.click();
+        const tweetText = `進捗状況（画像を添付してください）\n\n${DEFAULT_SHARE_HASHTAG}`;
+        window.open(generateShareUrl(tweetText), "_blank", "noopener,noreferrer");
+      } catch (err) {
+        console.warn("Image export failed:", err);
+      } finally {
+        setIsCapturingShareImage(false);
+      }
+    }, 80);
+    return () => clearTimeout(id);
+  }, [isCapturingShareImage, isLightMode]);
+
   const handleSelectTemplate = useCallback(
     (template: Template) => {
       setCurrentTemplateId(template.id);
@@ -381,12 +419,129 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   const effectiveCols = Math.min(gridCols, totalSlots || 1);
   const gridMaxWidth = effectiveCols * colMaxPx;
 
+  // キャプチャ用スケール：グリッド全体がビューポートに収まるように縮小し、全カードが描画・キャプチャされるようにする
+  const captureRows = Math.ceil(totalSlots / effectiveCols);
+  const captureGap = 10;
+  const estimatedGridHeight = captureRows * colMaxPx + (captureRows - 1) * captureGap + 20;
+  const winH = typeof window !== "undefined" ? window.innerHeight : 800;
+  const captureScale = Math.min(
+    windowWidth / gridMaxWidth,
+    winH / estimatedGridHeight,
+    1
+  );
+  const captureWidth = gridMaxWidth * captureScale;
+  const captureHeight = estimatedGridHeight * captureScale;
+  const capturePadding = 32;
+  const captureOuterWidth = captureWidth + capturePadding * 2;
+  const captureOuterHeight = captureHeight + capturePadding * 2;
+
+  const captureBaseBg = isLightMode
+    ? "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)"
+    : "linear-gradient(135deg, #0a0118 0%, #1a0a2e 40%, #0d1b3e 70%, #0a0118 100%)";
+  const orbOpacity = (appSettings.orbIntensity ?? 50) / 100;
+  const accentHex = appSettings.accentColor;
+  const captureOrbBg = isLightMode
+    ? `radial-gradient(ellipse at 15% 25%, ${accentHex}66 0%, transparent 50%), radial-gradient(ellipse at 75% 20%, rgba(59, 130, 246, 0.25) 0%, transparent 45%), radial-gradient(ellipse at 85% 75%, rgba(6, 182, 212, 0.3) 0%, transparent 50%), radial-gradient(ellipse at 30% 80%, ${accentHex}4D 0%, transparent 45%), radial-gradient(ellipse at 50% 50%, ${accentHex}40 0%, transparent 50%)`
+    : `radial-gradient(ellipse at 20% 20%, ${accentHex}59 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(6, 182, 212, 0.15) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, ${accentHex}33 0%, transparent 50%)`;
+
   const splitLightBg = "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)";
   return (
     <div
       className="h-full w-full flex flex-col relative z-10"
       style={{ "--accent-color": appSettings.accentColor } as React.CSSProperties}
     >
+      {/* 画像共有用：スケールダウンしてビューポートに収め、背景オーブ＋余白付きで toPng */}
+      {typeof document !== "undefined" &&
+        isCapturingShareImage &&
+        createPortal(
+          <div
+            ref={shareAreaRef}
+            style={{
+              position: "fixed",
+              left: 0,
+              top: 0,
+              width: `${captureOuterWidth}px`,
+              height: `${captureOuterHeight}px`,
+              overflow: "hidden",
+              zIndex: -1,
+              pointerEvents: "none",
+              background: captureBaseBg,
+            }}
+            aria-hidden
+          >
+            {/* 背景オーブ（body::before 相当） */}
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                zIndex: 0,
+                background: captureOrbBg,
+                opacity: orbOpacity,
+                pointerEvents: "none",
+              }}
+            />
+            {/* 余白付きコンテンツ領域 */}
+            <div
+              style={{
+                position: "absolute",
+                left: `${capturePadding}px`,
+                top: `${capturePadding}px`,
+                width: `${captureWidth}px`,
+                height: `${captureHeight}px`,
+                overflow: "hidden",
+                zIndex: 1,
+              }}
+            >
+              <div
+                className="grid gap-2 sm:gap-2.5 w-full"
+                style={{
+                  gridTemplateColumns: `repeat(${effectiveCols}, 1fr)`,
+                  maxWidth: `${gridMaxWidth}px`,
+                  width: `${gridMaxWidth}px`,
+                  padding: 0,
+                  margin: 0,
+                  transform: `scale(${captureScale})`,
+                  transformOrigin: "top left",
+                }}
+              >
+              {items.map((item) => (
+                <CounterPanel
+                  key={item.id}
+                  id={item.id}
+                  label={item.label}
+                  emoji={item.emoji}
+                  color={item.color}
+                  count={item.count}
+                  target={item.target}
+                  onIncrement={() => {}}
+                  onDecrement={() => {}}
+                  onSetCount={undefined}
+                  onAdjustBy={undefined}
+                  showStep5={appSettings.showStep5 ?? true}
+                  showStep10={appSettings.showStep10 ?? true}
+                  showStepFree={appSettings.showStepFree ?? false}
+                  stepFreeValue={appSettings.stepFreeValue ?? 1}
+                  onDeleteItem={() => {}}
+                  onEditItem={() => {}}
+                  isLightMode={isLightMode}
+                  showEditDeleteOnCard={false}
+                  cardSize={appSettings.cardSize}
+                />
+              ))}
+              <div className="list-none rounded-2xl" style={{ touchAction: "none" }}>
+                <AddItemPanel
+                  isLightMode={isLightMode}
+                  onAddItem={() => {}}
+                  onExpand={() => {}}
+                  onCollapse={() => {}}
+                />
+              </div>
+            </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
       {/* Split時ライト: body.light-mode 相当のベース背景（通常版と同じ見た目） */}
       {isSplitMode && isLightMode && (
         <div className="absolute inset-0 pointer-events-none z-0" style={{ background: splitLightBg }} />
@@ -505,6 +660,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                     onEditItem={(id) => setEditingItemId(id)}
                     isLightMode={isLightMode}
                     showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
+                    cardSize={appSettings.cardSize}
                   />
                 ))}
                 {/* Add Panel Slot */}
@@ -545,6 +701,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                     isLightMode={isLightMode}
                     isOverlay
                     showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
+                    cardSize={appSettings.cardSize}
                   />
                 </div>
               ) : null}
@@ -552,6 +709,26 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
           </DndContext>
         </div>
       </main>
+
+      {/* 画像で共有ボタン（ヘッダー右下・ヘルプの左） */}
+      <button
+        type="button"
+        onClick={handleShareAsImage}
+        className="fixed z-[100] w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110"
+        style={{
+          top: "70px",
+          right: "64px",
+          background: isLightMode ? "rgba(255, 255, 255, 0.4)" : "rgba(20, 10, 40, 0.4)",
+          backdropFilter: "blur(8px)",
+          border: `1px solid ${isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"}`,
+        }}
+        title="画像で共有"
+      >
+        <ImageDown
+          size={20}
+          className={isLightMode ? "text-gray-500" : "text-white/40"}
+        />
+      </button>
 
       {/* Edit Item Modal */}
       {editingItemId && (() => {

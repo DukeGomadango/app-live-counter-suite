@@ -504,10 +504,6 @@ export function formatResultsForShare(
     return lines.join("\n");
 }
 
-export function generateShareUrl(text: string): string {
-    return `https://x.com/intent/tweet?text=${encodeURIComponent(text)}`;
-}
-
 // ========== ID生成 ==========
 
 export function generateId(): string {

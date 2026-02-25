@@ -17,11 +17,13 @@ export default function HelpButton() {
     const [isLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
     const [isGachaLightMode] = useLocalStorage<boolean>("gacha-light-mode", false);
     const [isClockLightMode] = useLocalStorage<boolean>("clock-light-mode", false);
+    const [isPanelLightMode] = useLocalStorage<boolean>("panel-light-mode", false);
     const isGacha = pathname?.includes("gacha");
     const isRoulette = pathname?.includes("roulette");
     const isSplit = pathname?.includes("split");
     const isClock = pathname?.includes("clock");
-    const effectiveLightMode = isGacha ? isGachaLightMode : isClock || (isSplit && activeModule === "clock") ? isClockLightMode : isLightMode;
+    const isPanel = pathname?.includes("panel") || (isSplit && activeModule === "panel");
+    const effectiveLightMode = isGacha ? isGachaLightMode : isClock || (isSplit && activeModule === "clock") ? isClockLightMode : isPanel ? isPanelLightMode : isLightMode;
 
     useEffect(() => {
         const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
