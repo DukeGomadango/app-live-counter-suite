@@ -67,14 +67,6 @@ export default function GachaResultDisplay({
         ? { background: "#fff", color: "#1f2937" }
         : { background: "#1e1b4b", color: "#e2e8f0" };
 
-    if (results.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-full">
-                <p className={`text-sm ${textSecondary}`}>まだ結果がありません</p>
-            </div>
-        );
-    }
-
     const organized = organizeResults(results, pool.rarities, sortMode, filterMode);
     const totalCount = organized.reduce((sum, item) => sum + item.count, 0);
 
@@ -146,6 +138,14 @@ export default function GachaResultDisplay({
             setTimeout(() => setCopied(false), 2000);
         }
     };
+
+    if (results.length === 0) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <p className={`text-sm ${textSecondary}`}>まだ結果がありません</p>
+            </div>
+        );
+    }
 
     const sortOptions: { value: SortMode; label: string }[] = [
         { value: "rarity-asc", label: "レア度↑" },
