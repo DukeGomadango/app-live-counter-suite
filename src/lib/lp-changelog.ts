@@ -15,6 +15,15 @@ export type ChangelogEntry = {
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-02-27",
+    importance: "normal",
+    title: "ガチャ配色と背景オーブを独立して設定可能に",
+    items: [
+      "ガチャ設定で「ガチャ配色」（UI・演出）と「オーブの色」（背景グラデーション）を別々に変更できます",
+      "オーブの濃さスライダーで背景オーブの濃度を調整できます。初期値はガチャ配色に合わせた色です",
+    ],
+  },
+  {
+    date: "2026-02-27",
     importance: "minor",
     title: "ガチャ画像共有でiOS・iPadでもツイート画面が開くように修正",
     items: [

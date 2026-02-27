@@ -53,10 +53,9 @@ export interface GachaResult {
 // ========== 設定 ==========
 
 export interface GachaSettings {
-    bgColor: string;          // 背景配色
-    /** 背景の濃さ 0=薄い 100=そのまま（ダークは黒、ライトは白でオーバーレイ） */
-    bgIntensity?: number;
-    accentColor: string;      // ガチャUI配色
+    accentColor: string;      // ガチャUI配色（ボタン・演出・バッジなど）
+    orbColor: string;         // 背景オーブの色
+    orbIntensity: number;     // 背景オーブの濃さ 0-100
     showTitle: boolean;       // コンセプト名表示
     enableAnimation: boolean; // 演出ON/OFF
     /** 共有ツイートに付与する追加ハッシュタグ（スペース区切り）。#だんごツールは常に付与される */
@@ -91,9 +90,9 @@ export const GACHA_ACCENT_COLORS = [
 
 export function createDefaultSettings(): GachaSettings {
     return {
-        bgColor: "default",
-        bgIntensity: 100,
         accentColor: DEFAULT_ACCENT_COLOR,
+        orbColor: DEFAULT_ACCENT_COLOR,
+        orbIntensity: 50,
         showTitle: true,
         enableAnimation: true,
         shareHashtags: DEFAULT_EXTRA_HASHTAG,

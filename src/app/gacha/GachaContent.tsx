@@ -13,7 +13,7 @@ import GachaPlayerManager from "@/components/gacha/GachaPlayerManager";
 import PlayerHistoryCard from "@/components/gacha/PlayerHistoryCard";
 import GachaSwitchDropdown from "@/components/gacha/GachaSwitchDropdown";
 import type { GachaPool, Player, GachaResult, GachaSettings, GachaPoolPreset } from "@/lib/gacha";
-import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_BG_COLORS, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds, clonePoolWithNewIds, getSampleTemplates, migratePoolItemsForLink } from "@/lib/gacha";
+import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds, clonePoolWithNewIds, getSampleTemplates, migratePoolItemsForLink } from "@/lib/gacha";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 
@@ -64,40 +64,6 @@ function GachaSettingsPanel({
                 </div>
 
                 <div className="px-4 py-3 flex flex-col gap-4 min-h-0 flex-1 overflow-y-auto scroll-touch">
-                    {/* 背景配色 */}
-                    <div>
-                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
-                            背景配色
-                        </label>
-                        <div className="grid grid-cols-4 gap-1.5">
-                            {GACHA_BG_COLORS.map(c => (
-                                <button
-                                    key={c.value}
-                                    onClick={() => onSettingsChange({ ...settings, bgColor: c.value })}
-                                    className={`h-8 rounded-lg transition-all ${settings.bgColor === c.value ? "ring-2 ring-purple-500 ring-offset-1" : ""}`}
-                                    style={{ background: c.bg }}
-                                    title={c.label}
-                                />
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* 背景の濃さ */}
-                    <div>
-                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
-                            背景の濃さ
-                        </label>
-                        <input
-                            type="range"
-                            min={0}
-                            max={100}
-                            value={settings.bgIntensity ?? 100}
-                            onChange={e => onSettingsChange({ ...settings, bgIntensity: Number(e.target.value) })}
-                            className="w-full h-2 rounded-full accent-purple-500"
-                        />
-                        <p className={`text-[10px] ${textSecondary} mt-0.5`}>0=薄い / 100=そのまま</p>
-                    </div>
-
                     {/* ガチャ配色 */}
                     <div>
                         <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
@@ -114,6 +80,40 @@ function GachaSettingsPanel({
                                 />
                             ))}
                         </div>
+                    </div>
+
+                    {/* オーブの色 */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
+                            オーブの色
+                        </label>
+                        <div className="grid grid-cols-6 gap-1.5">
+                            {GACHA_ACCENT_COLORS.map(c => (
+                                <button
+                                    key={c.value}
+                                    onClick={() => onSettingsChange({ ...settings, orbColor: c.value })}
+                                    className={`w-full aspect-square rounded-full transition-all ${(settings.orbColor ?? settings.accentColor) === c.value ? "ring-2 ring-white/80 ring-offset-1 scale-110" : "hover:scale-105"}`}
+                                    style={{ background: c.value }}
+                                    title={c.label}
+                                />
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* オーブの濃さ */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
+                            オーブの濃さ
+                        </label>
+                        <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            value={settings.orbIntensity ?? 50}
+                            onChange={(e) => onSettingsChange({ ...settings, orbIntensity: Number(e.target.value) })}
+                            className="w-full h-2 rounded-full accent-purple-500"
+                        />
+                        <p className={`text-[10px] ${textSecondary} mt-0.5`}>{settings.orbIntensity ?? 50}%</p>
                     </div>
 
                     {/* タイトル表示 */}
@@ -298,6 +298,19 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
         setPool(prev => migratePoolItemsForLink(prev));
     }, [setPool]);
 
+    // 設定に orbIntensity / orbColor がない古い保存データにデフォルトを付与
+    useEffect(() => {
+        const needsOrbIntensity = gachaSettings.orbIntensity === undefined;
+        const needsOrbColor = gachaSettings.orbColor === undefined;
+        if (needsOrbIntensity || needsOrbColor) {
+            setGachaSettings(prev => ({
+                ...prev,
+                ...(needsOrbIntensity && { orbIntensity: 50 }),
+                ...(needsOrbColor && { orbColor: prev.accentColor ?? createDefaultSettings().accentColor }),
+            }));
+        }
+    }, [gachaSettings.orbIntensity, gachaSettings.orbColor, gachaSettings.accentColor, setGachaSettings]);
+
     useEffect(() => {
         if (mobileTab === "setup") setShowScrollHint(true);
     }, [mobileTab]);
@@ -409,23 +422,15 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [hasMigrated]);
 
-    // テーマ + 背景色適用（Split時はペイン内に反映するためbodyに触れない）
+    // テーマ適用（他ツールと統一し、body背景は触らない）
     useEffect(() => {
         if (isLightMode) {
             document.body.classList.add("light-mode");
         } else {
             document.body.classList.remove("light-mode");
         }
-        if (isSplitMode) {
-            return () => document.body.classList.remove("light-mode");
-        }
-        const found = GACHA_BG_COLORS.find(c => c.value === gachaSettings.bgColor);
-        document.body.style.background = found?.bg ?? GACHA_BG_COLORS[0]?.bg ?? "";
-        return () => {
-            document.body.classList.remove("light-mode");
-            document.body.style.background = '';
-        };
-    }, [isLightMode, gachaSettings.bgColor, isSplitMode]);
+        return () => document.body.classList.remove("light-mode");
+    }, [isLightMode]);
 
     // レスポンシブ（768px未満: モバイル / 1024px未満: タブレットもモバイルレイアウトでサイドバー幅調節の問題を避ける）
     useEffect(() => {
@@ -530,21 +535,39 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
     }, [presets, sampleTemplates, setPool]);
 
     const { glassBorder } = useGlassStyle(isLightMode);
-    /** ダークモードで背景が明るいとき、文字を暗くして視認性を確保する（濃さを下げた時 or サクラ/スノー背景） */
-    const effectiveLightBackground =
-        !isLightMode &&
-        ((gachaSettings.bgIntensity ?? 100) < 50 ||
-            gachaSettings.bgColor === "sakura" ||
-            gachaSettings.bgColor === "snow");
-    /** 表示用：明るい背景として扱い、文字・ボタンは暗い色で統一する */
-    const displayLight = isLightMode || effectiveLightBackground;
+    const displayLight = isLightMode;
     const headerBg = displayLight ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.5)";
+    const orbColorForLayer = gachaSettings.orbColor ?? gachaSettings.accentColor ?? "#a855f7";
+    const orbIntensity = gachaSettings.orbIntensity ?? 50;
+
+    const orbsLayer = (
+        <div className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${displayLight ? "mix-blend-multiply opacity-20" : "opacity-80"}`}>
+            <motion.div
+                animate={{ x: [0, 100, -50, 0], y: [0, -100, 50, 0], scale: [1, 1.2, 0.8, 1] }}
+                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                className="absolute top-[5%] left-[5%] w-[50rem] h-[50rem] rounded-full blur-[120px]"
+                style={{ background: `radial-gradient(circle, ${orbColorForLayer} 0%, transparent 70%)`, opacity: (orbIntensity / 100) * (displayLight ? 1.5 : 1) }}
+            />
+            <motion.div
+                animate={{ x: [0, -100, 50, 0], y: [0, 100, -50, 0], scale: [1, 0.8, 1.2, 1] }}
+                transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+                className="absolute bottom-[5%] right-[5%] w-[60rem] h-[60rem] rounded-full blur-[150px]"
+                style={{ background: `radial-gradient(circle, ${orbColorForLayer} 0%, transparent 60%)`, opacity: (orbIntensity / 100) * 0.8 * (displayLight ? 1.5 : 1) }}
+            />
+            <motion.div
+                animate={{ x: [0, 50, -100, 0], y: [0, 50, -100, 0], scale: [1, 1.1, 0.9, 1] }}
+                transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+                className="absolute top-[40%] left-[30%] w-[40rem] h-[40rem] rounded-full blur-[100px]"
+                style={{ background: `radial-gradient(circle, ${orbColorForLayer} 0%, transparent 60%)`, opacity: (orbIntensity / 100) * 0.6 * (displayLight ? 1.5 : 1) }}
+            />
+        </div>
+    );
 
     // ===== 共通props =====
     const rollAnimationProps = {
         pool,
         isLightMode,
-        textContrastLight: effectiveLightBackground,
+        textContrastLight: false,
         disabled: pool.items.length === 0 || (players.length > 0 && !activePlayerId),
         pityCounter: activePlayer?.pityCounter,
         pityThreshold: pool.pityThreshold,
@@ -561,20 +584,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
         const mobileOverlayPosition = isSplitMode ? "absolute" : "fixed";
         return (
             <div className="h-screen w-screen flex flex-col overflow-hidden relative z-10">
-                {/* カスタム背景（Split時はペイン内に収める） */}
-                <div
-                    aria-hidden
-                    className={`${mobileOverlayPosition} inset-0 z-0 pointer-events-none`}
-                    style={{
-                        background: (() => {
-                            const intensity = gachaSettings.bgIntensity ?? 100;
-                            const t = (100 - intensity) / 100;
-                            if (isLightMode) return `rgba(0,0,0,${t * 0.25})`;
-                            return `rgba(255,255,255,${t * 0.55})`;
-                        })(),
-                    }}
-                />
-
+                {orbsLayer}
                 {/* ヘッダー（Split時はstickyでタブバーと被らない） */}
                 <div
                     className={`${mobileHeaderPosition} left-0 right-0 z-50 flex items-center justify-between px-3 py-2 shrink-0`}
@@ -599,7 +609,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                             presets={presets}
                             onSelect={handleGachaSwitch}
                             isLightMode={isLightMode}
-                            textContrastLight={effectiveLightBackground}
+                            textContrastLight={false}
                             size="sm"
                         />
                         <button
@@ -673,7 +683,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                     <AnimatePresence mode="wait">
                         {mobileTab === "setup" && (
                             <motion.div key="setup" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="px-3 pt-2 min-h-full pb-2">
-                                <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={effectiveLightBackground} />
+                                <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={false} />
                             </motion.div>
                         )}
                         {mobileTab === "gacha" && (
@@ -693,7 +703,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                     results={latestResults || []}
                                     pool={pool}
                                     isLightMode={isLightMode}
-                                    textContrastLight={effectiveLightBackground}
+                                    textContrastLight={false}
                                     shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                     isMobile={true}
                                     playerName={activePlayer?.name ?? "ゲスト"}
@@ -714,7 +724,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                         onViewPlayerHistory={setPlayerHistoryViewId}
                                         pool={pool}
                                         isLightMode={isLightMode}
-                                        textContrastLight={effectiveLightBackground}
+                                        textContrastLight={false}
                                         shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                     />
                                 </div>
@@ -723,7 +733,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                         {mobileTab === "items" && (
                             <motion.div key="items" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
                                 <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
-                                    <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={effectiveLightBackground} />
+                                    <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={false} />
                                 </div>
                             </motion.div>
                         )}
@@ -768,33 +778,9 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
     }
 
     // ===== デスクトップレイアウト =====
-    const gachaBgFound = GACHA_BG_COLORS.find(c => c.value === gachaSettings.bgColor);
-    const gachaBgValue = gachaBgFound?.bg ?? GACHA_BG_COLORS[0]?.bg ?? "";
-
     return (
         <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`}>
-            {/* Split時ライト: body.light-mode 相当のベース背景（通常版と同じ見た目） */}
-            {isSplitMode && isLightMode && (
-                <div aria-hidden className="absolute inset-0 z-0" style={{ background: "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)" }} />
-            )}
-            {/* Split時ダーク：ペイン内にガチャ背景を表示（bodyはSplitページが占有するため） */}
-            {isSplitMode && !isLightMode && gachaBgValue && (
-                <div aria-hidden className="absolute inset-0 z-0" style={{ background: gachaBgValue }} />
-            )}
-            {/* 濃さオーバーレイ（Split時はペイン内に収める） */}
-            <div
-                aria-hidden
-                className={`${isSplitMode ? "absolute" : "fixed"} inset-0 z-0 pointer-events-none`}
-                style={{
-                    background: (() => {
-                        const intensity = gachaSettings.bgIntensity ?? 100;
-                        const t = (100 - intensity) / 100;
-                        if (isLightMode) return `rgba(0,0,0,${t * 0.25})`;
-                        return `rgba(255,255,255,${t * 0.55})`;
-                    })(),
-                }}
-            />
-
+            {orbsLayer}
             {/* ヘッダー（Split時はabsoluteでペイン内に表示、他モジュールと高さを揃える） */}
             <div
                 className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 ${isSplitMode ? "min-h-[56px]" : ""}`}
@@ -830,7 +816,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                         presets={presets}
                         onSelect={handleGachaSwitch}
                         isLightMode={isLightMode}
-                        textContrastLight={effectiveLightBackground}
+                        textContrastLight={false}
                         size="md"
                     />
                     <button
@@ -962,7 +948,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                                 className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth scroll-touch"
                                             >
                                                 {sidebarTab === "setup" ? (
-                                                    <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={effectiveLightBackground} />
+                                                    <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={false} />
                                                 ) : sidebarTab === "players" ? (
                                                     <GachaPlayerManager
                                                         players={players}
@@ -975,11 +961,11 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                                         onViewPlayerHistory={setPlayerHistoryViewId}
                                                         pool={pool}
                                                         isLightMode={isLightMode}
-                                                        textContrastLight={effectiveLightBackground}
+                                                        textContrastLight={false}
                                                         shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                                     />
                                                 ) : sidebarTab === "items" ? (
-                                                    <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={effectiveLightBackground} />
+                                                    <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={false} />
                                                 ) : (
                                                     <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
                                                 )}
@@ -1055,7 +1041,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                 className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth scroll-touch"
                             >
                                 {sidebarTab === "setup" ? (
-                                    <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={effectiveLightBackground} />
+                                    <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={false} />
                                 ) : sidebarTab === "players" ? (
                                     <GachaPlayerManager
                                         players={players}
@@ -1068,11 +1054,11 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                         onViewPlayerHistory={setPlayerHistoryViewId}
                                         pool={pool}
                                         isLightMode={isLightMode}
-                                        textContrastLight={effectiveLightBackground}
+                                        textContrastLight={false}
                                         shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                     />
                                 ) : sidebarTab === "items" ? (
-                                    <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={effectiveLightBackground} />
+                                    <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={false} />
                                 ) : (
                                     <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
                                 )}
@@ -1128,7 +1114,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                     results={latestResults}
                                     pool={pool}
                                     isLightMode={isLightMode}
-                                    textContrastLight={effectiveLightBackground}
+                                    textContrastLight={false}
                                     shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                     isMobile={false}
                                     onBackToGacha={() => { setShowResults(false); setLatestResults(null); }}
