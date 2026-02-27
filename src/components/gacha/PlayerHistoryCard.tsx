@@ -31,7 +31,7 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
         [player.runHistory, pool.id],
     );
 
-    const latestRun = runsForPool.length > 0 ? runsForPool[runsForPool.length - 1] : null;
+    const latestRun: RunSummary | null = runsForPool.length > 0 ? runsForPool[runsForPool.length - 1]! : null;
 
     const effectiveSelectedRunIndex = useMemo(() => {
         if (selectedRunIndex != null && runsForPool.some(r => r.runIndex === selectedRunIndex)) {
@@ -40,10 +40,13 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
         return latestRun?.runIndex ?? null;
     }, [selectedRunIndex, runsForPool, latestRun]);
 
-    const selectedRun: RunSummary | null =
-        effectiveSelectedRunIndex != null
-            ? (runsForPool.find(r => r.runIndex === effectiveSelectedRunIndex) || latestRun)
-            : latestRun;
+    let selectedRun: RunSummary | null = null;
+    if (effectiveSelectedRunIndex != null) {
+        const found = runsForPool.find(r => r.runIndex === effectiveSelectedRunIndex);
+        selectedRun = found ?? latestRun ?? null;
+    } else {
+        selectedRun = latestRun ?? null;
+    }
 
     return (
         <div className="h-full flex flex-col rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
