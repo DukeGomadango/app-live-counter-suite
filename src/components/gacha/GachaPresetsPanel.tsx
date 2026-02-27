@@ -66,7 +66,7 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
                 <div className={`px-4 py-3 border-b ${textSecondary}`} style={{ borderColor: glassBorder }}>
                     <span className="text-xs font-semibold uppercase tracking-wider">保存済み — 読み込む</span>
                 </div>
-                <div className="px-4 pb-4 pt-3 flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1">
+                <div className="px-4 pb-4 pt-3 flex flex-col gap-1.5 max-h-48 overflow-y-auto scroll-touch pr-1">
                     {presets.length === 0 ? (
                         <p className={`text-[11px] ${isLightMode ? "text-gray-600" : "text-white/70"}`}>保存したプリセットがありません</p>
                     ) : (

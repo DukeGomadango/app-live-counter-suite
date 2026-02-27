@@ -134,7 +134,7 @@ export default function RoulettePredictorsPanel({
                     )}
                 </div>
             )}
-            <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-2">
+            <div className="flex-1 min-h-0 overflow-y-auto scroll-touch p-2 space-y-2">
                 <AnimatePresence mode="popLayout">
                     {predictors.map((p) => {
                         const isHit = isHighLowMode
@@ -237,7 +237,7 @@ export default function RoulettePredictorsPanel({
                                                     initial={{ opacity: 0, y: -4 }}
                                                     animate={{ opacity: 1, y: 0 }}
                                                     exit={{ opacity: 0, y: -4 }}
-                                                    className="rounded-lg border shadow-xl z-50 max-h-40 overflow-y-auto"
+                                                    className="rounded-lg border shadow-xl z-50 max-h-40 overflow-y-auto scroll-touch"
                                                     style={{ background: dropdownBg, borderColor: glassBorder }}
                                                 >
                                                     <button

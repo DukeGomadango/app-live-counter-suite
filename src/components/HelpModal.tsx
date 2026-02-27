@@ -367,7 +367,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
                             </div>
 
                             {/* Body (Scrollable) */}
-                            <div className="p-6 overflow-y-auto" style={{
+                            <div className="p-6 overflow-y-auto scroll-touch" style={{
                                 scrollbarWidth: "thin",
                                 scrollbarColor: `${isLightMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)'} transparent`
                             }}>

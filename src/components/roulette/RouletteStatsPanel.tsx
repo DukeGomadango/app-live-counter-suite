@@ -50,7 +50,7 @@ export default function RouletteStatsPanel({
                     記録をリセット
                 </button>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-2 space-y-4">
+            <div className="flex-1 min-h-0 overflow-y-auto scroll-touch p-2 space-y-4">
                 {/* 一覧（新しい順） */}
                 <div>
                     <h3 className={`text-xs font-bold uppercase tracking-wider mb-2 ${textSecondary}`}>出た数字</h3>

@@ -100,7 +100,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                         </button>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 justify-center mb-6 max-h-[160px] overflow-y-auto pr-1">
+                    <div className="flex flex-wrap gap-2 justify-center mb-6 max-h-[160px] overflow-y-auto scroll-touch pr-1">
                         {EMOJI_OPTIONS.map((e) => (
                             <button
                                 key={e}
@@ -188,7 +188,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                         boxShadow: "0 0 20px rgba(168,85,247,0.1)",
                     }}
                 >
-                    <div className="flex flex-wrap gap-1 justify-center max-h-[120px] overflow-y-auto pr-1">
+                    <div className="flex flex-wrap gap-1 justify-center max-h-[120px] overflow-y-auto scroll-touch pr-1">
                         {EMOJI_OPTIONS.map((e) => (
                             <button
                                 key={e}

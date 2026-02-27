@@ -570,7 +570,7 @@ export default function GachaRollAnimation({
                         <SkipForward size={12} /> スキップ
                     </button>
                 </div>
-                <div className="flex-1 overflow-y-auto rounded-xl px-3 py-2 min-h-0" style={{ background: glassBg, border: `1px solid ${glassBorder}` }}>
+                <div className="flex-1 overflow-y-auto scroll-touch rounded-xl px-3 py-2 min-h-0" style={{ background: glassBg, border: `1px solid ${glassBorder}` }}>
                     <div className="flex flex-col gap-1">
                         {bulkOrganized.slice(0, Math.max(0, bulkRevealVisibleUpTo + 1)).map((item, idx) => {
                             const rarity = getRarityById(item.rarityId);
@@ -684,7 +684,7 @@ export default function GachaRollAnimation({
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto scroll-touch">
                     <div className="flex flex-wrap gap-1.5">
                         <AnimatePresence>
                             {visibleResults.map((result) => {

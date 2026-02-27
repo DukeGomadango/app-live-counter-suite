@@ -74,7 +74,7 @@ export default function RootLayout({
       <body className={`${montserrat.variable} antialiased`}>
         <JsonLd />
         <SplitModuleProvider>
-          <div className="h-screen overflow-y-auto">
+          <div className="h-screen overflow-y-auto scroll-touch">
             {children}
           </div>
           <HelpButton />

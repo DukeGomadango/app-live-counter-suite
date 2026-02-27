@@ -141,7 +141,7 @@ export default function EditItemModal({
                                     <motion.div
                                         initial={{ opacity: 0, y: -4 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className="absolute bottom-full left-0 mb-1 p-2 rounded-xl border grid grid-cols-8 gap-1 z-50 w-full max-h-48 overflow-y-auto"
+                                        className="absolute bottom-full left-0 mb-1 p-2 rounded-xl border grid grid-cols-8 gap-1 z-50 w-full max-h-48 overflow-y-auto scroll-touch"
                                         style={{
                                             background: isLightMode ? "rgba(255,255,255,0.98)" : "rgba(20,12,45,0.98)",
                                             borderColor: isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",

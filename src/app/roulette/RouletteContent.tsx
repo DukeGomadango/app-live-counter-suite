@@ -388,7 +388,7 @@ export default function RouletteContent({
             </AnimatePresence>
 
             {/* メイン: 背景なし（Calculator/Counter同様オーブが背面に見える） */}
-            <main className="flex-1 min-h-0 flex flex-col md:flex-row gap-0 p-4 overflow-auto relative z-10">
+            <main className="flex-1 min-h-0 flex flex-col md:flex-row gap-0 p-4 overflow-auto scroll-touch relative z-10">
                 {/* 左: サイドバー（デスクトップ時はリサイズ可能 / モバイル・Split時はオーバーレイ） */}
                 {!isSplitMode && isDesktop ? (
                     <>
@@ -611,7 +611,7 @@ export default function RouletteContent({
                 )}
 
                 {/* 右: ルーレット盤（企画名はエリア直下で独立・D&D可能、盤は中央で一塊） */}
-                <div ref={wheelAreaRef} className="flex-1 min-w-0 flex flex-col overflow-auto pt-14 pb-10 max-md:pt-14 max-md:pb-8 md:pl-4 relative">
+                <div ref={wheelAreaRef} className="flex-1 min-w-0 flex flex-col overflow-auto scroll-touch pt-14 pb-10 max-md:pt-14 max-md:pb-8 md:pl-4 relative">
                     {!isSplitMode && settings.showProjectName && (settings.projectName ?? "").trim() && (
                         <p
                             role="presentation"

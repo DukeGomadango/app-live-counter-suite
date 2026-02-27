@@ -595,7 +595,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
         hideModeSelector={isSplitMode}
       />
 
-      <main className="flex-1 overflow-auto" style={{ paddingTop: "56px" }}>
+      <main className="flex-1 overflow-auto scroll-touch" style={{ paddingTop: "56px" }}>
         <div className="min-h-full flex flex-col items-center justify-center py-4 px-3 sm:px-4">
           {/* Project Name (not h1 to keep single h1 for SEO) */}
           {!isSplitMode && appSettings.showProjectName && appSettings.projectName && (

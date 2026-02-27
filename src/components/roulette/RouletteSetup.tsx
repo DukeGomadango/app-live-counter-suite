@@ -138,7 +138,7 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
                 className="w-full min-w-0 overflow-hidden flex flex-col min-h-0 flex-1 rounded-2xl border"
                 style={{ borderColor: glassBorder, background: glassBg, backdropFilter: "blur(16px)" }}
             >
-                <div className="px-3 py-2 border-b shrink-0 space-y-3 overflow-y-auto" style={{ borderColor: glassBorder }}>
+                <div className="px-3 py-2 border-b shrink-0 space-y-3 overflow-y-auto scroll-touch" style={{ borderColor: glassBorder }}>
                     {/* サンプルのテンプレート */}
                     {sampleTemplates.length > 0 && (
                         <div className="space-y-2">
@@ -303,7 +303,7 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
             </div>
 
             {/* リスト */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2">
+            <div className="flex-1 min-h-0 overflow-y-auto scroll-touch px-2 pb-2">
                 <ul className="space-y-1">
                     <AnimatePresence mode="popLayout">
                         {slots.map((label, index) => (

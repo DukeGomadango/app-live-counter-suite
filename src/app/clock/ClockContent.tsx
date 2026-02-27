@@ -166,7 +166,7 @@ export default function ClockContent({
       </AnimatePresence>
 
       <main
-        className={`relative z-10 flex-1 flex flex-col min-h-0 overflow-auto ${isSplitMode ? "pt-0" : "pt-[56px]"}`}
+        className={`relative z-10 flex-1 flex flex-col min-h-0 overflow-auto scroll-touch ${isSplitMode ? "pt-0" : "pt-[56px]"}`}
       >
         {/* メインタブ: 時計 / ストップウォッチ / タイマー */}
         <div

@@ -202,7 +202,7 @@ export default function GachaFileRegisterModal({
                         <X size={18} />
                     </button>
                 </div>
-                <div className="p-4 overflow-y-auto flex flex-col gap-4">
+                <div className="p-4 overflow-y-auto scroll-touch flex flex-col gap-4">
                     {/* 登録済みステータス */}
                     <div className={`text-[10px] flex gap-3 ${textMuted}`}>
                         <span>画像: {item.imageUrl ? "登録済み" : "未設定"}</span>

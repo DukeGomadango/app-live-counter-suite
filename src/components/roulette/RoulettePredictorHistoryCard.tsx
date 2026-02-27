@@ -40,7 +40,7 @@ export default function RoulettePredictorHistoryCard({
                     <X size={18} />
                 </button>
             </div>
-            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+            <div className="flex-1 min-h-0 overflow-y-auto scroll-touch p-4 space-y-4">
                 <div>
                     <span className={`text-[10px] uppercase tracking-wider ${textMuted}`}>現在の予想</span>
                     <p className={`text-sm font-medium mt-0.5 ${textPrimary}`}>{predictor.prediction.trim() || "—"}</p>
@@ -54,7 +54,7 @@ export default function RoulettePredictorHistoryCard({
                         <div className={`px-3 py-2 border-b ${textMuted}`} style={{ borderColor: glassBorder }}>
                             <span className="text-xs font-semibold uppercase tracking-wider">過去のあたり</span>
                         </div>
-                        <ul className="flex flex-col max-h-60 overflow-y-auto">
+                        <ul className="flex flex-col max-h-60 overflow-y-auto scroll-touch">
                             {myHits.map((entry, i) => (
                                 <li
                                     key={`${entry.resultLabel}-${i}`}

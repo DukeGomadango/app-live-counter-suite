@@ -324,7 +324,7 @@ export default function HamburgerMenu({
                             animate={{ x: 0, opacity: 1 }}
                             exit={{ x: "-100%", opacity: 0 }}
                             transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                            className="absolute left-0 bottom-0 w-[320px] z-50 overflow-y-auto"
+                            className="absolute left-0 bottom-0 w-[320px] z-50 overflow-y-auto scroll-touch"
                             style={{
                                 top: "52px",
                                 background: bg,
@@ -477,7 +477,7 @@ export default function HamburgerMenu({
                                             <h3 className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>
                                                 項目一覧 ({items.length})
                                             </h3>
-                                            <div className="space-y-1.5 max-h-[50vh] overflow-y-auto pr-1">
+                                            <div className="space-y-1.5 max-h-[50vh] overflow-y-auto scroll-touch pr-1">
                                                 {items.map((item) => (
                                                     <div
                                                         key={item.id}
@@ -644,7 +644,7 @@ export default function HamburgerMenu({
                                             <h3 className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>
                                                 項目別の目標
                                             </h3>
-                                            <div className="space-y-1.5 max-h-[50vh] overflow-y-auto pr-1">
+                                            <div className="space-y-1.5 max-h-[50vh] overflow-y-auto scroll-touch pr-1">
                                                 {items.map((item) => (
                                                     <div
                                                         key={item.id}

@@ -183,7 +183,7 @@ export default function PlayerLinkCollectionModal({
                         </button>
                     </div>
                 </div>
-                <div className="flex-1 min-h-0 overflow-y-auto p-4">
+                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch p-4">
                     {linkItems.length === 0 ? (
                         <p className={`text-xs ${textMuted}`}>
                             このガチャで獲得した品目に画像URL・音声URLが設定されているものはありません。設定タブで品目にURLを設定してください。

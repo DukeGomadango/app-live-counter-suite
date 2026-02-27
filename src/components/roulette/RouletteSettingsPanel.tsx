@@ -27,7 +27,7 @@ export default function RouletteSettingsPanel({
     const textSecondary = isLightMode ? "text-gray-600" : "text-white/70";
 
     const content = (
-        <div className="px-4 py-3 flex flex-col gap-4 min-h-0 flex-1 overflow-y-auto">
+        <div className="px-4 py-3 flex flex-col gap-4 min-h-0 flex-1 overflow-y-auto scroll-touch">
                     {/* アクセント色（オーブの色） */}
                     <div>
                         <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>

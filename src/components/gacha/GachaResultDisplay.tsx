@@ -190,8 +190,8 @@ export default function GachaResultDisplay({
                 </div>
             </div>
 
-            {/* 画像化・共有用の領域 */}
-            <div ref={resultAreaRef} className="px-4 pb-2">
+            {/* 画像化・共有用の領域（flex-1 min-h-0 で残り高さを取得し、内側の結果リストが overflow-y-auto でスクロール可能に） */}
+            <div ref={resultAreaRef} className="flex-1 min-h-0 flex flex-col px-4 pb-2">
             {/* レア度別集計バー */}
             <div className="px-4 mb-2 shrink-0">
                 <div className="h-3 rounded-full overflow-hidden flex" style={{ background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)" }}>
@@ -257,7 +257,7 @@ export default function GachaResultDisplay({
             </div>
 
             {/* 結果リスト（集計表示のみ） */}
-            <div className={`flex-1 overflow-y-auto pb-4 ${isMobile ? "pb-24" : ""}`}>
+            <div className={`flex-1 min-h-0 overflow-y-auto scroll-touch pb-4 ${isMobile ? "pb-24" : ""}`}>
                 <div className="flex flex-col gap-1">
                     {organized.map((item, idx) => {
                         const rarity = getRarity(item.rarityId);

@@ -781,7 +781,7 @@ export default function PanelContent({
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="fixed left-0 top-[56px] bottom-0 w-72 max-w-[85vw] z-[91] overflow-y-auto p-4"
+              className="fixed left-0 top-[56px] bottom-0 w-72 max-w-[85vw] z-[91] overflow-y-auto scroll-touch p-4"
               style={{
                 background: isLightMode ? "rgba(255,255,255,0.98)" : "rgba(20,10,40,0.98)",
                 borderRight: `1px solid ${isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"}`,
@@ -863,7 +863,7 @@ export default function PanelContent({
       </AnimatePresence>
 
       <main
-        className={`relative z-10 flex-1 flex flex-col min-h-0 overflow-auto ${isSplitMode ? "pt-0" : "pt-[56px]"}`}
+        className={`relative z-10 flex-1 flex flex-col min-h-0 overflow-auto scroll-touch ${isSplitMode ? "pt-0" : "pt-[56px]"}`}
       >
         {/* Toolbar (edit mode only) */}
         {isEditMode && (

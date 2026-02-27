@@ -142,7 +142,7 @@ export default function SettingsModal({
                     </div>
 
                     {/* Body */}
-                    <div className="px-5 py-4 space-y-6 overflow-y-auto flex-1">
+                    <div className="px-5 py-4 space-y-6 overflow-y-auto scroll-touch flex-1">
                         {/* === Orb Intensity === */}
                         <div>
                             <div className="flex items-center gap-2 mb-3">

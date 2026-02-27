@@ -377,7 +377,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                 )}
 
                                 {/* 品目リスト（編集可能） */}
-                                <div className="flex flex-col gap-1.5 mb-3 max-h-64 overflow-y-auto pr-1">
+                                <div className="flex flex-col gap-1.5 mb-3 max-h-64 overflow-y-auto scroll-touch pr-1">
                                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                         <SortableContext items={pool.items.map(i => i.id)} strategy={verticalListSortingStrategy}>
                                             {pool.items.map((item, index) => {

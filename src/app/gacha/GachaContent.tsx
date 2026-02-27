@@ -63,7 +63,7 @@ function GachaSettingsPanel({
                     </button>
                 </div>
 
-                <div className="px-4 py-3 flex flex-col gap-4 min-h-0 flex-1 overflow-y-auto">
+                <div className="px-4 py-3 flex flex-col gap-4 min-h-0 flex-1 overflow-y-auto scroll-touch">
                     {/* 背景配色 */}
                     <div>
                         <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-2 block`}>
@@ -637,7 +637,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                     if (!player) return null;
                     return (
                         <div className={`fixed inset-0 z-[60] flex flex-col overflow-hidden ${displayLight ? "bg-[#f8f9fa]/98" : "bg-[#0a051e]/95"}`}>
-                            <div className="flex-1 min-h-0 overflow-y-auto p-4 pt-14">
+                            <div className="flex-1 min-h-0 overflow-y-auto scroll-touch p-4 pt-14">
                                 <PlayerHistoryCard
                                     player={player}
                                     pool={pool}
@@ -653,8 +653,8 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                 {/* メインコンテンツ（固定ヘッダー時のみ pt-12、Split時はヘッダーがstickyで流れるので不要） */}
                 <div
                     ref={mobileTab === "setup" ? setupScrollRef : undefined}
-                    className={`flex-1 min-h-0 ${!isSplitMode ? "pt-12" : ""} pb-14 relative z-10 ${mobileTab === "setup" ? "overflow-y-auto overflow-x-hidden scroll-smooth rounded-t-2xl mx-2 border border-t border-l border-r" : "overflow-hidden"}`}
-                    style={mobileTab === "setup" ? { borderColor: glassBorder, WebkitOverflowScrolling: "touch" } : undefined}
+                    className={`flex-1 min-h-0 ${!isSplitMode ? "pt-12" : ""} pb-14 relative z-10 ${mobileTab === "setup" ? "overflow-y-auto overflow-x-hidden scroll-smooth scroll-touch rounded-t-2xl mx-2 border border-t border-l border-r" : "overflow-hidden"}`}
+                    style={mobileTab === "setup" ? { borderColor: glassBorder } : undefined}
                     onScroll={mobileTab === "setup" ? (e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowScrollHint(false); } : undefined}
                 >
                     {mobileTab === "setup" && showScrollHint && (
@@ -701,7 +701,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                         )}
                         {mobileTab === "players" && (
                             <motion.div key="players" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
-                                <div className="flex-1 min-h-0 overflow-y-auto">
+                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
                                     <GachaPlayerManager
                                         players={players}
                                         activePlayerId={activePlayerId}
@@ -721,7 +721,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                         )}
                         {mobileTab === "items" && (
                             <motion.div key="items" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
-                                <div className="flex-1 min-h-0 overflow-y-auto">
+                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
                                     <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={effectiveLightBackground} />
                                 </div>
                             </motion.div>
@@ -958,8 +958,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                             <div
                                                 ref={sidebarScrollRef}
                                                 onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }}
-                                                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth"
-                                                style={{ WebkitOverflowScrolling: "touch" }}
+                                                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth scroll-touch"
                                             >
                                                 {sidebarTab === "setup" ? (
                                                     <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={effectiveLightBackground} />
@@ -1052,8 +1051,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                             <div
                                 ref={sidebarScrollRef}
                                 onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }}
-                                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth"
-                                style={{ WebkitOverflowScrolling: "touch" }}
+                                className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth scroll-touch"
                             >
                                 {sidebarTab === "setup" ? (
                                     <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={effectiveLightBackground} />

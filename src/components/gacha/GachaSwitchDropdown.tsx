@@ -66,7 +66,7 @@ export default function GachaSwitchDropdown({
             </button>
             {open && (
                 <div
-                    className="absolute top-full right-0 mt-1 z-[100] rounded-xl overflow-hidden shadow-xl border backdrop-blur-xl max-h-64 overflow-y-auto"
+                    className="absolute top-full right-0 mt-1 z-[100] rounded-xl overflow-hidden shadow-xl border backdrop-blur-xl max-h-64 overflow-y-auto scroll-touch"
                     style={{
                         background: glassBg,
                         borderColor: glassBorder,

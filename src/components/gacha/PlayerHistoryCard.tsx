@@ -81,7 +81,7 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
             )}
 
             {/* スクロール可能エリア */}
-            <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-4 p-4">
+            <div className="flex-1 min-h-0 overflow-y-auto scroll-touch flex flex-col gap-4 p-4">
                 <GachaResultDisplay
                     results={player.results}
                     pool={pool}
@@ -97,7 +97,7 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
                         <div className={`px-4 py-3 border-b ${textSecondary}`} style={{ borderColor: glassBorder }}>
                             <span className="text-xs font-semibold uppercase tracking-wider">過去の結果（このガチャ）</span>
                         </div>
-                        <div className="flex flex-col max-h-80 overflow-y-auto">
+                        <div className="flex flex-col max-h-80 overflow-y-auto scroll-touch">
                             {[...(player.runHistory ?? [])].filter((r) => r.poolId === pool.id).reverse().map((run: RunSummary) => {
                                 const isExpanded = expandedRunIndex === run.runIndex;
                                 return (

@@ -90,3 +90,8 @@ body.light-mode::before {
 ::-webkit-scrollbar-thumb:hover {
   background: color-mix(in srgb, var(--accent-color, #a855f7) 50%, transparent);
 }
+
+/* iOS/iPadOS 慣性スクロール（全スクロール領域で使用） */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+}
