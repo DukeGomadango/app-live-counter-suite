@@ -41,6 +41,7 @@ export default function LandingPage() {
   const [faqCategoryOpenIndex, setFaqCategoryOpenIndex] = useState<number | null>(null);
   const [faqQuestionOpenKey, setFaqQuestionOpenKey] = useState<string | null>(null);
   const [changelogOpen, setChangelogOpen] = useState(false);
+
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(id);
@@ -52,28 +53,24 @@ export default function LandingPage() {
     } else {
       document.body.classList.remove("light-mode");
     }
-  }, [isLightMode]);
+  }, [isLightMode]); // 本文の表示は effectiveLight、body class は実際の設定 isLightMode で同期
 
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-transparent">
-        <span className="text-white/50 text-sm">読み込み中…</span>
-      </div>
-    );
-  }
+  // クローラー・GSCフェッチ用: 初期HTMLに必ず本文を出す。テーマ/レイアウトはマウント前はデフォルトで hydration 一致させる。
+  const effectiveLight = mounted ? isLightMode : false;
+  const effectiveLayout = mounted ? layoutMode : "cards";
 
-  const panelBg = isLightMode
+  const panelBg = effectiveLight
     ? "linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(230,240,255,0.15) 100%)"
     : "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)";
-  const panelBorder = isLightMode
+  const panelBorder = effectiveLight
     ? "1px solid rgba(255,255,255,0.5)"
     : "1px solid rgba(255,255,255,0.1)";
-  const panelShadow = isLightMode
+  const panelShadow = effectiveLight
     ? "0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.6)"
     : "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)";
 
-  const headerBg = isLightMode ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.5)";
-  const glassBorder = isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.1)";
+  const headerBg = effectiveLight ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.5)";
+  const glassBorder = effectiveLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.1)";
 
   return (
     <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col relative">
@@ -86,21 +83,21 @@ export default function LandingPage() {
           borderBottom: `1px solid ${glassBorder}`,
         }}
       >
-        <ModeSelector isLightMode={isLightMode} />
+        <ModeSelector isLightMode={effectiveLight} />
         <button
           type="button"
           onClick={() => setIsLightMode(!isLightMode)}
-          className={`p-2 rounded-xl transition-colors shrink-0 ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
-          title={isLightMode ? "ダークモードに切替" : "ライトモードに切替"}
-          aria-label={isLightMode ? "ダークモードに切替" : "ライトモードに切替"}
+          className={`p-2 rounded-xl transition-colors shrink-0 ${effectiveLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+          title={effectiveLight ? "ダークモードに切替" : "ライトモードに切替"}
+          aria-label={effectiveLight ? "ダークモードに切替" : "ライトモードに切替"}
         >
-          {isLightMode ? <Moon size={20} /> : <Sun size={20} className="text-amber-400" />}
+          {effectiveLight ? <Moon size={20} /> : <Sun size={20} className="text-amber-400" />}
         </button>
       </header>
 
       {/* Background orbs */}
       <div
-        className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${isLightMode ? "mix-blend-multiply opacity-20" : "opacity-80"}`}
+        className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${effectiveLight ? "mix-blend-multiply opacity-20" : "opacity-80"}`}
         aria-hidden
       >
         <motion.div
@@ -109,7 +106,7 @@ export default function LandingPage() {
           className="absolute top-[10%] left-[10%] w-[30rem] h-[30rem] rounded-full blur-[100px]"
           style={{
             background: `radial-gradient(circle, ${LP_ACCENT} 0%, transparent 70%)`,
-            opacity: isLightMode ? 0.5 : 0.6,
+            opacity: effectiveLight ? 0.5 : 0.6,
           }}
         />
         <motion.div
@@ -118,7 +115,7 @@ export default function LandingPage() {
           className="absolute bottom-[10%] right-[10%] w-[35rem] h-[35rem] rounded-full blur-[120px]"
           style={{
             background: `radial-gradient(circle, ${LP_ACCENT} 0%, transparent 60%)`,
-            opacity: isLightMode ? 0.4 : 0.5,
+            opacity: effectiveLight ? 0.4 : 0.5,
           }}
         />
       </div>
@@ -129,8 +126,8 @@ export default function LandingPage() {
           className="w-full max-w-2xl mx-auto mt-6 md:mt-10 rounded-2xl overflow-hidden px-6 py-8 sm:px-8 sm:py-10 md:py-4 md:px-5 text-center shrink-0"
           style={{
             background: panelBg,
-            backdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
-            WebkitBackdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
+            backdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
+            WebkitBackdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
             border: panelBorder,
             boxShadow: panelShadow,
           }}
@@ -147,7 +144,7 @@ export default function LandingPage() {
             {SITE_CONFIG.name}
           </h1>
           <p
-            className={`mt-3 md:mt-1.5 text-sm sm:text-base md:text-xs font-medium max-w-md mx-auto ${isLightMode ? "text-neutral-600" : "text-white/70"}`}
+            className={`mt-3 md:mt-1.5 text-sm sm:text-base md:text-xs font-medium max-w-md mx-auto ${effectiveLight ? "text-neutral-600" : "text-white/70"}`}
           >
             配信・クリエイター向けの無料Webツールキット。
             <br className="md:hidden" />
@@ -155,15 +152,15 @@ export default function LandingPage() {
           </p>
           {/* レイアウト切替: カード / ストリップ */}
           <div
-            className={`mt-4 md:mt-3 flex items-center justify-center gap-1 rounded-xl p-1 ${isLightMode ? "bg-black/6" : "bg-white/5"}`}
+            className={`mt-4 md:mt-3 flex items-center justify-center gap-1 rounded-xl p-1 ${effectiveLight ? "bg-black/6" : "bg-white/5"}`}
             role="tablist"
             aria-label="ツールの表示"
           >
             <button
               type="button"
               onClick={() => setLayoutMode("cards")}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 ${layoutMode === "cards" ? (isLightMode ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (isLightMode ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`}
-              aria-pressed={layoutMode === "cards"}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 ${effectiveLayout === "cards" ? (effectiveLight ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (effectiveLight ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`}
+              aria-pressed={effectiveLayout === "cards"}
               aria-label="カード表示"
             >
               <LayoutGrid size={14} />
@@ -172,8 +169,8 @@ export default function LandingPage() {
             <button
               type="button"
               onClick={() => setLayoutMode("strip")}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 ${layoutMode === "strip" ? (isLightMode ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (isLightMode ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`}
-              aria-pressed={layoutMode === "strip"}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 ${effectiveLayout === "strip" ? (effectiveLight ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (effectiveLight ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`}
+              aria-pressed={effectiveLayout === "strip"}
               aria-label="ストリップ表示"
             >
               <List size={14} />
@@ -189,7 +186,7 @@ export default function LandingPage() {
           aria-hidden
         />
 
-        {layoutMode === "strip" ? (
+        {effectiveLayout === "strip" ? (
           /* B: ストリップ表示（大きめのチップで存在感を） */
           <div className="w-full max-w-4xl mx-auto mt-6 md:mt-6 py-6 md:py-8">
             <div className="flex flex-wrap justify-center gap-4 md:gap-5">
@@ -204,11 +201,11 @@ export default function LandingPage() {
                   >
                     <Link
                       href={tool.path}
-                      className={`flex items-center gap-4 rounded-2xl px-5 py-4 md:px-6 md:py-4 transition-all duration-200 hover:scale-[1.02] ${isLightMode ? "hover:bg-white/90 text-neutral-800" : "hover:bg-white/10 text-white"}`}
+                      className={`flex items-center gap-4 rounded-2xl px-5 py-4 md:px-6 md:py-4 transition-all duration-200 hover:scale-[1.02] ${effectiveLight ? "hover:bg-white/90 text-neutral-800" : "hover:bg-white/10 text-white"}`}
                       style={{
-                        background: isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)",
+                        background: effectiveLight ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)",
                         backdropFilter: "blur(12px)",
-                        border: isLightMode ? "1px solid rgba(0,0,0,0.06)" : `1px solid ${tool.accentHex}25`,
+                        border: effectiveLight ? "1px solid rgba(0,0,0,0.06)" : `1px solid ${tool.accentHex}25`,
                       }}
                     >
                       <span
@@ -218,7 +215,7 @@ export default function LandingPage() {
                         <Icon size={22} strokeWidth={2} className="md:w-6 md:h-6" />
                       </span>
                       <span className="font-semibold text-base md:text-lg whitespace-nowrap">{tool.labelJa}</span>
-                      <span className={`text-sm ${isLightMode ? "text-neutral-500" : "text-white/50"}`}>使ってみる</span>
+                      <span className={`text-sm ${effectiveLight ? "text-neutral-500" : "text-white/50"}`}>使ってみる</span>
                     </Link>
                   </motion.div>
                 );
@@ -239,15 +236,15 @@ export default function LandingPage() {
                     transition={{ duration: 0.3, delay: i * 0.05 }}
                     whileHover={{
                       scale: 1.02,
-                      boxShadow: isLightMode
+                      boxShadow: effectiveLight
                         ? `0 12px 40px rgba(0,0,0,0.08), 0 0 0 1px ${tool.accentHex}30, inset 0 1px 0 rgba(255,255,255,0.6)`
                         : `0 16px 48px rgba(0,0,0,0.4), 0 0 24px ${tool.accentHex}25, inset 0 1px 0 rgba(255,255,255,0.05)`,
                     }}
                     className="rounded-2xl overflow-hidden transition-shadow duration-200 md:min-h-0 md:flex md:flex-col"
                     style={{
                       background: panelBg,
-                      backdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
-                      WebkitBackdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
+                      backdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
+                      WebkitBackdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
                       border: panelBorder,
                       boxShadow: panelShadow,
                     }}
@@ -265,12 +262,12 @@ export default function LandingPage() {
                         >
                           <Icon size={18} strokeWidth={2} className="md:w-4 md:h-4" />
                         </span>
-                        <h2 className={`font-bold text-base sm:text-lg md:text-base leading-tight tracking-tight ${isLightMode ? "text-neutral-900" : "text-white"}`}>
+                        <h2 className={`font-bold text-base sm:text-lg md:text-base leading-tight tracking-tight ${effectiveLight ? "text-neutral-900" : "text-white"}`}>
                           {tool.labelJa}
                         </h2>
                       </div>
                       <p
-                        className={`mt-2 text-xs sm:text-sm md:text-xs line-clamp-2 md:line-clamp-3 leading-normal w-full flex-1 min-h-0 ${isLightMode ? "text-neutral-500" : "text-white/60"}`}
+                        className={`mt-2 text-xs sm:text-sm md:text-xs line-clamp-2 md:line-clamp-3 leading-normal w-full flex-1 min-h-0 ${effectiveLight ? "text-neutral-500" : "text-white/60"}`}
                         style={{ lineBreak: "strict" }}
                       >
                         {tool.descriptionNarrowBreakAfter ? (
@@ -293,7 +290,7 @@ export default function LandingPage() {
                       </p>
                       <Link
                         href={tool.path}
-                        className={`mt-3 md:mt-2 shrink-0 inline-flex items-center justify-center rounded-lg py-2 px-3 text-xs md:text-sm font-medium transition-colors ${isLightMode ? "bg-black/8 hover:bg-black/12 text-neutral-800" : "bg-white/10 hover:bg-white/20 text-white"}`}
+                        className={`mt-3 md:mt-2 shrink-0 inline-flex items-center justify-center rounded-lg py-2 px-3 text-xs md:text-sm font-medium transition-colors ${effectiveLight ? "bg-black/8 hover:bg-black/12 text-neutral-800" : "bg-white/10 hover:bg-white/20 text-white"}`}
                         style={{ border: `1px solid ${tool.accentHex}40` }}
                       >
                         使ってみる
@@ -311,8 +308,8 @@ export default function LandingPage() {
           className="w-full max-w-2xl mx-auto mt-24 md:mt-32 rounded-2xl overflow-hidden shrink-0"
           style={{
             background: panelBg,
-            backdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
-            WebkitBackdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
+            backdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
+            WebkitBackdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
             border: panelBorder,
             boxShadow: panelShadow,
           }}
@@ -326,7 +323,7 @@ export default function LandingPage() {
           <button
             type="button"
             onClick={() => setFaqSectionOpen(!faqSectionOpen)}
-            className={`w-full flex items-center gap-2 px-4 py-3 text-left ${isLightMode ? "text-neutral-800 hover:bg-black/5" : "text-white hover:bg-white/5"}`}
+            className={`w-full flex items-center gap-2 px-4 py-3 text-left ${effectiveLight ? "text-neutral-800 hover:bg-black/5" : "text-white hover:bg-white/5"}`}
             aria-expanded={faqSectionOpen}
             aria-controls="lp-faq-body"
           >
@@ -356,12 +353,12 @@ export default function LandingPage() {
                 return (
                   <div
                     key={catIdx}
-                    className={`rounded-xl border overflow-hidden mt-2 first:mt-0 ${isLightMode ? "border-black/8" : "border-white/10"}`}
+                    className={`rounded-xl border overflow-hidden mt-2 first:mt-0 ${effectiveLight ? "border-black/8" : "border-white/10"}`}
                   >
                     <button
                       type="button"
                       onClick={() => setFaqCategoryOpenIndex(isCategoryOpen ? null : catIdx)}
-                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition-colors ${isLightMode ? "text-neutral-800 hover:bg-black/5" : "text-white hover:bg-white/5"}`}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition-colors ${effectiveLight ? "text-neutral-800 hover:bg-black/5" : "text-white hover:bg-white/5"}`}
                       aria-expanded={isCategoryOpen}
                       aria-controls={`lp-faq-cat-${catIdx}`}
                     >
@@ -386,12 +383,12 @@ export default function LandingPage() {
                           return (
                             <div
                               key={qIdx}
-                              className={qIdx === 0 ? "" : isLightMode ? "border-t border-black/8" : "border-t border-white/10"}
+                              className={qIdx === 0 ? "" : effectiveLight ? "border-t border-black/8" : "border-t border-white/10"}
                             >
                               <button
                                 type="button"
                                 onClick={() => setFaqQuestionOpenKey(isQuestionOpen ? null : questionKey)}
-                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${isLightMode ? "text-neutral-700 hover:bg-black/5" : "text-white/90 hover:bg-white/5"}`}
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${effectiveLight ? "text-neutral-700 hover:bg-black/5" : "text-white/90 hover:bg-white/5"}`}
                                 style={{ paddingLeft: "calc(0.75rem + 16px + 0.5rem)" }}
                                 aria-expanded={isQuestionOpen}
                                 aria-controls={`lp-faq-answer-${questionKey}`}
@@ -414,7 +411,7 @@ export default function LandingPage() {
                                 className="overflow-hidden"
                               >
                                 <p
-                                  className={`px-3 pb-3 pt-0 text-sm leading-relaxed ${isLightMode ? "text-neutral-600" : "text-white/70"}`}
+                                  className={`px-3 pb-3 pt-0 text-sm leading-relaxed ${effectiveLight ? "text-neutral-600" : "text-white/70"}`}
                                   style={{ paddingLeft: "calc(0.75rem + 16px + 0.5rem + 14px + 0.5rem)" }}
                                 >
                                   {item.a}
@@ -437,8 +434,8 @@ export default function LandingPage() {
           className="w-full max-w-2xl mx-auto mt-4 mb-8 md:mb-10 rounded-2xl overflow-hidden shrink-0"
           style={{
             background: panelBg,
-            backdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
-            WebkitBackdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
+            backdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
+            WebkitBackdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
             border: panelBorder,
             boxShadow: panelShadow,
           }}
@@ -452,7 +449,7 @@ export default function LandingPage() {
           <button
             type="button"
             onClick={() => setChangelogOpen(!changelogOpen)}
-            className={`w-full flex items-center gap-2 px-4 py-3 text-left ${isLightMode ? "text-neutral-800 hover:bg-black/5" : "text-white hover:bg-white/5"}`}
+            className={`w-full flex items-center gap-2 px-4 py-3 text-left ${effectiveLight ? "text-neutral-800 hover:bg-black/5" : "text-white hover:bg-white/5"}`}
             aria-expanded={changelogOpen}
             aria-controls="lp-changelog-body"
           >
@@ -479,17 +476,17 @@ export default function LandingPage() {
             <div className="px-4 pb-4 overflow-x-auto">
               <table className="w-full min-w-[480px] border-collapse text-sm">
                 <thead>
-                  <tr className={`border-b ${isLightMode ? "border-neutral-200" : "border-white/20"}`}>
-                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${isLightMode ? "text-neutral-600" : "text-white/60"}`}>
+                  <tr className={`border-b ${effectiveLight ? "border-neutral-200" : "border-white/20"}`}>
+                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${effectiveLight ? "text-neutral-600" : "text-white/60"}`}>
                       日付
                     </th>
-                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${isLightMode ? "text-neutral-600" : "text-white/60"}`}>
+                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${effectiveLight ? "text-neutral-600" : "text-white/60"}`}>
                       種別
                     </th>
-                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${isLightMode ? "text-neutral-600" : "text-white/60"}`}>
+                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${effectiveLight ? "text-neutral-600" : "text-white/60"}`}>
                       タイトル
                     </th>
-                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${isLightMode ? "text-neutral-600" : "text-white/60"}`}>
+                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${effectiveLight ? "text-neutral-600" : "text-white/60"}`}>
                       主な変更
                     </th>
                   </tr>
@@ -498,23 +495,23 @@ export default function LandingPage() {
                   {LP_CHANGELOG.map((entry, i) => (
                     <tr
                       key={i}
-                      className={`border-b ${isLightMode ? "border-neutral-100" : "border-white/10"} ${entry.importance === "major" ? "bg-black/5" : ""}`}
+                      className={`border-b ${effectiveLight ? "border-neutral-100" : "border-white/10"} ${entry.importance === "major" ? "bg-black/5" : ""}`}
                     >
-                      <td className={`py-2 pr-3 align-top whitespace-nowrap ${isLightMode ? "text-neutral-500" : "text-white/50"}`}>
+                      <td className={`py-2 pr-3 align-top whitespace-nowrap ${effectiveLight ? "text-neutral-500" : "text-white/50"}`}>
                         {formatChangelogDate(entry.date)}
                       </td>
                       <td className="py-2 pr-3 align-top">
                         <span
                           className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${
                             entry.importance === "major"
-                              ? isLightMode
+                              ? effectiveLight
                                 ? "bg-purple-100 text-purple-800"
                                 : "bg-white/20 text-purple-200"
                               : entry.importance === "minor"
-                                ? isLightMode
+                                ? effectiveLight
                                   ? "bg-neutral-100 text-neutral-600"
                                   : "bg-white/10 text-white/50"
-                                : isLightMode
+                                : effectiveLight
                                   ? "text-neutral-600"
                                   : "text-white/70"
                           }`}
@@ -525,15 +522,15 @@ export default function LandingPage() {
                       <td
                         className={`py-2 pr-3 align-top font-medium ${
                           entry.importance === "major"
-                            ? `font-semibold ${isLightMode ? "text-neutral-900" : "text-white"}`
-                            : isLightMode
+                            ? `font-semibold ${effectiveLight ? "text-neutral-900" : "text-white"}`
+                            : effectiveLight
                               ? "text-neutral-800"
                               : "text-white/90"
                         }`}
                       >
                         {entry.title}
                       </td>
-                      <td className={`py-2 pr-3 align-top ${isLightMode ? "text-neutral-600" : "text-white/70"}`}>
+                      <td className={`py-2 pr-3 align-top ${effectiveLight ? "text-neutral-600" : "text-white/70"}`}>
                         <ul className="list-disc list-inside space-y-0.5">
                           {entry.items.map((item, j) => (
                             <li key={j}>{item}</li>
