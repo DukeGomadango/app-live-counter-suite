@@ -28,11 +28,14 @@ export default function HelpButton() {
     const effectiveLightMode = isGacha ? isGachaLightMode : isClock || (isSplit && activeModule === "clock") ? isClockLightMode : isPanel ? isPanelLightMode : isLightMode;
 
     useEffect(() => {
-        setMounted(true);
+        const id = setTimeout(() => setMounted(true), 0);
         const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
         check();
         window.addEventListener("resize", check);
-        return () => window.removeEventListener("resize", check);
+        return () => {
+            clearTimeout(id);
+            window.removeEventListener("resize", check);
+        };
     }, []);
 
     // Split時は表示中モジュール（Context）、それ以外はpathnameで位置を決定。PC版Splitは常に右下
