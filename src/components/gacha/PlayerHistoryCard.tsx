@@ -42,7 +42,7 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
 
     const selectedRun: RunSummary | null =
         effectiveSelectedRunIndex != null
-            ? runsForPool.find(r => r.runIndex === effectiveSelectedRunIndex) ?? latestRun
+            ? (runsForPool.find(r => r.runIndex === effectiveSelectedRunIndex) || latestRun)
             : latestRun;
 
     return (
