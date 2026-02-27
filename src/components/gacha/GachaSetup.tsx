@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Plus,
@@ -36,6 +36,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import GachaFileRegisterModal from "@/components/gacha/GachaFileRegisterModal";
 
@@ -92,12 +93,22 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
-    const [newItemProb, setNewItemProb] = useState("10");
+    const [newItemProb, setNewItemProb] = useState("1");
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editName, setEditName] = useState("");
     const [pendingDelete, setPendingDelete] = useState<{ type: "rarity"; id: string } | { type: "item"; id: string } | null>(null);
     const [pullCountInput, setPullCountInput] = useState<string | null>(null);
     const [pityThresholdInput, setPityThresholdInput] = useState<string | null>(null);
+    const [hideNormalizeMessage, setHideNormalizeMessage] = useLocalStorage<boolean>("gacha-hide-prob-normalize-message", false);
+    const [normalizeMessage, setNormalizeMessage] = useState<string | null>(null);
+    const [normalizeDontShowAgain, setNormalizeDontShowAgain] = useState(false);
+    const normalizeDontShowAgainRef = useRef(false);
+    const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
+    const [bulkProbInput, setBulkProbInput] = useState("");
+    type ItemSortMode = "custom" | "rarity-asc" | "rarity-desc" | "weight-asc" | "weight-desc" | "name-asc" | "name-desc";
+    const [itemSortMode, setItemSortMode] = useState<ItemSortMode>("custom");
+    const [activeDragId, setActiveDragId] = useState<string | null>(null);
+    const [draggingSelectionIds, setDraggingSelectionIds] = useState<Set<string> | null>(null);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
@@ -119,15 +130,44 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
     );
 
+    const handleDragStart = (event: { active: { id: unknown } }) => {
+        const activeId = String(event.active.id);
+        if (selectedItemIds.has(activeId) && selectedItemIds.size >= 2) {
+            setActiveDragId(activeId);
+            setDraggingSelectionIds(new Set(selectedItemIds));
+        }
+    };
+
+    const handleDragCancel = () => {
+        setActiveDragId(null);
+        setDraggingSelectionIds(null);
+    };
+
     const handleDragEnd = (event: DragEndEvent) => {
+        setActiveDragId(null);
+        setDraggingSelectionIds(null);
         const { active, over } = event;
-        if (over && active.id !== over.id) {
-            const oldIndex = pool.items.findIndex(i => i.id === active.id);
-            const newIndex = pool.items.findIndex(i => i.id === over.id);
-            onPoolChange({
-                ...pool,
-                items: arrayMove(pool.items, oldIndex, newIndex),
-            });
+        if (!over || active.id === over.id) return;
+        const activeId = String(active.id);
+        const overId = String(over.id);
+        const selectedSet = selectedItemIds;
+        const isBulkMove = selectedSet.has(activeId) && selectedSet.size >= 2;
+
+        if (isBulkMove) {
+            const selectedOrdered = pool.items.filter(it => selectedSet.has(it.id));
+            const rest = pool.items.filter(it => !selectedSet.has(it.id));
+            const dropTargetIndex = pool.items.findIndex(i => i.id === overId);
+            if (dropTargetIndex < 0) return;
+            const insertIndexInRest = pool.items.slice(0, dropTargetIndex).filter(i => !selectedSet.has(i.id)).length;
+            const newItems = [...rest.slice(0, insertIndexInRest), ...selectedOrdered, ...rest.slice(insertIndexInRest)];
+            onPoolChange({ ...pool, items: newItems });
+            setSelectedItemIds(new Set());
+        } else {
+            const oldIndex = pool.items.findIndex(i => i.id === activeId);
+            const newIndex = pool.items.findIndex(i => i.id === overId);
+            if (oldIndex >= 0 && newIndex >= 0) {
+                onPoolChange({ ...pool, items: arrayMove(pool.items, oldIndex, newIndex) });
+            }
         }
     };
 
@@ -176,18 +216,23 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         return newItems;
     };
 
+    const NORMALIZE_MSG = "2番目以降の合計が100%を超えたため、按分し先頭を0%にしました";
+
     const applyProbabilityEdit = (itemIndex: number, newPercent: number) => {
         if (itemIndex < 0 || itemIndex >= pool.items.length) return;
         const p = newPercent >= 0 ? newPercent : 0;
         const items = pool.items.map((it, i) => (i === itemIndex ? { ...it, weight: p } : { ...it }));
-        onPoolChange({ ...pool, items: normalizeFirstWeight(items) });
+        const nextItems = normalizeFirstWeight(items);
+        onPoolChange({ ...pool, items: nextItems });
+        const didScale = nextItems.length > 1 && nextItems[0].weight === 0;
+        if (didScale && !hideNormalizeMessage) setNormalizeMessage(NORMALIZE_MSG);
     };
 
     // -- 品目操作 --
     const addItem = () => {
         if (!newItemName.trim() || !newItemRarityId) return;
         const prob = parseFloat(newItemProb);
-        const w = Number.isNaN(prob) || prob < 0 ? 10 : prob;
+        const w = Number.isNaN(prob) || prob < 0 ? 1 : prob;
         const newItem: GachaItem = {
             id: generateId(),
             name: newItemName.trim(),
@@ -197,8 +242,79 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         const nextItems = normalizeFirstWeight([...pool.items, newItem]);
         onPoolChange({ ...pool, items: nextItems });
         setNewItemName("");
-        setNewItemProb("10");
+        setNewItemProb("1");
+        const didScale = nextItems.length > 1 && nextItems[0].weight === 0;
+        if (didScale && !hideNormalizeMessage) setNormalizeMessage(NORMALIZE_MSG);
     };
+
+    const applyBulkProbability = (percent: number) => {
+        const p = percent >= 0 ? percent : 0;
+        const selectedSet = new Set(selectedItemIds);
+        const items = pool.items.map((it, i) =>
+            i > 0 && selectedSet.has(it.id) ? { ...it, weight: p } : { ...it }
+        );
+        const nextItems = normalizeFirstWeight(items);
+        onPoolChange({ ...pool, items: nextItems });
+        setSelectedItemIds(new Set());
+        const didScale = nextItems.length > 1 && nextItems[0].weight === 0;
+        if (didScale && !hideNormalizeMessage) setNormalizeMessage(NORMALIZE_MSG);
+    };
+
+    const toggleItemSelected = (id: string) => {
+        setSelectedItemIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const applyItemSort = (mode: ItemSortMode) => {
+        if (mode === "custom") return;
+        const maxRarityOrder = pool.rarities.length > 0 ? Math.max(...pool.rarities.map(r => r.sortOrder), 0) : 0;
+        const getRarityOrder = (item: GachaItem) =>
+            pool.rarities.find(r => r.id === item.rarityId)?.sortOrder ?? maxRarityOrder + 1;
+        const sorted = [...pool.items].sort((a, b) => {
+            switch (mode) {
+                case "rarity-asc":
+                    return getRarityOrder(a) - getRarityOrder(b);
+                case "rarity-desc":
+                    return getRarityOrder(b) - getRarityOrder(a);
+                case "weight-asc":
+                    return a.weight - b.weight;
+                case "weight-desc":
+                    return b.weight - a.weight;
+                case "name-asc":
+                    return (a.name || "").localeCompare(b.name || "", "ja");
+                case "name-desc":
+                    return (b.name || "").localeCompare(a.name || "", "ja");
+                default:
+                    return 0;
+            }
+        });
+        onPoolChange({ ...pool, items: sorted });
+        setSelectedItemIds(new Set());
+    };
+
+    const closeNormalizeMessage = () => {
+        if (normalizeDontShowAgain) setHideNormalizeMessage(true);
+        setNormalizeMessage(null);
+        setNormalizeDontShowAgain(false);
+    };
+
+    useEffect(() => {
+        normalizeDontShowAgainRef.current = normalizeDontShowAgain;
+    }, [normalizeDontShowAgain]);
+
+    useEffect(() => {
+        if (!normalizeMessage) return;
+        const t = setTimeout(() => {
+            if (normalizeDontShowAgainRef.current) setHideNormalizeMessage(true);
+            setNormalizeMessage(null);
+            setNormalizeDontShowAgain(false);
+        }, 5000);
+        return () => clearTimeout(t);
+    }, [normalizeMessage, setHideNormalizeMessage]);
 
     const removeItem = (id: string) => {
         onPoolChange({ ...pool, items: pool.items.filter(item => item.id !== id) });
@@ -376,9 +492,95 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                     </div>
                                 )}
 
+                                {/* 按分発生時のメッセージ */}
+                                {normalizeMessage && (
+                                    <div
+                                        className={`flex flex-col gap-2 mb-2 px-3 py-2 rounded-lg text-xs ${textLight ? "bg-amber-50 text-amber-900 border border-amber-200" : "bg-amber-500/15 text-amber-200 border border-amber-500/30"}`}
+                                        role="alert"
+                                    >
+                                        <p>{normalizeMessage}</p>
+                                        <div className="flex items-center justify-between gap-2">
+                                            <label className="flex items-center gap-1.5 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={normalizeDontShowAgain}
+                                                    onChange={e => setNormalizeDontShowAgain(e.target.checked)}
+                                                    className="rounded"
+                                                />
+                                                <span>今後表示しない</span>
+                                            </label>
+                                            <button
+                                                type="button"
+                                                onClick={closeNormalizeMessage}
+                                                className={`px-2 py-1 rounded ${textLight ? "bg-amber-200/80 text-amber-900 hover:bg-amber-200" : "bg-amber-500/30 text-amber-100 hover:bg-amber-500/50"}`}
+                                            >
+                                                閉じる
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* 一括確率設定バー（1件以上選択時） */}
+                                {selectedItemIds.size >= 1 && (
+                                    <div className={`flex flex-wrap items-center gap-2 mb-2 px-3 py-2 rounded-lg text-xs ${textLight ? "bg-purple-50 border border-purple-200" : "bg-purple-500/15 border border-purple-500/30"}`}>
+                                        <span className={textPrimary}>選択中 {selectedItemIds.size} 件</span>
+                                        <input
+                                            type="text"
+                                            inputMode="decimal"
+                                            value={bulkProbInput}
+                                            onChange={e => setBulkProbInput(e.target.value)}
+                                            placeholder="%"
+                                            className={`w-14 px-2 py-1 rounded text-right tabular-nums ${textPrimary} ${placeholderCls} outline-none`}
+                                            style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                                        />
+                                        <span className={textMuted}>%</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const n = parseFloat(bulkProbInput.trim());
+                                                if (!Number.isNaN(n) && n >= 0) applyBulkProbability(n);
+                                            }}
+                                            className={`px-2 py-1 rounded font-medium ${textLight ? "bg-purple-200 text-purple-900 hover:bg-purple-300" : "bg-purple-500/30 text-purple-100 hover:bg-purple-500/50"}`}
+                                        >
+                                            一括で設定
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* 並べ替え */}
+                                {pool.items.length > 0 && (
+                                    <div className="flex items-center gap-2 mb-2">
+                                        <span className={`text-[10px] ${textMuted}`}>並べ替え:</span>
+                                        <select
+                                            value={itemSortMode}
+                                            onChange={e => {
+                                                const mode = e.target.value as ItemSortMode;
+                                                setItemSortMode(mode);
+                                                if (mode !== "custom") applyItemSort(mode);
+                                            }}
+                                            className={`text-[10px] px-2 py-1 rounded-lg outline-none cursor-pointer ${textSecondary}`}
+                                            style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                                        >
+                                            <option value="custom" style={selectOptionStyle}>カスタム</option>
+                                            <option value="rarity-asc" style={selectOptionStyle}>レア度順（低→高）</option>
+                                            <option value="rarity-desc" style={selectOptionStyle}>レア度順（高→低）</option>
+                                            <option value="weight-asc" style={selectOptionStyle}>確率順（低→高）</option>
+                                            <option value="weight-desc" style={selectOptionStyle}>確率順（高→低）</option>
+                                            <option value="name-asc" style={selectOptionStyle}>名前順（あ→ん）</option>
+                                            <option value="name-desc" style={selectOptionStyle}>名前順（ん→あ）</option>
+                                        </select>
+                                    </div>
+                                )}
+
                                 {/* 品目リスト（編集可能） */}
                                 <div className="flex flex-col gap-1.5 mb-3 max-h-64 overflow-y-auto scroll-touch pr-1">
-                                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                    <DndContext
+                                        sensors={sensors}
+                                        collisionDetection={closestCenter}
+                                        onDragStart={handleDragStart}
+                                        onDragEnd={handleDragEnd}
+                                        onDragCancel={handleDragCancel}
+                                    >
                                         <SortableContext items={pool.items.map(i => i.id)} strategy={verticalListSortingStrategy}>
                                             {pool.items.map((item, index) => {
                                                 const pt = probabilities.get(item.id) || 0;
@@ -400,6 +602,10 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         onProbabilityBlur={applyProbabilityEdit}
                                                         onRequestRemoveItem={(id) => setPendingDelete({ type: "item", id })}
                                                         prob={pt}
+                                                        isSelected={selectedItemIds.has(item.id)}
+                                                        onToggleSelect={toggleItemSelected}
+                                                        draggingSelectionIds={draggingSelectionIds}
+                                                        activeDragId={activeDragId}
                                                     />
                                                 );
                                             })}
@@ -602,6 +808,10 @@ interface SortableItemProps {
     onProbabilityBlur: (itemIndex: number, percent: number) => void;
     onRequestRemoveItem: (id: string) => void;
     prob: number;
+    isSelected: boolean;
+    onToggleSelect: (id: string) => void;
+    draggingSelectionIds: Set<string> | null;
+    activeDragId: string | null;
 }
 
 function SortableItem({
@@ -618,7 +828,11 @@ function SortableItem({
     updateItem,
     onProbabilityBlur,
     onRequestRemoveItem,
-    prob
+    prob,
+    isSelected,
+    onToggleSelect,
+    draggingSelectionIds,
+    activeDragId,
 }: SortableItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
     const isEditing = editingItemId === item.id;
@@ -627,10 +841,16 @@ function SortableItem({
     const probDisplay = probInput !== null ? probInput : formatProb(prob);
     const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
 
+    const isPartOfDraggingSelection = draggingSelectionIds?.has(item.id) ?? false;
+    const isTheDraggedItem = activeDragId === item.id;
+    const hideRow = isPartOfDraggingSelection && !isTheDraggedItem;
+    const showStack = isDragging && draggingSelectionIds != null && draggingSelectionIds.size > 1;
+
     const sortableStyle = {
         transform: CSS.Transform.toString(transform),
         transition,
-        opacity: isDragging ? 0.5 : 1,
+        opacity: hideRow ? 0 : isDragging ? 1 : 1,
+        pointerEvents: hideRow ? ("none" as const) : undefined,
         zIndex: isDragging ? 10 : 1,
     };
 
@@ -640,31 +860,63 @@ function SortableItem({
     const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
     const selectOptionStyle = isLightMode ? { background: "#fff", color: "#1f2937" } : { background: "#1e1b4b", color: "#e2e8f0" };
 
+    const stackCount = draggingSelectionIds ? Math.min(draggingSelectionIds.size - 1, 3) : 0;
+    const stackColor = isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.1)";
+
     return (
         <div
             ref={setNodeRef}
-            className={`flex items-center gap-1.5 p-2 rounded-lg group ${isDragging ? "shadow-lg scale-[1.02]" : ""}`}
+            className={`relative flex items-center gap-1.5 p-2 rounded-lg group transition-opacity duration-150 ${isDragging ? "shadow-lg scale-[1.02]" : ""}`}
             style={{ ...sortableStyle, background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)" }}
         >
+            {showStack && stackCount > 0 && (
+                <div className="absolute left-1 right-1 top-full mt-0.5 flex flex-col gap-0.5 pointer-events-none" aria-hidden>
+                    {Array.from({ length: stackCount }).map((_, i) => (
+                        <div
+                            key={i}
+                            className="h-1 rounded"
+                            style={{
+                                background: stackColor,
+                                marginLeft: 4 + i * 3,
+                                marginRight: 4 + i * 3,
+                            }}
+                        />
+                    ))}
+                </div>
+            )}
             {/* ドラッグハンドル */}
             <div {...attributes} {...listeners} className="cursor-grab hover:text-purple-400 text-gray-500/50 touch-none w-5 h-5 flex items-center justify-center shrink-0">
                 <GripVertical size={14} />
             </div>
 
-            {/* レア度プルダウン */}
+            {/* 一括用チェックボックス（先頭行以外） */}
+            {!isFirstItem && (
+                <label className="shrink-0 flex items-center cursor-pointer p-2 -m-2 touch-manipulation" onClick={e => e.stopPropagation()}>
+                    <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => onToggleSelect(item.id)}
+                        className="rounded w-2.5 h-2.5"
+                        aria-label="選択"
+                    />
+                </label>
+            )}
+            {isFirstItem && <div className="w-2.5 h-2.5 shrink-0" aria-hidden />}
+
+            {/* レア度プルダウン（削除済みレア度は「レア度未設定」表示） */}
             <select
                 value={item.rarityId}
                 onChange={e => updateItem(item.id, { rarityId: e.target.value })}
                 className="text-[10px] font-bold px-1 py-0.5 rounded shrink-0 outline-none cursor-pointer"
                 style={{
-                    color: rarity?.color,
-                    background: rarity?.bgColor,
-                    border: `1px solid ${rarity?.glowColor || "transparent"}`,
+                    color: rarity?.color ?? "#6b7280",
+                    background: rarity?.bgColor ?? (isLightMode ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)"),
+                    border: `1px solid ${rarity?.glowColor || "rgba(107,114,128,0.3)"}`,
                     WebkitAppearance: "none",
                     MozAppearance: "none",
                     appearance: "none",
                     paddingRight: "14px",
-                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(rarity?.color || "#888")}' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(rarity?.color || "#6b7280")}' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E")`,
                     backgroundRepeat: "no-repeat",
                     backgroundPosition: "right 2px center",
                 }}
@@ -674,6 +926,11 @@ function SortableItem({
                         {r.name}
                     </option>
                 ))}
+                {!rarity && (
+                    <option value={item.rarityId} style={{ ...selectOptionStyle, color: "#6b7280" }}>
+                        レア度未設定
+                    </option>
+                )}
             </select>
 
             {/* 品目名（編集可能） */}
