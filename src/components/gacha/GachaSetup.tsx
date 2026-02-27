@@ -224,7 +224,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         const items = pool.items.map((it, i) => (i === itemIndex ? { ...it, weight: p } : { ...it }));
         const nextItems = normalizeFirstWeight(items);
         onPoolChange({ ...pool, items: nextItems });
-        const didScale = nextItems.length > 1 && nextItems[0].weight === 0;
+        const didScale = nextItems.length > 1 && (nextItems[0]?.weight === 0);
         if (didScale && !hideNormalizeMessage) setNormalizeMessage(NORMALIZE_MSG);
     };
 
@@ -243,7 +243,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         onPoolChange({ ...pool, items: nextItems });
         setNewItemName("");
         setNewItemProb("1");
-        const didScale = nextItems.length > 1 && nextItems[0].weight === 0;
+        const didScale = nextItems.length > 1 && (nextItems[0]?.weight === 0);
         if (didScale && !hideNormalizeMessage) setNormalizeMessage(NORMALIZE_MSG);
     };
 
@@ -256,7 +256,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         const nextItems = normalizeFirstWeight(items);
         onPoolChange({ ...pool, items: nextItems });
         setSelectedItemIds(new Set());
-        const didScale = nextItems.length > 1 && nextItems[0].weight === 0;
+        const didScale = nextItems.length > 1 && (nextItems[0]?.weight === 0);
         if (didScale && !hideNormalizeMessage) setNormalizeMessage(NORMALIZE_MSG);
     };
 
