@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import { toPng } from "html-to-image";
 import {
@@ -17,6 +18,7 @@ import { generateShareUrl } from "@/lib/share";
 import { DEFAULT_EXTRA_HASHTAG, DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import GachaShareSummary from "@/components/gacha/GachaShareSummary";
 
 interface GachaResultDisplayProps {
     results: GachaResult[];
@@ -50,9 +52,11 @@ export default function GachaResultDisplay({
     playerName,
 }: GachaResultDisplayProps) {
     const resultAreaRef = useRef<HTMLDivElement>(null);
+    const shareAreaRef = useRef<HTMLDivElement | null>(null);
     const [sortMode, setSortMode] = useState<SortMode>("rarity-asc");
     const [filterMode, setFilterMode] = useState<FilterMode>("all");
     const [copied, setCopied] = useState(false);
+    const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
@@ -92,21 +96,37 @@ export default function GachaResultDisplay({
         window.open(url, "_blank", "noopener,noreferrer");
     };
 
-    const handleShareAsImage = async () => {
-        const el = resultAreaRef.current;
-        if (!el) return;
-        try {
-            const dataUrl = await toPng(el, { backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e", pixelRatio: 2 });
-            const a = document.createElement("a");
-            a.href = dataUrl;
-            a.download = "gacha-result.png";
-            a.click();
-            const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
-            window.open(generateShareUrl(headerText), "_blank", "noopener,noreferrer");
-        } catch (err) {
-            console.warn("Image export failed:", err);
-        }
+    const handleShareAsImage = () => {
+        setIsCapturingShareImage(true);
     };
+
+    useEffect(() => {
+        if (!isCapturingShareImage) return;
+        const id = setTimeout(async () => {
+            const el = shareAreaRef.current;
+            if (!el) {
+                setIsCapturingShareImage(false);
+                return;
+            }
+            try {
+                const dataUrl = await toPng(el, {
+                    backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e",
+                    pixelRatio: 2,
+                });
+                const a = document.createElement("a");
+                a.href = dataUrl;
+                a.download = "gacha-result.png";
+                a.click();
+                const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
+                window.open(generateShareUrl(headerText), "_blank", "noopener,noreferrer");
+            } catch (err) {
+                console.warn("Image export failed:", err);
+            } finally {
+                setIsCapturingShareImage(false);
+            }
+        }, 50);
+        return () => clearTimeout(id);
+    }, [isCapturingShareImage, isLightMode, pool, shareHashtags, playerName]);
 
     const handleCopy = async () => {
         const text = formatResultsForShare(results, pool, shareHashtags, playerName);
@@ -134,8 +154,36 @@ export default function GachaResultDisplay({
         { value: "count", label: "個数順" },
     ];
 
+    const shareOverlay =
+        typeof document !== "undefined" && isCapturingShareImage
+            ? createPortal(
+                <div
+                    ref={shareAreaRef}
+                    style={{
+                        position: "fixed",
+                        left: 0,
+                        top: 0,
+                        width: "100%",
+                        zIndex: -1,
+                        pointerEvents: "none",
+                    }}
+                    aria-hidden
+                >
+                    <GachaShareSummary
+                        results={results}
+                        pool={pool}
+                        isLightMode={isLightMode}
+                        playerName={playerName}
+                    />
+                </div>,
+                document.body,
+            )
+            : null;
+
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <>
+            {shareOverlay}
+            <div className="flex flex-col h-full overflow-hidden">
             {/* ヘッダー */}
             <div className="flex items-center justify-between px-4 py-2 shrink-0 gap-2 flex-wrap">
                 <div>
@@ -192,7 +240,7 @@ export default function GachaResultDisplay({
                 </div>
             </div>
 
-            {/* 画像化・共有用の領域（flex-1 min-h-0 で残り高さを取得し、内側の結果リストが overflow-y-auto でスクロール可能に） */}
+            {/* 結果表示用の領域（スクロール前提。画像共有は別の GachaShareSummary で全件キャプチャ） */}
             <div ref={resultAreaRef} className="flex-1 min-h-0 flex flex-col px-4 pb-2">
             {/* レア度別集計バー */}
             <div className="px-4 mb-2 shrink-0">
@@ -292,5 +340,6 @@ export default function GachaResultDisplay({
             </div>
             </div>
         </div>
+        </>
     );
 }
