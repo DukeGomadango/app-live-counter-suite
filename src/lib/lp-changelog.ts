@@ -1,0 +1,146 @@
+/**
+ * LP「更新履歴」の単一ソース。新しい順で記載する。
+ * major = リリース・機能追加、normal = 機能改善・UI改善、minor = バグ修正。
+ * lint/SEO/細かいコード修正は載せない。
+ */
+export type ChangelogImportance = "major" | "normal" | "minor";
+
+export type ChangelogEntry = {
+  date: string; // YYYY-MM-DD
+  importance: ChangelogImportance;
+  title: string;
+  items: string[];
+};
+
+export const LP_CHANGELOG: ChangelogEntry[] = [
+  {
+    date: "2026-02-27",
+    importance: "normal",
+    title: "ガチャの改善",
+    items: [
+      "品目を一括で移動・並べ替えできるように",
+      "スタック演出を追加",
+    ],
+  },
+  {
+    date: "2026-02-27",
+    importance: "normal",
+    title: "トップページ・使いやすさ",
+    items: [
+      "よくある質問（FAQ）と更新履歴を追加",
+      "iOS・iPadOS で慣性スクロールを有効化",
+    ],
+  },
+  {
+    date: "2026-02-26",
+    importance: "major",
+    title: "時計ツールを追加",
+    items: [
+      "現在時刻（デジタル・アナログ表示）",
+      "ストップウォッチ・タイマー",
+      "設定で表示を変更可能",
+    ],
+  },
+  {
+    date: "2026-02-26",
+    importance: "major",
+    title: "パネルツールを追加",
+    items: [
+      "画像に覆いをかけてタップで開ける機能",
+      "覆いの編集・透明度・傾き・ショートカット",
+    ],
+  },
+  {
+    date: "2026-02-25",
+    importance: "normal",
+    title: "ルーレットの改善",
+    items: [
+      "設定パネルで色・盤面サイズ・効果音を変更可能に",
+      "回転演出をゆっくりに、終盤を長く表示",
+    ],
+  },
+  {
+    date: "2026-02-24",
+    importance: "normal",
+    title: "ルーレット・スプリットの改善",
+    items: [
+      "ルーレットのハイアンドローモード拡張、当たり演出のスマホ対応",
+      "スプリット時のレイアウト・テーマを改善",
+    ],
+  },
+  {
+    date: "2026-02-24",
+    importance: "normal",
+    title: "ガチャの改善",
+    items: [
+      "確率を%で入力可能に",
+      "排出枚数・天井の入力改善、一番上に残り%を表示",
+    ],
+  },
+  {
+    date: "2026-02-23",
+    importance: "normal",
+    title: "トップページの変更",
+    items: [
+      "ツール一覧をカード/ストリップ表示で切替可能に",
+      "「だんごツール」にリブランド、SEOを調整",
+    ],
+  },
+  {
+    date: "2026-02-23",
+    importance: "normal",
+    title: "ガチャの改善",
+    items: [
+      "ZIPダウンロード前に確認ダイアログを表示",
+      "品目に画像・音声URLを設定可能、プレイヤー別ZIP出力",
+    ],
+  },
+  {
+    date: "2026-02-22",
+    importance: "major",
+    title: "計算機ツールを追加",
+    items: [
+      "四則演算・分数・確率の簡易計算",
+      "設定モーダル・スプリット対応・ヘルプ",
+    ],
+  },
+  {
+    date: "2026-02-22",
+    importance: "major",
+    title: "ルーレットツールを追加",
+    items: [
+      "スロットを回して抽選",
+      "予測・履歴表示",
+    ],
+  },
+  {
+    date: "2026-02-22",
+    importance: "major",
+    title: "ガチャシミュレーターを追加",
+    items: [
+      "確率（重み付け・等確率）の設定と表示",
+      "プレイヤー登録・履歴・ピティカウント",
+      "アニメーション・ZIP出力",
+    ],
+  },
+  {
+    date: "2026-02-22",
+    importance: "normal",
+    title: "フローチャート・スプリットの改善",
+    items: [
+      "目標到達時のUI強化",
+      "スプリットのヘッダー高さ統一、モバイルで設定パネルをペイン内に",
+    ],
+  },
+  {
+    date: "2026-02-21",
+    importance: "major",
+    title: "だんごツールを公開",
+    items: [
+      "人数カウンター（複数項目・目標値・ローカル保存）",
+      "フローチャート・数値計算マップ",
+      "スプリットビューで複数ツールを1画面で切替",
+      "ヘルプ・モバイル対応（ドラッグ＆ドロップ・長押し）",
+    ],
+  },
+];

@@ -4,6 +4,7 @@ import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { SITE_CONFIG } from "@/lib/site";
 import { getToolLabelJa } from "@/lib/tools";
+import { LP_FAQ_FLAT } from "@/lib/lp-faq";
 
 export default function JsonLd() {
     const pathname = usePathname();
@@ -125,6 +126,17 @@ export default function JsonLd() {
             "description": SITE_CONFIG.description,
             "inLanguage": "ja",
             "publisher": { "@id": organizationId },
+        });
+        graph.push({
+            "@type": "FAQPage",
+            "mainEntity": LP_FAQ_FLAT.map(({ q, a }) => ({
+                "@type": "Question",
+                "name": q,
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": a,
+                },
+            })),
         });
     }
 

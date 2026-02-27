@@ -3,20 +3,44 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Sun, Moon, LayoutGrid, List } from "lucide-react";
+import { Sun, Moon, LayoutGrid, List, ChevronDown, ChevronRight } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import { TOOLS } from "@/lib/tools";
 import { SITE_CONFIG } from "@/lib/site";
+import { LP_FAQ_GROUPED } from "@/lib/lp-faq";
+import { LP_CHANGELOG, type ChangelogImportance } from "@/lib/lp-changelog";
 
 const LP_ACCENT = "#a855f7";
 
 type LayoutMode = "cards" | "strip";
 
+/** YYYY-MM-DD を「YYYY年M月D日」にフォーマット */
+function formatChangelogDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${y}年${m}月${d}日`;
+}
+
+/** 重要度を表示用ラベルに */
+function importanceLabel(importance: ChangelogImportance): string {
+  switch (importance) {
+    case "major":
+      return "新機能";
+    case "normal":
+      return "改善";
+    case "minor":
+      return "バグ修正";
+  }
+}
+
 export default function LandingPage() {
   const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
   const [layoutMode, setLayoutMode] = useLocalStorage<LayoutMode>("lp-layout-mode", "cards");
   const [mounted, setMounted] = useState(false);
+  const [faqSectionOpen, setFaqSectionOpen] = useState(false);
+  const [faqCategoryOpenIndex, setFaqCategoryOpenIndex] = useState<number | null>(null);
+  const [faqQuestionOpenKey, setFaqQuestionOpenKey] = useState<string | null>(null);
+  const [changelogOpen, setChangelogOpen] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
     return () => cancelAnimationFrame(id);
@@ -167,7 +191,7 @@ export default function LandingPage() {
 
         {layoutMode === "strip" ? (
           /* B: ストリップ表示（大きめのチップで存在感を） */
-          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-6 py-6 md:py-8 md:flex-1 md:flex md:flex-col md:justify-start">
+          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-6 py-6 md:py-8">
             <div className="flex flex-wrap justify-center gap-4 md:gap-5">
               {TOOLS.map((tool, i) => {
                 const Icon = tool.icon;
@@ -203,7 +227,7 @@ export default function LandingPage() {
           </div>
         ) : (
           /* A: カード表示（「使ってみる」を行で揃える） */
-          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-4 py-6 md:py-8 md:flex-1 md:flex md:flex-col md:justify-start md:min-h-0">
+          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-4 py-6 md:py-8">
             <div className="grid grid-cols-1 md:grid-cols-3 md:grid-rows-2 gap-4 md:gap-4 md:[grid-auto-rows:minmax(0,1fr)]">
               {TOOLS.map((tool, i) => {
                 const Icon = tool.icon;
@@ -281,6 +305,248 @@ export default function LandingPage() {
             </div>
           </div>
         )}
+
+        {/* FAQ: 一段で「よくある質問」のみ表示→開くとカテゴリ→二段でカテゴリ開くと Q/A */}
+        <section
+          className="w-full max-w-2xl mx-auto mt-24 md:mt-32 rounded-2xl overflow-hidden shrink-0"
+          style={{
+            background: panelBg,
+            backdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
+            WebkitBackdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
+            border: panelBorder,
+            boxShadow: panelShadow,
+          }}
+          aria-labelledby="lp-faq-heading"
+        >
+          <div
+            className="h-[2px] opacity-60"
+            style={{ background: `linear-gradient(90deg, transparent, ${LP_ACCENT}, transparent)` }}
+            aria-hidden
+          />
+          <button
+            type="button"
+            onClick={() => setFaqSectionOpen(!faqSectionOpen)}
+            className={`w-full flex items-center gap-2 px-4 py-3 text-left ${isLightMode ? "text-neutral-800 hover:bg-black/5" : "text-white hover:bg-white/5"}`}
+            aria-expanded={faqSectionOpen}
+            aria-controls="lp-faq-body"
+          >
+            {faqSectionOpen ? (
+              <ChevronDown size={18} className="shrink-0" aria-hidden />
+            ) : (
+              <ChevronRight size={18} className="shrink-0" aria-hidden />
+            )}
+            <h2
+              id="lp-faq-heading"
+              className="text-base font-bold"
+              style={{ color: LP_ACCENT }}
+            >
+              よくある質問
+            </h2>
+          </button>
+          <motion.div
+            id="lp-faq-body"
+            initial={false}
+            animate={{ height: faqSectionOpen ? "auto" : 0, opacity: faqSectionOpen ? 1 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4">
+              {LP_FAQ_GROUPED.map((group, catIdx) => {
+                const isCategoryOpen = faqCategoryOpenIndex === catIdx;
+                return (
+                  <div
+                    key={catIdx}
+                    className={`rounded-xl border overflow-hidden mt-2 first:mt-0 ${isLightMode ? "border-black/8" : "border-white/10"}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setFaqCategoryOpenIndex(isCategoryOpen ? null : catIdx)}
+                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-left text-sm font-medium transition-colors ${isLightMode ? "text-neutral-800 hover:bg-black/5" : "text-white hover:bg-white/5"}`}
+                      aria-expanded={isCategoryOpen}
+                      aria-controls={`lp-faq-cat-${catIdx}`}
+                    >
+                      {isCategoryOpen ? (
+                        <ChevronDown size={16} className="shrink-0" aria-hidden />
+                      ) : (
+                        <ChevronRight size={16} className="shrink-0" aria-hidden />
+                      )}
+                      <span>{group.category}</span>
+                    </button>
+                    <motion.div
+                      id={`lp-faq-cat-${catIdx}`}
+                      initial={false}
+                      animate={{ height: isCategoryOpen ? "auto" : 0, opacity: isCategoryOpen ? 1 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div>
+                        {group.items.map((item, qIdx) => {
+                          const questionKey = `${catIdx}-${qIdx}`;
+                          const isQuestionOpen = faqQuestionOpenKey === questionKey;
+                          return (
+                            <div
+                              key={qIdx}
+                              className={qIdx === 0 ? "" : isLightMode ? "border-t border-black/8" : "border-t border-white/10"}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => setFaqQuestionOpenKey(isQuestionOpen ? null : questionKey)}
+                                className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors ${isLightMode ? "text-neutral-700 hover:bg-black/5" : "text-white/90 hover:bg-white/5"}`}
+                                style={{ paddingLeft: "calc(0.75rem + 16px + 0.5rem)" }}
+                                aria-expanded={isQuestionOpen}
+                                aria-controls={`lp-faq-answer-${questionKey}`}
+                                id={`lp-faq-question-${questionKey}`}
+                              >
+                                {isQuestionOpen ? (
+                                  <ChevronDown size={14} className="shrink-0 opacity-70" aria-hidden />
+                                ) : (
+                                  <ChevronRight size={14} className="shrink-0 opacity-70" aria-hidden />
+                                )}
+                                <span>{item.q}</span>
+                              </button>
+                              <motion.div
+                                id={`lp-faq-answer-${questionKey}`}
+                                role="region"
+                                aria-labelledby={`lp-faq-question-${questionKey}`}
+                                initial={false}
+                                animate={{ height: isQuestionOpen ? "auto" : 0, opacity: isQuestionOpen ? 1 : 0 }}
+                                transition={{ duration: 0.2 }}
+                                className="overflow-hidden"
+                              >
+                                <p
+                                  className={`px-3 pb-3 pt-0 text-sm leading-relaxed ${isLightMode ? "text-neutral-600" : "text-white/70"}`}
+                                  style={{ paddingLeft: "calc(0.75rem + 16px + 0.5rem + 14px + 0.5rem)" }}
+                                >
+                                  {item.a}
+                                </p>
+                              </motion.div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  </div>
+                );
+              })}
+            </div>
+          </motion.div>
+        </section>
+
+        {/* 更新履歴: 普段は閉じ、開くと年表表示 */}
+        <section
+          className="w-full max-w-2xl mx-auto mt-4 mb-8 md:mb-10 rounded-2xl overflow-hidden shrink-0"
+          style={{
+            background: panelBg,
+            backdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
+            WebkitBackdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
+            border: panelBorder,
+            boxShadow: panelShadow,
+          }}
+          aria-labelledby="lp-changelog-heading"
+        >
+          <div
+            className="h-[2px] opacity-60"
+            style={{ background: `linear-gradient(90deg, transparent, ${LP_ACCENT}, transparent)` }}
+            aria-hidden
+          />
+          <button
+            type="button"
+            onClick={() => setChangelogOpen(!changelogOpen)}
+            className={`w-full flex items-center gap-2 px-4 py-3 text-left ${isLightMode ? "text-neutral-800 hover:bg-black/5" : "text-white hover:bg-white/5"}`}
+            aria-expanded={changelogOpen}
+            aria-controls="lp-changelog-body"
+          >
+            {changelogOpen ? (
+              <ChevronDown size={18} className="shrink-0" aria-hidden />
+            ) : (
+              <ChevronRight size={18} className="shrink-0" aria-hidden />
+            )}
+            <h2
+              id="lp-changelog-heading"
+              className="text-base font-bold"
+              style={{ color: LP_ACCENT }}
+            >
+              更新履歴
+            </h2>
+          </button>
+          <motion.div
+            id="lp-changelog-body"
+            initial={false}
+            animate={{ height: changelogOpen ? "auto" : 0, opacity: changelogOpen ? 1 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 overflow-x-auto">
+              <table className="w-full min-w-[480px] border-collapse text-sm">
+                <thead>
+                  <tr className={`border-b ${isLightMode ? "border-neutral-200" : "border-white/20"}`}>
+                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${isLightMode ? "text-neutral-600" : "text-white/60"}`}>
+                      日付
+                    </th>
+                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${isLightMode ? "text-neutral-600" : "text-white/60"}`}>
+                      種別
+                    </th>
+                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${isLightMode ? "text-neutral-600" : "text-white/60"}`}>
+                      タイトル
+                    </th>
+                    <th scope="col" className={`py-2 pr-3 text-left font-semibold ${isLightMode ? "text-neutral-600" : "text-white/60"}`}>
+                      主な変更
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {LP_CHANGELOG.map((entry, i) => (
+                    <tr
+                      key={i}
+                      className={`border-b ${isLightMode ? "border-neutral-100" : "border-white/10"} ${entry.importance === "major" ? "bg-black/5" : ""}`}
+                    >
+                      <td className={`py-2 pr-3 align-top whitespace-nowrap ${isLightMode ? "text-neutral-500" : "text-white/50"}`}>
+                        {formatChangelogDate(entry.date)}
+                      </td>
+                      <td className="py-2 pr-3 align-top">
+                        <span
+                          className={`inline-block px-1.5 py-0.5 rounded text-xs font-medium ${
+                            entry.importance === "major"
+                              ? isLightMode
+                                ? "bg-purple-100 text-purple-800"
+                                : "bg-white/20 text-purple-200"
+                              : entry.importance === "minor"
+                                ? isLightMode
+                                  ? "bg-neutral-100 text-neutral-600"
+                                  : "bg-white/10 text-white/50"
+                                : isLightMode
+                                  ? "text-neutral-600"
+                                  : "text-white/70"
+                          }`}
+                        >
+                          {importanceLabel(entry.importance)}
+                        </span>
+                      </td>
+                      <td
+                        className={`py-2 pr-3 align-top font-medium ${
+                          entry.importance === "major"
+                            ? `font-semibold ${isLightMode ? "text-neutral-900" : "text-white"}`
+                            : isLightMode
+                              ? "text-neutral-800"
+                              : "text-white/90"
+                        }`}
+                      >
+                        {entry.title}
+                      </td>
+                      <td className={`py-2 pr-3 align-top ${isLightMode ? "text-neutral-600" : "text-white/70"}`}>
+                        <ul className="list-disc list-inside space-y-0.5">
+                          {entry.items.map((item, j) => (
+                            <li key={j}>{item}</li>
+                          ))}
+                        </ul>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        </section>
       </main>
     </div>
   );

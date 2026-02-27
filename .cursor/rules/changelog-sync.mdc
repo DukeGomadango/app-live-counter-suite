@@ -1,0 +1,31 @@
+---
+description: ユーザー向けの変更をしたら LP の更新履歴（lp-changelog）も必ず更新する
+alwaysApply: true
+---
+
+# 更新履歴との同期ルール
+
+ユーザーに直接関係する変更を入れたら、**LP の更新履歴を必ず更新する**。
+
+## 対象
+
+- 更新履歴の実体: [src/lib/lp-changelog.ts](src/lib/lp-changelog.ts) の `LP_CHANGELOG` 配列（新しい順で先頭に追加）。
+- 「ユーザー向けの変更」: リリース開始・機能追加・機能改善・UI改善・バグ修正。逆に **載せない** のは lint / push / 細かいコード修正 / SEO対策 / 技術的な話など、ユーザーに直接関係ない変更。
+
+## 重要度
+
+- **major**: リリース開始、機能追加（新ツール・新タブなど）→ 大きく取り上げる。
+- **normal**: 機能改善、UI改善 → 普通に取り上げる。
+- **minor**: バグ修正 → 小さく取り上げる。
+
+## 手順
+
+1. 変更をコミット（または反映）したら、その日付を YYYY-MM-DD で用意する。
+2. [src/lib/lp-changelog.ts](src/lib/lp-changelog.ts) を開き、`LP_CHANGELOG` の**先頭**に 1 エントリ追加する。
+3. `date`（日付）、`importance`（"major" | "normal" | "minor"）、`title`（短い見出し）、`items`（主な変更の箇条書き、ユーザーが「ここがこう変わった」と分かる文言）を書く。
+4. 迷ったら `git log --format="%ad %s" --date=short -20` で直近の変更を確認してから書く。
+
+## 注意
+
+- 実装にないことを書かない。文言は実際の挙動・用語と一致させる。
+- 複数の小さな変更は 1 エントリにまとめてよい（同じ日付・同じ importance で title と items をまとめる）。
