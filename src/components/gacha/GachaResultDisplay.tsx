@@ -12,7 +12,7 @@ import {
     ImageDown,
 } from "lucide-react";
 import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode, OrganizedResult } from "@/lib/gacha";
-import { organizeResults, formatResultsForShare } from "@/lib/gacha";
+import { organizeResults, formatResultsForShare, formatResultsHeaderForShare } from "@/lib/gacha";
 import { generateShareUrl } from "@/lib/share";
 import { DEFAULT_EXTRA_HASHTAG, DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
@@ -33,6 +33,8 @@ interface GachaResultDisplayProps {
     onBackToGacha?: () => void;
     /** onBackToGacha ボタンのアクセント色（未指定時は紫） */
     accentColor?: string;
+    /** ツイート文に含めるプレイヤー名（省略時は名前なし） */
+    playerName?: string;
 }
 
 export default function GachaResultDisplay({
@@ -45,6 +47,7 @@ export default function GachaResultDisplay({
     isMobile = false,
     onBackToGacha,
     accentColor = DEFAULT_ACCENT_COLOR,
+    playerName,
 }: GachaResultDisplayProps) {
     const resultAreaRef = useRef<HTMLDivElement>(null);
     const [sortMode, setSortMode] = useState<SortMode>("rarity-asc");
@@ -84,7 +87,7 @@ export default function GachaResultDisplay({
         .filter(s => s.count > 0);
 
     const handleShare = () => {
-        const text = formatResultsForShare(results, pool, shareHashtags);
+        const text = formatResultsForShare(results, pool, shareHashtags, playerName);
         const url = generateShareUrl(text);
         window.open(url, "_blank", "noopener,noreferrer");
     };
@@ -98,16 +101,15 @@ export default function GachaResultDisplay({
             a.href = dataUrl;
             a.download = "gacha-result.png";
             a.click();
-            const tagLine = [DEFAULT_SHARE_HASHTAG, shareHashtags.trim()].filter(Boolean).join(" ");
-            const tweetText = `ガチャ結果（画像を添付してください）\n\n${tagLine}`;
-            window.open(generateShareUrl(tweetText), "_blank", "noopener,noreferrer");
+            const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
+            window.open(generateShareUrl(headerText), "_blank", "noopener,noreferrer");
         } catch (err) {
             console.warn("Image export failed:", err);
         }
     };
 
     const handleCopy = async () => {
-        const text = formatResultsForShare(results, pool, shareHashtags);
+        const text = formatResultsForShare(results, pool, shareHashtags, playerName);
         try {
             await navigator.clipboard.writeText(text);
             setCopied(true);

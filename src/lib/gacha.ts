@@ -479,13 +479,18 @@ export function formatResultsForShare(
     results: GachaResult[],
     pool: GachaPool,
     extraHashtags: string = DEFAULT_EXTRA_HASHTAG,
+    playerName?: string,
 ): string {
     const organized = organizeResults(results, pool.rarities, "rarity-asc");
     const rarityMap = new Map(pool.rarities.map(r => [r.id, r.name]));
 
     const lines: string[] = [];
     if (pool.conceptName) {
-        lines.push(`🎰 ${pool.conceptName} ガチャ結果`);
+        lines.push(pool.conceptName);
+    }
+    const trimmedPlayerName = playerName?.trim();
+    if (trimmedPlayerName) {
+        lines.push(`🎰 ${trimmedPlayerName} のガチャ結果`);
     } else {
         lines.push("🎰 ガチャ結果");
     }
@@ -501,6 +506,28 @@ export function formatResultsForShare(
     lines.push("");
     lines.push(tagLine);
 
+    return lines.join("\n");
+}
+
+/** 結果本文なしの共有文（画像共有などヘッダ＋ハッシュタグだけ欲しいとき用） */
+export function formatResultsHeaderForShare(
+    pool: GachaPool,
+    extraHashtags: string = DEFAULT_EXTRA_HASHTAG,
+    playerName?: string,
+): string {
+    const lines: string[] = [];
+    if (pool.conceptName) {
+        lines.push(pool.conceptName);
+    }
+    const trimmedPlayerName = playerName?.trim();
+    if (trimmedPlayerName) {
+        lines.push(`🎰 ${trimmedPlayerName} のガチャ結果`);
+    } else {
+        lines.push("🎰 ガチャ結果");
+    }
+    const tagLine = ["#だんごツール", extraHashtags.trim()].filter(Boolean).join(" ");
+    lines.push("");
+    lines.push(tagLine);
     return lines.join("\n");
 }
 

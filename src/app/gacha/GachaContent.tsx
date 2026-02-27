@@ -696,6 +696,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                     textContrastLight={effectiveLightBackground}
                                     shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                     isMobile={true}
+                                    playerName={activePlayer?.name ?? "ゲスト"}
                                 />
                             </motion.div>
                         )}
@@ -1132,6 +1133,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                     isMobile={false}
                                     onBackToGacha={() => { setShowResults(false); setLatestResults(null); }}
                                     accentColor={gachaSettings.accentColor}
+                                    playerName={activePlayer?.name ?? "ゲスト"}
                                 />
                             </motion.div>
                         ) : (

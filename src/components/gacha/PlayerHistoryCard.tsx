@@ -88,6 +88,7 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
                     isLightMode={isLightMode}
                     title={`${player.name}: ${player.totalPulls.toLocaleString()}連`}
                     shareHashtags={shareHashtags}
+                    playerName={player.name}
                 />
                 {(() => {
                     const runsForPool = (player.runHistory ?? []).filter((r) => r.poolId === pool.id);

@@ -16,6 +16,15 @@ export const LP_CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-02-27",
     importance: "normal",
+    title: "ガチャ共有の改善",
+    items: [
+      "ガチャ結果のツイート・コピー文にプレイヤー名を含められるように変更",
+      "ガチャ共有文のヘッダーを「コンセプト名」「🎰 プレイヤー名のガチャ結果」で統一",
+    ],
+  },
+  {
+    date: "2026-02-27",
+    importance: "normal",
     title: "ガチャの改善",
     items: [
       "品目を一括で移動・並べ替えできるように",
