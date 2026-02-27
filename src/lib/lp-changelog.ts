@@ -15,6 +15,15 @@ export type ChangelogEntry = {
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-02-27",
+    importance: "minor",
+    title: "ガチャ画像共有でiOS・iPadでもツイート画面が開くように修正",
+    items: [
+      "「結果を画像で共有」で、iOS・iPadではツイート画面をクリック直後に開くように変更（ポップアップブロック対策）",
+      "モバイル・iPad以外（PC）では、画像ダウンロード完了後にツイート画面を開くようにし、ダウンロードが確実に完了するように改善",
+    ],
+  },
+  {
+    date: "2026-02-27",
     importance: "normal",
     title: "ガチャ履歴のスクロールと画像共有を改善",
     items: [

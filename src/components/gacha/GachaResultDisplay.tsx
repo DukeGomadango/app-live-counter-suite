@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode, OrganizedResult } from "@/lib/gacha";
 import { organizeResults, formatResultsForShare, formatResultsHeaderForShare } from "@/lib/gacha";
-import { generateShareUrl } from "@/lib/share";
+import { generateShareUrl, shouldOpenShareTweetFirst } from "@/lib/share";
 import { DEFAULT_EXTRA_HASHTAG, DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
@@ -53,6 +53,7 @@ export default function GachaResultDisplay({
 }: GachaResultDisplayProps) {
     const resultAreaRef = useRef<HTMLDivElement>(null);
     const shareAreaRef = useRef<HTMLDivElement | null>(null);
+    const tweetUrlAfterDownloadRef = useRef<string | null>(null);
     const [sortMode, setSortMode] = useState<SortMode>("rarity-asc");
     const [filterMode, setFilterMode] = useState<FilterMode>("all");
     const [copied, setCopied] = useState(false);
@@ -89,6 +90,13 @@ export default function GachaResultDisplay({
     };
 
     const handleShareAsImage = () => {
+        const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
+        const tweetUrl = generateShareUrl(headerText);
+        if (shouldOpenShareTweetFirst(isMobile)) {
+            window.open(tweetUrl, "_blank", "noopener,noreferrer");
+        } else {
+            tweetUrlAfterDownloadRef.current = tweetUrl;
+        }
         setIsCapturingShareImage(true);
     };
 
@@ -109,8 +117,11 @@ export default function GachaResultDisplay({
                 a.href = dataUrl;
                 a.download = "gacha-result.png";
                 a.click();
-                const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
-                window.open(generateShareUrl(headerText), "_blank", "noopener,noreferrer");
+                const urlToOpen = tweetUrlAfterDownloadRef.current;
+                if (urlToOpen) {
+                    tweetUrlAfterDownloadRef.current = null;
+                    window.open(urlToOpen, "_blank", "noopener,noreferrer");
+                }
             } catch (err) {
                 console.warn("Image export failed:", err);
             } finally {
