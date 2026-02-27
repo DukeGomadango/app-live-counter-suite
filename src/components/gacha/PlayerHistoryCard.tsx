@@ -123,7 +123,7 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
                         onClick={() => setActiveTab("runs")}
                         className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeTab === "runs"
                             ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-200")
-                            : (isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/70 hover:bg白/10")
+                            : (isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/70 hover:bg-white/10")
                             }`}
                     >
                         各回
@@ -134,61 +134,30 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
                 <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-4 pt-3">
                     {activeTab === "summary" ? (
                         <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
-                            <div className="min-h-full">
-                                <GachaHistorySummary player={player} pool={pool} isLightMode={isLightMode} />
-                            </div>
+                            <GachaHistorySummary player={player} pool={pool} isLightMode={isLightMode} />
                         </div>
                     ) : (
-                        <div className="h-full flex flex-col gap-3">
-                            {/* 各回の選択（プルダウン） */}
-                            <div
-                                className="shrink-0 rounded-2xl px-3 py-2 flex items-center gap-2"
-                                style={{ background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.03)", border: `1px solid ${glassBorder}` }}
-                            >
-                                <span className={`text-[11px] font-semibold ${textSecondary}`}>表示する回</span>
-                                {runsForPool.length === 0 ? (
-                                    <span className={`text-[11px] ${textMuted}`}>まだ結果がありません</span>
-                                ) : (
-                                    <select
-                                        value={effectiveSelectedRunIndex ?? runsForPool[runsForPool.length - 1]!.runIndex}
-                                        onChange={(e) => setSelectedRunIndex(Number(e.target.value))}
-                                        className={`text-[11px] px-2 py-1 rounded-lg outline-none ${textPrimary}`}
-                                        style={{
-                                            background: isLightMode ? "rgba(255,255,255,0.9)" : "rgba(15,23,42,0.9)",
-                                            border: `1px solid ${glassBorder}`,
-                                        }}
-                                    >
-                                        {[...runsForPool]
-                                            .slice()
-                                            .sort((a, b) => b.runIndex - a.runIndex)
-                                            .map((run: RunSummary) => (
-                                                <option key={run.runIndex} value={run.runIndex}>
-                                                    {run.runIndex}回目（{run.pullCount.toLocaleString()}連）
-                                                </option>
-                                            ))}
-                                    </select>
-                                )}
-                            </div>
-
-                            {/* 選択中の回の詳細（1カラム） */}
-                            <div className="flex-1 min-h-0">
-                                {selectedRun && runsForPool.length > 0 ? (
+                        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                            {selectedRun && runsForPool.length > 0 ? (
+                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
                                     <GachaRunSummaryDisplay
                                         run={selectedRun}
                                         pool={pool}
                                         isLightMode={isLightMode}
                                         playerName={player.name}
                                         shareHashtags={shareHashtags}
+                                        runsForPool={runsForPool}
+                                        onSelectRunIndex={setSelectedRunIndex}
                                     />
-                                ) : (
-                                    <div
-                                        className="flex-1 flex items-center justify-center rounded-2xl"
-                                        style={{ background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.03)", border: `1px solid ${glassBorder}` }}
-                                    >
-                                        <p className={`text-sm ${textMuted}`}>まだ結果がありません</p>
-                                    </div>
-                                )}
-                            </div>
+                                </div>
+                            ) : (
+                                <div
+                                    className="flex-1 flex items-center justify-center rounded-2xl"
+                                    style={{ background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.03)", border: `1px solid ${glassBorder}` }}
+                                >
+                                    <p className={`text-sm ${textMuted}`}>まだ結果がありません</p>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

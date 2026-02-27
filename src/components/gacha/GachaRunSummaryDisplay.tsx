@@ -16,6 +16,9 @@ interface GachaRunSummaryDisplayProps {
     isLightMode: boolean;
     playerName: string;
     shareHashtags: string;
+    /** 履歴カード内で「表示する回」をカード内に表示するとき渡す */
+    runsForPool?: RunSummary[];
+    onSelectRunIndex?: (runIndex: number) => void;
 }
 
 export default function GachaRunSummaryDisplay({
@@ -24,6 +27,8 @@ export default function GachaRunSummaryDisplay({
     isLightMode,
     playerName,
     shareHashtags,
+    runsForPool,
+    onSelectRunIndex,
 }: GachaRunSummaryDisplayProps) {
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
@@ -183,15 +188,17 @@ export default function GachaRunSummaryDisplay({
             )
             : null;
 
+    const scrollEntireCard = runsForPool != null && runsForPool.length > 0 && onSelectRunIndex;
+
     return (
         <>
         {shareOverlay}
         <div
-            className="flex-1 rounded-2xl p-4 flex flex-col gap-3"
+            className={`rounded-2xl p-4 flex flex-col gap-3 ${scrollEntireCard ? "" : "flex-1 min-h-0 overflow-hidden"}`}
             style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}
         >
-            {/* ヘッダー */}
-            <div className="flex items-center justify-between gap-2">
+            {/* ヘッダー：名前と「表示する回」＋ボタンを1行で横並び（中央の空白を出さない） */}
+            <div className="flex items-center gap-4 flex-wrap shrink-0">
                 <div>
                     <div className={`text-sm font-bold ${textPrimary}`}>
                         {playerName}: {run.pullCount.toLocaleString()}連
@@ -200,35 +207,86 @@ export default function GachaRunSummaryDisplay({
                         ガチャ結果 {run.runIndex}回目
                     </div>
                 </div>
-                <div className="flex items-center gap-1">
-                    <button
-                        onClick={handleCopy}
-                        className={`p-1.5 rounded-lg text-xs transition-all ${copied
-                            ? "bg-green-500/20 text-green-400"
-                            : isLightMode ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-white/10 text-white/80 hover:bg-white/20"
-                            }`}
-                        title="コピー"
-                    >
-                        {copied ? <Check size={14} /> : <Copy size={14} />}
-                    </button>
-                    <button
-                        onClick={handleShare}
-                        className={`p-1.5 rounded-lg text-xs transition-all ${isLightMode ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
-                            }`}
-                        title="Xで共有"
-                    >
-                        <Share2 size={14} />
-                    </button>
-                    <button
-                        onClick={handleShareAsImage}
-                        className={`p-1.5 rounded-lg text-xs transition-all ${isLightMode ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-                            }`}
-                        title="結果を画像で共有"
-                        disabled={isCapturingShareImage}
-                    >
-                        <ImageDown size={14} />
-                    </button>
-                </div>
+                {runsForPool != null && runsForPool.length > 0 && onSelectRunIndex ? (
+                    <div className="flex items-center gap-2">
+                        <span className={`text-[11px] font-semibold ${textSecondary}`}>表示する回</span>
+                        <select
+                            value={run.runIndex}
+                            onChange={(e) => onSelectRunIndex(Number(e.target.value))}
+                            className={`text-[11px] px-2 py-1 rounded-lg outline-none shrink-0 ${textPrimary}`}
+                            style={{
+                                background: isLightMode ? "rgba(255,255,255,0.9)" : "rgba(15,23,42,0.9)",
+                                border: `1px solid ${glassBorder}`,
+                            }}
+                        >
+                            {[...runsForPool]
+                                .slice()
+                                .sort((a, b) => b.runIndex - a.runIndex)
+                                .map((r) => (
+                                    <option key={r.runIndex} value={r.runIndex}>
+                                        {r.runIndex}回目（{r.pullCount.toLocaleString()}連）
+                                    </option>
+                                ))}
+                        </select>
+                        <button
+                            onClick={handleCopy}
+                            className={`p-1.5 rounded-lg text-xs transition-all ${copied
+                                ? "bg-green-500/20 text-green-400"
+                                : isLightMode ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-white/10 text-white/80 hover:bg-white/20"
+                                }`}
+                            title="コピー"
+                        >
+                            {copied ? <Check size={14} /> : <Copy size={14} />}
+                        </button>
+                        <button
+                            onClick={handleShare}
+                            className={`p-1.5 rounded-lg text-xs transition-all ${isLightMode ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
+                                }`}
+                            title="Xで共有"
+                        >
+                            <Share2 size={14} />
+                        </button>
+                        <button
+                            onClick={handleShareAsImage}
+                            className={`p-1.5 rounded-lg text-xs transition-all ${isLightMode ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                                }`}
+                            title="結果を画像で共有"
+                            disabled={isCapturingShareImage}
+                        >
+                            <ImageDown size={14} />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-1">
+                        <button
+                            onClick={handleCopy}
+                            className={`p-1.5 rounded-lg text-xs transition-all ${copied
+                                ? "bg-green-500/20 text-green-400"
+                                : isLightMode ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-white/10 text-white/80 hover:bg-white/20"
+                                }`}
+                            title="コピー"
+                        >
+                            {copied ? <Check size={14} /> : <Copy size={14} />}
+                        </button>
+                        <button
+                            onClick={handleShare}
+                            className={`p-1.5 rounded-lg text-xs transition-all ${isLightMode ? "bg-blue-50 text-blue-600 hover:bg-blue-100" : "bg-blue-500/10 text-blue-400 hover:bg-blue-500/20"
+                                }`}
+                            title="Xで共有"
+                        >
+                            <Share2 size={14} />
+                        </button>
+                        <button
+                            onClick={handleShareAsImage}
+                            className={`p-1.5 rounded-lg text-xs transition-all ${isLightMode ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                                }`}
+                            title="結果を画像で共有"
+                            disabled={isCapturingShareImage}
+                        >
+                            <ImageDown size={14} />
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* レア度別集計バー */}
@@ -256,9 +314,8 @@ export default function GachaRunSummaryDisplay({
                 </div>
             )}
 
-            {/* 結果一覧 */}
-            <div className="flex-1 min-h-0 overflow-y-auto scroll-touch mt-2">
-                <div className="flex flex-col gap-1">
+            {/* 結果一覧（履歴カード内では親がスクロールするので overflow なし） */}
+            <div className={`mt-2 flex flex-col gap-1 ${scrollEntireCard ? "" : "flex-1 min-h-0 overflow-y-auto scroll-touch"}`}>
                     {items.map(item => {
                         const rarity = rarityMap.get(item.rarityId);
                         return (
@@ -283,7 +340,6 @@ export default function GachaRunSummaryDisplay({
                             </div>
                         );
                     })}
-                </div>
             </div>
         </div>
         </>
