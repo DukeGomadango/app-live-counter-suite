@@ -32,11 +32,11 @@ export default function HelpButton() {
         return () => window.removeEventListener("resize", check);
     }, []);
 
-    // Split時は表示中モジュール（Context）、それ以外はpathnameで位置を決定
+    // Split時は表示中モジュール（Context）、それ以外はpathnameで位置を決定。PC版Splitは常に右下
     const effectiveRoulette = isSplit ? activeModule === "roulette" : isRoulette;
     const effectiveGacha = isSplit ? activeModule === "gacha" : isGacha;
-    const isSplitPcRoulette = isSplit && !isMobile && effectiveRoulette;
-    const helpBottom = isSplitPcRoulette ? "auto" : (effectiveRoulette ? "16px" : effectiveGacha ? (isMobile ? "72px" : "48px") : "auto");
+    const isSplitPc = isSplit && !isMobile;
+    const helpBottom = isSplitPc ? "16px" : (effectiveRoulette ? "16px" : effectiveGacha ? (isMobile ? "72px" : "48px") : "auto");
     const helpTop = helpBottom !== "auto" ? "auto" : "70px";
 
     return (
