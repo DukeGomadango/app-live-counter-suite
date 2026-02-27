@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { X, ChevronRight, Link } from "lucide-react";
+import { X, Link } from "lucide-react";
 import type { Player, GachaPool, RunSummary } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import PlayerLinkCollectionModal from "./PlayerLinkCollectionModal";
@@ -139,67 +139,56 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
                             </div>
                         </div>
                     ) : (
-                        <div className="h-full flex gap-3">
-                            {/* 左: 回一覧 */}
+                        <div className="h-full flex flex-col gap-3">
+                            {/* 各回の選択（プルダウン） */}
                             <div
-                                className="w-40 shrink-0 rounded-2xl overflow-hidden flex flex-col"
+                                className="shrink-0 rounded-2xl px-3 py-2 flex items-center gap-2"
                                 style={{ background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.03)", border: `1px solid ${glassBorder}` }}
                             >
-                                <div
-                                    className={`px-3 py-2 border-b text-[11px] font-semibold uppercase tracking-wider ${textSecondary}`}
-                                    style={{ borderColor: glassBorder }}
-                                >
-                                    各回の結果
-                                </div>
-                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
-                                    {runsForPool.length === 0 ? (
-                                        <div className="px-3 py-3 text-[11px] text-center text-gray-500">
-                                            まだ結果がありません
-                                        </div>
-                                    ) : (
-                                        [...runsForPool].reverse().map((run: RunSummary) => {
-                                            const isActive = effectiveSelectedRunIndex === run.runIndex;
-                                            return (
-                                                <button
-                                                    key={`${run.runIndex}-${run.timestamp}`}
-                                                    type="button"
-                                                    onClick={() => setSelectedRunIndex(run.runIndex)}
-                                                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-[11px] transition-all ${isActive
-                                                        ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-100")
-                                                        : (isLightMode ? "hover:bg-gray-100 text-gray-700" : "hover:bg-white/5 text-white/80")
-                                                        }`}
-                                                >
-                                                    <span className="flex-1 truncate">
-                                                        ガチャ結果 {run.runIndex}回目
-                                                    </span>
-                                                    <span className="ml-1 tabular-nums">
-                                                        {run.pullCount.toLocaleString()}連
-                                                    </span>
-                                                    <ChevronRight size={12} className="ml-1 opacity-70" />
-                                                </button>
-                                            );
-                                        })
-                                    )}
-                                </div>
+                                <span className={`text-[11px] font-semibold ${textSecondary}`}>表示する回</span>
+                                {runsForPool.length === 0 ? (
+                                    <span className={`text-[11px] ${textMuted}`}>まだ結果がありません</span>
+                                ) : (
+                                    <select
+                                        value={effectiveSelectedRunIndex ?? runsForPool[runsForPool.length - 1]!.runIndex}
+                                        onChange={(e) => setSelectedRunIndex(Number(e.target.value))}
+                                        className={`text-[11px] px-2 py-1 rounded-lg outline-none ${textPrimary}`}
+                                        style={{
+                                            background: isLightMode ? "rgba(255,255,255,0.9)" : "rgba(15,23,42,0.9)",
+                                            border: `1px solid ${glassBorder}`,
+                                        }}
+                                    >
+                                        {[...runsForPool]
+                                            .slice()
+                                            .sort((a, b) => b.runIndex - a.runIndex)
+                                            .map((run: RunSummary) => (
+                                                <option key={run.runIndex} value={run.runIndex}>
+                                                    {run.runIndex}回目（{run.pullCount.toLocaleString()}連）
+                                                </option>
+                                            ))}
+                                    </select>
+                                )}
                             </div>
 
-                            {/* 右: 選択中の回の詳細 */}
-                            {selectedRun && runsForPool.length > 0 ? (
-                                <GachaRunSummaryDisplay
-                                    run={selectedRun}
-                                    pool={pool}
-                                    isLightMode={isLightMode}
-                                    playerName={player.name}
-                                    shareHashtags={shareHashtags}
-                                />
-                            ) : (
-                                <div
-                                    className="flex-1 flex items-center justify-center rounded-2xl"
-                                    style={{ background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.03)", border: `1px solid ${glassBorder}` }}
-                                >
-                                    <p className={`text-sm ${textMuted}`}>まだ結果がありません</p>
-                                </div>
-                            )}
+                            {/* 選択中の回の詳細（1カラム） */}
+                            <div className="flex-1 min-h-0">
+                                {selectedRun && runsForPool.length > 0 ? (
+                                    <GachaRunSummaryDisplay
+                                        run={selectedRun}
+                                        pool={pool}
+                                        isLightMode={isLightMode}
+                                        playerName={player.name}
+                                        shareHashtags={shareHashtags}
+                                    />
+                                ) : (
+                                    <div
+                                        className="flex-1 flex items-center justify-center rounded-2xl"
+                                        style={{ background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.03)", border: `1px solid ${glassBorder}` }}
+                                    >
+                                        <p className={`text-sm ${textMuted}`}>まだ結果がありません</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
                 </div>
