@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Share2, Copy, Check } from "lucide-react";
-import type { GachaPool, RunSummary } from "@/lib/gacha";
-import { formatRunSummaryForShare } from "@/lib/gacha";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { createPortal } from "react-dom";
+import { Share2, Copy, Check, ImageDown } from "lucide-react";
+import type { GachaPool, RunSummary, GachaResult } from "@/lib/gacha";
+import { formatRunSummaryForShare, formatResultsHeaderForShare } from "@/lib/gacha";
 import { generateShareUrl } from "@/lib/share";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import { toPng } from "html-to-image";
+import GachaShareSummary from "@/components/gacha/GachaShareSummary";
 
 interface GachaRunSummaryDisplayProps {
     run: RunSummary;
@@ -27,6 +30,25 @@ export default function GachaRunSummaryDisplay({
     const textSecondary = isLightMode ? "text-gray-700" : "text-white/75";
     const textMuted = isLightMode ? "text-gray-500" : "text-white/65";
     const [copied, setCopied] = useState(false);
+    const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
+    const shareAreaRef = useRef<HTMLDivElement | null>(null);
+
+    const expandedResults: GachaResult[] = useMemo(() => {
+        const results: GachaResult[] = [];
+        const baseTime = run.timestamp || Date.now();
+        for (const item of run.items) {
+            for (let i = 0; i < item.count; i++) {
+                results.push({
+                    resultId: `run-${run.runIndex}-${item.itemId}-${i}`,
+                    itemId: item.itemId,
+                    itemName: item.itemName,
+                    rarityId: item.rarityId,
+                    timestamp: baseTime + results.length,
+                });
+            }
+        }
+        return results;
+    }, [run]);
 
     const formatText = () =>
         formatRunSummaryForShare(run, pool, shareHashtags, playerName);
@@ -55,6 +77,40 @@ export default function GachaRunSummaryDisplay({
         window.open(url, "_blank", "noopener,noreferrer");
     };
 
+    const handleShareAsImage = () => {
+        if (expandedResults.length === 0) return;
+        setIsCapturingShareImage(true);
+    };
+
+    useEffect(() => {
+        if (!isCapturingShareImage) return;
+        const id = setTimeout(async () => {
+            const el = shareAreaRef.current;
+            if (!el) {
+                setIsCapturingShareImage(false);
+                return;
+            }
+            try {
+                const dataUrl = await toPng(el, {
+                    backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e",
+                    pixelRatio: 2,
+                });
+                const a = document.createElement("a");
+                a.href = dataUrl;
+                a.download = `gacha-run-${run.runIndex}.png`;
+                a.click();
+                const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
+                window.open(generateShareUrl(headerText), "_blank", "noopener,noreferrer");
+            } catch (err) {
+                console.warn("Run image export failed:", err);
+            } finally {
+                setIsCapturingShareImage(false);
+            }
+        }, 50);
+        return () => clearTimeout(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isCapturingShareImage, isLightMode, run.runIndex]);
+
     const rarityMap = new Map(pool.rarities.map(r => [r.id, r]));
     const sortOrderMap = new Map(pool.rarities.map(r => [r.id, r.sortOrder]));
     const items = [...run.items].sort((a, b) => {
@@ -82,7 +138,35 @@ export default function GachaRunSummaryDisplay({
         })
         .filter(s => s.count > 0);
 
+    const shareOverlay =
+        typeof document !== "undefined" && isCapturingShareImage
+            ? createPortal(
+                <div
+                    ref={shareAreaRef}
+                    style={{
+                        position: "fixed",
+                        left: 0,
+                        top: 0,
+                        width: "100%",
+                        zIndex: -1,
+                        pointerEvents: "none",
+                    }}
+                    aria-hidden
+                >
+                    <GachaShareSummary
+                        results={expandedResults}
+                        pool={pool}
+                        isLightMode={isLightMode}
+                        playerName={playerName}
+                    />
+                </div>,
+                document.body,
+            )
+            : null;
+
     return (
+        <>
+        {shareOverlay}
         <div
             className="flex-1 rounded-2xl p-4 flex flex-col gap-3"
             style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}
@@ -115,6 +199,15 @@ export default function GachaRunSummaryDisplay({
                         title="Xで共有"
                     >
                         <Share2 size={14} />
+                    </button>
+                    <button
+                        onClick={handleShareAsImage}
+                        className={`p-1.5 rounded-lg text-xs transition-all ${isLightMode ? "bg-amber-50 text-amber-600 hover:bg-amber-100" : "bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                            }`}
+                        title="結果を画像で共有"
+                        disabled={isCapturingShareImage}
+                    >
+                        <ImageDown size={14} />
                     </button>
                 </div>
             </div>
@@ -174,6 +267,7 @@ export default function GachaRunSummaryDisplay({
                 </div>
             </div>
         </div>
+        </>
     );
 }
 

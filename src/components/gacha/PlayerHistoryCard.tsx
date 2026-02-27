@@ -131,9 +131,13 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
                 </div>
 
                 {/* コンテンツ */}
-                <div className="flex-1 min-h-0 overflow-hidden p-4 pt-3">
+                <div className="flex-1 min-h-0 flex flex-col overflow-hidden p-4 pt-3">
                     {activeTab === "summary" ? (
-                        <GachaHistorySummary player={player} pool={pool} isLightMode={isLightMode} />
+                        <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
+                            <div className="min-h-full">
+                                <GachaHistorySummary player={player} pool={pool} isLightMode={isLightMode} />
+                            </div>
+                        </div>
                     ) : (
                         <div className="h-full flex gap-3">
                             {/* 左: 回一覧 */}
