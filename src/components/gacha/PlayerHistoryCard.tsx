@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { X, ChevronDown, ChevronUp, Link } from "lucide-react";
+import { useState, useMemo } from "react";
+import { X, ChevronRight, Link } from "lucide-react";
 import type { Player, GachaPool, RunSummary } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
-import GachaResultDisplay from "./GachaResultDisplay";
 import PlayerLinkCollectionModal from "./PlayerLinkCollectionModal";
+import GachaHistorySummary from "./GachaHistorySummary";
+import GachaRunSummaryDisplay from "./GachaRunSummaryDisplay";
 
 interface PlayerHistoryCardProps {
     player: Player;
@@ -16,13 +17,33 @@ interface PlayerHistoryCardProps {
 }
 
 export default function PlayerHistoryCard({ player, pool, isLightMode, shareHashtags, onClose }: PlayerHistoryCardProps) {
-    const [expandedRunIndex, setExpandedRunIndex] = useState<number | null>(null);
+    const [activeTab, setActiveTab] = useState<"summary" | "runs">("summary");
+    const [selectedRunIndex, setSelectedRunIndex] = useState<number | null>(null);
     const [showLinkCollection, setShowLinkCollection] = useState(false);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-700" : "text-white/75";
     const textMuted = isLightMode ? "text-gray-600" : "text-white/65";
+
+    const runsForPool = useMemo(
+        () => (player.runHistory ?? []).filter((r) => r.poolId === pool.id),
+        [player.runHistory, pool.id],
+    );
+
+    const latestRun = runsForPool.length > 0 ? runsForPool[runsForPool.length - 1] : null;
+
+    const effectiveSelectedRunIndex = useMemo(() => {
+        if (selectedRunIndex != null && runsForPool.some(r => r.runIndex === selectedRunIndex)) {
+            return selectedRunIndex;
+        }
+        return latestRun?.runIndex ?? null;
+    }, [selectedRunIndex, runsForPool, latestRun]);
+
+    const selectedRun: RunSummary | null =
+        effectiveSelectedRunIndex != null
+            ? runsForPool.find(r => r.runIndex === effectiveSelectedRunIndex) ?? latestRun
+            : latestRun;
 
     return (
         <div className="h-full flex flex-col rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
@@ -80,69 +101,101 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
                 </div>
             )}
 
-            {/* スクロール可能エリア */}
-            <div className="flex-1 min-h-0 overflow-y-auto scroll-touch flex flex-col gap-4 p-4">
-                <GachaResultDisplay
-                    results={player.results}
-                    pool={pool}
-                    isLightMode={isLightMode}
-                    title={`${player.name}: ${player.totalPulls.toLocaleString()}連`}
-                    shareHashtags={shareHashtags}
-                    playerName={player.name}
-                />
-                {(() => {
-                    const runsForPool = (player.runHistory ?? []).filter((r) => r.poolId === pool.id);
-                    return runsForPool.length > 0;
-                })() && (
-                    <div className="rounded-2xl overflow-hidden shrink-0" style={{ background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.05)", border: `1px solid ${glassBorder}` }}>
-                        <div className={`px-4 py-3 border-b ${textSecondary}`} style={{ borderColor: glassBorder }}>
-                            <span className="text-xs font-semibold uppercase tracking-wider">過去の結果（このガチャ）</span>
+            {/* タブ＋2カラムエリア */}
+            <div className="flex-1 min-h-0 flex flex-col">
+                {/* タブヘッダー */}
+                <div className="px-4 pt-3 flex gap-2 shrink-0">
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("summary")}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeTab === "summary"
+                            ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-200")
+                            : (isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/70 hover:bg-white/10")
+                            }`}
+                    >
+                        累計
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab("runs")}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeTab === "runs"
+                            ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-200")
+                            : (isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/70 hover:bg白/10")
+                            }`}
+                    >
+                        各回
+                    </button>
+                </div>
+
+                {/* コンテンツ */}
+                <div className="flex-1 min-h-0 overflow-hidden p-4 pt-3">
+                    {activeTab === "summary" ? (
+                        <GachaHistorySummary player={player} pool={pool} isLightMode={isLightMode} />
+                    ) : (
+                        <div className="h-full flex gap-3">
+                            {/* 左: 回一覧 */}
+                            <div
+                                className="w-40 shrink-0 rounded-2xl overflow-hidden flex flex-col"
+                                style={{ background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.03)", border: `1px solid ${glassBorder}` }}
+                            >
+                                <div
+                                    className={`px-3 py-2 border-b text-[11px] font-semibold uppercase tracking-wider ${textSecondary}`}
+                                    style={{ borderColor: glassBorder }}
+                                >
+                                    各回の結果
+                                </div>
+                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
+                                    {runsForPool.length === 0 ? (
+                                        <div className="px-3 py-3 text-[11px] text-center text-gray-500">
+                                            まだ結果がありません
+                                        </div>
+                                    ) : (
+                                        [...runsForPool].reverse().map((run: RunSummary) => {
+                                            const isActive = effectiveSelectedRunIndex === run.runIndex;
+                                            return (
+                                                <button
+                                                    key={`${run.runIndex}-${run.timestamp}`}
+                                                    type="button"
+                                                    onClick={() => setSelectedRunIndex(run.runIndex)}
+                                                    className={`w-full flex items-center justify-between px-3 py-2 text-left text-[11px] transition-all ${isActive
+                                                        ? (isLightMode ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-100")
+                                                        : (isLightMode ? "hover:bg-gray-100 text-gray-700" : "hover:bg-white/5 text-white/80")
+                                                        }`}
+                                                >
+                                                    <span className="flex-1 truncate">
+                                                        ガチャ結果 {run.runIndex}回目
+                                                    </span>
+                                                    <span className="ml-1 tabular-nums">
+                                                        {run.pullCount.toLocaleString()}連
+                                                    </span>
+                                                    <ChevronRight size={12} className="ml-1 opacity-70" />
+                                                </button>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* 右: 選択中の回の詳細 */}
+                            {selectedRun && runsForPool.length > 0 ? (
+                                <GachaRunSummaryDisplay
+                                    run={selectedRun}
+                                    pool={pool}
+                                    isLightMode={isLightMode}
+                                    playerName={player.name}
+                                    shareHashtags={shareHashtags}
+                                />
+                            ) : (
+                                <div
+                                    className="flex-1 flex items-center justify-center rounded-2xl"
+                                    style={{ background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.03)", border: `1px solid ${glassBorder}` }}
+                                >
+                                    <p className={`text-sm ${textMuted}`}>まだ結果がありません</p>
+                                </div>
+                            )}
                         </div>
-                        <div className="flex flex-col max-h-80 overflow-y-auto scroll-touch">
-                            {[...(player.runHistory ?? [])].filter((r) => r.poolId === pool.id).reverse().map((run: RunSummary) => {
-                                const isExpanded = expandedRunIndex === run.runIndex;
-                                return (
-                                    <div
-                                        key={`${run.runIndex}-${run.timestamp}`}
-                                        className="border-b last:border-b-0"
-                                        style={{ borderColor: glassBorder }}
-                                    >
-                                        <button
-                                            type="button"
-                                            onClick={() => setExpandedRunIndex(isExpanded ? null : run.runIndex)}
-                                            className={`w-full flex items-center justify-between px-4 py-3 text-left transition-all ${isLightMode ? "hover:bg-gray-50" : "hover:bg-white/5"}`}
-                                        >
-                                            <span className={`text-sm font-medium ${textPrimary}`}>ガチャ結果 {run.runIndex}回目</span>
-                                            <span className={`text-xs ${textMuted}`}>{run.pullCount}連</span>
-                                            {isExpanded ? <ChevronUp size={16} className={textSecondary} /> : <ChevronDown size={16} className={textSecondary} />}
-                                        </button>
-                                        {isExpanded && (
-                                            <div className="px-4 pb-4 pt-0 flex flex-col gap-2" style={{ background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.03)" }}>
-                                                {run.items.map(item => {
-                                                    const rarity = pool.rarities.find(r => r.id === item.rarityId);
-                                                    return (
-                                                        <div key={item.itemId} className="flex items-center justify-between text-sm">
-                                                            <span className={`flex items-center gap-2 ${textPrimary}`}>
-                                                                <span
-                                                                    className="font-bold px-1.5 py-0.5 rounded text-xs shrink-0"
-                                                                    style={rarity ? { color: rarity.color, background: rarity.bgColor } : (isLightMode ? { color: "#6b7280", background: "rgba(0,0,0,0.06)" } : { color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.1)" })}
-                                                                >
-                                                                    {rarity ? rarity.name : "?"}
-                                                                </span>
-                                                                <span>{item.itemName}</span>
-                                                            </span>
-                                                            <span className={`font-bold tabular-nums ${textSecondary}`}>×{item.count}</span>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );

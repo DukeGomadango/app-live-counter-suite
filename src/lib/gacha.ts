@@ -531,6 +531,48 @@ export function formatResultsHeaderForShare(
     return lines.join("\n");
 }
 
+/** RunSummary 1件分を共有するためのテキスト（履歴用） */
+export function formatRunSummaryForShare(
+    run: RunSummary,
+    pool: GachaPool,
+    extraHashtags: string = DEFAULT_EXTRA_HASHTAG,
+    playerName?: string,
+): string {
+    const rarityMap = new Map(pool.rarities.map(r => [r.id, r.name]));
+
+    const lines: string[] = [];
+    if (pool.conceptName) {
+        lines.push(pool.conceptName);
+    }
+    const trimmedPlayerName = playerName?.trim();
+    if (trimmedPlayerName) {
+        lines.push(`🎰 ${trimmedPlayerName} のガチャ結果`);
+    } else {
+        lines.push("🎰 ガチャ結果");
+    }
+    lines.push(`（${run.pullCount}連 / ${run.runIndex}回目）`);
+    lines.push("");
+
+    const sortOrderMap = new Map(pool.rarities.map(r => [r.id, r.sortOrder]));
+    const items = [...run.items].sort((a, b) => {
+        const sa = sortOrderMap.get(a.rarityId) ?? 0;
+        const sb = sortOrderMap.get(b.rarityId) ?? 0;
+        if (sa !== sb) return sa - sb;
+        return a.itemName.localeCompare(b.itemName);
+    });
+
+    for (const item of items) {
+        const rarityName = rarityMap.get(item.rarityId) || "?";
+        lines.push(`【${rarityName}】${item.itemName} ×${item.count}`);
+    }
+
+    const tagLine = ["#だんごツール", extraHashtags.trim()].filter(Boolean).join(" ");
+    lines.push("");
+    lines.push(tagLine);
+
+    return lines.join("\n");
+}
+
 // ========== ID生成 ==========
 
 export function generateId(): string {
