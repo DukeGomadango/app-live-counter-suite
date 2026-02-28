@@ -755,8 +755,8 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                 </AnimatePresence>
             </div>
 
-            {/* 設定サマリ */}
-            {pool.items.length > 0 && (
+            {/* 設定サマリ（ハイドレーション一致のため mounted まで非表示） */}
+            {mounted && pool.items.length > 0 && (
                 <div className={`rounded-2xl p-4 ${textSecondary}`} style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
                     <div className="flex items-center gap-1.5 mb-2">
                         <Settings size={12} />

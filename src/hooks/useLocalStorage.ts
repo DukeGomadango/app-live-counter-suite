@@ -14,12 +14,21 @@ function readFromStorage<T>(key: string, initialValue: T): T {
 }
 
 /**
- * localStorage と同期する state。初回は lazy 初期化で同期的に読み取り、
- * hydration 用の useEffect を廃止して「複数キーが順番に hydrate される」ことによる
- * 連続再レンダー（ガチャ画面のチカチカ）を防ぐ。
+ * localStorage と同期する state。
+ * サーバー・クライアント初回描画では必ず initialValue を返しハイドレーション不一致を防ぐ。
+ * マウント後に setTimeout(0) で localStorage を読み、あれば 1 回だけ setState する。
  */
 export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T | ((prev: T) => T)) => void] {
-    const [storedValue, setStoredValue] = useState<T>(() => readFromStorage(key, initialValue));
+    const [storedValue, setStoredValue] = useState<T>(initialValue);
+
+    // 初回は initialValue のまま。マウント後に localStorage を読んで 1 回だけ更新（ハイドレーション一致のため）
+    useEffect(() => {
+        const id = setTimeout(() => {
+            setStoredValue(readFromStorage(key, initialValue));
+        }, 0);
+        return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialValue を deps に含めると参照で再実行されやすいため省略
+    }, [key]);
 
     useEffect(() => {
         const handleStorageChange = (e: StorageEvent | CustomEvent) => {

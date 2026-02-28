@@ -23,7 +23,8 @@ function getMediaServerSnapshot(): boolean {
 export function useMediaQuery(query: string): boolean {
     const [mounted, setMounted] = useState(false);
     useEffect(() => {
-        setMounted(true);
+        const id = setTimeout(() => setMounted(true), 0);
+        return () => clearTimeout(id);
     }, []);
     const matches = useSyncExternalStore(
         (cb) => subscribeMedia(query, cb),

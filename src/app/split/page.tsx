@@ -31,7 +31,7 @@ const PanelPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
   () => import("@/app/panel/PanelContent"),
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AppSettings } from "@/components/SettingsModal";
 import ModeSelector from "@/components/ModeSelector";
@@ -61,7 +61,7 @@ export default function SplitPage() {
             projectNameSize: "M",
         } as AppSettings
     );
-    const isMounted = useSyncExternalStore(() => () => {}, () => true, () => false);
+    const [mounted, setMounted] = useState(false);
     const [isMobileView, setIsMobileView] = useState(false);
     const [mobileActivePane, setMobileActivePane] = useState<"left" | "right">("left");
 
@@ -69,6 +69,10 @@ export default function SplitPage() {
     const [rightModule, setRightModule] = useLocalStorage<ModuleType>("split-pane-right", "flowchart");
     const { setActiveModule } = useSplitModule();
 
+    useEffect(() => {
+        const id = setTimeout(() => setMounted(true), 0);
+        return () => clearTimeout(id);
+    }, []);
     useEffect(() => {
         const check = () => setIsMobileView(typeof window !== "undefined" && window.innerWidth < 768);
         check();
@@ -98,7 +102,13 @@ export default function SplitPage() {
         }
     };
 
-    if (!isMounted) return null;
+    if (!mounted) {
+        return (
+            <div className="h-screen w-screen flex items-center justify-center bg-[#0a051e] text-white/60">
+                読み込み中…
+            </div>
+        );
+    }
 
     // モバイル: 1行目＝左|右タブ、2行目＝モード切替＋ペイン内モジュール（テーマは各ペイン内で切替）
     if (isMobileView) {
