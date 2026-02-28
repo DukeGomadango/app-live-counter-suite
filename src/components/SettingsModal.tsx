@@ -8,8 +8,15 @@ import { createPortal } from "react-dom";
 export type CardSize = "S" | "M" | "L" | "XL";
 export type EdgeThickness = "S" | "M" | "L";
 
+/** カードサイズのスライダー倍率（50–150、100=100%） */
+export const CARD_SCALE_MIN = 50;
+export const CARD_SCALE_MAX = 150;
+export const CARD_SCALE_PRESETS: Record<CardSize, number> = { S: 80, M: 100, L: 120, XL: 140 };
+
 export interface AppSettings {
     cardSize: CardSize;
+    /** カードの表示倍率（50–150、未指定時は100） */
+    cardScale?: number;
     edgeThickness?: EdgeThickness;
     showProjectName: boolean;
     projectName: string;
@@ -249,35 +256,54 @@ export default function SettingsModal({
                                     カードサイズ
                                 </label>
                             </div>
-                            <div className="grid grid-cols-4 gap-2">
-                                {CARD_SIZE_OPTIONS.map((opt) => (
-                                    <button
-                                        key={opt.value}
-                                        onClick={() => setSettings((s) => ({ ...s, cardSize: opt.value }))}
-                                        className={`py-3 rounded-xl text-center transition-all duration-200 border ${settings.cardSize === opt.value
-                                            ? "shadow-lg"
-                                            : `${bgSubtle} ${inputBorder} ${bgSubtleHover}`
-                                            }`}
-                                        style={
-                                            settings.cardSize === opt.value
-                                                ? {
-                                                    background: `${accentColor}20`,
-                                                    borderColor: `${accentColor}50`,
-                                                    boxShadow: `0 0 12px ${accentColor}20`,
-                                                }
-                                                : undefined
-                                        }
-                                    >
-                                        <div
-                                            className={`text-lg font-bold ${settings.cardSize === opt.value ? "" : textPrimary
+                            <div className="grid grid-cols-4 gap-2 mb-3">
+                                {CARD_SIZE_OPTIONS.map((opt) => {
+                                    const presetScale = CARD_SCALE_PRESETS[opt.value];
+                                    const isActive = (settings.cardScale ?? 100) === presetScale;
+                                    return (
+                                        <button
+                                            key={opt.value}
+                                            type="button"
+                                            onClick={() => setSettings((s) => ({ ...s, cardSize: opt.value, cardScale: presetScale }))}
+                                            className={`py-3 rounded-xl text-center transition-all duration-200 border ${isActive
+                                                ? "shadow-lg"
+                                                : `${bgSubtle} ${inputBorder} ${bgSubtleHover}`
                                                 }`}
-                                            style={settings.cardSize === opt.value ? { color: accentColor } : undefined}
+                                            style={
+                                                isActive
+                                                    ? {
+                                                        background: `${accentColor}20`,
+                                                        borderColor: `${accentColor}50`,
+                                                        boxShadow: `0 0 12px ${accentColor}20`,
+                                                    }
+                                                    : undefined
+                                            }
                                         >
-                                            {opt.label}
-                                        </div>
-                                        <div className={`text-[10px] mt-0.5 ${textMuted}`}>{opt.desc}</div>
-                                    </button>
-                                ))}
+                                            <div
+                                                className={`text-lg font-bold ${isActive ? "" : textPrimary}`}
+                                                style={isActive ? { color: accentColor } : undefined}
+                                            >
+                                                {opt.label}
+                                            </div>
+                                            <div className={`text-[10px] mt-0.5 ${textMuted}`}>{opt.desc}</div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <span className={`text-xs ${textMuted} shrink-0`}>{(settings.cardScale ?? 100)}%</span>
+                                <input
+                                    type="range"
+                                    min={CARD_SCALE_MIN}
+                                    max={CARD_SCALE_MAX}
+                                    value={settings.cardScale ?? 100}
+                                    onChange={(e) => setSettings((s) => ({ ...s, cardScale: Number(e.target.value) }))}
+                                    className="flex-1 h-1.5 rounded-full appearance-none cursor-pointer"
+                                    style={{
+                                        background: `linear-gradient(to right, ${accentColor} ${((settings.cardScale ?? 100) - CARD_SCALE_MIN) / (CARD_SCALE_MAX - CARD_SCALE_MIN) * 100}%, ${isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"} ${((settings.cardScale ?? 100) - CARD_SCALE_MIN) / (CARD_SCALE_MAX - CARD_SCALE_MIN) * 100}%)`,
+                                        accentColor,
+                                    }}
+                                />
                             </div>
                         </div>
 
