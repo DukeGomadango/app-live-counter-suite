@@ -269,7 +269,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
       try {
         const backgroundColor = isLightMode ? "#f5f3ff" : "#0f0a1e";
         const dataUrl = await toPng(el, { backgroundColor, pixelRatio: 3 });
-        const tweetText = `進捗状況（画像を添付してください）\n\n${DEFAULT_SHARE_HASHTAG}`;
+        const tweetText = `進捗状況\n\n${DEFAULT_SHARE_HASHTAG}`;
         const shared = await shareImageWithText(dataUrl, tweetText, "counter-progress.png");
         if (shared) return;
         const a = document.createElement("a");
