@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode, OrganizedResult } from "@/lib/gacha";
 import { organizeResults, formatResultsForShare, formatResultsHeaderForShare } from "@/lib/gacha";
-import { generateShareUrl, shareImageWithText } from "@/lib/share";
+import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
 import { DEFAULT_EXTRA_HASHTAG, DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
@@ -109,14 +109,15 @@ export default function GachaResultDisplay({
                     pixelRatio: 2,
                 });
                 const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
-                const shared = await shareImageWithText(dataUrl, headerText, "gacha-result.png");
+                const filename = `gacha-result-${getTimestampForFilename()}.png`;
+                const shared = await shareImageWithText(dataUrl, headerText, filename);
                 if (shared) {
                     tweetUrlAfterDownloadRef.current = null;
                     return;
                 }
                 const a = document.createElement("a");
                 a.href = dataUrl;
-                a.download = "gacha-result.png";
+                a.download = filename;
                 a.click();
                 const urlToOpen = tweetUrlAfterDownloadRef.current;
                 if (urlToOpen) {
@@ -173,9 +174,11 @@ export default function GachaResultDisplay({
                     ref={shareAreaRef}
                     style={{
                         position: "fixed",
-                        left: 0,
+                        left: "50%",
                         top: 0,
-                        width: "100%",
+                        transform: "translateX(-50%)",
+                        width: "min(100%, 608px)",
+                        maxWidth: 608,
                         zIndex: -1,
                         pointerEvents: "none",
                     }}

@@ -2,6 +2,13 @@
  * 共有用ユーティリティ。ツイート用 URL などを共通化。
  */
 
+/** ダウンロードファイル名用のタイムスタンプ（YYYYMMDD-HHmmss）。同名上書き確認を避けるため。 */
+export function getTimestampForFilename(): string {
+  const d = new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+}
+
 export function generateShareUrl(text: string): string {
   return `https://x.com/intent/tweet?text=${encodeURIComponent(text)}`;
 }

@@ -7,7 +7,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { toPng } from "html-to-image";
-import { generateShareUrl, shareImageWithText } from "@/lib/share";
+import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
 import {
   type PanelState,
   type PanelOverlay,
@@ -680,11 +680,12 @@ export default function PanelContent({
         backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e",
         pixelRatio: 2,
       });
-      const shared = await shareImageWithText(dataUrl, "", "panel.png");
+      const filename = `panel-${getTimestampForFilename()}.png`;
+      const shared = await shareImageWithText(dataUrl, "", filename);
       if (shared) return;
       const a = document.createElement("a");
       a.href = dataUrl;
-      a.download = "panel.png";
+      a.download = filename;
       a.click();
       window.open(generateShareUrl(""), "_blank", "noopener,noreferrer");
     } catch (err) {

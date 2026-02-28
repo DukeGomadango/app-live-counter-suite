@@ -32,7 +32,7 @@ import SettingsModal, { type AppSettings, type CardSize } from "@/components/Set
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { TEMPLATES, createCounterItems, type CounterItem, type Template } from "@/lib/templates";
-import { generateShareUrl, shareImageWithText } from "@/lib/share";
+import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
 import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 
 function useWindowWidth() {
@@ -97,6 +97,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
     return () => clearTimeout(id);
   }, []);
   const shareAreaRef = useRef<HTMLDivElement>(null);
+  const captureDimsRef = useRef<{ w: number; h: number } | null>(null);
   const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
 
   // dnd-kit sensors and state
@@ -254,6 +255,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   }, [setItems]);
 
   const handleShareAsImage = useCallback(() => {
+    captureDimsRef.current = { w: window.innerWidth, h: window.innerHeight };
     setIsCapturingShareImage(true);
   }, []);
 
@@ -270,11 +272,12 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
         const backgroundColor = isLightMode ? "#f5f3ff" : "#0f0a1e";
         const dataUrl = await toPng(el, { backgroundColor, pixelRatio: 3 });
         const tweetText = `進捗状況\n\n${DEFAULT_SHARE_HASHTAG}`;
-        const shared = await shareImageWithText(dataUrl, tweetText, "counter-progress.png");
+        const filename = `counter-progress-${getTimestampForFilename()}.png`;
+        const shared = await shareImageWithText(dataUrl, tweetText, filename);
         if (shared) return;
         const a = document.createElement("a");
         a.href = dataUrl;
-        a.download = "counter-progress.png";
+        a.download = filename;
         a.click();
         window.open(generateShareUrl(tweetText), "_blank", "noopener,noreferrer");
       } catch (err) {
@@ -421,7 +424,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
     XL: { mobile: 140, tablet: 200, desktop: 280 },
   };
 
-  // Responsive max width per column
+  // Responsive max width per column（表示用）
   const sizeConfig = cardSizeMap[appSettings.cardSize] || cardSizeMap.L;
   const colMaxPx = windowWidth <= 480 ? sizeConfig.mobile : windowWidth <= 768 ? sizeConfig.tablet : sizeConfig.desktop;
   // Limit columns to actual item count to prevent empty columns (centering fix)
@@ -430,17 +433,21 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   const effectiveCols = Math.min(gridCols, totalSlots || 1);
   const gridMaxWidth = effectiveCols * colMaxPx;
 
-  // キャプチャ用スケール：グリッド全体がビューポートに収まるように縮小し、全カードが描画・キャプチャされるようにする
+  // キャプチャ時はクリック直後の window サイズを使い、リサイズ直後の余白ずれを防ぐ
+  const captureW = isCapturingShareImage && captureDimsRef.current ? captureDimsRef.current.w : windowWidth;
+  const captureH = isCapturingShareImage && captureDimsRef.current ? captureDimsRef.current.h : winH;
+  const captureColMaxPx = captureW <= 480 ? sizeConfig.mobile : captureW <= 768 ? sizeConfig.tablet : sizeConfig.desktop;
+  const captureGridMaxWidth = effectiveCols * captureColMaxPx;
   const captureRows = Math.ceil(totalSlots / effectiveCols);
   const captureGap = 10;
-  const estimatedGridHeight = captureRows * colMaxPx + (captureRows - 1) * captureGap + 20;
+  const captureEstimatedGridHeight = captureRows * captureColMaxPx + (captureRows - 1) * captureGap + 20;
   const captureScale = Math.min(
-    windowWidth / gridMaxWidth,
-    winH / estimatedGridHeight,
+    captureW / captureGridMaxWidth,
+    captureH / captureEstimatedGridHeight,
     1
   );
-  const captureWidth = gridMaxWidth * captureScale;
-  const captureHeight = estimatedGridHeight * captureScale;
+  const captureWidth = captureGridMaxWidth * captureScale;
+  const captureHeight = captureEstimatedGridHeight * captureScale;
   const capturePadding = 32;
   const captureOuterWidth = captureWidth + capturePadding * 2;
   const captureOuterHeight = captureHeight + capturePadding * 2;
@@ -506,8 +513,8 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                 className="grid gap-2 sm:gap-2.5 w-full"
                 style={{
                   gridTemplateColumns: `repeat(${effectiveCols}, 1fr)`,
-                  maxWidth: `${gridMaxWidth}px`,
-                  width: `${gridMaxWidth}px`,
+                  maxWidth: `${captureGridMaxWidth}px`,
+                  width: `${captureGridMaxWidth}px`,
                   padding: 0,
                   margin: 0,
                   transform: `scale(${captureScale})`,
