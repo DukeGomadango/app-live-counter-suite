@@ -1,15 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CounterItem } from "@/lib/templates";
 
 const PREFECTURE_MAP_SVG = "/images/japan-prefectures.svg";
+const HOVER_LEAVE_DELAY_MS = 450;
 
 interface PrefectureShapeMapProps {
   items: CounterItem[];
   onIncrement: (index: number) => void;
+  onDecrement?: (index: number) => void;
   isLightMode: boolean;
   accentColor?: string;
+  /** 地図上の件数ラベルを表示するか（47都道府県専用） */
+  showCountLabels?: boolean;
+  /** 地図上の県名ラベルを表示するか（47都道府県専用） */
+  showPrefectureNames?: boolean;
 }
 
 /** data-code は JIS 都道府県コード（01〜47）。index = code - 1 */
@@ -116,13 +122,30 @@ function measurePositions(
 export default function PrefectureShapeMap({
   items,
   onIncrement,
+  onDecrement,
   isLightMode,
   accentColor = "#a855f7",
+  showCountLabels = true,
+  showPrefectureNames = false,
 }: PrefectureShapeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const leaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [numberPositions, setNumberPositions] = useState<NumberPosition[]>([]);
+  const [openPrefectureIndex, setOpenPrefectureIndex] = useState<number | null>(null);
+
+  const clearLeaveTimeout = useCallback(() => {
+    if (leaveTimeoutRef.current != null) {
+      clearTimeout(leaveTimeoutRef.current);
+      leaveTimeoutRef.current = null;
+    }
+  }, []);
+
+  const scheduleClose = useCallback(() => {
+    clearLeaveTimeout();
+    leaveTimeoutRef.current = setTimeout(() => setOpenPrefectureIndex(null), HOVER_LEAVE_DELAY_MS);
+  }, [clearLeaveTimeout]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -156,7 +179,7 @@ export default function PrefectureShapeMap({
     };
   }, []);
 
-  // 都道府県の色・クリック・ホバーを適用
+  // 都道府県の色・クリックでポップオーバー表示・ホバーでポップオーバー表示（PC）
   useEffect(() => {
     if (!loaded || !containerRef.current) return;
 
@@ -178,25 +201,30 @@ export default function PrefectureShapeMap({
       el.style.transition = "filter 0.2s ease, stroke 0.2s ease";
       el.setAttribute("role", "button");
       el.setAttribute("tabIndex", "0");
-      el.setAttribute("aria-label", `${item.label}（${item.count}件）クリックで増やす`);
+      el.setAttribute("aria-label", `${item.label}（${item.count}件）。クリックまたはホバーで増減ボタンを表示`);
 
       const onPointerEnter = () => {
         el.style.stroke = accentColor;
         el.style.filter = `drop-shadow(0 0 8px ${hexWithAlpha(accentColor, 0.7)})`;
+        clearLeaveTimeout();
+        setOpenPrefectureIndex(index);
       };
       const onPointerLeave = () => {
         el.style.stroke = strokeColor;
         el.style.filter = "";
+        scheduleClose();
       };
       const onClick = (e: Event) => {
         e.preventDefault();
         e.stopPropagation();
         onIncrement(index);
+        setOpenPrefectureIndex((prev) => (prev === index ? null : index));
       };
       const onKeyDown = (e: KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           onIncrement(index);
+          setOpenPrefectureIndex((prev) => (prev === index ? null : index));
         }
       };
 
@@ -216,7 +244,7 @@ export default function PrefectureShapeMap({
     return () => {
       teardowns.forEach((fn) => fn());
     };
-  }, [loaded, items, onIncrement, isLightMode, accentColor]);
+  }, [loaded, items, onIncrement, isLightMode, accentColor, clearLeaveTimeout, scheduleClose]);
 
   // 県の中心位置を計測し、数字オーバーレイ用の座標を更新（ロード後・リサイズ時）
   useEffect(() => {
@@ -241,6 +269,17 @@ export default function PrefectureShapeMap({
     };
   }, [loaded, items.length]);
 
+  useEffect(() => () => clearLeaveTimeout(), [clearLeaveTimeout]);
+
+  useEffect(() => {
+    if (openPrefectureIndex == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpenPrefectureIndex(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [openPrefectureIndex]);
+
   if (error) {
     return (
       <div className="flex items-center justify-center p-8 text-red-500" role="alert">
@@ -253,6 +292,9 @@ export default function PrefectureShapeMap({
   const labelColor = isLightMode ? "rgba(0,0,0,0.9)" : "rgba(255,255,255,0.98)";
   const labelShadow = `0 0 16px ${hexWithAlpha(accentColor, 0.55)}, 0 0 4px ${hexWithAlpha(accentColor, 0.4)}`;
 
+  const popoverPos = openPrefectureIndex != null ? numberPositions.find((p) => p.index === openPrefectureIndex) : null;
+  const openItem = openPrefectureIndex != null && openPrefectureIndex >= 0 && openPrefectureIndex < items.length ? items[openPrefectureIndex] : undefined;
+
   return (
     <div
       className="prefecture-shape-map relative w-full min-h-[280px] rounded-xl overflow-hidden bg-transparent"
@@ -262,7 +304,7 @@ export default function PrefectureShapeMap({
         ref={containerRef}
         className="absolute inset-0 w-full h-full"
       />
-      {loaded && numberPositions.length > 0 && (
+      {loaded && numberPositions.length > 0 && (showCountLabels || showPrefectureNames) && (
         <div
           className="absolute inset-0 pointer-events-none"
           aria-hidden
@@ -270,26 +312,115 @@ export default function PrefectureShapeMap({
           {numberPositions.map(({ index, x, y }) => {
             const item = items[index];
             const count = item?.count ?? 0;
+            const name = item?.label ?? "";
             return (
               <div
                 key={index}
-                className="flex items-center justify-center font-bold tabular-nums"
+                className="flex flex-col items-center justify-center"
                 style={{
                   position: "absolute",
                   left: x,
                   top: y,
                   transform: "translate(-50%, -50%)",
-                  minWidth: "1.25em",
-                  fontSize: "clamp(10px, 2.2vw, 14px)",
                   color: labelColor,
                   textShadow: labelShadow,
                 }}
               >
-                {count}
+                {showPrefectureNames && name && (
+                  <span
+                    className="font-medium leading-tight whitespace-nowrap"
+                    style={{ fontSize: "clamp(8px, 1.8vw, 11px)" }}
+                  >
+                    {name}
+                  </span>
+                )}
+                {showCountLabels && (
+                  <span
+                    className="font-bold tabular-nums"
+                    style={{
+                      minWidth: "1.25em",
+                      fontSize: "clamp(10px, 2.2vw, 14px)",
+                    }}
+                  >
+                    {count}
+                  </span>
+                )}
               </div>
             );
           })}
         </div>
+      )}
+      {openPrefectureIndex != null && popoverPos && (
+            <div
+              className="absolute z-[2] flex items-center"
+              style={{
+                left: popoverPos.x + 14,
+                top: popoverPos.y,
+                transform: "translate(0, -50%)",
+              }}
+              onPointerEnter={clearLeaveTimeout}
+              onPointerLeave={scheduleClose}
+            >
+              {/* ◀ 県を指す矢印（左向き） */}
+              <div
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderTop: "6px solid transparent",
+                  borderBottom: "6px solid transparent",
+                  borderRight: `6px solid ${isLightMode ? "rgba(255,255,255,0.95)" : "rgba(15,10,30,0.95)"}`,
+                  marginRight: "-1px",
+                  filter: isLightMode ? "drop-shadow(-1px 0 0 rgba(0,0,0,0.08))" : "drop-shadow(-1px 0 0 rgba(255,255,255,0.1))",
+                }}
+              />
+              <div
+                className="flex flex-col gap-0.5 rounded-lg shadow-lg border p-0.5"
+                style={{
+                  background: isLightMode ? "rgba(255,255,255,0.95)" : "rgba(15,10,30,0.95)",
+                  borderColor: isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.2)",
+                }}
+              >
+                <button
+                  type="button"
+                  className="rounded px-2 py-1 text-sm font-bold min-w-[1.75rem] transition opacity-90 hover:opacity-100"
+                  style={{
+                    background: `${accentColor}30`,
+                    color: accentColor,
+                    border: `1px solid ${accentColor}60`,
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onIncrement(openPrefectureIndex);
+                    setOpenPrefectureIndex(null);
+                  }}
+                  title="1増やす"
+                >
+                  △
+                </button>
+                {onDecrement != null && (
+                  <button
+                    type="button"
+                    className="rounded px-2 py-1 text-sm font-bold min-w-[1.75rem] transition opacity-90 hover:opacity-100 disabled:opacity-50"
+                    style={{
+                      background: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.1)",
+                      color: isLightMode ? "#374151" : "rgba(255,255,255,0.9)",
+                      border: isLightMode ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(255,255,255,0.25)",
+                    }}
+                    disabled={openItem?.count === 0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if ((openItem?.count ?? 0) > 0) {
+                        onDecrement(openPrefectureIndex);
+                        setOpenPrefectureIndex(null);
+                      }
+                    }}
+                    title="1減らす"
+                  >
+                    ▽
+                  </button>
+                )}
+              </div>
+            </div>
       )}
     </div>
   );

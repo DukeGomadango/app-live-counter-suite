@@ -10,6 +10,9 @@ interface PrefectureRankingPanelProps {
   onClose: () => void;
   items: CounterItem[];
   isLightMode: boolean;
+  onIncrement: (index: number) => void;
+  onDecrement: (index: number) => void;
+  accentColor?: string;
 }
 
 export default function PrefectureRankingPanel({
@@ -17,6 +20,9 @@ export default function PrefectureRankingPanel({
   onClose,
   items,
   isLightMode,
+  onIncrement,
+  onDecrement,
+  accentColor = "#a855f7",
 }: PrefectureRankingPanelProps) {
   useEffect(() => {
     if (isOpen) document.body.style.overflow = "hidden";
@@ -77,11 +83,12 @@ export default function PrefectureRankingPanel({
                   <tr className={`${textMuted} border-b`} style={{ borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }}>
                     <th className="w-12 py-2 pl-2 font-medium">順位</th>
                     <th className="py-2 font-medium">都道府県</th>
-                    <th className="w-20 py-2 pr-2 text-right font-medium">人数</th>
+                    <th className="w-20 py-2 text-right font-medium">人数</th>
+                    <th className="w-16 py-2 pr-2 text-center font-medium">増減</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {sorted.map(({ item }, rank) => (
+                  {sorted.map(({ item, index }, rank) => (
                     <tr
                       key={item.id}
                       className={`${rowBg} border-b transition-colors`}
@@ -92,7 +99,38 @@ export default function PrefectureRankingPanel({
                         <span className="mr-1.5 opacity-80">{item.emoji}</span>
                         {item.label}
                       </td>
-                      <td className={`py-2 pr-2 text-right font-medium ${textPrimary}`}>{item.count}</td>
+                      <td className={`py-2 text-right font-medium ${textPrimary}`}>{item.count}</td>
+                      <td className="py-2 pr-2">
+                        <div className="flex items-center justify-center gap-0.5">
+                          <button
+                            type="button"
+                            className="rounded px-1.5 py-0.5 text-xs font-bold transition opacity-80 hover:opacity-100"
+                            style={{
+                              background: `${accentColor}25`,
+                              color: accentColor,
+                              border: `1px solid ${accentColor}50`,
+                            }}
+                            onClick={() => onIncrement(index)}
+                            title="1増やす"
+                          >
+                            △
+                          </button>
+                          <button
+                            type="button"
+                            className="rounded px-1.5 py-0.5 text-xs font-bold transition opacity-80 hover:opacity-100 disabled:opacity-50"
+                            style={{
+                              background: isLightMode ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)",
+                              color: isLightMode ? "#374151" : "rgba(255,255,255,0.9)",
+                              border: isLightMode ? "1px solid rgba(0,0,0,0.12)" : "1px solid rgba(255,255,255,0.2)",
+                            }}
+                            disabled={item.count === 0}
+                            onClick={() => item.count > 0 && onDecrement(index)}
+                            title="1減らす"
+                          >
+                            ▽
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

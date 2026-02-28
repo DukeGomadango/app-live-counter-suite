@@ -16,6 +16,15 @@ export const LP_CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-02-28",
     importance: "normal",
+    title: "47都道府県マップで増減ボタンと件数ラベル切替を追加",
+    items: [
+      "県をクリックまたはホバーすると +1 / −1 のボタンが表示され、タップで増減できます（モバイル・PC共通）",
+      "「件数表示」トグルで地図上の件数ラベルの表示・非表示を切り替えられます",
+    ],
+  },
+  {
+    date: "2026-02-28",
+    importance: "normal",
     title: "47都道府県を県形マップで表示（スマホ・PC共通）",
     items: [
       "47都道府県テンプレートで、県の形をした地図（Geolonia japanese-prefectures）を表示するようにしました",

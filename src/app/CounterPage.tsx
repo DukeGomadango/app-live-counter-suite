@@ -81,6 +81,14 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPrefectureRankingOpen, setIsPrefectureRankingOpen] = useState(false);
+  const [showPrefectureCountLabels, setShowPrefectureCountLabels] = useLocalStorage<boolean>(
+    "counter-prefecture-show-labels",
+    true
+  );
+  const [showPrefectureNames, setShowPrefectureNames] = useLocalStorage<boolean>(
+    "counter-prefecture-show-names",
+    false
+  );
   const positionedContainerRef = useRef<HTMLDivElement>(null);
   const [positionedContainerSize, setPositionedContainerSize] = useState<{ w: number; h: number } | null>(null);
   const [appSettings, setAppSettings] = useLocalStorage<AppSettings>(
@@ -244,6 +252,14 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
     [setItems]
   );
 
+  const handleDecrementByIndex = useCallback(
+    (index: number) => {
+      const item = items[index];
+      if (item) handleDecrement(item.id);
+    },
+    [items, handleDecrement]
+  );
+
   const handleSetCount = useCallback(
     (id: string, value: number) => {
       setItems((prev) =>
@@ -278,6 +294,8 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   }, []);
 
   // キャプチャ用の portal（高さ制限なしで全カードを描画）が表示されたあとに toPng
+  // 47都道府県の県形マップは SVG を非同期読み込みするため、キャプチャ遅延を長めにする
+  const captureDelayMs = currentTemplateId === "prefectures" ? 500 : 80;
   useEffect(() => {
     if (!isCapturingShareImage) return;
     const id = setTimeout(async () => {
@@ -303,9 +321,9 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
       } finally {
         setIsCapturingShareImage(false);
       }
-    }, 80);
+    }, captureDelayMs);
     return () => clearTimeout(id);
-  }, [isCapturingShareImage, isLightMode]);
+  }, [isCapturingShareImage, isLightMode, captureDelayMs]);
 
   const handleSelectTemplate = useCallback(
     (template: Template) => {
@@ -568,7 +586,24 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                 zIndex: 1,
               }}
             >
-              {isPositionedLayout && currentTemplate?.backgroundImage ? (
+              {currentTemplateId === "prefectures" ? (
+                <div
+                  className="relative w-full h-full flex items-center justify-center"
+                  style={{ width: capturePositionedSize, height: capturePositionedSize }}
+                >
+                  <div style={{ width: 640, height: 640, flexShrink: 0 }}>
+                    <PrefectureShapeMap
+                      items={items}
+                      onIncrement={() => {}}
+                      onDecrement={undefined}
+                      isLightMode={isLightMode}
+                      accentColor={appSettings.accentColor}
+                      showCountLabels={showPrefectureCountLabels}
+                      showPrefectureNames={showPrefectureNames}
+                    />
+                  </div>
+                </div>
+              ) : isPositionedLayout && currentTemplate?.backgroundImage ? (
                 <div
                   className="relative w-full h-full"
                   style={{
@@ -580,16 +615,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                   }}
                 >
                   {items.map((item, index) => {
-                    const capW = capturePositionedSize;
-                    const capH = capturePositionedSize;
-                    const capSpacing =
-                      currentTemplateId === "prefectures"
-                        ? minSpacingPercent(captureColMaxPxBase * cardScale, capW, capH, cardScale)
-                        : null;
-                    const pos =
-                      capSpacing && currentTemplateId === "prefectures"
-                        ? getPrefecturePosition(index, capSpacing.x, capSpacing.y)
-                        : { x: item.x ?? 50, y: item.y ?? 50 };
+                    const pos = { x: item.x ?? 50, y: item.y ?? 50 };
                     return (
                     <div
                       key={item.id}
@@ -768,10 +794,31 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
               <PrefectureShapeMap
                 items={items}
                 onIncrement={handleIncrementByIndex}
+                onDecrement={handleDecrementByIndex}
                 isLightMode={isLightMode}
                 accentColor={appSettings.accentColor}
+                showCountLabels={showPrefectureCountLabels}
+                showPrefectureNames={showPrefectureNames}
               />
               <div className="mt-4 flex flex-wrap items-center justify-center gap-2 w-full" style={{ maxWidth: "min(95vw, 640px)" }}>
+                <label className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium cursor-pointer transition opacity-90 hover:opacity-100" style={{ border: `1px solid ${appSettings.accentColor}40`, color: appSettings.accentColor }}>
+                  <input
+                    type="checkbox"
+                    checked={showPrefectureNames}
+                    onChange={(e) => setShowPrefectureNames(e.target.checked)}
+                    className="rounded"
+                  />
+                  県名表示
+                </label>
+                <label className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium cursor-pointer transition opacity-90 hover:opacity-100" style={{ border: `1px solid ${appSettings.accentColor}40`, color: appSettings.accentColor }}>
+                  <input
+                    type="checkbox"
+                    checked={showPrefectureCountLabels}
+                    onChange={(e) => setShowPrefectureCountLabels(e.target.checked)}
+                    className="rounded"
+                  />
+                  件数表示
+                </label>
                 <button
                   type="button"
                   onClick={() => setIsPrefectureRankingOpen(true)}
@@ -791,6 +838,9 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                 onClose={() => setIsPrefectureRankingOpen(false)}
                 items={items}
                 isLightMode={isLightMode}
+                onIncrement={handleIncrementByIndex}
+                onDecrement={handleDecrementByIndex}
+                accentColor={appSettings.accentColor}
               />
             </>
           ) : isPositionedLayout && windowWidth >= 768 ? (
