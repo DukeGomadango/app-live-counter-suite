@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { Share2, Copy, Check, ImageDown } from "lucide-react";
 import type { GachaPool, RunSummary, GachaResult } from "@/lib/gacha";
 import { formatRunSummaryForShare, formatResultsHeaderForShare } from "@/lib/gacha";
-import { generateShareUrl, shouldOpenShareTweetFirst } from "@/lib/share";
+import { generateShareUrl, shareImageWithText } from "@/lib/share";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { toPng } from "html-to-image";
 import GachaShareSummary from "@/components/gacha/GachaShareSummary";
@@ -36,16 +36,8 @@ export default function GachaRunSummaryDisplay({
     const textMuted = isLightMode ? "text-gray-500" : "text-white/65";
     const [copied, setCopied] = useState(false);
     const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
-    const [isMobile, setIsMobile] = useState(false);
     const shareAreaRef = useRef<HTMLDivElement | null>(null);
     const tweetUrlAfterDownloadRef = useRef<string | null>(null);
-
-    useEffect(() => {
-        const check = () => setIsMobile(window.innerWidth < 1024);
-        check();
-        window.addEventListener("resize", check);
-        return () => window.removeEventListener("resize", check);
-    }, []);
 
     const expandedResults: GachaResult[] = useMemo(() => {
         const results: GachaResult[] = [];
@@ -94,12 +86,7 @@ export default function GachaRunSummaryDisplay({
     const handleShareAsImage = () => {
         if (expandedResults.length === 0) return;
         const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
-        const tweetUrl = generateShareUrl(headerText);
-        if (shouldOpenShareTweetFirst(isMobile)) {
-            window.open(tweetUrl, "_blank", "noopener,noreferrer");
-        } else {
-            tweetUrlAfterDownloadRef.current = tweetUrl;
-        }
+        tweetUrlAfterDownloadRef.current = generateShareUrl(headerText);
         setIsCapturingShareImage(true);
     };
 
@@ -116,6 +103,12 @@ export default function GachaRunSummaryDisplay({
                     backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e",
                     pixelRatio: 2,
                 });
+                const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
+                const shared = await shareImageWithText(dataUrl, headerText, `gacha-run-${run.runIndex}.png`);
+                if (shared) {
+                    tweetUrlAfterDownloadRef.current = null;
+                    return;
+                }
                 const a = document.createElement("a");
                 a.href = dataUrl;
                 a.download = `gacha-run-${run.runIndex}.png`;

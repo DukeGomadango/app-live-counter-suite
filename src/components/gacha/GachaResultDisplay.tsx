@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode, OrganizedResult } from "@/lib/gacha";
 import { organizeResults, formatResultsForShare, formatResultsHeaderForShare } from "@/lib/gacha";
-import { generateShareUrl, shouldOpenShareTweetFirst } from "@/lib/share";
+import { generateShareUrl, shareImageWithText } from "@/lib/share";
 import { DEFAULT_EXTRA_HASHTAG, DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
@@ -91,12 +91,7 @@ export default function GachaResultDisplay({
 
     const handleShareAsImage = () => {
         const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
-        const tweetUrl = generateShareUrl(headerText);
-        if (shouldOpenShareTweetFirst(isMobile)) {
-            window.open(tweetUrl, "_blank", "noopener,noreferrer");
-        } else {
-            tweetUrlAfterDownloadRef.current = tweetUrl;
-        }
+        tweetUrlAfterDownloadRef.current = generateShareUrl(headerText);
         setIsCapturingShareImage(true);
     };
 
@@ -113,6 +108,12 @@ export default function GachaResultDisplay({
                     backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e",
                     pixelRatio: 2,
                 });
+                const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
+                const shared = await shareImageWithText(dataUrl, headerText, "gacha-result.png");
+                if (shared) {
+                    tweetUrlAfterDownloadRef.current = null;
+                    return;
+                }
                 const a = document.createElement("a");
                 a.href = dataUrl;
                 a.download = "gacha-result.png";

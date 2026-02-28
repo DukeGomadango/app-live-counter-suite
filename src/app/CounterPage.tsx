@@ -32,7 +32,7 @@ import SettingsModal, { type AppSettings, type CardSize } from "@/components/Set
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { TEMPLATES, createCounterItems, type CounterItem, type Template } from "@/lib/templates";
-import { generateShareUrl } from "@/lib/share";
+import { generateShareUrl, shareImageWithText } from "@/lib/share";
 import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 
 function useWindowWidth() {
@@ -260,11 +260,13 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
       try {
         const backgroundColor = isLightMode ? "#f5f3ff" : "#0f0a1e";
         const dataUrl = await toPng(el, { backgroundColor, pixelRatio: 3 });
+        const tweetText = `進捗状況（画像を添付してください）\n\n${DEFAULT_SHARE_HASHTAG}`;
+        const shared = await shareImageWithText(dataUrl, tweetText, "counter-progress.png");
+        if (shared) return;
         const a = document.createElement("a");
         a.href = dataUrl;
         a.download = "counter-progress.png";
         a.click();
-        const tweetText = `進捗状況（画像を添付してください）\n\n${DEFAULT_SHARE_HASHTAG}`;
         window.open(generateShareUrl(tweetText), "_blank", "noopener,noreferrer");
       } catch (err) {
         console.warn("Image export failed:", err);

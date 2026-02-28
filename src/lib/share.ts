@@ -19,3 +19,26 @@ export function isIPad(): boolean {
 export function shouldOpenShareTweetFirst(isMobile: boolean): boolean {
   return isMobile || isIPad();
 }
+
+/**
+ * Web Share API で画像とテキストをまとめて共有する。
+ * 対応環境では共有シートが開き、画像＋文をSNSなどに渡せる。
+ * @returns 共有が完了した場合 true。未対応・ユーザーキャンセル・失敗時は false（呼び出し元でダウンロード＋ツイートURL等にフォールバックすること）
+ */
+export async function shareImageWithText(
+  dataUrl: string,
+  text: string,
+  filename: string
+): Promise<boolean> {
+  if (typeof navigator === "undefined" || !navigator.share) return false;
+  try {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const file = new File([blob], filename, { type: blob.type || "image/png" });
+    const shareData: ShareData = { text, files: [file] };
+    await navigator.share(shareData);
+    return true;
+  } catch {
+    return false;
+  }
+}
