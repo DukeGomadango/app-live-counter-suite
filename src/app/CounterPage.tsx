@@ -23,10 +23,12 @@ import {
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { toPng } from "html-to-image";
-import { ImageDown } from "lucide-react";
+import { ImageDown, ListOrdered } from "lucide-react";
 import CounterPanel from "@/components/CounterPanel";
 import AddItemPanel from "@/components/AddItemPanel";
 import HamburgerMenu from "@/components/HamburgerMenu";
+import PrefectureShapeMap from "@/components/PrefectureShapeMap";
+import PrefectureRankingPanel from "@/components/PrefectureRankingPanel";
 import EditItemModal from "@/components/EditItemModal";
 import SettingsModal, { type AppSettings, type CardSize } from "@/components/SettingsModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -78,6 +80,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPrefectureRankingOpen, setIsPrefectureRankingOpen] = useState(false);
   const positionedContainerRef = useRef<HTMLDivElement>(null);
   const [positionedContainerSize, setPositionedContainerSize] = useState<{ w: number; h: number } | null>(null);
   const [appSettings, setAppSettings] = useLocalStorage<AppSettings>(
@@ -218,6 +221,14 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
       );
     },
     [setItems]
+  );
+
+  const handleIncrementByIndex = useCallback(
+    (index: number) => {
+      const item = items[index];
+      if (item) handleIncrement(item.id);
+    },
+    [items, handleIncrement]
   );
 
   const handleDecrement = useCallback(
@@ -752,7 +763,37 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
               </div>
             </motion.div>
           )}
-          {isPositionedLayout && windowWidth >= 768 ? (
+          {currentTemplateId === "prefectures" ? (
+            <>
+              <PrefectureShapeMap
+                items={items}
+                onIncrement={handleIncrementByIndex}
+                isLightMode={isLightMode}
+                accentColor={appSettings.accentColor}
+              />
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2 w-full" style={{ maxWidth: "min(95vw, 640px)" }}>
+                <button
+                  type="button"
+                  onClick={() => setIsPrefectureRankingOpen(true)}
+                  className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition opacity-90 hover:opacity-100"
+                  style={{
+                    background: `${appSettings.accentColor}20`,
+                    color: appSettings.accentColor,
+                    border: `1px solid ${appSettings.accentColor}40`,
+                  }}
+                >
+                  <ListOrdered size={18} />
+                  一覧・ランキング
+                </button>
+              </div>
+              <PrefectureRankingPanel
+                isOpen={isPrefectureRankingOpen}
+                onClose={() => setIsPrefectureRankingOpen(false)}
+                items={items}
+                isLightMode={isLightMode}
+              />
+            </>
+          ) : isPositionedLayout && windowWidth >= 768 ? (
             <>
                 <div
                   ref={positionedContainerRef}
