@@ -32,9 +32,12 @@ export default function HelpButton() {
         const check = () => setIsMobile(typeof window !== "undefined" && window.innerWidth < 768);
         check();
         window.addEventListener("resize", check);
+        const openHelp = () => setIsOpen(true);
+        window.addEventListener("dango-open-help", openHelp);
         return () => {
             clearTimeout(id);
             window.removeEventListener("resize", check);
+            window.removeEventListener("dango-open-help", openHelp);
         };
     }, []);
 

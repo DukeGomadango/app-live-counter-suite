@@ -103,6 +103,13 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
                             "上部のドロップダウン（Top / Counter / FlowChart …）でツールを切り替えられます",
                             "太陽・月アイコンでライト/ダークテーマを切り替えられます",
                         ]
+                    },
+                    {
+                        title: "アプリのように使う",
+                        items: [
+                            "iPhone・iPad: Safari で共有ボタン（□↑）をタップし、「ホーム画面に追加」を選ぶと、アプリのように起動できます",
+                            "Android: Chrome などではメニュー（⋮）から「アプリをインストール」や「ホーム画面に追加」を選べます。インストールの案内が表示される場合もあります",
+                        ]
                     }
                 ]
             };

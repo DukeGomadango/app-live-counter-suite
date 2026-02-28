@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Sun, Moon, LayoutGrid, List, ChevronDown, ChevronRight } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
+import PwaInstallChip from "@/components/PwaInstallChip";
 import { TOOLS } from "@/lib/tools";
 import { SITE_CONFIG } from "@/lib/site";
 import { LP_FAQ_GROUPED } from "@/lib/lp-faq";
@@ -177,6 +178,7 @@ export default function LandingPage() {
               ストリップ
             </button>
           </div>
+          <PwaInstallChip effectiveLight={effectiveLight} />
         </header>
 
         {/* ヒーローとツールの区切り線 */}
