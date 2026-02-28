@@ -1,33 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# だんごツール（Dango Tool）
 
-## Getting Started
+配信者・クリエイター向けの無料 Web ツールキット。人数カウンター、フローチャート、ガチャシミュレーター、ルーレット、時計、パネル開けなど、登録不要で利用できます。
 
-First, run the development server:
+## 開発
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### 必要な環境
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Node.js 20 以上
+- npm
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### スクリプト
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| コマンド | 説明 |
+|----------|------|
+| `npm run dev` | 開発サーバー起動（[http://localhost:3000](http://localhost:3000)） |
+| `npm run build` | 本番ビルド（静的エクスポート） |
+| `npm run start` | ビルド済みアプリの起動（`build` 実行後） |
+| `npm run lint` | ESLint でコードチェック |
+| `npm run test` | Vitest で単体テスト実行 |
 
-## Learn More
+### デプロイ
 
-To learn more about Next.js, take a look at the following resources:
+`next.config.ts` で `output: "export"` を指定しているため、ビルド結果は静的ファイル（`out/`）として出力されます。Vercel や GitHub Pages など、静的ホスティングにそのままデプロイできます。
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [Next.js のデプロイドキュメント](https://nextjs.org/docs/app/building-your-application/deploying)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
 ## 更新履歴の更新
 
@@ -37,9 +35,3 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 - **やり方**: 配列の**先頭**に 1 エントリ追加。`date`（YYYY-MM-DD）、`importance`（major / normal / minor）、`title`、`items`（箇条書き）を書く。
 - **載せない**: lint・SEO・細かいコード修正など、ユーザーに直接関係ない変更。
 - 直近の変更を確認するとき: `git log --format="%ad %s" --date=short -20`
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

@@ -95,3 +95,48 @@ body.light-mode::before {
 .scroll-touch {
   -webkit-overflow-scrolling: touch;
 }
+
+/* ガラス風パネル（エラー・404・ローディングで共通） */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+body.light-mode .glass-panel {
+  background: rgba(255, 255, 255, 0.5);
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* ガラスパネル内テキスト・リンク（Server Component 用・テーマに応じて globals で切替） */
+.glass-panel .panel-title {
+  color: rgba(255, 255, 255, 0.95);
+}
+body.light-mode .glass-panel .panel-title {
+  color: #1a1a2e;
+}
+.glass-panel .panel-body {
+  color: rgba(255, 255, 255, 0.7);
+}
+body.light-mode .glass-panel .panel-body {
+  color: #52525b;
+}
+.glass-panel .panel-link {
+  color: #fff;
+  background: rgba(168, 85, 247, 0.3);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+.glass-panel .panel-link:hover {
+  background: rgba(168, 85, 247, 0.5);
+}
+body.light-mode .glass-panel .panel-link {
+  color: #1a1a2e;
+  background: rgba(168, 85, 247, 0.2);
+  border-color: rgba(168, 85, 247, 0.4);
+}
+body.light-mode .glass-panel .panel-link:hover {
+  background: rgba(168, 85, 247, 0.35);
+}

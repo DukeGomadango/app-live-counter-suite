@@ -4,11 +4,6 @@ import dynamic from "next/dynamic";
 
 const ClockContent = dynamic(() => import("./ClockContent"), {
   ssr: true,
-  loading: () => (
-    <div className="flex items-center justify-center min-h-[50vh] text-gray-500 dark:text-white/60">
-      読み込み中…
-    </div>
-  ),
 });
 
 type PageProps = {
