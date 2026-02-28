@@ -78,7 +78,6 @@ export default function RouletteWheel({
     resultSlot,
     segmentColors,
     slotColorOverrides,
-    highlightCenterIndex: _highlightCenterIndex,
 }: RouletteWheelProps) {
     const effectiveMaxLabels = maxVisibleLabels ?? DEFAULT_MAX_VISIBLE_LABELS;
     const wheelControls = useAnimationControls();
@@ -129,7 +128,6 @@ export default function RouletteWheel({
         }
     }, [isNeedle, isSpinning, resultIndex, restRotation, segmentAngle, wheelControls, N]);
     const rOuter = !isNeedle ? wheelSize / 2 - 4 : 0;
-    const rInner = !isNeedle ? wheelSize / 2 - 11 : 0;
 
     useLayoutEffect(() => {
         if (!isSpinning || targetIndex === null || N === 0) return;
