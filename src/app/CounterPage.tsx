@@ -32,6 +32,10 @@ import SettingsModal, { type AppSettings, type CardSize } from "@/components/Set
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { TEMPLATES, createCounterItems, type CounterItem, type Template } from "@/lib/templates";
+import {
+  getPrefecturePosition,
+  minSpacingPercent,
+} from "@/lib/prefecture-blocks";
 import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
 import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 
@@ -74,10 +78,13 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const positionedContainerRef = useRef<HTMLDivElement>(null);
+  const [positionedContainerSize, setPositionedContainerSize] = useState<{ w: number; h: number } | null>(null);
   const [appSettings, setAppSettings] = useLocalStorage<AppSettings>(
     "counter-app-settings",
     {
       cardSize: "L" as CardSize,
+      cardScale: 100,
       showProjectName: false,
       projectName: "",
       projectNameSize: "M" as const,
@@ -293,9 +300,43 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
     (template: Template) => {
       setCurrentTemplateId(template.id);
       setItems(createCounterItems(template));
+      // 47都道府県テンプレートはデフォルトでスケール50%、サイズS
+      if (template.id === "prefectures") {
+        setAppSettings((prev) => ({
+          ...prev,
+          cardSize: "S",
+          cardScale: 50,
+        }));
+      }
     },
-    [setItems, setCurrentTemplateId]
+    [setItems, setCurrentTemplateId, setAppSettings]
   );
+
+  const currentTemplate = useMemo(
+    () => TEMPLATES.find((t) => t.id === currentTemplateId) ?? customTemplates.find((t) => t.id === currentTemplateId) ?? null,
+    [currentTemplateId, customTemplates]
+  );
+  const isPositionedLayout = Boolean(
+    currentTemplate?.layout === "positioned" && currentTemplate?.backgroundImage
+  );
+
+  // 地図レイアウトのコンテナ寸法（47都道府県の動的間隔用）
+  useEffect(() => {
+    if (!isPositionedLayout || !positionedContainerRef.current) return;
+    const el = positionedContainerRef.current;
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        setPositionedContainerSize({ w: r.width, h: r.height });
+      }
+    });
+    ro.observe(el);
+    const r = el.getBoundingClientRect();
+    if (r.width > 0 && r.height > 0) {
+      setPositionedContainerSize({ w: r.width, h: r.height });
+    }
+    return () => ro.disconnect();
+  }, [isPositionedLayout]);
 
   const handleAddItem = useCallback(
     (label: string, emoji: string) => {
@@ -310,11 +351,12 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
         color: colors[Math.floor(Math.random() * colors.length)] ?? colors[0]!,
         count: 0,
         target: 0,
+        ...(currentTemplate?.layout === "positioned" ? { x: 50, y: 50 } : {}),
       };
       setItems((prev) => [...prev, newItem]);
       setCurrentTemplateId("custom");
     },
-    [setItems, setCurrentTemplateId]
+    [setItems, setCurrentTemplateId, currentTemplate?.layout]
   );
 
   const handleEditItem = useCallback(
@@ -427,16 +469,19 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   // Responsive max width per column（表示用）
   const sizeConfig = cardSizeMap[appSettings.cardSize] || cardSizeMap.L;
   const colMaxPx = windowWidth <= 480 ? sizeConfig.mobile : windowWidth <= 768 ? sizeConfig.tablet : sizeConfig.desktop;
+  const cardScale = (appSettings.cardScale ?? 100) / 100;
+  const effectiveColMaxPx = colMaxPx * cardScale;
   // Limit columns to actual item count to prevent empty columns (centering fix)
   // Always count one extra slot for the add panel placeholder to prevent layout shift
   const totalSlots = items.length + 1;
   const effectiveCols = Math.min(gridCols, totalSlots || 1);
-  const gridMaxWidth = effectiveCols * colMaxPx;
+  const gridMaxWidth = effectiveCols * effectiveColMaxPx;
 
   // キャプチャ時はクリック直後の window サイズを使い、リサイズ直後の余白ずれを防ぐ
   const captureW = isCapturingShareImage && captureDimsRef.current ? captureDimsRef.current.w : windowWidth;
   const captureH = isCapturingShareImage && captureDimsRef.current ? captureDimsRef.current.h : winH;
-  const captureColMaxPx = captureW <= 480 ? sizeConfig.mobile : captureW <= 768 ? sizeConfig.tablet : sizeConfig.desktop;
+  const captureColMaxPxBase = captureW <= 480 ? sizeConfig.mobile : captureW <= 768 ? sizeConfig.tablet : sizeConfig.desktop;
+  const captureColMaxPx = captureColMaxPxBase * cardScale;
   const captureGridMaxWidth = effectiveCols * captureColMaxPx;
   const captureRows = Math.ceil(totalSlots / effectiveCols);
   const captureGap = 10;
@@ -451,6 +496,9 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   const capturePadding = 32;
   const captureOuterWidth = captureWidth + capturePadding * 2;
   const captureOuterHeight = captureHeight + capturePadding * 2;
+
+  const capturePositionedSize = 960;
+  const capturePositionedOuter = capturePositionedSize + capturePadding * 2;
 
   const captureBaseBg = isLightMode
     ? "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)"
@@ -477,8 +525,8 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
               position: "fixed",
               left: 0,
               top: 0,
-              width: `${captureOuterWidth}px`,
-              height: `${captureOuterHeight}px`,
+              width: `${isPositionedLayout ? capturePositionedOuter : captureOuterWidth}px`,
+              height: `${isPositionedLayout ? capturePositionedOuter : captureOuterHeight}px`,
               overflow: "hidden",
               zIndex: -1,
               pointerEvents: "none",
@@ -503,12 +551,72 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                 position: "absolute",
                 left: `${capturePadding}px`,
                 top: `${capturePadding}px`,
-                width: `${captureWidth}px`,
-                height: `${captureHeight}px`,
+                width: `${isPositionedLayout ? capturePositionedSize : captureWidth}px`,
+                height: `${isPositionedLayout ? capturePositionedSize : captureHeight}px`,
                 overflow: "hidden",
                 zIndex: 1,
               }}
             >
+              {isPositionedLayout && currentTemplate?.backgroundImage ? (
+                <div
+                  className="relative w-full h-full"
+                  style={{
+                    backgroundImage: `url(${currentTemplate.backgroundImage})`,
+                    backgroundSize: "contain",
+                    backgroundPosition: "center",
+                    backgroundRepeat: "no-repeat",
+                    color: isLightMode ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.2)",
+                  }}
+                >
+                  {items.map((item, index) => {
+                    const capW = capturePositionedSize;
+                    const capH = capturePositionedSize;
+                    const capSpacing =
+                      currentTemplateId === "prefectures"
+                        ? minSpacingPercent(captureColMaxPxBase * cardScale, capW, capH, cardScale)
+                        : null;
+                    const pos =
+                      capSpacing && currentTemplateId === "prefectures"
+                        ? getPrefecturePosition(index, capSpacing.x, capSpacing.y)
+                        : { x: item.x ?? 50, y: item.y ?? 50 };
+                    return (
+                    <div
+                      key={item.id}
+                      className="absolute"
+                      style={{
+                        left: `${pos.x}%`,
+                        top: `${pos.y}%`,
+                        width: captureColMaxPxBase,
+                        height: captureColMaxPxBase,
+                        transform: `translate(-50%, -50%) scale(${cardScale})`,
+                      }}
+                    >
+                      <CounterPanel
+                        id={item.id}
+                        label={item.label}
+                        emoji={item.emoji}
+                        color={item.color}
+                        count={item.count}
+                        target={item.target}
+                        onIncrement={() => {}}
+                        onDecrement={() => {}}
+                        onSetCount={undefined}
+                        onAdjustBy={undefined}
+                        showStep5={appSettings.showStep5 ?? true}
+                        showStep10={appSettings.showStep10 ?? true}
+                        showStepFree={appSettings.showStepFree ?? false}
+                        stepFreeValue={appSettings.stepFreeValue ?? 1}
+                        onDeleteItem={() => {}}
+                        onEditItem={() => {}}
+                        isLightMode={isLightMode}
+                        showEditDeleteOnCard={false}
+                        cardSize={appSettings.cardSize}
+                      />
+                    </div>
+                    );
+                  })}
+                </div>
+              ) : (
               <div
                 className="grid gap-2 sm:gap-2.5 w-full"
                 style={{
@@ -522,28 +630,31 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                 }}
               >
               {items.map((item) => (
-                <CounterPanel
-                  key={item.id}
-                  id={item.id}
-                  label={item.label}
-                  emoji={item.emoji}
-                  color={item.color}
-                  count={item.count}
-                  target={item.target}
-                  onIncrement={() => {}}
-                  onDecrement={() => {}}
-                  onSetCount={undefined}
-                  onAdjustBy={undefined}
-                  showStep5={appSettings.showStep5 ?? true}
-                  showStep10={appSettings.showStep10 ?? true}
-                  showStepFree={appSettings.showStepFree ?? false}
-                  stepFreeValue={appSettings.stepFreeValue ?? 1}
-                  onDeleteItem={() => {}}
-                  onEditItem={() => {}}
-                  isLightMode={isLightMode}
-                  showEditDeleteOnCard={false}
-                  cardSize={appSettings.cardSize}
-                />
+                <div key={item.id} style={{ width: captureColMaxPx, minHeight: 0 }}>
+                  <div style={{ width: captureColMaxPxBase, transform: `scale(${cardScale})`, transformOrigin: "top left" }}>
+                    <CounterPanel
+                      id={item.id}
+                      label={item.label}
+                      emoji={item.emoji}
+                      color={item.color}
+                      count={item.count}
+                      target={item.target}
+                      onIncrement={() => {}}
+                      onDecrement={() => {}}
+                      onSetCount={undefined}
+                      onAdjustBy={undefined}
+                      showStep5={appSettings.showStep5 ?? true}
+                      showStep10={appSettings.showStep10 ?? true}
+                      showStepFree={appSettings.showStepFree ?? false}
+                      stepFreeValue={appSettings.stepFreeValue ?? 1}
+                      onDeleteItem={() => {}}
+                      onEditItem={() => {}}
+                      isLightMode={isLightMode}
+                      showEditDeleteOnCard={false}
+                      cardSize={appSettings.cardSize}
+                    />
+                  </div>
+                </div>
               ))}
               <div className="list-none rounded-2xl" style={{ touchAction: "none" }}>
                 <AddItemPanel
@@ -554,6 +665,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                 />
               </div>
             </div>
+              )}
             </div>
           </div>,
           document.body
@@ -640,6 +752,84 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
               </div>
             </motion.div>
           )}
+          {isPositionedLayout && windowWidth >= 768 ? (
+            <>
+                <div
+                  ref={positionedContainerRef}
+                  className="relative flex-shrink-0"
+                  style={{
+                    width: windowWidth >= 960 ? 960 : "min(95vw, 960px)",
+                    maxWidth: "min(95vw, 960px)",
+                    aspectRatio: "1",
+                  }}
+                >
+                <div
+                  className="absolute inset-0 bg-contain bg-center bg-no-repeat"
+                  style={{
+                    backgroundImage: `url(${currentTemplate!.backgroundImage})`,
+                    color: isLightMode ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.2)",
+                  }}
+                  aria-hidden
+                />
+                {items.map((item, index) => {
+                  const isPrefectures = currentTemplateId === "prefectures";
+                  const fallbackSize = 960;
+                  const containerW = positionedContainerSize?.w ?? fallbackSize;
+                  const containerH = positionedContainerSize?.h ?? fallbackSize;
+                  const spacing = isPrefectures
+                    ? minSpacingPercent(effectiveColMaxPx, containerW, containerH, cardScale)
+                    : null;
+                  const pos =
+                    isPrefectures && spacing
+                      ? getPrefecturePosition(index, spacing.x, spacing.y)
+                      : { x: item.x ?? 50, y: item.y ?? 50 };
+                  return (
+                  <div
+                    key={item.id}
+                    className="absolute z-10"
+                    style={{
+                      left: `${pos.x}%`,
+                      top: `${pos.y}%`,
+                      width: colMaxPx,
+                      height: colMaxPx,
+                      transform: `translate(-50%, -50%) scale(${cardScale})`,
+                    }}
+                  >
+                    <CounterPanel
+                      id={item.id}
+                      label={item.label}
+                      emoji={item.emoji}
+                      color={item.color}
+                      count={item.count}
+                      target={item.target}
+                      onIncrement={handleIncrement}
+                      onDecrement={handleDecrement}
+                      onSetCount={handleSetCount}
+                      onAdjustBy={handleAdjustBy}
+                      showStep5={appSettings.showStep5 ?? true}
+                      showStep10={appSettings.showStep10 ?? true}
+                      showStepFree={appSettings.showStepFree ?? false}
+                      stepFreeValue={appSettings.stepFreeValue ?? 1}
+                      onDeleteItem={(id) => setItemToDelete(id)}
+                      onEditItem={(id) => setEditingItemId(id)}
+                      isLightMode={isLightMode}
+                      showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
+                      cardSize={appSettings.cardSize}
+                    />
+                  </div>
+                  );
+                })}
+                </div>
+              <div className={`mt-4 list-none rounded-2xl ${addPanelExpanded ? "z-50 shadow-2xl" : ""}`} style={{ touchAction: "none", maxWidth: `${gridMaxWidth}px`, width: "100%" }}>
+                <AddItemPanel
+                  isLightMode={isLightMode}
+                  onAddItem={handleAddItem}
+                  onExpand={() => setAddPanelExpanded(true)}
+                  onCollapse={() => setAddPanelExpanded(false)}
+                />
+              </div>
+            </>
+          ) : (
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -657,28 +847,31 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                 }}
               >
                 {items.map((item) => (
-                  <CounterPanel
-                    key={item.id}
-                    id={item.id}
-                    label={item.label}
-                    emoji={item.emoji}
-                    color={item.color}
-                    count={item.count}
-                    target={item.target}
-                    onIncrement={handleIncrement}
-                    onDecrement={handleDecrement}
-                    onSetCount={handleSetCount}
-                    onAdjustBy={handleAdjustBy}
-                    showStep5={appSettings.showStep5 ?? true}
-                    showStep10={appSettings.showStep10 ?? true}
-                    showStepFree={appSettings.showStepFree ?? false}
-                    stepFreeValue={appSettings.stepFreeValue ?? 1}
-                    onDeleteItem={(id) => setItemToDelete(id)}
-                    onEditItem={(id) => setEditingItemId(id)}
-                    isLightMode={isLightMode}
-                    showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
-                    cardSize={appSettings.cardSize}
-                  />
+                  <div key={item.id} style={{ width: effectiveColMaxPx, minHeight: 0 }}>
+                    <div style={{ width: colMaxPx, transform: `scale(${cardScale})`, transformOrigin: "top left" }}>
+                      <CounterPanel
+                        id={item.id}
+                        label={item.label}
+                        emoji={item.emoji}
+                        color={item.color}
+                        count={item.count}
+                        target={item.target}
+                        onIncrement={handleIncrement}
+                        onDecrement={handleDecrement}
+                        onSetCount={handleSetCount}
+                        onAdjustBy={handleAdjustBy}
+                        showStep5={appSettings.showStep5 ?? true}
+                        showStep10={appSettings.showStep10 ?? true}
+                        showStepFree={appSettings.showStepFree ?? false}
+                        stepFreeValue={appSettings.stepFreeValue ?? 1}
+                        onDeleteItem={(id) => setItemToDelete(id)}
+                        onEditItem={(id) => setEditingItemId(id)}
+                        isLightMode={isLightMode}
+                        showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
+                        cardSize={appSettings.cardSize}
+                      />
+                    </div>
+                  </div>
                 ))}
                 {/* Add Panel Slot */}
                 <div className={`list-none rounded-2xl ${addPanelExpanded ? "z-50 shadow-2xl" : ""}`} style={{ touchAction: "none" }}>
@@ -697,7 +890,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
               }}
             >
               {activeItem ? (
-                <div style={{ transform: "scale(1.05)", cursor: "grabbing" }}>
+                <div style={{ transform: `scale(${cardScale * 1.05})`, cursor: "grabbing" }}>
                   <CounterPanel
                     id={activeItem.id}
                     label={activeItem.label}
@@ -724,6 +917,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
               ) : null}
             </DragOverlay>
           </DndContext>
+          )}
         </div>
       </main>
 
