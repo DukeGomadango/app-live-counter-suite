@@ -5,6 +5,12 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      "jsx-a11y/alt-text": "warn",
+      "@next/next/no-img-element": "warn",
+    },
+  },
   globalIgnores([
     ".next/**",
     "out/**",

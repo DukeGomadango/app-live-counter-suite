@@ -206,9 +206,10 @@ export default function PlayerLinkCollectionModal({
                                                 {rarity?.name ?? "?"}
                                             </span>
                                             {localPreviewUrls[item.itemId] && item.kindLabel === "画像" ? (
+                                                // eslint-disable-next-line @next/next/no-img-element -- ローカルプレビュー用データURLのため img を使用
                                                 <img
                                                     src={localPreviewUrls[item.itemId]}
-                                                    alt=""
+                                                    alt={`${item.name ?? "アイテム"}のプレビュー`}
                                                     className="w-8 h-8 rounded object-cover shrink-0"
                                                 />
                                             ) : isLocalUrl(item.link) && item.kindLabel === "音声" ? (

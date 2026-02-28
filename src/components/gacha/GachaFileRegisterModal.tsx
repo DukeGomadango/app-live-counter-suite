@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { X, Upload, Image, Music } from "lucide-react";
+import { X, Upload, Image as ImageIcon, Music } from "lucide-react";
 import type { GachaItem } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { putGachaFile } from "@/lib/gachaFileStore";
@@ -216,7 +216,7 @@ export default function GachaFileRegisterModal({
                             onClick={() => setKind("image")}
                             className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${kind === "image" ? "bg-purple-500/20 text-purple-400 border border-purple-400/50" : isLightMode ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-white/10 text-white/70 hover:bg-white/20"}`}
                         >
-                            <Image size={14} />
+                            <ImageIcon size={14} aria-hidden />
                             画像
                         </button>
                         <button
@@ -244,7 +244,8 @@ export default function GachaFileRegisterModal({
                         className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors min-h-[100px] ${isLightMode ? "border-gray-300 hover:border-purple-400 hover:bg-purple-50/50" : "border-white/20 hover:border-purple-400/60 hover:bg-white/5"}`}
                     >
                         {previewUrl && kind === "image" ? (
-                            <img src={previewUrl} alt="" className="max-h-20 max-w-full object-contain rounded" />
+                            // eslint-disable-next-line @next/next/no-img-element -- プレビュー用データURLのため img を使用
+                            <img src={previewUrl} alt="登録画像のプレビュー" className="max-h-20 max-w-full object-contain rounded" />
                         ) : (
                             <Upload size={24} className={isLightMode ? "text-gray-400" : "text-white/50"} />
                         )}
