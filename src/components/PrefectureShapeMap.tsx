@@ -43,7 +43,6 @@ export default function PrefectureShapeMap({
   items,
   onIncrement,
   isLightMode,
-  accentColor = "#a855f7",
 }: PrefectureShapeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
@@ -55,7 +54,7 @@ export default function PrefectureShapeMap({
     if (!el) return;
 
     let cancelled = false;
-    setError(null);
+    queueMicrotask(() => setError(null));
     fetch(PREFECTURE_MAP_SVG)
       .then((res) => {
         if (!res.ok) throw new Error("地図の読み込みに失敗しました");
