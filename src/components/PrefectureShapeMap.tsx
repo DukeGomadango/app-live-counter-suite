@@ -18,7 +18,78 @@ function codeToIndex(code: string): number {
   return Number.isNaN(n) ? -1 : n - 1;
 }
 
+/** #rrggbb に alpha（0〜1）を付けて rgba または #rrggbbaa に */
+function hexWithAlpha(hex: string, alpha: number): string {
+  const a = Math.round(Math.max(0, Math.min(1, alpha)) * 255);
+  const aa = a.toString(16).padStart(2, "0");
+  if (hex.length === 7 && hex.startsWith("#")) {
+    return `${hex}${aa}`;
+  }
+  return hex;
+}
+
+/** 島が多い県で「本土」のラベル位置に使う子要素の index（0-based）。data-code → index の 0-based 県 index */
+const PREFECTURE_MAINLAND_SHAPE_INDEX: Record<number, number> = {
+  46: 3,  // 鹿児島: 九州本土部分
+  47: 4,  // 沖縄: 沖縄本島
+};
+
+/** 子が1つの path で複数島を含む県など、bbox 中心からオフセットしてラベルを寄せる。dx/dy は 0〜1 の割合（dy 負で上、dx 負で左） */
+const PREFECTURE_LABEL_OFFSET: Record<number, { dx: number; dy: number }> = {
+  1: { dx: -0.12, dy: 0 },   // 北海道: 少し左へ
+  13: { dx: 0.12, dy: -0.44 },  // 東京: 関東本土側に寄せる（-0.40 と -0.48 の間）
+};
+
 type NumberPosition = { index: number; x: number; y: number };
+
+/** 県の「代表」となる矩形を取得。島などで分かれる場合は指定 index またはオフセットで本土に寄せる */
+function getMainRect(prefectureEl: HTMLElement, prefectureIndex: number): DOMRect | null {
+  const shapes = prefectureEl.querySelectorAll("polygon, path");
+  const groupRect = prefectureEl.getBoundingClientRect();
+
+  const shapeIndexOverride = PREFECTURE_MAINLAND_SHAPE_INDEX[prefectureIndex];
+  if (shapeIndexOverride != null && shapeIndexOverride < shapes.length) {
+    const shape = shapes[shapeIndexOverride];
+    const rect = (shape as SVGElement).getBoundingClientRect();
+    if (rect.width >= 1 && rect.height >= 1) return rect;
+  }
+
+  const offsetOverride = PREFECTURE_LABEL_OFFSET[prefectureIndex];
+  if (offsetOverride) {
+    const cx = groupRect.left + groupRect.width * (0.5 + offsetOverride.dx);
+    const cy = groupRect.top + groupRect.height * (0.5 + offsetOverride.dy);
+    return new DOMRect(cx - 1, cy - 1, 2, 2);
+  }
+
+  if (shapes.length === 0) return groupRect;
+  const items: { rect: DOMRect; cx: number; cy: number; area: number }[] = [];
+  shapes.forEach((shape) => {
+    const rect = (shape as SVGElement).getBoundingClientRect();
+    const area = rect.width * rect.height;
+    if (area < 1) return;
+    items.push({
+      rect,
+      cx: rect.left + rect.width / 2,
+      cy: rect.top + rect.height / 2,
+      area,
+    });
+  });
+  if (items.length === 0) return groupRect;
+  const centroidX = items.reduce((s, i) => s + i.cx, 0) / items.length;
+  const centroidY = items.reduce((s, i) => s + i.cy, 0) / items.length;
+  items.sort((a, b) => b.area - a.area);
+  const topByArea = items.slice(0, Math.max(3, Math.ceil(items.length * 0.3)));
+  let best = topByArea[0];
+  let bestDist = (best.cx - centroidX) ** 2 + (best.cy - centroidY) ** 2;
+  topByArea.forEach((it) => {
+    const d = (it.cx - centroidX) ** 2 + (it.cy - centroidY) ** 2;
+    if (d < bestDist) {
+      bestDist = d;
+      best = it;
+    }
+  });
+  return best.rect;
+}
 
 function measurePositions(
   container: HTMLDivElement,
@@ -31,7 +102,8 @@ function measurePositions(
     const code = el.getAttribute("data-code");
     const index = code != null ? codeToIndex(code) : -1;
     if (index < 0 || index >= itemsLength) return;
-    const rect = el.getBoundingClientRect();
+    const rect = getMainRect(el, index + 1);
+    if (!rect) return;
     const x = rect.left - containerRect.left + rect.width / 2;
     const y = rect.top - containerRect.top + rect.height / 2;
     positions.push({ index, x, y });
@@ -43,6 +115,7 @@ export default function PrefectureShapeMap({
   items,
   onIncrement,
   isLightMode,
+  accentColor = "#a855f7",
 }: PrefectureShapeMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState(false);
@@ -86,7 +159,7 @@ export default function PrefectureShapeMap({
     if (!loaded || !containerRef.current) return;
 
     const prefectures = containerRef.current.querySelectorAll<HTMLElement>(".prefecture");
-    const strokeColor = isLightMode ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.4)";
+    const strokeColor = hexWithAlpha(accentColor, 0.55);
     const teardowns: (() => void)[] = [];
 
     prefectures.forEach((el) => {
@@ -95,18 +168,22 @@ export default function PrefectureShapeMap({
       const item = index >= 0 && index < items.length ? items[index] : undefined;
       if (!item) return;
 
-      el.style.fill = item.color;
+      // グラス風: 県の色を半透明に
+      el.style.fill = hexWithAlpha(item.color, 0.42);
       el.style.stroke = strokeColor;
+      el.style.strokeWidth = "1";
       el.style.cursor = "pointer";
-      el.style.transition = "filter 0.15s ease";
+      el.style.transition = "filter 0.2s ease, stroke 0.2s ease";
       el.setAttribute("role", "button");
       el.setAttribute("tabIndex", "0");
       el.setAttribute("aria-label", `${item.label}（${item.count}件）クリックで増やす`);
 
       const onPointerEnter = () => {
-        el.style.filter = "brightness(1.2)";
+        el.style.stroke = accentColor;
+        el.style.filter = `drop-shadow(0 0 8px ${hexWithAlpha(accentColor, 0.7)})`;
       };
       const onPointerLeave = () => {
+        el.style.stroke = strokeColor;
         el.style.filter = "";
       };
       const onClick = (e: Event) => {
@@ -137,7 +214,7 @@ export default function PrefectureShapeMap({
     return () => {
       teardowns.forEach((fn) => fn());
     };
-  }, [loaded, items, onIncrement, isLightMode]);
+  }, [loaded, items, onIncrement, isLightMode, accentColor]);
 
   // 県の中心位置を計測し、数字オーバーレイ用の座標を更新（ロード後・リサイズ時）
   useEffect(() => {
@@ -170,14 +247,13 @@ export default function PrefectureShapeMap({
     );
   }
 
-  const textColor = isLightMode ? "rgba(0,0,0,0.85)" : "rgba(255,255,255,0.95)";
-  const textShadow = isLightMode
-    ? "0 0 2px #fff, 0 1px 2px rgba(0,0,0,0.3)"
-    : "0 0 2px #000, 0 1px 2px rgba(0,0,0,0.5)";
+  // 数字ラベルを他コンポーネント（プロジェクト名など）と揃えたアクセントのグロー
+  const labelColor = isLightMode ? "rgba(0,0,0,0.9)" : "rgba(255,255,255,0.98)";
+  const labelShadow = `0 0 16px ${hexWithAlpha(accentColor, 0.55)}, 0 0 4px ${hexWithAlpha(accentColor, 0.4)}`;
 
   return (
     <div
-      className="prefecture-shape-map relative w-full min-h-[280px] rounded-xl overflow-hidden bg-neutral-100 dark:bg-neutral-800"
+      className="prefecture-shape-map relative w-full min-h-[280px] rounded-xl overflow-hidden bg-transparent"
       style={{ aspectRatio: "1", maxWidth: "min(95vw, 640px)" }}
     >
       <div
@@ -203,8 +279,8 @@ export default function PrefectureShapeMap({
                   transform: "translate(-50%, -50%)",
                   minWidth: "1.25em",
                   fontSize: "clamp(10px, 2.2vw, 14px)",
-                  color: textColor,
-                  textShadow,
+                  color: labelColor,
+                  textShadow: labelShadow,
                 }}
               >
                 {count}
