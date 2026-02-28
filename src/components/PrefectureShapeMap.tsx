@@ -79,7 +79,9 @@ function getMainRect(prefectureEl: HTMLElement, prefectureIndex: number): DOMRec
   const centroidY = items.reduce((s, i) => s + i.cy, 0) / items.length;
   items.sort((a, b) => b.area - a.area);
   const topByArea = items.slice(0, Math.max(3, Math.ceil(items.length * 0.3)));
-  let best = topByArea[0];
+  const first = topByArea[0];
+  if (!first) return groupRect;
+  let best = first;
   let bestDist = (best.cx - centroidX) ** 2 + (best.cy - centroidY) ** 2;
   topByArea.forEach((it) => {
     const d = (it.cx - centroidX) ** 2 + (it.cy - centroidY) ** 2;
