@@ -572,11 +572,16 @@ export default function GachaRollAnimation({
                 </div>
                 <div className="flex-1 overflow-y-auto scroll-touch rounded-xl px-3 py-2 min-h-0" style={{ background: glassBg, border: `1px solid ${glassBorder}` }}>
                     <div className="flex flex-col gap-1">
-                        {bulkOrganized.slice(0, Math.max(0, bulkRevealVisibleUpTo + 1)).map((item, idx) => {
-                            const rarity = getRarityById(item.rarityId);
-                            const prevRarity = idx > 0 ? getRarityById(bulkOrganized[idx - 1]?.rarityId ?? "") : null;
-                            const isRarityUp = idx > 0 && rarity && prevRarity && rarity.sortOrder > prevRarity.sortOrder;
-                            const displayCount = bulkDisplayCounts[idx] ?? 0;
+                        {(() => {
+                            const visibleBulk = bulkOrganized.slice(0, Math.max(0, bulkRevealVisibleUpTo + 1));
+                            const reversed = visibleBulk.slice().reverse();
+                            return reversed.map((item, i) => {
+                                const originalIdx = visibleBulk.length - 1 - i;
+                                const rarity = getRarityById(item.rarityId);
+                                const prevItem = reversed[i + 1];
+                                const prevRarity = prevItem ? getRarityById(prevItem.rarityId) : null;
+                                const isRarityUp = Boolean(rarity && prevRarity && rarity.sortOrder > prevRarity.sortOrder);
+                                const displayCount = bulkDisplayCounts[originalIdx] ?? 0;
                             return (
                                 <motion.div
                                     key={item.itemId}
@@ -660,7 +665,8 @@ export default function GachaRollAnimation({
                                     </span>
                                 </motion.div>
                             );
-                        })}
+                            });
+                        })()}
                     </div>
                 </div>
             </div>
@@ -687,7 +693,7 @@ export default function GachaRollAnimation({
                 <div className="flex-1 overflow-y-auto scroll-touch">
                     <div className="flex flex-wrap gap-1.5">
                         <AnimatePresence>
-                            {visibleResults.map((result) => {
+                            {visibleResults.slice().reverse().map((result) => {
                                 const rarity = getRarityForResult(result);
                                 const isHighRarity = rarity && rarity.sortOrder >= (pool.rarities.length - 1);
                                 return (
