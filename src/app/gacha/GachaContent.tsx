@@ -292,6 +292,11 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
     const sidebarScrollRef = useRef<HTMLDivElement>(null);
     const [playerHistoryViewId, setPlayerHistoryViewId] = useState<string | null>(null);
     const [sidebarWidthPx, setSidebarWidthPx] = useLocalStorage<number>("gacha-sidebar-width", 320);
+    const [hydrated, setHydrated] = useState(false);
+
+    useEffect(() => {
+        setHydrated(true);
+    }, []);
 
     // 旧品目形式（link）を imageUrl に移すマイグレーション（初回のみ）
     useEffect(() => {
@@ -537,8 +542,8 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
     const { glassBorder } = useGlassStyle(isLightMode);
     const displayLight = isLightMode;
     const headerBg = displayLight ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.5)";
-    const orbColorForLayer = gachaSettings.orbColor ?? gachaSettings.accentColor ?? "#a855f7";
-    const orbIntensity = gachaSettings.orbIntensity ?? 50;
+    const orbColorForLayer = hydrated ? (gachaSettings.orbColor ?? gachaSettings.accentColor ?? "#a855f7") : "#a855f7";
+    const orbIntensity = hydrated ? (gachaSettings.orbIntensity ?? 50) : 50;
 
     const orbsLayer = (
         <div className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${displayLight ? "mix-blend-multiply opacity-20" : "opacity-80"}`}>
@@ -596,7 +601,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                 >
                     <div className="flex items-center gap-2">
                         {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
-                        {activePlayer && (
+                        {hydrated && activePlayer && (
                             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${displayLight ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
                                 <Users size={12} />
                                 <span>{activePlayer.name}</span>
@@ -803,7 +808,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                     )}
                     {/* PC版Split時はモード切替を右下に出すのでヘッダーからは非表示 */}
                     {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
-                    {activePlayer && (
+                    {hydrated && activePlayer && (
                         <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${displayLight ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
                             <Users size={12} />
                             <span className="text-xs font-medium">{activePlayer.name}</span>
@@ -912,7 +917,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                                             }`}
                                                     >
                                                         <Icon size={14} /> {tab.label}
-                                                        {tab.id === "players" && (players || []).length > 0 && (
+                                                        {hydrated && tab.id === "players" && (players || []).length > 0 && (
                                                             <span className={`text-[10px] px-1 rounded-full ${displayLight ? "bg-purple-100 text-purple-700" : "bg-white/10 text-white/85"}`}>
                                                                 {(players || []).length}
                                                             </span>
@@ -981,7 +986,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                     <aside
                         className="h-full flex flex-col overflow-hidden shrink-0"
                         style={{
-                            width: sidebarWidthPx,
+                            width: hydrated ? sidebarWidthPx : 320,
                             minWidth: 200,
                             maxWidth: 720,
                             borderRight: `1px solid ${glassBorder}`,
@@ -1005,7 +1010,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
                                             }`}
                                     >
                                         <Icon size={14} /> {tab.label}
-                                        {tab.id === "players" && (players || []).length > 0 && (
+                                        {hydrated && tab.id === "players" && (players || []).length > 0 && (
                                             <span className={`text-[10px] px-1 rounded-full ${displayLight ? "bg-purple-100 text-purple-700" : "bg-white/10"}`}>
                                                 {(players || []).length}
                                             </span>

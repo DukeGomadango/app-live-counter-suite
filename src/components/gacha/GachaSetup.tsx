@@ -109,6 +109,12 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const [itemSortMode, setItemSortMode] = useState<ItemSortMode>("custom");
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [draggingSelectionIds, setDraggingSelectionIds] = useState<Set<string> | null>(null);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        const id = setTimeout(() => setMounted(true), 0);
+        return () => clearTimeout(id);
+    }, []);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
@@ -387,7 +393,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
             {/* レア度設定 */}
             <div className="rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
-                <SectionHeader id="rarities" icon={Palette} title="レア度設定" badge={`${pool.rarities.length}`} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
+                <SectionHeader id="rarities" icon={Palette} title="レア度設定" badge={mounted ? `${pool.rarities.length}` : "0"} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
                 <AnimatePresence>
                     {expandedSection === "rarities" && (
                         <motion.div
@@ -398,7 +404,8 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                             className="overflow-hidden"
                         >
                             <div className="px-4 pb-4 flex flex-col gap-2">
-                                {pool.rarities
+                                {(mounted ? pool.rarities : [])
+                                    .slice()
                                     .sort((a, b) => a.sortOrder - b.sortOrder)
                                     .map(rarity => (
                                         <div
@@ -435,7 +442,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                 style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                             />
                                             <span className={`text-[10px] w-8 text-center ${textMuted}`}>#{rarity.sortOrder}</span>
-                                            {pool.rarities.length > 1 && (
+                                            {(mounted ? pool.rarities : []).length > 1 && (
                                                 <button
                                                     onClick={() => setPendingDelete({ type: "rarity", id: rarity.id })}
                                                     className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors shrink-0"
@@ -460,7 +467,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
             {/* 品目設定 */}
             <div className="rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
-                <SectionHeader id="items" icon={Sparkles} title="排出品目" badge={`${pool.items.length}`} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
+                <SectionHeader id="items" icon={Sparkles} title="排出品目" badge={mounted ? `${pool.items.length}` : "0"} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
                 <AnimatePresence>
                     {expandedSection === "items" && (
                         <motion.div
@@ -472,7 +479,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                         >
                             <div className="px-4 pb-4 flex flex-col gap-2">
                                 {/* レア度別確率サマリ */}
-                                {pool.items.length > 0 && (
+                                {mounted && pool.items.length > 0 && (
                                     <div className="flex flex-wrap gap-1 mb-3">
                                         {pool.rarities
                                             .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -493,7 +500,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                 )}
 
                                 {/* 按分発生時のメッセージ */}
-                                {normalizeMessage && (
+                                {mounted && normalizeMessage && (
                                     <div
                                         className={`flex flex-col gap-2 mb-2 px-3 py-2 rounded-lg text-xs ${textLight ? "bg-amber-50 text-amber-900 border border-amber-200" : "bg-amber-500/15 text-amber-200 border border-amber-500/30"}`}
                                         role="alert"
@@ -521,7 +528,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                 )}
 
                                 {/* 一括確率設定バー（1件以上選択時） */}
-                                {selectedItemIds.size >= 1 && (
+                                {mounted && selectedItemIds.size >= 1 && (
                                     <div className={`flex flex-wrap items-center gap-2 mb-2 px-3 py-2 rounded-lg text-xs ${textLight ? "bg-purple-50 border border-purple-200" : "bg-purple-500/15 border border-purple-500/30"}`}>
                                         <span className={textPrimary}>選択中 {selectedItemIds.size} 件</span>
                                         <input
@@ -548,7 +555,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                 )}
 
                                 {/* 並べ替え */}
-                                {pool.items.length > 0 && (
+                                {mounted && pool.items.length > 0 && (
                                     <div className="flex items-center gap-2 mb-2">
                                         <span className={`text-[10px] ${textMuted}`}>並べ替え:</span>
                                         <select
@@ -572,7 +579,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                     </div>
                                 )}
 
-                                {/* 品目リスト（編集可能） */}
+                                {/* 品目リスト（編集可能）。ハイドレーション一致のため mounted まで空で描画 */}
                                 <div className="flex flex-col gap-1.5 mb-3 max-h-64 overflow-y-auto scroll-touch pr-1">
                                     <DndContext
                                         sensors={sensors}
@@ -581,8 +588,8 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         onDragEnd={handleDragEnd}
                                         onDragCancel={handleDragCancel}
                                     >
-                                        <SortableContext items={pool.items.map(i => i.id)} strategy={verticalListSortingStrategy}>
-                                            {pool.items.map((item, index) => {
+                                        <SortableContext items={(mounted ? pool.items : []).map(i => i.id)} strategy={verticalListSortingStrategy}>
+                                            {(mounted ? pool.items : []).map((item, index) => {
                                                 const pt = probabilities.get(item.id) || 0;
                                                 const isFirst = index === 0;
                                                 return (
@@ -626,16 +633,16 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                             onKeyDown={e => e.key === "Enter" && addItem()}
                                         />
                                         <select
-                                            value={newItemRarityId}
+                                            value={mounted ? newItemRarityId : ""}
                                             onChange={e => setNewItemRarityId(e.target.value)}
                                             className={`px-2 py-1.5 rounded-lg text-xs ${textPrimary} outline-none cursor-pointer`}
                                             style={{
                                                 background: inputBg,
                                                 border: `1px solid ${inputBorder}`,
-                                                color: pool.rarities.find(r => r.id === newItemRarityId)?.color || (textLight ? "#1f2937" : "#e2e8f0"),
+                                                color: (mounted ? pool.rarities : []).find(r => r.id === newItemRarityId)?.color || (textLight ? "#1f2937" : "#e2e8f0"),
                                             }}
                                         >
-                                            {pool.rarities.sort((a, b) => a.sortOrder - b.sortOrder).map(r => (
+                                            {(mounted ? pool.rarities : []).slice().sort((a, b) => a.sortOrder - b.sortOrder).map(r => (
                                                 <option key={r.id} value={r.id} style={selectOptionStyle}>
                                                     {r.name}
                                                 </option>
@@ -669,7 +676,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
             {/* 天井設定 */}
             <div className="rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
-                <SectionHeader id="pity" icon={Shield} title="天井設定" badge={pool.pityEnabled ? "ON" : "OFF"} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
+                <SectionHeader id="pity" icon={Shield} title="天井設定" badge={mounted ? (pool.pityEnabled ? "ON" : "OFF") : "OFF"} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
                 <AnimatePresence>
                     {expandedSection === "pity" && (
                         <motion.div

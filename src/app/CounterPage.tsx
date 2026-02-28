@@ -36,8 +36,9 @@ import { generateShareUrl, shareImageWithText } from "@/lib/share";
 import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 
 function useWindowWidth() {
-  const [width, setWidth] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
+  const [width, setWidth] = useState(1024);
   useEffect(() => {
+    setWidth(window.innerWidth);
     const handleResize = () => setWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
@@ -87,6 +88,10 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
     }
   );
   const windowWidth = useWindowWidth();
+  const [winH, setWinH] = useState(800);
+  useEffect(() => {
+    setWinH(window.innerHeight);
+  }, []);
   const shareAreaRef = useRef<HTMLDivElement>(null);
   const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
 
@@ -425,7 +430,6 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   const captureRows = Math.ceil(totalSlots / effectiveCols);
   const captureGap = 10;
   const estimatedGridHeight = captureRows * colMaxPx + (captureRows - 1) * captureGap + 20;
-  const winH = typeof window !== "undefined" ? window.innerHeight : 800;
   const captureScale = Math.min(
     windowWidth / gridMaxWidth,
     winH / estimatedGridHeight,

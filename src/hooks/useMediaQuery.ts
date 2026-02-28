@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useSyncExternalStore, useState, useEffect } from "react";
 
 function subscribeMedia(query: string, callback: () => void) {
     const m = window.matchMedia(query);
@@ -18,12 +18,17 @@ function getMediaServerSnapshot(): boolean {
 }
 
 /**
- * メディアクエリにマッチするかどうかを返す。SSR 時は false。
+ * メディアクエリにマッチするかどうかを返す。SSR・初回クライアント描画時は false でハイドレーション一致。
  */
 export function useMediaQuery(query: string): boolean {
-    return useSyncExternalStore(
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+    const matches = useSyncExternalStore(
         (cb) => subscribeMedia(query, cb),
         () => getMediaSnapshot(query),
         getMediaServerSnapshot
     );
+    return mounted ? matches : false;
 }
