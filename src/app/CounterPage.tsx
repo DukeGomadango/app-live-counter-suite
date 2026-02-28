@@ -38,10 +38,13 @@ import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 function useWindowWidth() {
   const [width, setWidth] = useState(1024);
   useEffect(() => {
-    setWidth(window.innerWidth);
+    const id = setTimeout(() => setWidth(window.innerWidth), 0);
     const handleResize = () => setWidth(window.innerWidth);
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    return () => {
+      clearTimeout(id);
+      window.removeEventListener("resize", handleResize);
+    };
   }, []);
   return width;
 }
@@ -90,7 +93,8 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   const windowWidth = useWindowWidth();
   const [winH, setWinH] = useState(800);
   useEffect(() => {
-    setWinH(window.innerHeight);
+    const id = setTimeout(() => setWinH(window.innerHeight), 0);
+    return () => clearTimeout(id);
   }, []);
   const shareAreaRef = useRef<HTMLDivElement>(null);
   const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);

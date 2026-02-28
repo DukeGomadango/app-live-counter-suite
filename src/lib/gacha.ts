@@ -318,7 +318,6 @@ export function performGachaPull(
 
     // 最高レア度を決定
     const highestRarity = [...pool.rarities].sort((a, b) => b.sortOrder - a.sortOrder)[0];
-    const highestRarityItems = pool.items.filter(item => item.rarityId === highestRarity?.id);
 
     // 天井確定レア度のアイテム
     const pityRarityItems = pool.items.filter(item => item.rarityId === pool.pityGuaranteedRarityId);
