@@ -3,6 +3,7 @@ import { Montserrat } from "next/font/google";
 import "./globals.css";
 import JsonLd from "@/components/JsonLd";
 import HelpButton from "@/components/HelpButton";
+import AnalyticsSender from "@/components/AnalyticsSender";
 import { SplitModuleProvider } from "@/context/SplitModuleContext";
 import { SITE_CONFIG } from "@/lib/site";
 
@@ -74,6 +75,7 @@ export default function RootLayout({
       <body className={`${montserrat.variable} antialiased`}>
         <JsonLd />
         <SplitModuleProvider>
+          <AnalyticsSender />
           <div className="h-screen overflow-y-auto scroll-touch">
             {children}
           </div>

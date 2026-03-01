@@ -132,3 +132,10 @@ export function getToolLabelJa(path: string): string | null {
   const t = TOOLS.find((x) => x.path === path);
   return t ? t.labelJa : null;
 }
+
+/** path からツールIDを取得（分析用）。トップは "top"、未定義パスは path の先頭スラッシュ除く */
+export function getToolIdFromPath(path: string): string {
+  if (path === "/") return "top";
+  const t = TOOLS.find((x) => x.path === path);
+  return t ? t.id : path.replace(/^\//, "") || "unknown";
+}
