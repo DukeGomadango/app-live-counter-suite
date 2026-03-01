@@ -526,7 +526,9 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
   const captureOuterWidth = captureWidth + capturePadding * 2;
   const captureOuterHeight = captureHeight + capturePadding * 2;
 
-  const capturePositionedSize = 960;
+  // 47都道府県のキャプチャ: スマホでは画面幅に合わせて小さく（幅広くなりすぎないように）
+  const capturePositionedSize =
+    captureW < 768 ? Math.min(640, Math.max(280, captureW - 64)) : 960;
   const capturePositionedOuter = capturePositionedSize + capturePadding * 2;
 
   const captureBaseBg = isLightMode
@@ -591,7 +593,13 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                   className="relative w-full h-full flex items-center justify-center"
                   style={{ width: capturePositionedSize, height: capturePositionedSize }}
                 >
-                  <div style={{ width: 640, height: 640, flexShrink: 0 }}>
+                  <div
+                    style={{
+                      width: Math.min(capturePositionedSize, 640),
+                      height: Math.min(capturePositionedSize, 640),
+                      flexShrink: 0,
+                    }}
+                  >
                     <PrefectureShapeMap
                       items={items}
                       onIncrement={() => {}}
