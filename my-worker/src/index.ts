@@ -119,11 +119,13 @@ export default {
 			try {
 				const days = Math.min(90, Math.max(1, parseInt(url.searchParams.get("days") ?? "30", 10)));
 				const bindDays = `-${days} days`;
+				// 管理画面は集計から除外（path NOT LIKE '/admin%'）
+				const notAdmin = " AND path NOT LIKE '/admin%'";
 				// ページビュー: event_type が page_view または NULL（既存データ互換）
 				const byTool = await env.DB.prepare(
 					`SELECT tool_id, COUNT(*) as views, COUNT(DISTINCT anonymous_id) as users
 					 FROM usage_events
-					 WHERE ts >= date('now', ?) AND (event_type IS NULL OR event_type = 'page_view')
+					 WHERE ts >= date('now', ?) AND (event_type IS NULL OR event_type = 'page_view')${notAdmin}
 					 GROUP BY tool_id
 					 ORDER BY views DESC`
 				)
@@ -132,7 +134,7 @@ export default {
 				const byDayViews = await env.DB.prepare(
 					`SELECT date(ts) as day, COUNT(*) as views, COUNT(DISTINCT anonymous_id) as users
 					 FROM usage_events
-					 WHERE ts >= date('now', ?) AND (event_type IS NULL OR event_type = 'page_view')
+					 WHERE ts >= date('now', ?) AND (event_type IS NULL OR event_type = 'page_view')${notAdmin}
 					 GROUP BY day
 					 ORDER BY day DESC
 					 LIMIT 90`
@@ -142,7 +144,7 @@ export default {
 				const byDaySessions = await env.DB.prepare(
 					`SELECT date(ts) as day, COUNT(*) as sessions
 					 FROM usage_events
-					 WHERE ts >= date('now', ?) AND event_type = 'session_start'
+					 WHERE ts >= date('now', ?) AND event_type = 'session_start'${notAdmin}
 					 GROUP BY day
 					 ORDER BY day DESC
 					 LIMIT 90`
@@ -150,7 +152,7 @@ export default {
 					.bind(bindDays)
 					.all();
 				const sessionsResult = await env.DB.prepare(
-					`SELECT COUNT(*) as total FROM usage_events WHERE ts >= date('now', ?) AND event_type = 'session_start'`
+					`SELECT COUNT(*) as total FROM usage_events WHERE ts >= date('now', ?) AND event_type = 'session_start'${notAdmin}`
 				)
 					.bind(bindDays)
 					.all();
@@ -193,7 +195,7 @@ export default {
 				const visitors = await env.DB.prepare(
 					`SELECT anonymous_id, COUNT(*) as views, MIN(ts) as first_ts, MAX(ts) as last_ts, GROUP_CONCAT(DISTINCT tool_id) as tool_ids
 					 FROM usage_events
-					 WHERE ts >= date('now', ?)
+					 WHERE ts >= date('now', ?) AND path NOT LIKE '/admin%'
 					 GROUP BY anonymous_id
 					 ORDER BY views DESC
 					 LIMIT ?`
@@ -227,7 +229,7 @@ export default {
 			try {
 				const days = Math.min(90, Math.max(1, parseInt(url.searchParams.get("days") ?? "30", 10)));
 				const events = await env.DB.prepare(
-					`SELECT ts, path, tool_id FROM usage_events WHERE anonymous_id = ? AND ts >= date('now', ?) ORDER BY ts DESC LIMIT 500`
+					`SELECT ts, path, tool_id FROM usage_events WHERE anonymous_id = ? AND ts >= date('now', ?) AND path NOT LIKE '/admin%' ORDER BY ts DESC LIMIT 500`
 				)
 					.bind(anonymousId, `-${days} days`)
 					.all();
