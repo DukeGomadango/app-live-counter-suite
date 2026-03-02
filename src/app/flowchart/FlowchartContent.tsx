@@ -21,7 +21,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import ModeSelector from "@/components/ModeSelector";
 import CounterNode, { CounterNodeData } from "@/components/flowchart/CounterNode";
-import TotalNode, { TotalNodeData } from "@/components/flowchart/TotalNode";
+import TotalNode from "@/components/flowchart/TotalNode";
 import { Plus } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { motion, AnimatePresence } from "framer-motion";
@@ -45,7 +45,7 @@ const INITIAL_NODES: Node[] = [
 
 const INITIAL_EDGES: Edge[] = [];
 
-export default function FlowchartContent({ isSplitMode = false, isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
+export default function FlowchartContent({ isSplitMode = false, isRightPane: _isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
     // 1. Sync appSettings
     const [appSettings, setAppSettings] = useLocalStorage<AppSettings>("flowchart-app-settings", {
         cardSize: "L" as const,
@@ -100,7 +100,7 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane = fa
     const [ghostSourceId, setGhostSourceId] = useState<string | null>(null);
 
     // History and Clipboard for Keyboard Shortcuts
-    const [past, setPast] = useLocalStorage<{ nodes: Node[], edges: Edge[] }[]>("flowchart-undo-history", []);
+    const [_past, setPast] = useLocalStorage<{ nodes: Node[], edges: Edge[] }[]>("flowchart-undo-history", []);
     const [copiedElements, setCopiedElements] = useState<{ nodes: Node[], edges: Edge[] } | null>(null);
 
     const saveHistory = useCallback((currentNodes: Node[], currentEdges: Edge[]) => {
@@ -172,6 +172,7 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane = fa
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setPast は安定した setter のため依存から省略
     }, [nodes, edges, copiedElements, saveHistory, setNodes, setEdges]);
 
     const onNodesChange = useCallback(

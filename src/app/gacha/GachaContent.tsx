@@ -268,7 +268,7 @@ function ItemHistoryPanel({
 const DEFAULT_POOL = createDefaultPool();
 const DEFAULT_SETTINGS = createDefaultSettings();
 
-export default function GachaContent({ isSplitMode = false, isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
+export default function GachaContent({ isSplitMode = false, isRightPane: _isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
     // 永続化される状態（初期値はモジュール定数で参照を安定化）
     const [pool, setPool] = useLocalStorage<GachaPool>("gacha-pool", DEFAULT_POOL);
     const [players, setPlayers] = useLocalStorage<Player[]>("gacha-players", []);
@@ -581,7 +581,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane = false 
     // ===== モバイルレイアウト =====
     if (isMobile) {
         const mobileHeaderPosition = isSplitMode ? "sticky top-0" : "fixed top-0 left-0 right-0";
-        const mobileOverlayPosition = isSplitMode ? "absolute" : "fixed";
+        const _mobileOverlayPosition = isSplitMode ? "absolute" : "fixed";
         return (
             <div className="h-screen w-screen flex flex-col overflow-hidden relative z-10">
                 {orbsLayer}

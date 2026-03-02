@@ -129,7 +129,7 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
         return () => document.removeEventListener("mousedown", onDocClick);
     }, [openColorIndex]);
 
-    const showSlots = section === "slots" || section === "all";
+    const _showSlots = section === "slots" || section === "all";
     const showTemplates = section === "templates" || section === "all";
 
     if (section === "templates" && onSaveTemplate && onLoadTemplate && currentSettings) {

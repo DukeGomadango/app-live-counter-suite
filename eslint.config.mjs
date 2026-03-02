@@ -9,6 +9,10 @@ const eslintConfig = defineConfig([
     rules: {
       "jsx-a11y/alt-text": "warn",
       "@next/next/no-img-element": "warn",
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" },
+      ],
     },
   },
   globalIgnores([

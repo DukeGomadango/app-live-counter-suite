@@ -51,7 +51,7 @@ const MODULE_OPTIONS: { value: ModuleType; label: string }[] = [
 ];
 
 export default function SplitPage() {
-    const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
+    const [isLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
     const [appSettings] = useLocalStorage<AppSettings>(
         "counter-app-settings",
         {

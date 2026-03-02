@@ -25,9 +25,6 @@ export default function RouletteStatsPanel({
     const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-600" : "text-white/60";
 
-    const counts = slots.length > 0
-        ? slots.map((_, i) => history.filter((idx) => idx === i).length)
-        : [];
     const uniqueLabels = slots.length > 0 ? [...new Set(slots)] : [];
     const labelCounts = uniqueLabels.map((label) =>
         history.filter((idx) => slots[idx] === label).length

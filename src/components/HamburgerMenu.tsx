@@ -7,7 +7,6 @@ import {
     Sun,
     Moon,
     RotateCcw,
-    Users,
     Plus,
     Trash2,
     Pencil,
@@ -809,7 +808,7 @@ export default function HamburgerMenu({
                                             </div>
 
                                             {/* Node-specific targets grouped by operation */}
-                                            {viewMode === "flowchart" && Object.entries(groupedFlowchartNodes).some(([_, nodes]) => nodes.length > 0) && (
+                                            {viewMode === "flowchart" && Object.entries(groupedFlowchartNodes).some(([, nodes]) => nodes.length > 0) && (
                                                 <div className="space-y-4 pt-4 border-t" style={{ borderColor: borderSubtle }}>
                                                     <h3 className={`text-xs font-bold ${textMuted} uppercase tracking-wider pl-1`}>
                                                         個別ノードの目標設定

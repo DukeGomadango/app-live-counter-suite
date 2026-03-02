@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   DndContext,
   closestCenter,
@@ -55,7 +55,7 @@ function useWindowWidth() {
   return width;
 }
 
-export default function Home({ isSplitMode = false, isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
+export default function Home({ isSplitMode = false, isRightPane: _isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
   const [items, setItems] = useLocalStorage<CounterItem[]>(
     "counter-items",
     createCounterItems(TEMPLATES[1] ?? TEMPLATES[0]!)
@@ -407,7 +407,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
     [setItems]
   );
 
-  const handleDeleteItem = useCallback(
+  const _handleDeleteItem = useCallback(
     (id: string) => {
       setItems((prev) => prev.filter((item) => item.id !== id));
     },
@@ -440,7 +440,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
         id: `custom-tpl-${Date.now()}`,
         name,
         description: `カスタムテンプレート (${items.length}項目)`,
-        items: items.map(({ count, target, ...rest }) => rest),
+        items: items.map(({ count: _count, target: _target, ...rest }) => rest),
       };
       setCustomTemplates((prev) => [...prev, newTemplate]);
     },
@@ -622,7 +622,7 @@ export default function Home({ isSplitMode = false, isRightPane = false }: { isS
                     color: isLightMode ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.2)",
                   }}
                 >
-                  {items.map((item, index) => {
+                  {items.map((item, _index) => {
                     const pos = { x: item.x ?? 50, y: item.y ?? 50 };
                     return (
                     <div

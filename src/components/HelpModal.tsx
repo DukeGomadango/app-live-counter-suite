@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, GitMerge, LayoutGrid, HelpCircle, Sparkles, Calculator, Home, CircleDot, Clock, PanelTopOpen } from "lucide-react";
+import { X, Users, GitMerge, LayoutGrid, Sparkles, Calculator, Home, CircleDot, Clock, PanelTopOpen } from "lucide-react";
 import { useEffect } from "react";
 
 interface HelpModalProps {
@@ -26,7 +26,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
         };
     }, [isOpen]);
 
-    const bg = isLightMode ? "rgba(255,255,255,0.95)" : "rgba(10,5,30,0.95)";
+    const _bg = isLightMode ? "rgba(255,255,255,0.95)" : "rgba(10,5,30,0.95)";
     const borderColor = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
     const textPrimary = isLightMode ? "text-gray-900" : "text-white";
     const textSecondary = isLightMode ? "text-gray-600" : "text-white/70";

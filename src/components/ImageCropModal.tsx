@@ -46,7 +46,7 @@ export default function ImageCropModal({
   const imageRef = useRef<HTMLImageElement>(null);
   const [imageSize, setImageSize] = useState<{ w: number; h: number } | null>(null);
   const [cropRect, setCropRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
-  const [dragMode, setDragMode] = useState<"move" | ResizeHandle | null>(null);
+  const [, setDragMode] = useState<"move" | ResizeHandle | null>(null);
   const dragModeRef = useRef<"move" | ResizeHandle | null>(null);
   const dragStartRef = useRef<{
     ix: number;
@@ -57,8 +57,8 @@ export default function ImageCropModal({
     h: number;
   } | null>(null);
 
-  const naturalWidth = imageSize?.w ?? imageRef.current?.naturalWidth ?? 0;
-  const naturalHeight = imageSize?.h ?? imageRef.current?.naturalHeight ?? 0;
+  const naturalWidth = imageSize?.w ?? 0;
+  const naturalHeight = imageSize?.h ?? 0;
 
   useEffect(() => {
     if (!open || !imageDataUrl) return;
@@ -69,6 +69,7 @@ export default function ImageCropModal({
     return () => window.removeEventListener("keydown", handle);
   }, [open, imageDataUrl, onCancel]);
 
+  /* eslint-disable react-hooks/set-state-in-effect -- モーダル表示・画像変更時にクロップ状態をリセットするため */
   useEffect(() => {
     if (open && imageDataUrl) {
       setImageSize(null);
@@ -76,6 +77,7 @@ export default function ImageCropModal({
       setDragMode(null);
     }
   }, [open, imageDataUrl]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const onImageLoad = useCallback(() => {
     const el = imageRef.current;

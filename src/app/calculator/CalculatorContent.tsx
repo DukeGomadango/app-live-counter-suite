@@ -97,7 +97,7 @@ function nCk(n: number, k: number): number | null {
 
 export default function CalculatorContent({
     isSplitMode = false,
-    isRightPane = false,
+    isRightPane: _isRightPane = false,
 }: {
     isSplitMode?: boolean;
     isRightPane?: boolean;
@@ -111,8 +111,8 @@ export default function CalculatorContent({
     const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
     const { glassBorder } = useGlassStyle(isLightMode);
-    const headerBg = isLightMode ? "rgba(255,255,255,0.7)" : "rgba(20,10,40,0.6)";
-    const displayLight = isLightMode;
+    const _headerBg = isLightMode ? "rgba(255,255,255,0.7)" : "rgba(20,10,40,0.6)";
+    const _displayLight = isLightMode;
     const accentColor = settings.accentColor ?? "#06b6d4";
     const orbIntensity = settings.orbIntensity ?? 50;
 
@@ -263,7 +263,7 @@ export default function CalculatorContent({
 
 function FourOpsPanel({
     isLightMode,
-    glassBorder,
+    glassBorder: _glassBorder,
     accentColor,
 }: {
     isLightMode: boolean;
@@ -614,7 +614,7 @@ function FractionPanel({
 function ProbabilityPanel({
     isLightMode,
     glassBorder,
-    accentColor,
+    accentColor: _accentColor,
 }: {
     isLightMode: boolean;
     glassBorder: string;

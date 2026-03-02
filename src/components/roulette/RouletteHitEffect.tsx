@@ -49,6 +49,7 @@ export default function RouletteHitEffect({ show, onComplete, accentColor, hitNa
                 clearTimeout(t);
             };
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- isHigh は表示制御用のため依存から省略
     }, [show, onComplete, effectLevel, particleCount, durationMin, durationMax, sizeMin, sizeMax, totalMs]);
 
     if (!show) return null;

@@ -34,7 +34,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 export default function RouletteContent({
     isSplitMode = false,
-    isRightPane = false,
+    isRightPane: _isRightPane = false,
 }: {
     isSplitMode?: boolean;
     isRightPane?: boolean;
@@ -83,6 +83,7 @@ export default function RouletteContent({
         const ro = new ResizeObserver(update);
         ro.observe(el);
         return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- WHEEL_OUTER_PX は定数のため依存から省略
     }, []);
     const applyResize = useCallback((clientX: number, startX: number, startW: number) => {
         const newW = Math.min(720, Math.max(200, startW + (clientX - startX)));

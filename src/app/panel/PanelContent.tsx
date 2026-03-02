@@ -99,7 +99,6 @@ function RotationDial({
 
 export default function PanelContent({
   isSplitMode = false,
-  isRightPane: _isRightPane = false,
 }: {
   isSplitMode?: boolean;
   isRightPane?: boolean;

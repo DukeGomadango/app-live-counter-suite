@@ -58,6 +58,7 @@ export default function GachaFileRegisterModal({
         }
         setUrlInput("");
         setError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- kind 変更時のみリセットし、previewUrl を deps に含めない
     }, [kind]);
 
     const clearFile = useCallback(() => {
@@ -149,7 +150,7 @@ export default function GachaFileRegisterModal({
 
     const hasContent = !!currentUrl || !!file || urlInput.trim();
 
-    const handleBackdropClick = useCallback(
+    const _handleBackdropClick = useCallback(
         (e: React.MouseEvent) => {
             if (e.target === e.currentTarget) onClose();
         },

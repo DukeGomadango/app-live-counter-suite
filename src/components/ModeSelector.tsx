@@ -58,7 +58,7 @@ export default function ModeSelector({ isLightMode = false }: ModeSelectorProps)
     }, [isOpen]);
 
     const textColor = isLightMode ? "text-gray-700" : "text-white/80";
-    const bgSubtle = isLightMode ? "bg-black/5" : "bg-white/5";
+    const _bgSubtle = isLightMode ? "bg-black/5" : "bg-white/5";
     const bgHover = isLightMode ? "hover:bg-black/10" : "hover:bg-white/10";
     const borderColor = isLightMode ? "border-black/10" : "border-white/10";
     const dropdownBg = isLightMode ? "rgba(255,255,255,0.95)" : "rgba(15,8,35,0.95)";

@@ -12,10 +12,10 @@ import {
     Filter,
     ImageDown,
 } from "lucide-react";
-import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode, OrganizedResult } from "@/lib/gacha";
+import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode } from "@/lib/gacha";
 import { organizeResults, formatResultsForShare, formatResultsHeaderForShare } from "@/lib/gacha";
 import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
-import { DEFAULT_EXTRA_HASHTAG, DEFAULT_SHARE_HASHTAG } from "@/lib/site";
+import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import GachaShareSummary from "@/components/gacha/GachaShareSummary";
@@ -59,7 +59,7 @@ export default function GachaResultDisplay({
     const [copied, setCopied] = useState(false);
     const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
 
-    const { glassBg, glassBorder } = useGlassStyle(isLightMode);
+    const { glassBg: _glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
     const textPrimary = textLight ? "text-gray-800" : "text-white/95";
     const textSecondary = textLight ? "text-gray-700" : "text-white/75";

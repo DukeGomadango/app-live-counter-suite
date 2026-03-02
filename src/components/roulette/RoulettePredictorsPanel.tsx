@@ -46,7 +46,7 @@ export default function RoulettePredictorsPanel({
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const ref = useRef<HTMLDivElement>(null);
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
-    const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
+    const _textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-600" : "text-white/60";
     const dropdownBg = isLightMode ? "rgba(255,255,255,0.98)" : "rgba(20,12,45,0.98)";
 
