@@ -6,6 +6,7 @@ import { Sun, Moon, PanelTopOpen, Menu, ImagePlus, Share2, Save, List, Pencil, E
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import ImageCropModal from "@/components/ImageCropModal";
 import { toPng } from "html-to-image";
 import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
 import {
@@ -116,6 +117,7 @@ export default function PanelContent({
   const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
   const [renamePanelId, setRenamePanelId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
+  const [pendingCropDataUrl, setPendingCropDataUrl] = useState<string | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
   const tapPendingRef = useRef(false);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -153,7 +155,7 @@ export default function PanelContent({
     overlayHistoryRef.current = [...overlayHistoryRef.current, snapshot].slice(-OVERLAY_HISTORY_MAX);
   }, []);
 
-  const { imageDataUrl, activeFilters, filterIntensity: rawFilterIntensity, filterShowLabel, overlays, isEditMode } = panelState;
+  const { imageDataUrl, imageAspectRatio, activeFilters, filterIntensity: rawFilterIntensity, filterShowLabel, overlays, isEditMode } = panelState;
   const filterIntensity = rawFilterIntensity ?? 50;
   const setOverlays = useCallback(
     (updater: (prev: PanelOverlay[]) => PanelOverlay[]) => {
@@ -219,11 +221,19 @@ export default function PanelContent({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isEditMode, selectedOverlayId, overlays, setOverlays, setPanelState, pushOverlayHistory]);
 
-  const applyImageDataUrl = useCallback(
-    (dataUrl: string) => {
-      setPanelState((s) => ({ ...s, imageDataUrl: dataUrl }));
+  const applyImageWithAspect = useCallback(
+    (dataUrl: string, aspectRatio: number) => {
+      setPanelState((s) => ({ ...s, imageDataUrl: dataUrl, imageAspectRatio: aspectRatio }));
     },
     [setPanelState]
+  );
+
+  const handleCropConfirm = useCallback(
+    (result: { dataUrl: string; aspectRatio: number }) => {
+      applyImageWithAspect(result.dataUrl, result.aspectRatio);
+      setPendingCropDataUrl(null);
+    },
+    [applyImageWithAspect]
   );
 
   const handleImageUpload = useCallback(
@@ -232,12 +242,12 @@ export default function PanelContent({
       if (!file?.type.startsWith("image/")) return;
       const reader = new FileReader();
       reader.onload = () => {
-        applyImageDataUrl(reader.result as string);
+        setPendingCropDataUrl(reader.result as string);
       };
       reader.readAsDataURL(file);
       e.target.value = "";
     },
-    [applyImageDataUrl]
+    []
   );
 
   const handleImageDrop = useCallback(
@@ -247,11 +257,11 @@ export default function PanelContent({
       if (!file?.type.startsWith("image/")) return;
       const reader = new FileReader();
       reader.onload = () => {
-        applyImageDataUrl(reader.result as string);
+        setPendingCropDataUrl(reader.result as string);
       };
       reader.readAsDataURL(file);
     },
-    [applyImageDataUrl]
+    []
   );
 
   const handleOverlayTap = useCallback(
@@ -665,6 +675,7 @@ export default function PanelContent({
         ...defaultPanelState,
         ...state,
         filterIntensity: state.filterIntensity ?? 50,
+        imageAspectRatio: state.imageAspectRatio ?? undefined,
       });
       setSelectedOverlayId(null);
       setIsMenuOpen(false);
@@ -973,9 +984,10 @@ export default function PanelContent({
         <div className="flex-1 flex items-center justify-center p-4 min-h-0">
           <div
             ref={captureRef}
-            className="relative w-full max-w-4xl aspect-video max-h-[70vh] flex items-center justify-center overflow-hidden rounded-xl"
+            className="relative w-full max-w-4xl max-h-[70vh] flex items-center justify-center overflow-hidden rounded-xl"
             style={{
-              background: isLightMode ? "#e0e0e0" : "#1a1a2e",
+              aspectRatio: imageDataUrl && typeof imageAspectRatio === "number" ? imageAspectRatio : 16 / 9,
+              background: imageDataUrl ? "transparent" : (isLightMode ? "#e0e0e0" : "#1a1a2e"),
             }}
             onDragOver={(e) => e.preventDefault()}
             onDrop={!imageDataUrl ? handleImageDrop : undefined}
@@ -1357,6 +1369,13 @@ export default function PanelContent({
         onConfirm={handleDeleteSavedPanel}
         onCancel={() => setPanelToDeleteId(null)}
         danger
+      />
+      <ImageCropModal
+        open={pendingCropDataUrl !== null}
+        imageDataUrl={pendingCropDataUrl}
+        onConfirm={handleCropConfirm}
+        onCancel={() => setPendingCropDataUrl(null)}
+        isLightMode={isLightMode}
       />
     </div>
   );

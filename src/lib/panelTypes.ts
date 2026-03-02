@@ -38,6 +38,8 @@ export type FilterType = "noise" | "mosaic" | "grid" | "blur" | "noiseStrong";
 
 export interface PanelState {
   imageDataUrl: string | null;
+  /** パネル画像のアスペクト比（幅/高さ）。枠を画像に合わせて余白を消す用。未指定時は 16:9 */
+  imageAspectRatio?: number | null;
   activeFilters: FilterType[];
   /** フィルター強度 0〜100。ぼかし・ノイズの強さに反映 */
   filterIntensity: number;
