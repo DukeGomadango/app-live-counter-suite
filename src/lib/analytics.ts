@@ -26,7 +26,9 @@ export function getOrCreateAnonymousId(): string {
   }
 }
 
-export function sendPageView(path: string, toolId?: string): void {
+type EventType = "page_view" | "session_start";
+
+function sendEvent(eventType: EventType, path: string, toolId?: string): void {
   const base = getEndpoint();
   if (!base) return;
   const anonymousId = getOrCreateAnonymousId();
@@ -36,11 +38,11 @@ export function sendPageView(path: string, toolId?: string): void {
     anonymousId,
     path,
     toolId: tid,
+    eventType,
   });
   try {
     navigator.sendBeacon(`${base}/api/events`, payload);
   } catch {
-    // sendBeacon 失敗時は fetch で試す（ページ離脱時も送りたいため keepalive）
     fetch(`${base}/api/events`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -48,4 +50,13 @@ export function sendPageView(path: string, toolId?: string): void {
       keepalive: true,
     }).catch(() => {});
   }
+}
+
+export function sendPageView(path: string, toolId?: string): void {
+  sendEvent("page_view", path, toolId);
+}
+
+/** セッション開始（タブを開いたときなど 1 回だけ送る想定） */
+export function sendSessionStart(path: string, toolId?: string): void {
+  sendEvent("session_start", path, toolId);
 }

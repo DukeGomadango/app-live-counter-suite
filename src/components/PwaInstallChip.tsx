@@ -26,7 +26,7 @@ export default function PwaInstallChip({ effectiveLight }: PwaInstallChipProps) 
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
-    setMounted(true);
+    queueMicrotask(() => setMounted(true));
   }, []);
 
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function PwaInstallChip({ effectiveLight }: PwaInstallChipProps) 
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
       (navigator as { standalone?: boolean }).standalone === true;
-    setIsStandalone(standalone);
+    queueMicrotask(() => setIsStandalone(standalone));
 
     const handler = (e: BeforeInstallPromptEvent) => {
       e.preventDefault();

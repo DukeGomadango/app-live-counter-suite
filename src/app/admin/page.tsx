@@ -21,9 +21,20 @@ const ADMIN_ACCENT = "#a855f7";
 
 type Stats = {
   byTool: { tool_id: string; views: number; users: number }[];
-  byDay: { day: string; views: number; users: number }[];
+  byDay: { day: string; views: number; users: number; sessions?: number }[];
   days: number;
+  totalSessions?: number;
 };
+
+type VisitorRow = {
+  anonymous_id: string;
+  views: number;
+  first_ts: string;
+  last_ts: string;
+  tool_ids: string | null;
+};
+
+type VisitorEvent = { ts: string; path: string; tool_id: string };
 
 const TOOL_LABELS: Record<string, string> = Object.fromEntries([
   ["top", "トップ"],
@@ -41,6 +52,22 @@ function formatDay(day: string): string {
   return `${y}/${m}/${d}`;
 }
 
+/** 匿名IDを末尾8文字だけ表示（プライバシー配慮） */
+function maskId(id: string): string {
+  if (id.length <= 8) return id;
+  return `…${id.slice(-8)}`;
+}
+
+function formatTs(ts: string): string {
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  const h = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${y}/${m}/${day} ${h}:${min}`;
+}
+
 const panelBg = "linear-gradient(135deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)";
 const panelBorder = "1px solid rgba(255,255,255,0.1)";
 const panelShadow = "0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)";
@@ -53,6 +80,11 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [days, setDays] = useState(30);
   const [mounted, setMounted] = useState(false);
+  const [visitors, setVisitors] = useState<VisitorRow[]>([]);
+  const [loadingVisitors, setLoadingVisitors] = useState(false);
+  const [visitorDetailId, setVisitorDetailId] = useState<string | null>(null);
+  const [visitorEvents, setVisitorEvents] = useState<VisitorEvent[] | null>(null);
+  const [loadingVisitorDetail, setLoadingVisitorDetail] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -97,14 +129,80 @@ export default function AdminPage() {
     []
   );
 
+  const fetchVisitors = useCallback(
+    async (secret: string, dayCount: number) => {
+      const base = process.env.NEXT_PUBLIC_ANALYTICS_ENDPOINT;
+      if (!base) return;
+      setLoadingVisitors(true);
+      try {
+        const url = `${base.replace(/\/$/, "")}/api/stats/visitors?days=${dayCount}&limit=100`;
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${secret}` } });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.visitors)) {
+          setVisitors(data.visitors);
+        } else {
+          setVisitors([]);
+        }
+      } catch {
+        setVisitors([]);
+      } finally {
+        setLoadingVisitors(false);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     if (!mounted || !token) return;
     fetchStats(token, days);
-  }, [mounted, token, days, fetchStats]);
+    fetchVisitors(token, days);
+  }, [mounted, token, days, fetchStats, fetchVisitors]);
 
   const handleRefresh = () => {
-    if (token) fetchStats(token, days);
+    if (token) {
+      fetchStats(token, days);
+      fetchVisitors(token, days);
+    }
   };
+
+  const handleOpenVisitorDetail = useCallback(
+    async (anonymousId: string) => {
+      const base = process.env.NEXT_PUBLIC_ANALYTICS_ENDPOINT;
+      if (!base || !token) return;
+      setVisitorDetailId(anonymousId);
+      setLoadingVisitorDetail(true);
+      setVisitorEvents(null);
+      try {
+        const url = `${base.replace(/\/$/, "")}/api/stats/visitor/${encodeURIComponent(anonymousId)}?days=${days}`;
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.events)) {
+          setVisitorEvents(data.events);
+        } else {
+          setVisitorEvents([]);
+        }
+      } catch {
+        setVisitorEvents([]);
+      } finally {
+        setLoadingVisitorDetail(false);
+      }
+    },
+    [token, days]
+  );
+
+  const handleCloseVisitorDetail = useCallback(() => {
+    setVisitorDetailId(null);
+    setVisitorEvents(null);
+  }, []);
+
+  useEffect(() => {
+    if (!visitorDetailId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") handleCloseVisitorDetail();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [visitorDetailId, handleCloseVisitorDetail]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -248,7 +346,7 @@ export default function AdminPage() {
         {stats && (
           <div className="space-y-6">
             {/* サマリ */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               <div
                 className="rounded-2xl p-4"
                 style={{
@@ -275,6 +373,20 @@ export default function AdminPage() {
                 <p className="text-white/50 text-sm">延べユーザー数</p>
                 <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: ADMIN_ACCENT }}>
                   {totalUsers.toLocaleString()}
+                </p>
+              </div>
+              <div
+                className="rounded-2xl p-4"
+                style={{
+                  background: panelBg,
+                  backdropFilter: "blur(12px)",
+                  border: panelBorder,
+                  boxShadow: panelShadow,
+                }}
+              >
+                <p className="text-white/50 text-sm">セッション数</p>
+                <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: ADMIN_ACCENT }}>
+                  {(stats.totalSessions ?? 0).toLocaleString()}
                 </p>
               </div>
             </div>
@@ -398,12 +510,13 @@ export default function AdminPage() {
                       <th className="px-4 py-2">日付</th>
                       <th className="px-4 py-2 text-right">表示回数</th>
                       <th className="px-4 py-2 text-right">ユーザー数</th>
+                      <th className="px-4 py-2 text-right">セッション数</th>
                     </tr>
                   </thead>
                   <tbody>
                     {stats.byDay.length === 0 ? (
                       <tr>
-                        <td colSpan={3} className="px-4 py-6 text-center text-white/40">
+                        <td colSpan={4} className="px-4 py-6 text-center text-white/40">
                           データがありません
                         </td>
                       </tr>
@@ -413,6 +526,7 @@ export default function AdminPage() {
                           <td className="px-4 py-2">{formatDay(row.day)}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{row.views}</td>
                           <td className="px-4 py-2 text-right tabular-nums">{row.users}</td>
+                          <td className="px-4 py-2 text-right tabular-nums">{row.sessions ?? 0}</td>
                         </tr>
                       ))
                     )}
@@ -420,6 +534,138 @@ export default function AdminPage() {
                 </table>
               </div>
             </section>
+
+            {/* 訪問者別（ID別行動追跡） */}
+            <section
+              className="rounded-2xl overflow-hidden"
+              style={{
+                background: panelBg,
+                backdropFilter: "blur(12px)",
+                border: panelBorder,
+                boxShadow: panelShadow,
+              }}
+            >
+              <h2 className="px-4 py-3 font-semibold border-b border-white/10">訪問者別</h2>
+              {loadingVisitors ? (
+                <p className="px-4 py-6 text-white/40 text-sm">読み込み中...</p>
+              ) : (
+                <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-white/50 border-b border-white/10 sticky top-0 bg-[#0a051e]/95">
+                        <th className="px-4 py-2">ID</th>
+                        <th className="px-4 py-2 text-right">訪問回数</th>
+                        <th className="px-4 py-2">最終訪問</th>
+                        <th className="px-4 py-2">利用ツール</th>
+                        <th className="px-4 py-2 w-16" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visitors.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-6 text-center text-white/40">
+                            データがありません
+                          </td>
+                        </tr>
+                      ) : (
+                        visitors.map((row) => (
+                          <tr
+                            key={row.anonymous_id}
+                            className="border-b border-white/5 hover:bg-white/5 cursor-pointer"
+                            onClick={() => handleOpenVisitorDetail(row.anonymous_id)}
+                          >
+                            <td className="px-4 py-2 font-mono text-xs text-white/70">
+                              {maskId(row.anonymous_id)}
+                            </td>
+                            <td className="px-4 py-2 text-right tabular-nums">{row.views}</td>
+                            <td className="px-4 py-2 text-white/70 text-xs">
+                              {row.last_ts ? formatTs(row.last_ts) : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-white/70 text-xs">
+                              {row.tool_ids
+                                ? row.tool_ids
+                                    .split(",")
+                                    .map((tid) => TOOL_LABELS[tid.trim()] ?? tid.trim())
+                                    .join(", ")
+                                : "—"}
+                            </td>
+                            <td className="px-4 py-2 text-white/50 text-xs">詳細</td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+        )}
+
+        {/* 訪問者詳細モーダル（ID別行動ログ） */}
+        {visitorDetailId && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+            onClick={handleCloseVisitorDetail}
+            role="dialog"
+            aria-modal="true"
+            aria-label="訪問者詳細"
+          >
+            <div
+              className="w-full max-w-2xl max-h-[85vh] overflow-hidden rounded-2xl flex flex-col"
+              style={{
+                background: panelBg,
+                backdropFilter: "blur(16px)",
+                border: panelBorder,
+                boxShadow: panelShadow,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+                <h3 className="font-semibold">
+                  行動ログ: {maskId(visitorDetailId)}
+                </h3>
+                <button
+                  type="button"
+                  onClick={handleCloseVisitorDetail}
+                  className="text-white/60 hover:text-white text-sm px-2 py-1"
+                >
+                  閉じる
+                </button>
+              </div>
+              <div className="overflow-auto flex-1 p-4">
+                {loadingVisitorDetail ? (
+                  <p className="text-white/40 text-sm">読み込み中...</p>
+                ) : visitorEvents && visitorEvents.length === 0 ? (
+                  <p className="text-white/40 text-sm">イベントがありません</p>
+                ) : visitorEvents ? (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-white/50 border-b border-white/10">
+                        <th className="px-3 py-2">日時</th>
+                        <th className="px-3 py-2">パス</th>
+                        <th className="px-3 py-2">機能</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visitorEvents.map((ev, i) => (
+                        <tr key={`${ev.ts}-${i}`} className="border-b border-white/5">
+                          <td className="px-3 py-2 text-white/70 text-xs whitespace-nowrap">
+                            {formatTs(ev.ts)}
+                          </td>
+                          <td className="px-3 py-2 text-white/70 font-mono text-xs break-all">
+                            {ev.path}
+                          </td>
+                          <td className="px-3 py-2 text-white/70">
+                            {TOOL_LABELS[ev.tool_id] ?? ev.tool_id}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                ) : null}
+              </div>
+            </div>
           </div>
         )}
       </div>

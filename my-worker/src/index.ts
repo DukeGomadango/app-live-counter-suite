@@ -81,21 +81,24 @@ export default {
 			});
 		}
 
-		// POST /api/events — usage analytics (page view)
+		// POST /api/events — usage analytics (page_view | session_start)
 		if (request.method === "POST" && url.pathname === "/api/events") {
 			try {
-				const body = (await request.json()) as { anonymousId?: string; path?: string; toolId?: string };
+				const body = (await request.json()) as { anonymousId?: string; path?: string; toolId?: string; eventType?: string };
 				const anonymousId = typeof body.anonymousId === "string" ? body.anonymousId : "";
 				const path = typeof body.path === "string" ? body.path : "";
 				const toolId = typeof body.toolId === "string" ? body.toolId : "";
+				const eventType = typeof body.eventType === "string" && (body.eventType === "page_view" || body.eventType === "session_start")
+					? body.eventType
+					: "page_view";
 				if (!anonymousId || !path) {
 					return jsonResponse({ error: "anonymousId and path required" }, 400, origin);
 				}
 				const ts = new Date().toISOString();
 				await env.DB.prepare(
-					"INSERT INTO usage_events (ts, anonymous_id, path, tool_id) VALUES (?, ?, ?, ?)"
+					"INSERT INTO usage_events (ts, anonymous_id, path, tool_id, event_type) VALUES (?, ?, ?, ?, ?)"
 				)
-					.bind(ts, anonymousId, path, toolId)
+					.bind(ts, anonymousId, path, toolId, eventType)
 					.run();
 				return jsonResponse({ ok: true }, 200, origin);
 			} catch (e) {
@@ -115,30 +118,56 @@ export default {
 			}
 			try {
 				const days = Math.min(90, Math.max(1, parseInt(url.searchParams.get("days") ?? "30", 10)));
+				const bindDays = `-${days} days`;
+				// ページビュー: event_type が page_view または NULL（既存データ互換）
 				const byTool = await env.DB.prepare(
 					`SELECT tool_id, COUNT(*) as views, COUNT(DISTINCT anonymous_id) as users
 					 FROM usage_events
-					 WHERE ts >= date('now', ?)
+					 WHERE ts >= date('now', ?) AND (event_type IS NULL OR event_type = 'page_view')
 					 GROUP BY tool_id
 					 ORDER BY views DESC`
 				)
-					.bind(`-${days} days`)
+					.bind(bindDays)
 					.all();
-				const byDay = await env.DB.prepare(
+				const byDayViews = await env.DB.prepare(
 					`SELECT date(ts) as day, COUNT(*) as views, COUNT(DISTINCT anonymous_id) as users
 					 FROM usage_events
-					 WHERE ts >= date('now', ?)
+					 WHERE ts >= date('now', ?) AND (event_type IS NULL OR event_type = 'page_view')
 					 GROUP BY day
 					 ORDER BY day DESC
 					 LIMIT 90`
 				)
-					.bind(`-${days} days`)
+					.bind(bindDays)
 					.all();
+				const byDaySessions = await env.DB.prepare(
+					`SELECT date(ts) as day, COUNT(*) as sessions
+					 FROM usage_events
+					 WHERE ts >= date('now', ?) AND event_type = 'session_start'
+					 GROUP BY day
+					 ORDER BY day DESC
+					 LIMIT 90`
+				)
+					.bind(bindDays)
+					.all();
+				const sessionsResult = await env.DB.prepare(
+					`SELECT COUNT(*) as total FROM usage_events WHERE ts >= date('now', ?) AND event_type = 'session_start'`
+				)
+					.bind(bindDays)
+					.all();
+				const totalSessions = (sessionsResult.results?.[0] as { total?: number } | undefined)?.total ?? 0;
+				const sessionMap = new Map<string, number>((byDaySessions.results ?? []).map((r: { day: string; sessions: number }) => [r.day, r.sessions]));
+				const byDay = (byDayViews.results ?? []).map((r: { day: string; views: number; users: number }) => ({
+					day: r.day,
+					views: r.views,
+					users: r.users,
+					sessions: sessionMap.get(r.day) ?? 0,
+				}));
 				return jsonResponse(
 					{
 						byTool: byTool.results ?? [],
-						byDay: (byDay.results ?? []).slice(0, days),
+						byDay: byDay.slice(0, days),
 						days,
+						totalSessions,
 					},
 					200,
 					origin
@@ -146,6 +175,70 @@ export default {
 			} catch (e) {
 				console.error(e);
 				return jsonResponse({ error: "Failed to fetch stats" }, 500, origin);
+			}
+		}
+
+		// GET /api/stats/visitors — list visitors (anonymous_id) with counts (same auth as /api/stats)
+		if (request.method === "GET" && url.pathname === "/api/stats/visitors") {
+			const secret = env.STATS_SECRET ?? "";
+			const authHeader = request.headers.get("Authorization");
+			const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : "";
+			const headerSecret = request.headers.get("X-Stats-Secret") ?? "";
+			if (!secret || (bearer !== secret && headerSecret !== secret)) {
+				return jsonResponse({ error: "Unauthorized" }, 401, origin);
+			}
+			try {
+				const days = Math.min(90, Math.max(1, parseInt(url.searchParams.get("days") ?? "30", 10)));
+				const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get("limit") ?? "100", 10)));
+				const visitors = await env.DB.prepare(
+					`SELECT anonymous_id, COUNT(*) as views, MIN(ts) as first_ts, MAX(ts) as last_ts, GROUP_CONCAT(DISTINCT tool_id) as tool_ids
+					 FROM usage_events
+					 WHERE ts >= date('now', ?)
+					 GROUP BY anonymous_id
+					 ORDER BY views DESC
+					 LIMIT ?`
+				)
+					.bind(`-${days} days`, limit)
+					.all();
+				return jsonResponse(
+					{ visitors: visitors.results ?? [], days, limit },
+					200,
+					origin
+				);
+			} catch (e) {
+				console.error(e);
+				return jsonResponse({ error: "Failed to fetch visitors" }, 500, origin);
+			}
+		}
+
+		// GET /api/stats/visitor/:id — events for one anonymous_id (same auth as /api/stats)
+		if (request.method === "GET" && url.pathname.startsWith("/api/stats/visitor/") && url.pathname.length > "/api/stats/visitor/".length) {
+			const secret = env.STATS_SECRET ?? "";
+			const authHeader = request.headers.get("Authorization");
+			const bearer = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : "";
+			const headerSecret = request.headers.get("X-Stats-Secret") ?? "";
+			if (!secret || (bearer !== secret && headerSecret !== secret)) {
+				return jsonResponse({ error: "Unauthorized" }, 401, origin);
+			}
+			const anonymousId = decodeURIComponent(url.pathname.slice("/api/stats/visitor/".length));
+			if (!anonymousId) {
+				return jsonResponse({ error: "Missing visitor id" }, 400, origin);
+			}
+			try {
+				const days = Math.min(90, Math.max(1, parseInt(url.searchParams.get("days") ?? "30", 10)));
+				const events = await env.DB.prepare(
+					`SELECT ts, path, tool_id FROM usage_events WHERE anonymous_id = ? AND ts >= date('now', ?) ORDER BY ts DESC LIMIT 500`
+				)
+					.bind(anonymousId, `-${days} days`)
+					.all();
+				return jsonResponse(
+					{ anonymousId, events: events.results ?? [], days },
+					200,
+					origin
+				);
+			} catch (e) {
+				console.error(e);
+				return jsonResponse({ error: "Failed to fetch visitor events" }, 500, origin);
 			}
 		}
 
