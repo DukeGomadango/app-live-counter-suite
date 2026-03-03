@@ -2,7 +2,34 @@
  * Panel 機能の型定義。
  */
 
-export type OverlayShape = "circle" | "triangle" | "rect" | "free" | "image";
+export type OverlayShape = "circle" | "triangle" | "rect" | "free" | "image" | "custom";
+
+/** カスタム図形を構成する1パーツ。座標・サイズは親カスタムオーバーレイ内の 0–100% 相対。 */
+export type CustomPartShape = "rect" | "circle" | "triangle";
+export type TriangleKind =
+  | "iso" | "isoLeft" | "isoRight" | "rightTop" | "rightBottom"
+  | "diagDownUpper" | "diagDownLower" | "diagUpUpper" | "diagUpLower";
+export interface CustomPart {
+  id: string;
+  shape: CustomPartShape;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  /** パーツ内での回転（度） */
+  rotation?: number;
+  triangleKind?: TriangleKind;
+  /** 未指定時は親オーバーレイの color を使用 */
+  color?: string;
+}
+
+/** 保存したカスタム図形テンプレート（名前付きで再利用可能） */
+export interface SavedCustomShape {
+  id: string;
+  name: string;
+  savedAt: number;
+  parts: CustomPart[];
+}
 
 export type TargetType = "number" | "text";
 
@@ -10,6 +37,10 @@ export type TargetType = "number" | "text";
 export interface PanelOverlay {
   id: string;
   shape: OverlayShape;
+  /** 三角テンプレート用の形状タイプ。通常の編集では未使用で、テンプレ生成時にのみ付与される想定。 */
+  triangleKind?: TriangleKind;
+  /** 左右反転（true のとき水平方向に反転して描画） */
+  flipX?: boolean;
   targetType: TargetType;
   /** 数値目標の場合の目標値。0 は目標なし */
   target: number;
@@ -32,6 +63,8 @@ export interface PanelOverlay {
   imageDataUrl?: string;
   /** 透明度 0〜100。未指定時は 100（完全不透明） */
   opacity?: number;
+  /** shape === "custom" のとき。複数パーツで1つの図形を構成。 */
+  parts?: CustomPart[];
 }
 
 export type FilterType = "noise" | "mosaic" | "grid" | "blur" | "noiseStrong";
@@ -81,6 +114,7 @@ export function createDefaultOverlay(shape: OverlayShape, x: number, y: number):
     color: DEFAULT_OVERLAY_COLOR,
     rotation: 0,
     opacity: 100,
+    flipX: false,
   };
 }
 
@@ -101,5 +135,117 @@ export function createImageOverlay(imageDataUrl: string, x: number, y: number): 
     rotation: 0,
     imageDataUrl,
     opacity: 100,
+    flipX: false,
   };
+}
+
+/** カスタム図形オーバーレイを1つ作成。parts は 0–100 の相対座標。 */
+export function createCustomOverlay(
+  parts: CustomPart[],
+  x: number,
+  y: number,
+  width = 20,
+  height = 20
+): PanelOverlay {
+  return {
+    id: createOverlayId(),
+    shape: "custom",
+    targetType: "number",
+    target: 0,
+    count: 0,
+    targetText: "",
+    x,
+    y,
+    width,
+    height,
+    color: DEFAULT_OVERLAY_COLOR,
+    rotation: 0,
+    opacity: 100,
+    flipX: false,
+    parts: parts.length ? parts : undefined,
+  };
+}
+
+/** ハート（上2円＋下に頂点が来る三角）。100x100 枠内。 */
+export const CUSTOM_PRESET_HEART: Omit<CustomPart, "id">[] = [
+  { shape: "circle", x: 15, y: 18, width: 38, height: 38 },
+  { shape: "circle", x: 47, y: 18, width: 38, height: 38 },
+  { shape: "triangle", x: 20, y: 42, width: 60, height: 58, rotation: 180 },
+];
+
+/** 星（5つの三角を放射状に、先端が外を向く）。100x100 枠内。 */
+export const CUSTOM_PRESET_STAR: Omit<CustomPart, "id">[] = (() => {
+  const cx = 50;
+  const cy = 50;
+  const r = 32;
+  const w = 22;
+  const h = 26;
+  const parts: Omit<CustomPart, "id">[] = [];
+  for (let i = 0; i < 5; i++) {
+    const deg = 90 + i * 72;
+    const rad = (deg * Math.PI) / 180;
+    const tipX = cx + r * Math.cos(rad);
+    const tipY = cy - r * Math.sin(rad);
+    parts.push({
+      shape: "triangle",
+      x: tipX - w / 2,
+      y: tipY,
+      width: w,
+      height: h,
+      rotation: 90 - deg,
+    });
+  }
+  return parts;
+})();
+
+/** 台形（上底短・下底長。中央の四角＋左右の三角で接続）。100x100 枠内。 */
+export const CUSTOM_PRESET_TRAPEZOID: Omit<CustomPart, "id">[] = [
+  { shape: "rect", x: 30, y: 18, width: 40, height: 64 },
+  { shape: "triangle", x: 0, y: 18, width: 30, height: 64, triangleKind: "isoRight" },
+  { shape: "triangle", x: 70, y: 18, width: 30, height: 64, triangleKind: "isoLeft" },
+];
+
+/** ひし形（4つの三角で菱形。上下左右の頂点で接続）。100x100 枠内。 */
+export const CUSTOM_PRESET_DIAMOND: Omit<CustomPart, "id">[] = [
+  { shape: "triangle", x: 25, y: 0, width: 50, height: 50 },
+  { shape: "triangle", x: 25, y: 50, width: 50, height: 50, rotation: 180 },
+  { shape: "triangle", x: 0, y: 25, width: 50, height: 50, triangleKind: "isoLeft" },
+  { shape: "triangle", x: 50, y: 25, width: 50, height: 50, triangleKind: "isoRight" },
+];
+
+export function createPresetPartsWithIds(preset: Omit<CustomPart, "id">[]): CustomPart[] {
+  return preset.map((p, i) => ({ ...p, id: `part-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}` }));
+}
+
+/** カスタム図形の面積重み付き重心（0–100）。テキスト配置用。 */
+export function getCustomOverlayCentroid(parts: CustomPart[]): { x: number; y: number } {
+  if (!parts.length) return { x: 50, y: 50 };
+  let sumAx = 0;
+  let sumAy = 0;
+  let sumA = 0;
+  for (const p of parts) {
+    const cx = p.x + p.width / 2;
+    const cy = p.y + p.height / 2;
+    const area = p.shape === "triangle" ? (p.width * p.height) / 2 : p.width * p.height;
+    sumAx += cx * area;
+    sumAy += cy * area;
+    sumA += area;
+  }
+  if (sumA <= 0) return { x: 50, y: 50 };
+  return { x: sumAx / sumA, y: sumAy / sumA };
+}
+
+/** パーツの clipPath（三角形用）。CSS に渡す値。 */
+export function getPartClipPath(part: CustomPart): string | undefined {
+  if (part.shape !== "triangle") return undefined;
+  const k = part.triangleKind;
+  if (k === "rightTop") return "polygon(0 0, 100% 0, 0 100%)";
+  if (k === "rightBottom") return "polygon(0 0, 100% 100%, 0 100%)";
+  if (k === "isoLeft") return "polygon(0 50%, 100% 0, 100% 100%)";
+  if (k === "isoRight") return "polygon(100% 50%, 0 0, 0 100%)";
+  if (k === "diagDownUpper") return "polygon(0 0, 100% 0, 0 100%)";
+  if (k === "diagDownLower") return "polygon(100% 0, 100% 100%, 0 100%)";
+  if (k === "diagUpUpper") return "polygon(0 0, 100% 0, 100% 100%)";
+  if (k === "diagUpLower") return "polygon(0 0, 100% 100%, 0 100%)";
+  return "polygon(50% 0%, 100% 100%, 0% 100%)";
 }

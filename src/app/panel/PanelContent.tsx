@@ -13,12 +13,18 @@ import {
   type PanelState,
   type PanelOverlay,
   type SavedPanel,
+  type SavedCustomShape,
+  type CustomPart,
   type FilterType,
   type OverlayShape,
   createOverlayId,
   createDefaultOverlay,
   createImageOverlay,
+  createCustomOverlay,
+  getPartClipPath,
+  getCustomOverlayCentroid,
 } from "@/lib/panelTypes";
+import CustomShapeEditorModal from "@/components/CustomShapeEditorModal";
 
 const defaultPanelState: PanelState = {
   imageDataUrl: null,
@@ -32,6 +38,66 @@ const defaultPanelState: PanelState = {
 const GRID_SNAP_PERCENT = 2;
 function snapToGrid(v: number): number {
   return Math.round(v / GRID_SNAP_PERCENT) * GRID_SNAP_PERCENT;
+}
+
+function snapToNearestGuide(v: number, guides: number[], threshold = 2): number {
+  if (!guides.length) return v;
+  let snapped = v;
+  let bestDiff = threshold + 0.001;
+  for (const g of guides) {
+    const d = Math.abs(v - g);
+    if (d < bestDiff) {
+      bestDiff = d;
+      snapped = g;
+    }
+  }
+  return snapped;
+}
+
+/** 三角形オーバーレイの種類ごとに、見た目の重心（バウンディングボックス内 0–100%）を返す。ラベル・数字を幅広い位置に置く用 */
+function getTriangleTextAnchor(kind: PanelOverlay["triangleKind"]): { x: number; y: number } {
+  switch (kind) {
+    case "rightTop":
+      return { x: 100 / 3, y: 100 / 3 };
+    case "rightBottom":
+      return { x: 100 / 3, y: 200 / 3 };
+    case "isoLeft":
+      return { x: 200 / 3, y: 50 };
+    case "isoRight":
+      return { x: 100 / 3, y: 50 };
+    case "diagDownUpper":
+      return { x: 100 / 3, y: 100 / 3 };
+    case "diagDownLower":
+      return { x: 200 / 3, y: 200 / 3 };
+    case "diagUpUpper":
+      return { x: 200 / 3, y: 100 / 3 };
+    case "diagUpLower":
+      return { x: 100 / 3, y: 200 / 3 };
+    default:
+      return { x: 50, y: 200 / 3 };
+  }
+}
+
+function getImageBoundsPct(
+  frameRect: DOMRect,
+  imageAspectRatio?: number | null
+): { x: number; y: number; width: number; height: number } {
+  const frameAR = frameRect.width / frameRect.height;
+  const imgAR = imageAspectRatio && imageAspectRatio > 0 ? imageAspectRatio : 16 / 9;
+  // object-contain と同様のロジックで、画像の実表示領域を0〜100%座標で返す
+  if (imgAR > frameAR) {
+    // 横長画像: 幅100%、高さは余白あり
+    const width = 100;
+    const height = (frameAR / imgAR) * 100;
+    const y = (100 - height) / 2;
+    return { x: 0, y, width, height };
+  } else {
+    // 縦長 or 正方形: 高さ100%、幅は余白あり
+    const height = 100;
+    const width = (imgAR / frameAR) * 100;
+    const x = (100 - width) / 2;
+    return { x, y: 0, width, height };
+  }
 }
 
 const TAP_WINDOW_MS = 200;
@@ -106,6 +172,9 @@ export default function PanelContent({
   const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("panel-light-mode", false);
   const [panelState, setPanelState] = useLocalStorage<PanelState>("panel-state", defaultPanelState);
   const [savedPanels, setSavedPanels] = useLocalStorage<SavedPanel[]>("panel-saved-list", []);
+  const [savedCustomShapes, setSavedCustomShapes] = useLocalStorage<SavedCustomShape[]>("panel-custom-shapes", []);
+  const [customShapeModalOpen, setCustomShapeModalOpen] = useState(false);
+  const [customShapeEditingId, setCustomShapeEditingId] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [achievedOverlayId, setAchievedOverlayId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
@@ -126,7 +195,7 @@ export default function PanelContent({
   const dragRef = useRef<{ id: string; startX: number; startY: number; startOX: number; startOY: number } | null>(null);
   const resizeRef = useRef<{
     id: string;
-    handle: "se" | "sw" | "ne" | "nw";
+    handle: "se" | "sw" | "ne" | "nw" | "n" | "s" | "e" | "w";
     startX: number;
     startY: number;
     startW: number;
@@ -180,21 +249,36 @@ export default function PanelContent({
       if (!isEditMode) return;
       const tag = document.activeElement?.tagName?.toLowerCase();
       if (tag === "input" || tag === "textarea") return;
+      const key = e.key;
+
+      // Backspace / Delete: 選択中の覆いを削除
+      if ((key === "Backspace" || key === "Delete") && !e.ctrlKey && !e.metaKey) {
+        if (!selectedOverlayId) return;
+        const current = overlays;
+        const exists = current.some((o) => o.id === selectedOverlayId);
+        if (!exists) return;
+        e.preventDefault();
+        pushOverlayHistory(current);
+        setOverlays((prev) => prev.filter((p) => p.id !== selectedOverlayId));
+        setSelectedOverlayId(null);
+        return;
+      }
+
       if (!e.ctrlKey && !e.metaKey) return;
-      const key = e.key?.toLowerCase();
-      if (key === "z") {
+      const lower = key?.toLowerCase();
+      if (lower === "z") {
         e.preventDefault();
         const prev = overlayHistoryRef.current.pop();
         if (prev) setPanelState((s) => ({ ...s, overlays: prev }));
         return;
       }
-      if (key === "c") {
+      if (lower === "c") {
         if (!selectedOverlayId) return;
         const o = overlays.find((x) => x.id === selectedOverlayId);
         if (o) overlayClipboardRef.current = { ...o };
         return;
       }
-      if (key === "x") {
+      if (lower === "x") {
         if (!selectedOverlayId) return;
         const o = overlays.find((x) => x.id === selectedOverlayId);
         if (o) {
@@ -206,12 +290,28 @@ export default function PanelContent({
         }
         return;
       }
-      if (key === "v") {
+      if (lower === "v") {
         const clip = overlayClipboardRef.current;
         if (!clip) return;
         e.preventDefault();
         pushOverlayHistory(overlays);
         const dup: PanelOverlay = { ...clip, id: createOverlayId(), x: clip.x + 3, y: clip.y + 3 };
+        setOverlays((prev) => [...prev, dup]);
+        setSelectedOverlayId(dup.id);
+        return;
+      }
+      if (lower === "d") {
+        if (!selectedOverlayId) return;
+        const o = overlays.find((x) => x.id === selectedOverlayId);
+        if (!o) return;
+        e.preventDefault();
+        pushOverlayHistory(overlays);
+        const dup: PanelOverlay = {
+          ...o,
+          id: createOverlayId(),
+          x: snapToGrid(Math.min(100 - o.width, o.x + 3)),
+          y: snapToGrid(Math.min(100 - o.height, o.y + 3)),
+        };
         setOverlays((prev) => [...prev, dup]);
         setSelectedOverlayId(dup.id);
       }
@@ -322,13 +422,13 @@ export default function PanelContent({
           tapPendingRef.current = false;
           return;
         }
-        if (handle === "se" || handle === "sw" || handle === "ne" || handle === "nw") {
+        if (handle === "se" || handle === "sw" || handle === "ne" || handle === "nw" || handle === "n" || handle === "s" || handle === "e" || handle === "w") {
           e.preventDefault();
           pushOverlayHistory(overlays);
           (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
           resizeRef.current = {
             id: overlay.id,
-            handle: handle as "se" | "sw" | "ne" | "nw",
+            handle: handle as "se" | "sw" | "ne" | "nw" | "n" | "s" | "e" | "w",
             startX: e.clientX,
             startY: e.clientY,
             startW: overlay.width,
@@ -401,11 +501,21 @@ export default function PanelContent({
           y = startOY + dyPct;
           w = Math.max(4, startW + dxPct);
           h = Math.max(4, startH - dyPct);
-        } else {
+        } else if (handle === "nw") {
           x = startOX + dxPct;
           y = startOY + dyPct;
           w = Math.max(4, startW - dxPct);
           h = Math.max(4, startH - dyPct);
+        } else if (handle === "n") {
+          y = startOY + dyPct;
+          h = Math.max(4, startH - dyPct);
+        } else if (handle === "s") {
+          h = Math.max(4, startH + dyPct);
+        } else if (handle === "e") {
+          w = Math.max(4, startW + dxPct);
+        } else if (handle === "w") {
+          x = startOX + dxPct;
+          w = Math.max(4, startW - dxPct);
         }
         setOverlays((prev) =>
           prev.map((o) => (o.id === overlay.id ? { ...o, x, y, width: w, height: h } : o))
@@ -418,13 +528,57 @@ export default function PanelContent({
         e.preventDefault();
         const dist = Math.hypot(e.clientX - dragRef.current.startX, e.clientY - dragRef.current.startY);
         if (dist > DRAG_THRESHOLD_PX) tapPendingRef.current = false;
-        const { x, y } = clientToPct(e.clientX, e.clientY);
-        const dx = x - clientToPct(dragRef.current.startX, dragRef.current.startY).x;
-        const dy = y - clientToPct(dragRef.current.startX, dragRef.current.startY).y;
-        const nx = Math.max(0, Math.min(100 - overlay.width, snapToGrid(dragRef.current.startOX + dx)));
-        const ny = Math.max(0, Math.min(100 - overlay.height, snapToGrid(dragRef.current.startOY + dy)));
+        const startPct = clientToPct(dragRef.current.startX, dragRef.current.startY);
+        const nowPct = clientToPct(e.clientX, e.clientY);
+        const dx = nowPct.x - startPct.x;
+        const dy = nowPct.y - startPct.y;
+
+        // 基本の移動位置（グリッドスナップ＋枠内に収める）
+        let nx = dragRef.current.startOX + dx;
+        let ny = dragRef.current.startOY + dy;
+        nx = snapToGrid(nx);
+        ny = snapToGrid(ny);
+        nx = Math.max(0, Math.min(100 - overlay.width, nx));
+        ny = Math.max(0, Math.min(100 - overlay.height, ny));
+
+        // 中心・端・他の覆いにスナップ
+        const xGuides: number[] = [];
+        const yGuides: number[] = [];
+
+        // 枠全体の端・中心
+        xGuides.push(0, 50 - overlay.width / 2, 100 - overlay.width);
+        yGuides.push(0, 50 - overlay.height / 2, 100 - overlay.height);
+
+        // 他の覆いとの整列
+        overlays.forEach((o) => {
+          if (o.id === overlay.id) return;
+          // x方向: 左端・右端・中央を揃える
+          xGuides.push(
+            o.x, // 左端
+            o.x + o.width - overlay.width, // 右端
+            o.x + o.width / 2 - overlay.width / 2 // 中央
+          );
+          // y方向
+          yGuides.push(
+            o.y,
+            o.y + o.height - overlay.height,
+            o.y + o.height / 2 - overlay.height / 2
+          );
+        });
+
+        const snappedX = snapToNearestGuide(nx, xGuides, 2.5);
+        const snappedY = snapToNearestGuide(ny, yGuides, 2.5);
+
         setOverlays((prev) =>
-          prev.map((o) => (o.id === overlay.id ? { ...o, x: nx, y: ny } : o))
+          prev.map((o) =>
+            o.id === overlay.id
+              ? {
+                  ...o,
+                  x: Math.max(0, Math.min(100 - overlay.width, snappedX)),
+                  y: Math.max(0, Math.min(100 - overlay.height, snappedY)),
+                }
+              : o
+          )
         );
       }
     },
@@ -526,46 +680,135 @@ export default function PanelContent({
     }
   }, [achievedOverlayId, setOverlays]);
 
-  const handleAddOverlay = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!addShape || addShape === "free" || !captureRef.current) return;
-      e.preventDefault();
-      pushOverlayHistory(overlays);
+  const handleAddOverlayAtPoint = useCallback(
+    (shape: OverlayShape, clientX: number, clientY: number) => {
+      if (shape === "free" || !captureRef.current) return;
       const rect = captureRef.current.getBoundingClientRect();
-      let x = ((e.clientX - rect.left) / rect.width) * 100;
-      let y = ((e.clientY - rect.top) / rect.height) * 100;
+      let x = ((clientX - rect.left) / rect.width) * 100;
+      let y = ((clientY - rect.top) / rect.height) * 100;
       x = Math.max(0, Math.min(100, snapToGrid(x)));
       y = Math.max(0, Math.min(100, snapToGrid(y)));
-      const newOverlay = createDefaultOverlay(addShape, x, y);
-      newOverlay.x = Math.max(0, snapToGrid(x - 4));
-      newOverlay.y = Math.max(0, snapToGrid(y - 4));
-      newOverlay.width = snapToGrid(8) || GRID_SNAP_PERCENT;
-      newOverlay.height = snapToGrid(8) || GRID_SNAP_PERCENT;
+      const newOverlay = createDefaultOverlay(shape, x, y);
+      const half = 8;
+      newOverlay.x = Math.max(0, snapToGrid(x - half));
+      newOverlay.y = Math.max(0, snapToGrid(y - half));
+      newOverlay.width = snapToGrid(half * 2) || GRID_SNAP_PERCENT;
+      newOverlay.height = snapToGrid(half * 2) || GRID_SNAP_PERCENT;
       setOverlays((prev) => [...prev, newOverlay]);
-      setAddShape(null);
+      setSelectedOverlayId(newOverlay.id);
     },
-    [addShape, setOverlays, overlays, pushOverlayHistory]
+    [setOverlays]
   );
 
-  const handleAddEqualDivision = useCallback(
-    (cols: number, rows: number) => {
-      pushOverlayHistory(overlays);
+  const handleAddTriangleStripes = useCallback(
+    (rows: number) => {
+      if (!captureRef.current || !imageDataUrl) return;
+      const rect = captureRef.current.getBoundingClientRect();
+      const { x: imgX, y: imgY, width: imgW, height: imgH } = getImageBoundsPct(rect, imageAspectRatio ?? undefined);
+      const rowH = imgH / rows;
       const newOverlays: PanelOverlay[] = [];
-      const w = 100 / cols;
-      const h = 100 / rows;
+      for (let row = 0; row < rows; row++) {
+        const y0 = imgY + row * rowH;
+        const h = row === rows - 1 ? imgY + imgH - y0 : rowH;
+        const x0 = imgX;
+        const w = imgW;
+        // 各段を対角線で2つの三角に分割（隙間ゼロMECE）。スナップは使わない。
+        const useDownward = row % 2 === 0; // 段ごとに対角線の向きを交互に
+        const upper = createDefaultOverlay("triangle", x0, y0);
+        upper.x = x0;
+        upper.y = y0;
+        upper.width = w;
+        upper.height = h;
+        upper.triangleKind = useDownward ? "diagDownUpper" : "diagUpUpper";
+        upper.rotation = 0;
+        const lower = createDefaultOverlay("triangle", x0, y0);
+        lower.x = x0;
+        lower.y = y0;
+        lower.width = w;
+        lower.height = h;
+        lower.triangleKind = useDownward ? "diagDownLower" : "diagUpLower";
+        lower.rotation = 0;
+        newOverlays.push(upper, lower);
+      }
+      pushOverlayHistory(overlays);
+      setOverlays((prev) => [...prev, ...newOverlays]);
+    },
+    [imageAspectRatio, imageDataUrl, overlays, pushOverlayHistory, setOverlays]
+  );
+
+  const handleCustomShapeConfirm = useCallback(
+    (parts: CustomPart[]) => {
+      if (customShapeEditingId) {
+        pushOverlayHistory(overlays);
+        setOverlays((prev) =>
+          prev.map((o) => (o.id === customShapeEditingId ? { ...o, parts } : o))
+        );
+      } else {
+        pushOverlayHistory(overlays);
+        const cx = 50 - 10;
+        const cy = 50 - 10;
+        const newOverlay = createCustomOverlay(parts, cx, cy, 20, 20);
+        setOverlays((prev) => [...prev, newOverlay]);
+        setSelectedOverlayId(newOverlay.id);
+      }
+      setCustomShapeModalOpen(false);
+      setCustomShapeEditingId(null);
+    },
+    [customShapeEditingId, overlays, pushOverlayHistory, setOverlays]
+  );
+
+  const handleSaveCustomTemplate = useCallback(
+    (name: string, parts: CustomPart[]) => {
+      const newTemplate: SavedCustomShape = {
+        id: createOverlayId(),
+        name: name.trim() || "カスタム図形",
+        savedAt: Date.now(),
+        parts: [...parts],
+      };
+      setSavedCustomShapes((prev) => [...prev, newTemplate]);
+    },
+    [setSavedCustomShapes]
+  );
+
+  const handleAddOverlay = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!addShape || addShape === "free" || addShape === "custom") return;
+      if (!captureRef.current) return;
+      e.preventDefault();
+      pushOverlayHistory(overlays);
+      handleAddOverlayAtPoint(addShape, e.clientX, e.clientY);
+      setAddShape(null);
+    },
+    [addShape, overlays, handleAddOverlayAtPoint, pushOverlayHistory]
+  );
+
+  const handleAddRectGrid = useCallback(
+    (cols: number, rows: number) => {
+      if (!captureRef.current) return;
+      const rect = captureRef.current.getBoundingClientRect();
+      const { x: imgX, y: imgY, width: imgW, height: imgH } = getImageBoundsPct(rect, imageAspectRatio ?? undefined);
+      const tileW = imgW / cols;
+      const tileH = imgH / rows;
+      const newOverlays: PanelOverlay[] = [];
       for (let row = 0; row < rows; row++) {
         for (let col = 0; col < cols; col++) {
-          const o = createDefaultOverlay("rect", col * w, row * h);
-          o.x = snapToGrid(col * w);
-          o.y = snapToGrid(row * h);
-          o.width = snapToGrid(w);
-          o.height = snapToGrid(h);
+          const baseX = imgX + col * tileW;
+          const baseY = imgY + row * tileH;
+          const o = createDefaultOverlay("rect", baseX, baseY);
+          o.x = snapToGrid(baseX);
+          o.y = snapToGrid(baseY);
+          // 最終列・行だけ誤差補正を入れて、画像領域の端とずれにくくする
+          const rawW = col === cols - 1 ? imgX + imgW - o.x : tileW;
+          const rawH = row === rows - 1 ? imgY + imgH - o.y : tileH;
+          o.width = snapToGrid(rawW);
+          o.height = snapToGrid(rawH);
           newOverlays.push(o);
         }
       }
+      pushOverlayHistory(overlays);
       setOverlays((prev) => [...prev, ...newOverlays]);
     },
-    [setOverlays, overlays, pushOverlayHistory]
+    [imageAspectRatio, overlays, pushOverlayHistory, setOverlays]
   );
 
   const handleFreeDrawStart = useCallback(
@@ -923,29 +1166,62 @@ export default function PanelContent({
               <ImagePlus size={14} /> 画像を追加
             </button>
             <span className="text-xs opacity-70">覆いの形:</span>
-            {(["rect", "circle", "triangle", "free"] as const).map((shape) => (
+            {(["rect", "circle", "triangle", "custom", "free"] as const).map((shape) => (
               <button
                 key={shape}
-                onClick={() => { setAddShape(addShape === shape ? null : shape); setIsDrawingFree(false); }}
+                onClick={() => {
+                  if (shape === "free") {
+                    setAddShape(addShape === shape ? null : shape);
+                    setIsDrawingFree(false);
+                    return;
+                  }
+                  if (shape === "custom") {
+                    setCustomShapeEditingId(null);
+                    setCustomShapeModalOpen(true);
+                    setAddShape(null);
+                    setIsDrawingFree(false);
+                    return;
+                  }
+                  if (!captureRef.current) {
+                    setAddShape(addShape === shape ? null : shape);
+                    setIsDrawingFree(false);
+                    return;
+                  }
+                  // クイック追加: 図形ボタンで中央付近に1つ出す
+                  const rect = captureRef.current.getBoundingClientRect();
+                  const centerX = rect.left + rect.width / 2;
+                  const centerY = rect.top + rect.height / 2;
+                  pushOverlayHistory(overlays);
+                  handleAddOverlayAtPoint(shape, centerX, centerY);
+                  setAddShape(null);
+                  setIsDrawingFree(false);
+                }}
                 className={`px-2 py-1 rounded text-xs ${addShape === shape ? "bg-violet-500/30 text-white" : isLightMode ? "bg-gray-100 text-gray-700" : "bg-white/10 text-white/80"}`}
               >
-                {shape === "rect" ? "四角" : shape === "circle" ? "丸" : shape === "triangle" ? "三角" : "自由"}
+                {shape === "rect" ? "四角" : shape === "circle" ? "丸" : shape === "triangle" ? "三角" : shape === "custom" ? "カスタム" : "自由"}
               </button>
             ))}
             <span className="text-xs opacity-70 ml-2">MECE:</span>
             <button
               type="button"
-              onClick={() => handleAddEqualDivision(2, 2)}
+              onClick={() => handleAddRectGrid(2, 2)}
               className="px-2 py-1 rounded text-xs border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
             >
-              2×2
+              四角2×2
             </button>
             <button
               type="button"
-              onClick={() => handleAddEqualDivision(3, 2)}
+              onClick={() => handleAddRectGrid(3, 3)}
               className="px-2 py-1 rounded text-xs border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
             >
-              3×2
+              四角3×3
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAddTriangleStripes(3)}
+              className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+            >
+              三角3段
             </button>
             <span className="text-xs opacity-70 ml-2">フィルター:</span>
             {(["noise", "grid", "blur"] as FilterType[]).map((f) => (
@@ -1022,7 +1298,7 @@ export default function PanelContent({
                 <img
                   src={imageDataUrl}
                   alt="パネル画像"
-                  className="absolute inset-0 w-full h-full object-contain"
+                  className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                 />
                 {/* Filter layers */}
                 {activeFilters.includes("blur") && (
@@ -1065,6 +1341,7 @@ export default function PanelContent({
                 {overlays.map((overlay) => {
                   const isFree = overlay.shape === "free";
                   const isImage = overlay.shape === "image";
+                  const isCustom = overlay.shape === "custom" && overlay.parts && overlay.parts.length > 0;
                   const freePoints = isFree && overlay.points && overlay.points.length >= 2
                     ? overlay.points
                         .map((p) => {
@@ -1087,13 +1364,33 @@ export default function PanelContent({
                         height: `${overlay.height}%`,
                         minWidth: 24,
                         minHeight: 24,
-                        transform: `rotate(${rotation}deg)`,
+                        transform: `${overlay.flipX ? "scaleX(-1) " : ""}rotate(${rotation}deg)`,
                         transformOrigin: "center center",
                         opacity: (overlay.opacity ?? 100) / 100,
-                        background: isFree || isImage ? "transparent" : `${overlay.color}99`,
+                        background: isFree || isImage || isCustom ? "transparent" : overlay.color,
                         border: selected ? `2px solid ${overlay.color}` : "1px solid rgba(255,255,255,0.3)",
-                        borderRadius: overlay.shape === "circle" ? "50%" : 4,
-                        clipPath: overlay.shape === "triangle" ? "polygon(50% 0%, 100% 100%, 0% 100%)" : undefined,
+                        borderRadius: isCustom ? 0 : overlay.shape === "circle" ? "50%" : overlay.shape === "rect" ? 0 : 4,
+                        clipPath: isCustom
+                          ? undefined
+                          : overlay.shape === "triangle"
+                            ? overlay.triangleKind === "rightTop"
+                              ? "polygon(0 0, 100% 0, 0 100%)"
+                              : overlay.triangleKind === "rightBottom"
+                              ? "polygon(0 0, 100% 100%, 0 100%)"
+                              : overlay.triangleKind === "isoLeft"
+                              ? "polygon(0 50%, 100% 0, 100% 100%)"
+                              : overlay.triangleKind === "isoRight"
+                              ? "polygon(100% 50%, 0 0, 0 100%)"
+                              : overlay.triangleKind === "diagDownUpper"
+                              ? "polygon(0 0, 100% 0, 0 100%)" // 左上三角（対角線 左上→右下）
+                              : overlay.triangleKind === "diagDownLower"
+                              ? "polygon(100% 0, 100% 100%, 0 100%)" // 右下三角
+                              : overlay.triangleKind === "diagUpUpper"
+                              ? "polygon(0 0, 100% 0, 100% 100%)" // 右上三角（対角線 右上→左下）
+                              : overlay.triangleKind === "diagUpLower"
+                              ? "polygon(0 0, 100% 100%, 0 100%)" // 左下三角
+                              : "polygon(50% 0%, 100% 100%, 0% 100%)"
+                            : undefined,
                       }}
                       onPointerDown={(e) => handlePointerDown(overlay, e)}
                       onPointerMove={(e) => handleOverlayPointerMove(overlay, e)}
@@ -1122,11 +1419,64 @@ export default function PanelContent({
                       ) : null}
                       {isFree && freePoints ? (
                         <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-                          <polygon points={freePoints} fill={`${overlay.color}99`} stroke="rgba(255,255,255,0.3)" strokeWidth={0.5} />
+                          <polygon points={freePoints} fill={overlay.color} stroke="rgba(255,255,255,0.3)" strokeWidth={0.5} />
                         </svg>
                       ) : null}
-                      {!isImage && (!isFree || (overlay.points && overlay.points.length > 0)) ? (
-                        <div className="relative z-10 flex flex-col items-center justify-center w-full h-full p-0.5">
+                      {isCustom && overlay.parts ? (
+                        <>
+                          {overlay.parts.map((part) => {
+                            const clipPath = getPartClipPath(part);
+                            const color = part.color ?? overlay.color;
+                            const rot = part.rotation ?? 0;
+                            return (
+                              <div
+                                key={part.id}
+                                className="absolute pointer-events-none"
+                                style={{
+                                  left: `${part.x}%`,
+                                  top: `${part.y}%`,
+                                  width: `${part.width}%`,
+                                  height: `${part.height}%`,
+                                  transform: `rotate(${rot}deg)`,
+                                  transformOrigin: "center center",
+                                  background: color,
+                                  borderRadius: part.shape === "circle" ? "50%" : part.shape === "rect" ? 0 : 4,
+                                  clipPath: clipPath ?? undefined,
+                                }}
+                              />
+                            );
+                          })}
+                        </>
+                      ) : null}
+                      {!isImage && (isFree ? (overlay.points && overlay.points.length > 0) : isCustom ? overlay.parts?.length : true) ? (
+                        <div
+                          className={`relative z-10 flex flex-col items-center justify-center p-0.5 ${
+                            isEditMode ? "pointer-events-none" : ""
+                          } ${overlay.shape === "triangle" ? "" : isCustom ? "" : "w-full h-full"}`}
+                          style={
+                            isCustom && overlay.parts?.length
+                              ? {
+                                  position: "absolute",
+                                  left: `${getCustomOverlayCentroid(overlay.parts).x}%`,
+                                  top: `${getCustomOverlayCentroid(overlay.parts).y}%`,
+                                  transform: `${overlay.flipX ? "scaleX(-1) " : ""}translate(-50%, -50%)`,
+                                  maxWidth: "90%",
+                                }
+                              : overlay.shape === "triangle"
+                              ? {
+                                  position: "absolute",
+                                  left: `${getTriangleTextAnchor(overlay.triangleKind).x}%`,
+                                  top: `${getTriangleTextAnchor(overlay.triangleKind).y}%`,
+                                  transform: `${overlay.flipX ? "scaleX(-1) " : ""}translate(-50%, -50%)`,
+                                  maxWidth: "90%",
+                                }
+                              : overlay.flipX
+                              ? {
+                                  transform: "scaleX(-1)",
+                                }
+                              : undefined
+                          }
+                        >
                           {overlay.label ? (
                             <span className={`text-[10px] font-medium truncate w-full text-center ${isLightMode ? "text-gray-800" : "text-white/90"}`}>
                               {overlay.label}
@@ -1168,24 +1518,54 @@ export default function PanelContent({
                           </button>
                           <div
                             data-handle="rotate"
-                            className="absolute -top-7 left-1/2 -translate-x-1/2 w-8 h-5 rounded bg-violet-500/80 cursor-grab active:cursor-grabbing flex items-center justify-center"
-                            style={{ zIndex: 20 }}
+                            className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center justify-center cursor-grab active:cursor-grabbing"
+                            style={{ zIndex: 20, width: 32, height: 24 }}
                           >
-                            <span className="text-xs text-white">↻</span>
+                            <div className="w-8 h-5 rounded bg-violet-500/80 flex items-center justify-center">
+                              <span className="text-xs text-white">↻</span>
+                            </div>
                           </div>
                           {(["se", "sw", "ne", "nw"] as const).map((h) => (
                             <div
                               key={h}
                               data-handle={h}
-                              className="absolute w-3 h-3 rounded-full bg-violet-500 border-2 border-white cursor-nwse-resize"
+                              className="absolute flex items-center justify-center cursor-nwse-resize"
                               style={{
-                                top: h.includes("n") ? -4 : undefined,
-                                bottom: h.includes("s") ? -4 : undefined,
-                                left: h.includes("w") ? -4 : undefined,
-                                right: h.includes("e") ? -4 : undefined,
+                                top: h.includes("n") ? -12 : undefined,
+                                bottom: h.includes("s") ? -12 : undefined,
+                                left: h.includes("w") ? -12 : undefined,
+                                right: h.includes("e") ? -12 : undefined,
+                                width: 28,
+                                height: 28,
                                 zIndex: 20,
                               }}
-                            />
+                            >
+                              <div className="w-3 h-3 rounded-full bg-violet-500 border-2 border-white" />
+                            </div>
+                          ))}
+                          {(["n", "s", "e", "w"] as const).map((h) => (
+                            <div
+                              key={h}
+                              data-handle={h}
+                              className="absolute flex items-center justify-center cursor-pointer"
+                              style={{
+                                top: h === "n" ? -12 : h === "s" ? undefined : "50%",
+                                bottom: h === "s" ? -12 : undefined,
+                                left: h === "w" ? -12 : h === "e" ? undefined : "50%",
+                                right: h === "e" ? -12 : undefined,
+                                transform:
+                                  h === "n" || h === "s"
+                                    ? "translateX(-50%)"
+                                    : h === "e" || h === "w"
+                                    ? "translateY(-50%)"
+                                    : undefined,
+                                width: 28,
+                                height: 28,
+                                zIndex: 20,
+                              }}
+                            >
+                              <div className="w-2.5 h-2.5 rounded-full bg-violet-500 border-2 border-white" />
+                            </div>
                           ))}
                         </>
                       ) : null}
@@ -1338,6 +1718,30 @@ export default function PanelContent({
               <span className="text-xs opacity-70">度</span>
               <button
                 onClick={() => {
+                  if (!o) return;
+                  pushOverlayHistory(overlays);
+                  setOverlays((prev) =>
+                    prev.map((p) => (p.id === o.id ? { ...p, flipX: !p.flipX } : p))
+                  );
+                }}
+                className="px-2 py-1 rounded text-sm bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25"
+              >
+                左右反転
+              </button>
+              {o.shape === "custom" && o.parts && o.parts.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomShapeEditingId(o.id);
+                    setCustomShapeModalOpen(true);
+                  }}
+                  className="px-2 py-1 rounded text-sm bg-violet-500/20 text-violet-400 hover:bg-violet-500/30"
+                >
+                  図形を編集
+                </button>
+              ) : null}
+              <button
+                onClick={() => {
                   pushOverlayHistory(overlays);
                   setOverlays((prev) => prev.filter((p) => p.id !== o.id));
                   setSelectedOverlayId(null);
@@ -1374,6 +1778,22 @@ export default function PanelContent({
         imageDataUrl={pendingCropDataUrl}
         onConfirm={handleCropConfirm}
         onCancel={() => setPendingCropDataUrl(null)}
+        isLightMode={isLightMode}
+      />
+      <CustomShapeEditorModal
+        open={customShapeModalOpen}
+        initialParts={
+          customShapeEditingId
+            ? (overlays.find((x) => x.id === customShapeEditingId)?.parts ?? [])
+            : []
+        }
+        savedTemplates={savedCustomShapes}
+        onConfirm={handleCustomShapeConfirm}
+        onCancel={() => {
+          setCustomShapeModalOpen(false);
+          setCustomShapeEditingId(null);
+        }}
+        onSaveTemplate={handleSaveCustomTemplate}
         isLightMode={isLightMode}
       />
     </div>
