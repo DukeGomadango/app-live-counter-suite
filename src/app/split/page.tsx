@@ -19,6 +19,10 @@ const RoulettePage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
   () => import("@/app/roulette/RouletteContent"),
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
+const SlotPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
+  () => import("@/app/slot/page"),
+  { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
+);
 const CalculatorPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
   () => import("@/app/calculator/CalculatorContent"),
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
@@ -38,13 +42,14 @@ import ModeSelector from "@/components/ModeSelector";
 import { useSplitModule } from "@/context/SplitModuleContext";
 import { ChevronDown, LayoutGrid, PanelLeft, PanelRight } from "lucide-react";
 
-export type ModuleType = "counter" | "flowchart" | "gacha" | "roulette" | "calculator" | "clock" | "panel";
+export type ModuleType = "counter" | "flowchart" | "gacha" | "roulette" | "slot" | "calculator" | "clock" | "panel";
 
 const MODULE_OPTIONS: { value: ModuleType; label: string }[] = [
     { value: "counter", label: "Counter" },
     { value: "flowchart", label: "FlowChart" },
     { value: "gacha", label: "Gacha" },
     { value: "roulette", label: "Roulette" },
+    { value: "slot", label: "Slot" },
     { value: "calculator", label: "Calculator" },
     { value: "clock", label: "Clock" },
     { value: "panel", label: "Panel" },
@@ -95,6 +100,7 @@ export default function SplitPage() {
             case "flowchart": return <FlowChartPage isSplitMode={true} isRightPane={isRight} />;
             case "gacha": return <GachaPage isSplitMode={true} isRightPane={isRight} />;
             case "roulette": return <RoulettePage isSplitMode={true} isRightPane={isRight} />;
+            case "slot": return <SlotPage isSplitMode={true} isRightPane={isRight} />;
             case "calculator": return <CalculatorPage isSplitMode={true} isRightPane={isRight} />;
             case "clock": return <ClockPage isSplitMode={true} isRightPane={isRight} />;
             case "panel": return <PanelPage isSplitMode={true} isRightPane={isRight} />;

@@ -1,0 +1,485 @@
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { X, Plus, Trash2, Pencil, ChevronUp, ChevronDown } from "lucide-react";
+import { useGlassStyle } from "@/hooks/useGlassStyle";
+import {
+  MIN_REEL_COUNT,
+  MAX_REEL_COUNT,
+  type SlotSettings,
+  type SlotSymbol,
+  type SlotSymbolRole,
+  createDefaultSymbols,
+} from "@/lib/slot";
+
+const SLOT_PALETTE = [
+  { value: "#a855f7", label: "パープル" },
+  { value: "#14b8a6", label: "ティール" },
+  { value: "#3b82f6", label: "ブルー" },
+  { value: "#22c55e", label: "グリーン" },
+  { value: "#eab308", label: "イエロー" },
+  { value: "#f97316", label: "オレンジ" },
+  { value: "#ec4899", label: "ピンク" },
+  { value: "#ef4444", label: "レッド" },
+] as const;
+
+const ROLES: { value: SlotSymbolRole; label: string }[] = [
+  { value: "bonus", label: "ボーナス" },
+  { value: "small", label: "小役" },
+  { value: "replay", label: "リプレイ" },
+  { value: "chance", label: "チャンス" },
+];
+
+function isSymbolUsedInReels(symbolId: string, reelStripIds: string[][]): boolean {
+  return reelStripIds.some((strip) => strip.includes(symbolId));
+}
+
+function SymbolEditRow({
+  symbol,
+  isLightMode,
+  inputBg,
+  inputBorder,
+  textPrimary,
+  onSave,
+  onCancel,
+}: {
+  symbol: SlotSymbol;
+  isLightMode: boolean;
+  inputBg: string;
+  inputBorder: string;
+  textPrimary: string;
+  onSave: (s: SlotSymbol) => void;
+  onCancel: () => void;
+}) {
+  const [label, setLabel] = useState(symbol.label);
+  const [weight, setWeight] = useState(symbol.weight);
+  const [payout, setPayout] = useState(symbol.payoutMultiplier);
+  const [role, setRole] = useState<SlotSymbolRole>(symbol.role);
+  return (
+    <div className="flex flex-wrap items-center gap-2 w-full">
+      <input
+        value={label}
+        onChange={(e) => setLabel(e.target.value)}
+        className={`flex-1 min-w-0 px-2 py-1 rounded text-sm ${textPrimary}`}
+        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+        placeholder="ラベル"
+      />
+      <input
+        type="number"
+        min={0}
+        value={weight}
+        onChange={(e) => setWeight(Number(e.target.value) || 0)}
+        className="w-14 px-2 py-1 rounded text-sm text-center"
+        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+      />
+      <input
+        type="number"
+        min={0}
+        value={payout}
+        onChange={(e) => setPayout(Number(e.target.value) || 0)}
+        className="w-14 px-2 py-1 rounded text-sm text-center"
+        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+      />
+      <select
+        value={role}
+        onChange={(e) => setRole(e.target.value as SlotSymbolRole)}
+        className={`px-2 py-1 rounded text-sm ${textPrimary}`}
+        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+      >
+        {ROLES.map((r) => (
+          <option key={r.value} value={r.value}>{r.label}</option>
+        ))}
+      </select>
+      <button
+        type="button"
+        onClick={() => onSave({ ...symbol, label: label.trim() || symbol.label, weight, payoutMultiplier: payout, role })}
+        className="px-2 py-1 rounded text-xs bg-teal-500/30 text-teal-200"
+      >
+        保存
+      </button>
+      <button type="button" onClick={onCancel} className="px-2 py-1 rounded text-xs opacity-70">
+        キャンセル
+      </button>
+    </div>
+  );
+}
+
+function ReelStripEditor({
+  stripIds,
+  symbolMaster,
+  isLightMode,
+  inputBg,
+  inputBorder,
+  textPrimary,
+  textSecondary,
+  onStripChange,
+}: {
+  stripIds: string[];
+  symbolMaster: SlotSymbol[];
+  isLightMode: boolean;
+  inputBg: string;
+  inputBorder: string;
+  textPrimary: string;
+  textSecondary: string;
+  onStripChange: (ids: string[]) => void;
+}) {
+  const [addOpen, setAddOpen] = useState(false);
+  const labelOf = (id: string) => symbolMaster.find((s) => s.id === id)?.label ?? id;
+
+  const move = (from: number, delta: number) => {
+    const to = from + delta;
+    if (to < 0 || to >= stripIds.length) return;
+    const next = [...stripIds];
+    const [removed] = next.splice(from, 1);
+    next.splice(to, 0, removed!);
+    onStripChange(next);
+  };
+
+  const remove = (index: number) => {
+    if (stripIds.length <= 1) return;
+    onStripChange(stripIds.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+        {stripIds.map((id, i) => (
+          <div
+            key={`${id}-${i}`}
+            className={`flex items-center gap-0.5 px-2 py-1 rounded text-xs ${isLightMode ? "bg-black/5" : "bg-white/10"} ${textPrimary}`}
+          >
+            <span className="min-w-0 truncate max-w-[4rem]">{labelOf(id)}</span>
+            <button
+              type="button"
+              onClick={() => move(i, -1)}
+              disabled={i === 0}
+              className="p-0.5 rounded disabled:opacity-30"
+              aria-label="上へ"
+            >
+              <ChevronUp size={10} />
+            </button>
+            <button
+              type="button"
+              onClick={() => move(i, 1)}
+              disabled={i === stripIds.length - 1}
+              className="p-0.5 rounded disabled:opacity-30"
+              aria-label="下へ"
+            >
+              <ChevronDown size={10} />
+            </button>
+            <button
+              type="button"
+              onClick={() => remove(i)}
+              disabled={stripIds.length <= 1}
+              className="p-0.5 rounded disabled:opacity-30 text-red-400"
+              aria-label="削除"
+            >
+              <Trash2 size={10} />
+            </button>
+          </div>
+        ))}
+      </div>
+      {addOpen ? (
+        <div className="flex flex-wrap gap-1 items-center">
+          {symbolMaster.map((sym) => (
+            <button
+              key={sym.id}
+              type="button"
+              onClick={() => {
+                onStripChange([...stripIds, sym.id]);
+                setAddOpen(false);
+              }}
+              className={`px-2 py-1 rounded text-xs ${isLightMode ? "bg-teal-100 text-teal-800" : "bg-teal-500/20 text-teal-300"}`}
+            >
+              {sym.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setAddOpen(false)}
+            className={`px-2 py-1 rounded text-xs ${textSecondary}`}
+          >
+            閉じる
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setAddOpen(true)}
+          className={`text-xs px-2 py-1.5 rounded-lg flex items-center gap-1 w-fit ${isLightMode ? "bg-teal-100 text-teal-700 hover:bg-teal-200" : "bg-teal-500/20 text-teal-400 hover:bg-teal-500/30"}`}
+        >
+          <Plus size={12} /> 図柄を追加
+        </button>
+      )}
+    </div>
+  );
+}
+
+interface SlotSettingsPanelProps {
+  settings: SlotSettings;
+  onSettingsChange: (s: SlotSettings) => void;
+  isLightMode: boolean;
+  onClose: () => void;
+  symbolMaster?: SlotSymbol[];
+  onSymbolMasterChange?: (s: SlotSymbol[]) => void;
+  reelStripIds?: string[][];
+  onReelStripIdsChange?: (ids: string[][]) => void;
+  reelCount?: number;
+}
+
+export default function SlotSettingsPanel({
+  settings,
+  onSettingsChange,
+  isLightMode,
+  onClose,
+  symbolMaster = createDefaultSymbols(),
+  onSymbolMasterChange,
+  reelStripIds = [],
+  onReelStripIdsChange,
+  reelCount = MIN_REEL_COUNT,
+}: SlotSettingsPanelProps) {
+  const [symbolEditId, setSymbolEditId] = useState<string | null>(null);
+  const [reelTab, setReelTab] = useState(0);
+
+  const { glassBg, glassBorder } = useGlassStyle(isLightMode);
+  const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
+  const textSecondary = isLightMode ? "text-gray-600" : "text-white/70";
+  const inputBg = isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
+  const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
+
+  const showSymbolReelSection =
+    onSymbolMasterChange && onReelStripIdsChange && reelStripIds.length > 0;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.4)" }}
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95 }}
+        animate={{ scale: 1 }}
+        exit={{ scale: 0.95 }}
+        onClick={(e) => e.stopPropagation()}
+        className="flex flex-col w-full max-w-md max-h-[90vh] rounded-2xl overflow-hidden"
+        style={{
+          background: glassBg,
+          border: `1px solid ${glassBorder}`,
+        }}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: glassBorder }}>
+          <h2 className={`font-semibold ${textPrimary}`}>スロット設定</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className={`p-1.5 rounded-lg ${isLightMode ? "hover:bg-gray-200 text-gray-600" : "hover:bg-white/10 text-white/80"}`}
+            aria-label="閉じる"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-4">
+          <div>
+            <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}>
+              リール数
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {Array.from({ length: MAX_REEL_COUNT - MIN_REEL_COUNT + 1 }, (_, i) => MIN_REEL_COUNT + i).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => onSettingsChange({ ...settings, reelCount: n })}
+                  className={`min-w-[2.5rem] py-2 rounded-lg text-sm font-medium transition ${
+                    settings.reelCount === n
+                      ? "bg-teal-500/30 text-teal-200 border border-teal-500/50"
+                      : isLightMode ? "bg-black/5 text-gray-600 border border-black/10" : "bg-white/10 text-white/70 border border-white/10"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}>
+              天井までの回転数（0で無効）
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={9999}
+              value={settings.ceilingSpins}
+              onChange={(e) => onSettingsChange({ ...settings, ceilingSpins: Math.max(0, Number(e.target.value) || 0) })}
+              className={`w-full px-3 py-2 rounded-lg border text-sm ${isLightMode ? "bg-white border-gray-200 text-gray-800" : "bg-white/10 border-white/20 text-white"}`}
+            />
+          </div>
+          <div>
+            <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}>
+              アクセント色
+            </label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {SLOT_PALETTE.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => onSettingsChange({ ...settings, accentColor: c.value })}
+                  className={`h-8 rounded-lg transition-all ${settings.accentColor === c.value ? "ring-2 ring-teal-500 ring-offset-1" : ""}`}
+                  style={{ background: c.value }}
+                  title={c.label}
+                />
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}>
+              オーブの濃さ
+            </label>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={settings.orbIntensity}
+              onChange={(e) => onSettingsChange({ ...settings, orbIntensity: Number(e.target.value) })}
+              className="w-full h-2 rounded-full accent-teal-500"
+            />
+            <p className={`text-xs ${textSecondary} mt-0.5`}>{settings.orbIntensity}%</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="slot-sound"
+              type="checkbox"
+              checked={settings.soundEnabled}
+              onChange={(e) => onSettingsChange({ ...settings, soundEnabled: e.target.checked })}
+              className="rounded accent-teal-500"
+            />
+            <label htmlFor="slot-sound" className={`text-sm ${textPrimary}`}>
+              効果音を再生する
+            </label>
+          </div>
+
+          {showSymbolReelSection && (
+            <>
+              <div className="border-t pt-4 mt-2" style={{ borderColor: glassBorder }}>
+                <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}>
+                  図柄マスタ
+                </label>
+                <div className="flex flex-col gap-1.5 max-h-32 overflow-y-auto mb-2">
+                  {symbolMaster.map((sym) => {
+                    const isEditing = symbolEditId === sym.id;
+                    const used = isSymbolUsedInReels(sym.id, reelStripIds);
+                    return (
+                      <div
+                        key={sym.id}
+                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm ${isLightMode ? "bg-black/5" : "bg-white/10"}`}
+                      >
+                        {isEditing ? (
+                          <SymbolEditRow
+                            symbol={sym}
+                            isLightMode={isLightMode}
+                            inputBg={inputBg}
+                            inputBorder={inputBorder}
+                            textPrimary={textPrimary}
+                            onSave={(next) => {
+                              onSymbolMasterChange?.(
+                                symbolMaster.map((s) => (s.id === sym.id ? next : s))
+                              );
+                              setSymbolEditId(null);
+                            }}
+                            onCancel={() => setSymbolEditId(null)}
+                          />
+                        ) : (
+                          <>
+                            <span className={`flex-1 min-w-0 truncate ${textPrimary}`}>
+                              {sym.label} (重み{sym.weight}・{sym.payoutMultiplier}枚)
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => setSymbolEditId(sym.id)}
+                              className={`p-1 rounded ${isLightMode ? "hover:bg-gray-200 text-gray-600" : "hover:bg-white/10 text-white/70"}`}
+                              aria-label="編集"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (used) {
+                                  alert("この図柄はリールで使用中のため削除できません。");
+                                  return;
+                                }
+                                onSymbolMasterChange?.(symbolMaster.filter((s) => s.id !== sym.id));
+                              }}
+                              disabled={used}
+                              className={`p-1 rounded disabled:opacity-40 ${isLightMode ? "hover:bg-gray-200 text-gray-600" : "hover:bg-white/10 text-white/70"}`}
+                              title={used ? "リールで使用中のため削除できません" : "削除"}
+                              aria-label="削除"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const id = `sym-${Date.now()}`;
+                    onSymbolMasterChange?.([
+                      ...symbolMaster,
+                      { id, label: "新規", weight: 10, payoutMultiplier: 0, role: "chance" },
+                    ]);
+                    setSymbolEditId(id);
+                  }}
+                  className={`text-xs px-2 py-1.5 rounded-lg flex items-center gap-1 ${isLightMode ? "bg-teal-100 text-teal-700 hover:bg-teal-200" : "bg-teal-500/20 text-teal-400 hover:bg-teal-500/30"}`}
+                >
+                  <Plus size={12} /> 図柄を追加
+                </button>
+              </div>
+
+              <div className="border-t pt-4 mt-2" style={{ borderColor: glassBorder }}>
+                <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}>
+                  リール別配列
+                </label>
+                <div className="flex gap-1 mb-2">
+                  {Array.from({ length: reelCount }, (_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setReelTab(i)}
+                      className={`px-2 py-1 rounded text-xs font-medium ${
+                        reelTab === i
+                          ? "bg-teal-500/30 text-teal-200 border border-teal-500/50"
+                          : isLightMode ? "bg-black/5 text-gray-600 border border-black/10" : "bg-white/10 text-white/70 border border-white/10"
+                      }`}
+                    >
+                      リール{i + 1}
+                    </button>
+                  ))}
+                </div>
+                <ReelStripEditor
+                  stripIds={reelStripIds[reelTab] ?? []}
+                  symbolMaster={symbolMaster}
+                  isLightMode={isLightMode}
+                  inputBg={inputBg}
+                  inputBorder={inputBorder}
+                  textPrimary={textPrimary}
+                  textSecondary={textSecondary}
+                  onStripChange={(ids) => {
+                    const next = reelStripIds.map((s, j) => (j === reelTab ? ids : s));
+                    onReelStripIdsChange?.(next);
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}

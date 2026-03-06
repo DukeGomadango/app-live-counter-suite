@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
 
-export type SplitModuleType = "counter" | "flowchart" | "gacha" | "roulette" | "calculator" | "clock" | "panel";
+export type SplitModuleType = "counter" | "flowchart" | "gacha" | "roulette" | "slot" | "calculator" | "clock" | "panel";
 
 type SplitModuleContextValue = {
     activeModule: SplitModuleType | null;

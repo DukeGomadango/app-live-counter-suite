@@ -18,14 +18,16 @@ export default function HelpButton() {
     const { activeModule } = useSplitModule();
     const [isLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
     const [isGachaLightMode] = useLocalStorage<boolean>("gacha-light-mode", false);
+    const [isSlotLightMode] = useLocalStorage<boolean>("slot-light-mode", false);
     const [isClockLightMode] = useLocalStorage<boolean>("clock-light-mode", false);
     const [isPanelLightMode] = useLocalStorage<boolean>("panel-light-mode", false);
     const isGacha = pathname?.includes("gacha");
     const isRoulette = pathname?.includes("roulette");
+    const isSlot = pathname?.includes("slot");
     const isSplit = pathname?.includes("split");
     const isClock = pathname?.includes("clock");
     const isPanel = pathname?.includes("panel") || (isSplit && activeModule === "panel");
-    const effectiveLightMode = isGacha ? isGachaLightMode : isClock || (isSplit && activeModule === "clock") ? isClockLightMode : isPanel ? isPanelLightMode : isLightMode;
+    const effectiveLightMode = isGacha ? isGachaLightMode : isSlot || (isSplit && activeModule === "slot") ? isSlotLightMode : isClock || (isSplit && activeModule === "clock") ? isClockLightMode : isPanel ? isPanelLightMode : isLightMode;
 
     useEffect(() => {
         const id = setTimeout(() => setMounted(true), 0);
@@ -44,8 +46,9 @@ export default function HelpButton() {
     // Split時は表示中モジュール（Context）、それ以外はpathnameで位置を決定。PC版Splitは常に右下
     const effectiveRoulette = isSplit ? activeModule === "roulette" : isRoulette;
     const effectiveGacha = isSplit ? activeModule === "gacha" : isGacha;
+    const effectiveSlot = isSplit ? activeModule === "slot" : isSlot;
     const isSplitPc = isSplit && !isMobile;
-    const helpBottom = isSplitPc ? "16px" : (effectiveRoulette ? "16px" : effectiveGacha ? (isMobile ? "72px" : "48px") : "auto");
+    const helpBottom = isSplitPc ? "16px" : (effectiveRoulette || effectiveSlot ? "16px" : effectiveGacha ? (isMobile ? "72px" : "48px") : "auto");
     const helpTop = helpBottom !== "auto" ? "auto" : "70px";
 
     // ハイドレーション一致のため、初回は固定スタイル（サーバーとクライアントで同じ）

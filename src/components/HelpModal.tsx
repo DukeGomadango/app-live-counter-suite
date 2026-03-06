@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, GitMerge, LayoutGrid, Sparkles, Calculator, Home, CircleDot, Clock, PanelTopOpen } from "lucide-react";
+import { X, Users, GitMerge, LayoutGrid, Sparkles, Calculator, Home, CircleDot, Clock, PanelTopOpen, Dices } from "lucide-react";
 import { useEffect } from "react";
 
 interface HelpModalProps {
@@ -311,6 +311,33 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
                             "表示方式で「カスタム」を選ぶと、盤面のセグメント色をパレットから2〜8色で選べます",
                             "スロット一覧の各項目の色ボタンで、そのスロットだけ盤面の色を指定できます（全表示方式で共通）",
                             "設定パネルで「SEを再生する」のオン/オフを切り替えられます（回転音・的中ファンファーレ）",
+                        ]
+                    }
+                ]
+            };
+        } else if (path.includes("slot")) {
+            return {
+                title: "Slot モード",
+                icon: <Dices className="text-teal-400" size={24} />,
+                description: "順押し・目押し・BET・天井・リプレイに対応したスロットです。実機のパチスロとは仕様が異なり、止めるタイミングで結果が変わる仕様です。",
+                sections: [
+                    {
+                        title: "基本操作",
+                        items: [
+                            "スピンボタンでリールを回転させます。左→中→右の順にストップボタンで止めてください（順押し）",
+                            "止めたタイミングでそのリールの出目が抽選されます（目押し）",
+                            "プレイヤーを選択し、BET枚数を設定してからスピンできます。役が成立すると配当が残高に加算されます",
+                            "リプレイ役が成立するとBETが戻り、次の1回はBETを消費せずにスピンできます",
+                        ]
+                    },
+                    {
+                        title: "設定・用語",
+                        items: [
+                            "理論機械割は現在の図柄確率と配当から計算した期待回収率（％）です",
+                            "天井までの回転数を設定すると、その回数消化でボーナス役が1回確定します（0で天井なし）",
+                            "「プレイヤー管理」でプレイヤーの追加・名前・残高・BETの編集ができます",
+                            "設定パネルの「図柄マスタ」で図柄のラベル・重み・配当倍率・役の種類を編集できます。各リールの出目並びは「リール別配列」で編集できます",
+                            "効果音は public/sounds/slot/ に spin・stop・reach・win の mp3 を置くと再生されます。設定の「効果音を再生する」でオン/オフを切り替えられます",
                         ]
                     }
                 ]

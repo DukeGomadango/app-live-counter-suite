@@ -2,7 +2,7 @@
  * ツール一覧の単一ソース。LP・ModeSelector・sitemap・JsonLd で共有。
  * 機能追加時はこの配列に 1 件追加するだけで拡張できる。
  */
-import { Users, Network, Sparkles, CircleDot, LayoutGrid, Calculator, Clock, PanelTopOpen, type LucideIcon } from "lucide-react";
+import { Users, Network, Sparkles, CircleDot, Dices, LayoutGrid, Calculator, Clock, PanelTopOpen, type LucideIcon } from "lucide-react";
 
 export interface ToolDef {
   id: string;
@@ -72,6 +72,19 @@ export const TOOLS: ToolDef[] = [
     activeBg: "bg-amber-500/20",
     activeBorder: "border-amber-500/40",
     accentHex: "#fbbf24",
+  },
+  {
+    id: "slot",
+    path: "/slot",
+    labelEn: "Slot",
+    labelJa: "スロット",
+    description: "順押し・目押し・BET・天井・リプレイ。図柄と確率をカスタマイズ。",
+    descriptionNarrowBreakAfter: "リプレイ。",
+    icon: Dices,
+    colorClass: "text-teal-400",
+    activeBg: "bg-teal-500/20",
+    activeBorder: "border-teal-500/40",
+    accentHex: "#14b8a6",
   },
   {
     id: "clock",
