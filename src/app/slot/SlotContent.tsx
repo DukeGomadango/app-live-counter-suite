@@ -10,6 +10,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import SlotReel from "@/components/slot/SlotReel";
 import SlotSettingsPanel from "@/components/slot/SlotSettingsPanel";
 import SlotPlayerManager from "@/components/slot/SlotPlayerManager";
+import SlotReelSymbolPanel from "@/components/slot/SlotReelSymbolPanel";
 import RouletteHitEffect from "@/components/roulette/RouletteHitEffect";
 import { X } from "lucide-react";
 import {
@@ -78,7 +79,11 @@ export default function SlotContent({
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
-  const [showPlayerManager, setShowPlayerManager] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<"reel" | "players">("reel");
+  const [sidebarWidthPx, setSidebarWidthPx] = useLocalStorage<number>(
+    "slot-sidebar-width",
+    320
+  );
 
   const reelCount = Math.min(
     MAX_REEL_COUNT,
@@ -379,6 +384,187 @@ export default function SlotContent({
   const headerBgSolid = displayLight ? "rgb(255,255,255)" : "rgb(20,10,40)";
   const isDesktop = useMediaQuery("(min-width: 768px)");
   const showHamburger = isSplitMode || !isDesktop;
+  const showSidebar = (!isSplitMode && isDesktop) || sidebarOpen;
+
+  const sidebarResizeRafRef = useRef<number | null>(null);
+  const sidebarResizePendingRef = useRef<number | null>(null);
+
+  const applyResize = useCallback(
+    (clientX: number, startX: number, startW: number) => {
+      const newW = Math.min(720, Math.max(200, startW + (clientX - startX)));
+      sidebarResizePendingRef.current = newW;
+      if (sidebarResizeRafRef.current !== null) return;
+      sidebarResizeRafRef.current = requestAnimationFrame(() => {
+        sidebarResizeRafRef.current = null;
+        const w = sidebarResizePendingRef.current;
+        if (w !== null) setSidebarWidthPx(w);
+      });
+    },
+    [setSidebarWidthPx]
+  );
+
+  const handleSidebarResizeStart = useCallback(
+    (e: React.MouseEvent) => {
+      if (e.button !== 0) return;
+      const startX = e.clientX;
+      const startW = sidebarWidthPx;
+      const onMove = (moveEvent: MouseEvent) =>
+        applyResize(moveEvent.clientX, startX, startW);
+      const onUp = () => {
+        if (sidebarResizeRafRef.current !== null) {
+          cancelAnimationFrame(sidebarResizeRafRef.current);
+          sidebarResizeRafRef.current = null;
+        }
+        const pending = sidebarResizePendingRef.current;
+        if (pending !== null) setSidebarWidthPx(pending);
+        sidebarResizePendingRef.current = null;
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+      };
+      document.body.style.userSelect = "none";
+      document.body.style.cursor = "col-resize";
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    },
+    [sidebarWidthPx, setSidebarWidthPx, applyResize]
+  );
+
+  const handleSidebarResizeTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (e.changedTouches.length === 0) return;
+      const startX = e.changedTouches[0]!.clientX;
+      const startW = sidebarWidthPx;
+      const onMove = (moveEvent: TouchEvent) => {
+        if (moveEvent.changedTouches.length === 0) return;
+        moveEvent.preventDefault();
+        applyResize(moveEvent.changedTouches[0]!.clientX, startX, startW);
+      };
+      const onEnd = () => {
+        const pending = sidebarResizePendingRef.current;
+        if (pending !== null) setSidebarWidthPx(pending);
+        sidebarResizePendingRef.current = null;
+        document.removeEventListener("touchmove", onMove, { capture: true } as any);
+        document.removeEventListener("touchend", onEnd);
+        document.removeEventListener("touchcancel", onEnd);
+      };
+      document.addEventListener("touchmove", onMove, {
+        passive: false,
+        capture: true,
+      } as any);
+      document.addEventListener("touchend", onEnd);
+      document.addEventListener("touchcancel", onEnd);
+    },
+    [sidebarWidthPx, setSidebarWidthPx, applyResize]
+  );
+
+  const gameArea = (
+    <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-4 gap-6 relative z-10">
+      <div className="flex flex-col items-center gap-1">
+        <div className="flex items-center gap-2">
+          <select
+            value={activePlayer?.id ?? ""}
+            onChange={(e) => setActivePlayerId(e.target.value || null)}
+            className={`text-sm rounded-lg px-3 py-1.5 border ${
+              displayLight
+                ? "bg-white border-gray-200 text-gray-800"
+                : "bg-white/10 border-white/20 text白"
+            }`}
+          >
+            {players.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}（残高 {p.balance} 枚 · BET {p.defaultBet} 枚）
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+      {settings.ceilingSpins > 0 && (
+        <p
+          className={`text-xs ${
+            displayLight ? "text-gray-500" : "text-white/60"
+          }`}
+        >
+          天井まで {Math.max(0, settings.ceilingSpins - ceilingCount)} 回
+        </p>
+      )}
+      {activePlayer && (
+        <p
+          className={`text-xs ${
+            displayLight ? "text-gray-500" : "text-white/50"
+          }`}
+        >
+          理論機械割{" "}
+          {calculateTheoreticalPayoutPercent(
+            strips,
+            activePlayer.defaultBet
+          ).toFixed(1)}
+          %
+        </p>
+      )}
+
+      <div className="flex gap-4 flex-wrap justify-center items-end">
+        {strips.map((strip, i) => {
+          const resultIdx = reelResults[i] ?? null;
+          const canStopThis = canStop(i);
+          return (
+            <SlotReel
+              key={i}
+              symbols={strip}
+              isSpinning={isSpinning && resultIdx === null}
+              stoppedIndex={resultIdx}
+              onStop={() => handleStop(i)}
+              canStop={canStopThis}
+              isLightMode={displayLight}
+              accentColor={accentColor}
+              isReach={i === 2 && isReach}
+            />
+          );
+        })}
+      </div>
+
+      <p
+        className={`text-xs ${
+          displayLight ? "text-gray-500" : "text-white/50"
+        }`}
+      >
+        左→中→右の順に止めてください
+      </p>
+
+      <button
+        type="button"
+        onClick={handleSpin}
+        disabled={
+          isSpinning ||
+          strips.some((s) => s.length === 0) ||
+          !activePlayer ||
+          (!replayFreeSpin &&
+            (activePlayer?.balance ?? 0) <
+              (activePlayer?.defaultBet ?? 0))
+        }
+        className={`px-6 py-3 rounded-xl font-semibold transition ${
+          displayLight
+            ? "bg-purple-500 text-white hover:bg-purple-600 disabled:bg-gray-300 disabled:text-gray-500"
+            : "bg-purple-500/80 text-white hover:bg-purple-500 disabled:bg-white/10 disabled:text-white/40"
+        }`}
+      >
+        スピン
+      </button>
+
+      {lastWin && (
+        <p
+          className={`text-sm font-medium ${
+            displayLight ? "text-green-700" : "text-green-400"
+          }`}
+        >
+          {lastWin.isReplay
+            ? "REPLAY!"
+            : `${lastWin.label} ${lastWin.payout} 枚`}
+        </p>
+      )}
+    </div>
+  );
 
   return (
     <div
@@ -465,7 +651,7 @@ export default function SlotContent({
       </header>
 
       <AnimatePresence>
-        {showFlash && (
+        {settings.effectsEnabled !== false && showFlash && (
           <motion.div
             className="fixed inset-0 z-[75] pointer-events-none"
             initial={{ opacity: 0 }}
@@ -483,76 +669,11 @@ export default function SlotContent({
             onSettingsChange={setSettings}
             isLightMode={displayLight}
             onClose={() => setShowSettingsPanel(false)}
-            symbolMaster={symbolMaster}
-            onSymbolMasterChange={setSymbolMaster}
-            reelStripIds={!isLegacyStrips ? (reelStrips as string[][]) : undefined}
-            onReelStripIdsChange={setReelStrips as (v: string[][]) => void}
-            reelCount={reelCount}
           />
         )}
       </AnimatePresence>
-      <AnimatePresence>
-        {showPlayerManager && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[60] flex items-center justify-center p-4"
-            style={{ background: "rgba(0,0,0,0.4)" }}
-            onClick={() => setShowPlayerManager(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.95 }}
-              onClick={(e) => e.stopPropagation()}
-              className="flex flex-col w-full max-w-md max-h-[85vh] rounded-2xl overflow-hidden"
-              style={{
-                background: displayLight ? "rgba(255,255,255,0.95)" : "rgba(20,10,40,0.95)",
-                border: `1px solid ${glassBorder}`,
-              }}
-            >
-              <div
-                className="flex items-center justify-between px-4 py-3 border-b shrink-0"
-                style={{ borderColor: glassBorder }}
-              >
-                <h2
-                  className={`font-semibold ${
-                    displayLight ? "text-gray-800" : "text-white/95"
-                  }`}
-                >
-                  プレイヤー管理
-                </h2>
-                <button
-                  type="button"
-                  onClick={() => setShowPlayerManager(false)}
-                  className={`p-1.5 rounded-lg ${
-                    displayLight
-                      ? "hover:bg-gray-200 text-gray-600"
-                      : "hover:bg-white/10 text-white/80"
-                  }`}
-                  aria-label="閉じる"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto px-4 py-4">
-                <SlotPlayerManager
-                  players={players}
-                  activePlayerId={activePlayer?.id ?? null}
-                  onSelectPlayer={(id) => setActivePlayerId(id)}
-                  onAddPlayer={addPlayer}
-                  onRemovePlayer={removePlayer}
-                  onUpdatePlayer={updatePlayer}
-                  isLightMode={displayLight}
-                />
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
       <RouletteHitEffect
-        show={showHitEffect}
+        show={settings.effectsEnabled !== false && showHitEffect}
         onComplete={() => setShowHitEffect(false)}
         accentColor={accentColor}
         hitNames={lastWin ? [lastWin.isReplay ? "REPLAY!" : `${lastWin.label} ${lastWin.payout}枚`] : []}
@@ -560,92 +681,206 @@ export default function SlotContent({
       />
 
       {/* メイン */}
-      <main className="flex-1 min-h-0 flex flex-col items-center justify-center p-4 gap-6 relative z-10">
-        <div className="flex flex-col items-center gap-1">
-          <div className="flex items-center gap-2">
-            <select
-              value={activePlayer?.id ?? ""}
-              onChange={(e) => setActivePlayerId(e.target.value || null)}
-              className={`text-sm rounded-lg px-3 py-1.5 border ${
-                displayLight ? "bg-white border-gray-200 text-gray-800" : "bg-white/10 border-white/20 text-white"
-              }`}
+      <main className="flex-1 min-h-0 flex flex-col md:flex-row gap-0 p-4 overflow-auto scroll-touch relative z-10">
+        {!isSplitMode && isDesktop ? (
+          <>
+            <aside
+              className="h-full flex flex-col overflow-hidden shrink-0 pr-3 min-w-0"
+              style={{
+                width: sidebarWidthPx,
+                minWidth: 200,
+                maxWidth: 720,
+                borderRight: `1px solid ${glassBorder}`,
+              }}
             >
-              {players.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}（残高 {p.balance} 枚 · BET {p.defaultBet} 枚）
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              onClick={() => setShowPlayerManager(true)}
-              className={`text-sm rounded-lg px-3 py-1.5 border transition ${
-                displayLight
-                  ? "border-gray-200 text-gray-700 hover:bg-gray-100"
-                  : "border-white/20 text-white/90 hover:bg-white/10"
-              }`}
+              <div
+                className="flex border-b shrink-0 flex-wrap gap-2 px-3 pt-3 pb-2"
+                style={{ borderColor: glassBorder }}
+              >
+                {[
+                  { id: "reel" as const, label: "リール・図柄" },
+                  { id: "players" as const, label: "プレイヤー" },
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setSidebarTab(tab.id)}
+                    className={`shrink-0 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap rounded-lg ${
+                      sidebarTab === tab.id
+                        ? displayLight
+                          ? "bg-white/90 text-gray-800 border border-teal-500"
+                          : "bg-white/10 text-white border border-teal-400"
+                        : displayLight
+                          ? "text-gray-600 hover:bg-gray-100 border border-transparent"
+                          : "text-white/60 hover:bg-white/5 border border-transparent"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col mt-3 px-3 pb-3">
+                {sidebarTab === "reel" && (
+                  <SlotReelSymbolPanel
+                    settings={settings}
+                    onSettingsChange={setSettings}
+                    symbolMaster={symbolMaster}
+                    onSymbolMasterChange={setSymbolMaster}
+                    reelStripIds={reelStrips as string[][]}
+                    onReelStripIdsChange={setReelStrips as (ids: string[][]) => void}
+                    isLightMode={displayLight}
+                  />
+                )}
+                {sidebarTab === "players" && (
+                  <SlotPlayerManager
+                    players={players}
+                    activePlayerId={activePlayer?.id ?? null}
+                    onSelectPlayer={(id) => setActivePlayerId(id)}
+                    onAddPlayer={addPlayer}
+                    onRemovePlayer={removePlayer}
+                    onUpdatePlayer={updatePlayer}
+                    isLightMode={displayLight}
+                  />
+                )}
+              </div>
+            </aside>
+            <div
+              role="separator"
+              aria-label="サイドバー幅を調節"
+              onMouseDown={handleSidebarResizeStart}
+              onTouchStart={handleSidebarResizeTouchStart}
+              className="shrink-0 w-4 h-full cursor-col-resize select-none flex items-center justify-center group touch-manipulation"
+              style={{ minWidth: 16 }}
             >
-              プレイヤー管理
-            </button>
-          </div>
-        </div>
-        {settings.ceilingSpins > 0 && (
-          <p className={`text-xs ${displayLight ? "text-gray-500" : "text-white/60"}`}>
-            天井まで {Math.max(0, settings.ceilingSpins - ceilingCount)} 回
-          </p>
-        )}
-        {activePlayer && (
-          <p className={`text-xs ${displayLight ? "text-gray-500" : "text-white/50"}`}>
-            理論機械割 {calculateTheoreticalPayoutPercent(strips, activePlayer.defaultBet).toFixed(1)}%
-          </p>
-        )}
-
-        <div className="flex gap-4 flex-wrap justify-center items-end">
-          {strips.map((strip, i) => {
-            const resultIdx = reelResults[i] ?? null;
-            const canStopThis = canStop(i);
-            return (
-              <SlotReel
-                key={i}
-                symbols={strip}
-                isSpinning={isSpinning && resultIdx === null}
-                stoppedIndex={resultIdx}
-                onStop={() => handleStop(i)}
-                canStop={canStopThis}
-                isLightMode={displayLight}
-                accentColor={accentColor}
-                isReach={i === 2 && isReach}
+              <span
+                className="w-0.5 h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                style={{ background: glassBorder }}
               />
-            );
-          })}
-        </div>
-
-        <p className={`text-xs ${displayLight ? "text-gray-500" : "text-white/50"}`}>
-          左→中→右の順に止めてください
-        </p>
-
-        <button
-          type="button"
-          onClick={handleSpin}
-          disabled={
-            isSpinning ||
-            strips.some((s) => s.length === 0) ||
-            !activePlayer ||
-            (!replayFreeSpin && (activePlayer?.balance ?? 0) < (activePlayer?.defaultBet ?? 0))
-          }
-          className={`px-6 py-3 rounded-xl font-semibold transition ${
-            displayLight
-              ? "bg-purple-500 text-white hover:bg-purple-600 disabled:bg-gray-300 disabled:text-gray-500"
-              : "bg-purple-500/80 text-white hover:bg-purple-500 disabled:bg-white/10 disabled:text-white/40"
-          }`}
-        >
-          スピン
-        </button>
-
-        {lastWin && (
-          <p className={`text-sm font-medium ${displayLight ? "text-green-700" : "text-green-400"}`}>
-            {lastWin.isReplay ? "REPLAY!" : `${lastWin.label} ${lastWin.payout} 枚`}
-          </p>
+            </div>
+            {gameArea}
+          </>
+        ) : (
+          <>
+            <AnimatePresence>
+              {showSidebar && (
+                <>
+                  {!isDesktop && (
+                    <motion.div
+                      key="slot-sidebar-backdrop"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="fixed inset-0 z-[38] bg-black/50"
+                      onClick={() => setSidebarOpen(false)}
+                      aria-hidden
+                    />
+                  )}
+                  <motion.aside
+                    key="slot-sidebar"
+                    initial={isDesktop ? { width: 0, opacity: 0 } : { x: "-100%" }}
+                    animate={isDesktop ? { width: "auto", opacity: 1 } : { x: 0 }}
+                    exit={isDesktop ? { width: 0, opacity: 0 } : { x: "-100%" }}
+                    transition={
+                      isDesktop
+                        ? undefined
+                        : { type: "spring", damping: 25, stiffness: 300 }
+                    }
+                    className={`shrink-0 flex flex-col min-h-0 overflow-hidden ${
+                      isSplitMode
+                        ? "absolute top-14 left-0 right-0 bottom-0 max-md:top-14 z-40"
+                        : "max-md:fixed max-md:left-0 max-md:top-14 max-md:bottom-0 max-md:z-40 max-md:shadow-2xl md:relative md:w-72"
+                    }`}
+                    style={
+                      !isDesktop && !isSplitMode
+                        ? {
+                            width: "min(320px, 90vw)",
+                            maxWidth: "min(320px, 90vw)",
+                            background: headerBgSolid,
+                          }
+                        : undefined
+                    }
+                  >
+                    <div
+                      className={`flex items-center border-b shrink-0 gap-2 px-3 pb-2 ${
+                        !isDesktop && !isSplitMode ? "pt-3 mt-1" : "pt-3"
+                      }`}
+                      style={{
+                        borderColor: glassBorder,
+                        background:
+                          !isDesktop && !isSplitMode ? headerBgSolid : undefined,
+                      }}
+                    >
+                      <div className="flex flex-wrap gap-2 flex-1 min-w-0">
+                        {[
+                          { id: "reel" as const, label: "リール・図柄" },
+                          { id: "players" as const, label: "プレイヤー" },
+                        ].map((tab) => (
+                          <button
+                            key={tab.id}
+                            type="button"
+                            onClick={() => setSidebarTab(tab.id)}
+                            className={`shrink-0 px-3 py-2 text-xs font-medium transition-colors whitespace-nowrap rounded-lg touch-manipulation ${
+                              sidebarTab === tab.id
+                                ? displayLight
+                                  ? "bg-white/90 text-gray-800 border border-teal-500"
+                                  : "bg-white/10 text-white border border-teal-400"
+                                : displayLight
+                                  ? "text-gray-600 hover:bg-gray-100 border border-transparent"
+                                  : "text-white/60 hover:bg-white/5 border border-transparent"
+                            }`}
+                          >
+                            {tab.label}
+                          </button>
+                        ))}
+                      </div>
+                      {showHamburger && (
+                        <button
+                          type="button"
+                          onClick={() => setSidebarOpen(false)}
+                          className={`shrink-0 p-2 rounded-lg touch-manipulation ${
+                            displayLight
+                              ? "text-gray-600 hover:bg-gray-100"
+                              : "text-white/60 hover:bg-white/10"
+                          }`}
+                          aria-label="メニューを閉じる"
+                        >
+                          <X size={20} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-hidden flex flex-col mt-3 px-3 pb-4">
+                      {sidebarTab === "reel" && (
+                        <SlotReelSymbolPanel
+                          settings={settings}
+                          onSettingsChange={setSettings}
+                          symbolMaster={symbolMaster}
+                          onSymbolMasterChange={setSymbolMaster}
+                          reelStripIds={reelStrips as string[][]}
+                          onReelStripIdsChange={
+                            setReelStrips as (ids: string[][]) => void
+                          }
+                          isLightMode={displayLight}
+                        />
+                      )}
+                      {sidebarTab === "players" && (
+                        <SlotPlayerManager
+                          players={players}
+                          activePlayerId={activePlayer?.id ?? null}
+                          onSelectPlayer={(id) => setActivePlayerId(id)}
+                          onAddPlayer={addPlayer}
+                          onRemovePlayer={removePlayer}
+                          onUpdatePlayer={updatePlayer}
+                          isLightMode={displayLight}
+                        />
+                      )}
+                    </div>
+                  </motion.aside>
+                </>
+              )}
+            </AnimatePresence>
+            {gameArea}
+          </>
         )}
       </main>
     </div>
