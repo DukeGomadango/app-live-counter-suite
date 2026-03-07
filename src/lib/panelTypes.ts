@@ -69,6 +69,17 @@ export interface PanelOverlay {
 
 export type FilterType = "noise" | "mosaic" | "grid" | "blur" | "noiseStrong";
 
+/** 画像を切り分ける線（0–100% 相対座標） */
+export interface PartitionLine {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+/** 編集ステップ: 線で切り分け → 領域生成 → 図形編集 → パネルあけ */
+export type PanelEditStep = "lines" | "overlays";
+
 export interface PanelState {
   imageDataUrl: string | null;
   /** パネル画像のアスペクト比（幅/高さ）。枠を画像に合わせて余白を消す用。未指定時は 16:9 */
@@ -79,6 +90,10 @@ export interface PanelState {
   filterShowLabel: boolean;
   overlays: PanelOverlay[];
   isEditMode: boolean;
+  /** 線で切り分け: 画像上に引いた線（0–100%）。未指定時は [] */
+  partitionLines?: PartitionLine[];
+  /** 編集ステップ。未指定時は "overlays"（従来どおり） */
+  panelEditStep?: PanelEditStep;
 }
 
 export interface SavedPanel {
@@ -233,6 +248,40 @@ export function getCustomOverlayCentroid(parts: CustomPart[]): { x: number; y: n
   }
   if (sumA <= 0) return { x: 50, y: 50 };
   return { x: sumAx / sumA, y: sumAy / sumA };
+}
+
+/** 0–100 座標の多角形から free オーバーレイを1つ作成 */
+export function createFreeOverlayFromPolygon(points: { x: number; y: number }[]): PanelOverlay {
+  if (points.length < 3) {
+    return createDefaultOverlay("free", 0, 0);
+  }
+  let minX = 100, minY = 100, maxX = 0, maxY = 0;
+  for (const p of points) {
+    minX = Math.min(minX, p.x);
+    minY = Math.min(minY, p.y);
+    maxX = Math.max(maxX, p.x);
+    maxY = Math.max(maxY, p.y);
+  }
+  const width = Math.max(1, maxX - minX);
+  const height = Math.max(1, maxY - minY);
+  const relativePoints = points.map((p) => ({ x: p.x - minX, y: p.y - minY }));
+  return {
+    id: createOverlayId(),
+    shape: "free",
+    targetType: "number",
+    target: 0,
+    count: 0,
+    targetText: "",
+    x: minX,
+    y: minY,
+    width,
+    height,
+    points: relativePoints,
+    color: DEFAULT_OVERLAY_COLOR,
+    rotation: 0,
+    opacity: 100,
+    flipX: false,
+  };
 }
 
 /** パーツの clipPath（三角形用）。CSS に渡す値。 */

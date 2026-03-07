@@ -17,13 +17,17 @@ import {
   type CustomPart,
   type FilterType,
   type OverlayShape,
+  type PartitionLine,
+  type PanelEditStep,
   createOverlayId,
   createDefaultOverlay,
   createImageOverlay,
   createCustomOverlay,
+  createFreeOverlayFromPolygon,
   getPartClipPath,
   getCustomOverlayCentroid,
 } from "@/lib/panelTypes";
+import { getRegionsFromLines } from "@/lib/panelRegionDetection";
 import CustomShapeEditorModal from "@/components/CustomShapeEditorModal";
 
 const defaultPanelState: PanelState = {
@@ -186,6 +190,9 @@ export default function PanelContent({
   const [renamePanelId, setRenamePanelId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [pendingCropDataUrl, setPendingCropDataUrl] = useState<string | null>(null);
+  const [lineDrawStart, setLineDrawStart] = useState<{ x: number; y: number } | null>(null);
+  const [lineDrawEnd, setLineDrawEnd] = useState<{ x: number; y: number } | null>(null);
+  const [imageBoundsPct, setImageBoundsPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
   const tapPendingRef = useRef(false);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -223,11 +230,29 @@ export default function PanelContent({
     overlayHistoryRef.current = [...overlayHistoryRef.current, snapshot].slice(-OVERLAY_HISTORY_MAX);
   }, []);
 
-  const { imageDataUrl, imageAspectRatio, activeFilters, filterIntensity: rawFilterIntensity, filterShowLabel, overlays, isEditMode } = panelState;
+  const {
+    imageDataUrl,
+    imageAspectRatio,
+    activeFilters,
+    filterIntensity: rawFilterIntensity,
+    filterShowLabel,
+    overlays,
+    isEditMode,
+    partitionLines = [],
+    panelEditStep = "overlays",
+  } = panelState;
   const filterIntensity = rawFilterIntensity ?? 50;
+  const isLineStep = isEditMode && panelEditStep === "lines";
   const setOverlays = useCallback(
     (updater: (prev: PanelOverlay[]) => PanelOverlay[]) => {
       setPanelState((s) => ({ ...s, overlays: updater(s.overlays) }));
+    },
+    [setPanelState]
+  );
+
+  const setPartitionLines = useCallback(
+    (updater: (prev: PartitionLine[]) => PartitionLine[]) => {
+      setPanelState((s) => ({ ...s, partitionLines: updater(s.partitionLines ?? []) }));
     },
     [setPanelState]
   );
@@ -238,6 +263,23 @@ export default function PanelContent({
     else document.body.classList.remove("light-mode");
     return () => document.body.classList.remove("light-mode");
   }, [isLightMode, isSplitMode]);
+
+  // 線で切り分け時: キャプチャ枠内の画像表示範囲を state に保持（破線・線の表示位置合わせ用）
+  useEffect(() => {
+    const el = captureRef.current;
+    if (!el || typeof imageAspectRatio !== "number") {
+      setImageBoundsPct(null);
+      return;
+    }
+    const update = () => {
+      const rect = el.getBoundingClientRect();
+      setImageBoundsPct(getImageBoundsPct(rect, imageAspectRatio));
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [imageAspectRatio]);
 
   // Migrate old state without filterIntensity
   useEffect(() => {
@@ -329,10 +371,16 @@ export default function PanelContent({
 
   const handleCropConfirm = useCallback(
     (result: { dataUrl: string; aspectRatio: number }) => {
-      applyImageWithAspect(result.dataUrl, result.aspectRatio);
+      setPanelState((s) => ({
+        ...s,
+        imageDataUrl: result.dataUrl,
+        imageAspectRatio: result.aspectRatio,
+        partitionLines: [],
+        panelEditStep: "lines" as PanelEditStep,
+      }));
       setPendingCropDataUrl(null);
     },
-    [applyImageWithAspect]
+    [setPanelState]
   );
 
   const handleImageUpload = useCallback(
@@ -679,6 +727,69 @@ export default function PanelContent({
       setAchievedOverlayId(null);
     }
   }, [achievedOverlayId, setOverlays]);
+
+  const clientToPctForLine = useCallback(
+    (clientX: number, clientY: number) => {
+      const rect = captureRef.current?.getBoundingClientRect();
+      if (!rect) return { x: 0, y: 0 };
+      const bounds = getImageBoundsPct(rect, imageAspectRatio ?? undefined);
+      const framePx = ((clientX - rect.left) / rect.width) * 100;
+      const framePy = ((clientY - rect.top) / rect.height) * 100;
+      const imagePx = bounds.width > 0 ? ((framePx - bounds.x) / bounds.width) * 100 : 50;
+      const imagePy = bounds.height > 0 ? ((framePy - bounds.y) / bounds.height) * 100 : 50;
+      return {
+        x: Math.max(0, Math.min(100, imagePx)),
+        y: Math.max(0, Math.min(100, imagePy)),
+      };
+    },
+    [imageAspectRatio]
+  );
+
+  const handleLineDrawPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isLineStep || e.button !== 0) return;
+      e.preventDefault();
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+      const p = clientToPctForLine(e.clientX, e.clientY);
+      setLineDrawStart(p);
+      setLineDrawEnd(p);
+    },
+    [isLineStep, clientToPctForLine]
+  );
+
+  const handleLineDrawPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isLineStep || !lineDrawStart) return;
+      const p = clientToPctForLine(e.clientX, e.clientY);
+      setLineDrawEnd(p);
+    },
+    [isLineStep, lineDrawStart, clientToPctForLine]
+  );
+
+  const handleLineDrawPointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isLineStep || e.button !== 0) return;
+      (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+      const end = clientToPctForLine(e.clientX, e.clientY);
+      if (lineDrawStart && (lineDrawStart.x !== end.x || lineDrawStart.y !== end.y)) {
+        const x1 = Math.max(0, Math.min(100, lineDrawStart.x));
+        const y1 = Math.max(0, Math.min(100, lineDrawStart.y));
+        const x2 = Math.max(0, Math.min(100, end.x));
+        const y2 = Math.max(0, Math.min(100, end.y));
+        setPartitionLines((prev) => [...prev, { x1, y1, x2, y2 }]);
+      }
+      setLineDrawStart(null);
+      setLineDrawEnd(null);
+    },
+    [isLineStep, lineDrawStart, clientToPctForLine, setPartitionLines]
+  );
+
+  const handleGenerateRegions = useCallback(() => {
+    const polygons = getRegionsFromLines(partitionLines);
+    const newOverlays = polygons.map((poly) => createFreeOverlayFromPolygon(poly));
+    setOverlays(() => newOverlays);
+    setPanelState((s) => ({ ...s, panelEditStep: "overlays" }));
+  }, [partitionLines, setOverlays, setPanelState]);
 
   const handleAddOverlayAtPoint = useCallback(
     (shape: OverlayShape, clientX: number, clientY: number) => {
@@ -1124,6 +1235,42 @@ export default function PanelContent({
         {/* Toolbar (edit mode only) */}
         {isEditMode && (
           <div className="shrink-0 flex flex-wrap items-center gap-2 p-2 border-b" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }}>
+            {isLineStep ? (
+              <>
+                <span className="text-sm opacity-80">画像上をドラッグして線を引き、領域を区切ります</span>
+                <button
+                  type="button"
+                  onClick={() => setPartitionLines((prev) => prev.slice(0, -1))}
+                  disabled={partitionLines.length === 0}
+                  className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 disabled:opacity-40"
+                >
+                  やり直し（1本削除）
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPartitionLines(() => [])}
+                  disabled={partitionLines.length === 0}
+                  className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 disabled:opacity-40"
+                >
+                  クリア
+                </button>
+                <button
+                  type="button"
+                  onClick={handleGenerateRegions}
+                  className="px-3 py-1.5 rounded text-sm font-medium border border-violet-500/40 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30"
+                >
+                  領域を生成
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPanelState((s) => ({ ...s, panelEditStep: "overlays" }))}
+                  className="px-2 py-1 rounded text-xs opacity-70 hover:opacity-100"
+                >
+                  図形編集に戻る
+                </button>
+              </>
+            ) : (
+              <>
             <input
               ref={fileInputRef}
               type="file"
@@ -1164,6 +1311,13 @@ export default function PanelContent({
               className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm border border-amber-500/40 bg-amber-500/10 text-amber-400"
             >
               <ImagePlus size={14} /> 画像を追加
+            </button>
+            <button
+              type="button"
+              onClick={() => setPanelState((s) => ({ ...s, panelEditStep: "lines", partitionLines: s.partitionLines ?? [] }))}
+              className="px-2 py-1 rounded text-xs border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
+            >
+              線で切り分け
             </button>
             <span className="text-xs opacity-70">覆いの形:</span>
             {(["rect", "circle", "triangle", "custom", "free"] as const).map((shape) => (
@@ -1252,6 +1406,8 @@ export default function PanelContent({
               className="w-20 h-1.5 accent-violet-500"
             />
             <span className="text-[10px] tabular-nums opacity-70">{filterIntensity}</span>
+              </>
+            )}
           </div>
         )}
 
@@ -1269,16 +1425,12 @@ export default function PanelContent({
             onPointerDownCapture={handleCapturePointerDown}
             onPointerMoveCapture={handleCapturePointerMove}
             onPointerUpCapture={handleCapturePointerUp}
-            {...({
-              onPointerLeaveCapture: handleCapturePointerLeaveOrCancel,
-              onPointerCancelCapture: handleCapturePointerLeaveOrCancel,
-            } as React.ComponentProps<"div">)}
+            onPointerLeave={isDrawingFree ? handleFreeDrawEnd : handleCapturePointerLeaveOrCancel}
+            onPointerCancel={isDrawingFree ? handleFreeDrawEnd : handleCapturePointerLeaveOrCancel}
             onClick={addShape && addShape !== "free" ? handleAddOverlay : undefined}
             onPointerDown={addShape === "free" ? handleFreeDrawStart : undefined}
             onPointerMove={isDrawingFree ? handleFreeDrawMove : undefined}
             onPointerUp={isDrawingFree ? handleFreeDrawEnd : undefined}
-            onPointerLeave={isDrawingFree ? handleFreeDrawEnd : undefined}
-            onPointerCancel={isDrawingFree ? handleFreeDrawEnd : undefined}
           >
             {!imageDataUrl ? (
               <div
@@ -1337,8 +1489,89 @@ export default function PanelContent({
                     AI読み取り防止
                   </div>
                 )}
+                {/* 線で切り分け: 描いた線の表示と描画用ヒット領域（ラッパー外で確実に表示） */}
+                {isLineStep && (
+                  <>
+                    <svg
+                      className="absolute w-full h-full pointer-events-none overflow-visible"
+                      viewBox="0 0 100 100"
+                      preserveAspectRatio="none"
+                      style={
+                        imageBoundsPct && imageBoundsPct.width > 0 && imageBoundsPct.height > 0
+                          ? {
+                              left: `${imageBoundsPct.x}%`,
+                              top: `${imageBoundsPct.y}%`,
+                              width: `${imageBoundsPct.width}%`,
+                              height: `${imageBoundsPct.height}%`,
+                            }
+                          : { left: 0, top: 0, width: "100%", height: "100%" }
+                      }
+                    >
+                      <rect
+                        x={0}
+                        y={0}
+                        width={100}
+                        height={100}
+                        fill="none"
+                        stroke="rgba(139,92,246,0.5)"
+                        strokeWidth={0.5}
+                        strokeDasharray="2 2"
+                      />
+                      {partitionLines.map((line, i) => (
+                        <line
+                          key={i}
+                          x1={line.x1}
+                          y1={line.y1}
+                          x2={line.x2}
+                          y2={line.y2}
+                          stroke="rgba(139,92,246,0.9)"
+                          strokeWidth={0.8}
+                          strokeLinecap="round"
+                        />
+                      ))}
+                      {lineDrawStart && lineDrawEnd && (
+                        <line
+                          x1={lineDrawStart.x}
+                          y1={lineDrawStart.y}
+                          x2={lineDrawEnd.x}
+                          y2={lineDrawEnd.y}
+                          stroke="rgba(251,191,36,0.95)"
+                          strokeWidth={1}
+                          strokeLinecap="round"
+                          strokeDasharray="2 2"
+                        />
+                      )}
+                    </svg>
+                    <div
+                      className="absolute inset-0 cursor-crosshair overflow-hidden"
+                      onPointerDown={handleLineDrawPointerDown}
+                      onPointerMove={handleLineDrawPointerMove}
+                      onPointerUp={handleLineDrawPointerUp}
+                      onPointerLeave={() => {
+                        if (lineDrawStart) {
+                          setLineDrawStart(null);
+                          setLineDrawEnd(null);
+                        }
+                      }}
+                    />
+                  </>
+                )}
+                {/* 画像の表示範囲内にクリップ（オーバーレイ・フリードローが破線の外にはみ出さない） */}
+                <div
+                  className="absolute overflow-hidden"
+                  style={
+                    imageBoundsPct && imageBoundsPct.width > 0 && imageBoundsPct.height > 0
+                      ? {
+                          left: `${imageBoundsPct.x}%`,
+                          top: `${imageBoundsPct.y}%`,
+                          width: `${imageBoundsPct.width}%`,
+                          height: `${imageBoundsPct.height}%`,
+                        }
+                      : { left: 0, top: 0, right: 0, bottom: 0 }
+                  }
+                >
                 {/* Overlays */}
-                {overlays.map((overlay) => {
+                {!isLineStep && overlays.map((overlay) => {
                   const isFree = overlay.shape === "free";
                   const isImage = overlay.shape === "image";
                   const isCustom = overlay.shape === "custom" && overlay.parts && overlay.parts.length > 0;
@@ -1587,6 +1820,7 @@ export default function PanelContent({
                     />
                   </svg>
                 )}
+                </div>
               </>
             )}
           </div>
