@@ -41,6 +41,7 @@ import {
   normalizeReelStripsForLoad,
   appendSpinRecord,
   getNumbers17Preset,
+  getDefaultSymbolsPreset,
   type SlotSpinRecord,
   MIN_REEL_COUNT,
   MAX_REEL_COUNT,
@@ -438,6 +439,18 @@ export default function SlotContent({
       reelCount: 3,
       ceilingSpins: 0,
       bonusGamesCount: 0,
+    }));
+  }, [setSymbolMaster, setReelStrips, setSettings]);
+
+  const handleApplyDefaultSymbolsPreset = useCallback(() => {
+    const { symbolMaster: master, reelStrips: strips } = getDefaultSymbolsPreset();
+    setSymbolMaster(master);
+    setReelStrips(strips);
+    setSettings((prev) => ({
+      ...prev,
+      reelCount: 3,
+      ceilingSpins: 0,
+      bonusGamesCount: 15,
     }));
   }, [setSymbolMaster, setReelStrips, setSettings]);
 
@@ -932,6 +945,7 @@ export default function SlotContent({
                     onLoadTemplate={handleLoadSlotTemplate}
                     isLightMode={displayLight}
                     onApplyNumbers17Preset={handleApplyNumbers17Preset}
+                    onApplyDefaultSymbolsPreset={handleApplyDefaultSymbolsPreset}
                   />
                 )}
                 {sidebarTab === "players" &&
@@ -1096,6 +1110,7 @@ export default function SlotContent({
                           onLoadTemplate={handleLoadSlotTemplate}
                           isLightMode={displayLight}
                           onApplyNumbers17Preset={handleApplyNumbers17Preset}
+                          onApplyDefaultSymbolsPreset={handleApplyDefaultSymbolsPreset}
                         />
                       )}
                       {sidebarTab === "players" &&

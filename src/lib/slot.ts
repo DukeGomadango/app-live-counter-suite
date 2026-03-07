@@ -208,6 +208,16 @@ export function applyProbabilityTemplate(
   });
 }
 
+/** デフォルト図柄モード用プリセット（7・BAR・スイカ等）。図柄マスタと3リール分の id 配列を返す */
+export function getDefaultSymbolsPreset(): {
+  symbolMaster: SlotSymbol[];
+  reelStrips: string[][];
+} {
+  const symbolMaster = createDefaultSymbols();
+  const reelStrips = createDefaultReelStripIds(symbolMaster);
+  return { symbolMaster, reelStrips };
+}
+
 /** 1〜7 数字スロット用プリセット（等確率・当たりなし）。図柄マスタと3リール分の id 配列を返す */
 export function getNumbers17Preset(): {
   symbolMaster: SlotSymbol[];

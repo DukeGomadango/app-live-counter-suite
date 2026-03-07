@@ -54,7 +54,7 @@ function SymbolEditRow({
         value={label}
         onChange={(e) => setLabel(e.target.value)}
         className={`flex-1 min-w-0 px-2 py-1 rounded text-sm ${textPrimary}`}
-        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+        style={{ background: _inputBg, border: `1px solid ${_inputBorder}` }}
         placeholder="ラベル"
       />
       <input
@@ -63,7 +63,7 @@ function SymbolEditRow({
         value={weight}
         onChange={(e) => setWeight(Number(e.target.value) || 0)}
         className="w-14 px-2 py-1 rounded text-sm text-center"
-        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+        style={{ background: _inputBg, border: `1px solid ${_inputBorder}` }}
         title="確率（相対値・合計に対する割合で%表示されます）"
         placeholder="確率"
       />
@@ -73,13 +73,13 @@ function SymbolEditRow({
         value={payout}
         onChange={(e) => setPayout(Number(e.target.value) || 0)}
         className="w-14 px-2 py-1 rounded text-sm text-center"
-        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+        style={{ background: _inputBg, border: `1px solid ${_inputBorder}` }}
       />
       <select
         value={role}
         onChange={(e) => setRole(e.target.value as SlotSymbolRole)}
         className={`px-2 py-1 rounded text-sm ${textPrimary}`}
-        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+        style={{ background: _inputBg, border: `1px solid ${_inputBorder}` }}
       >
         {ROLES.map((r) => (
           <option key={r.value} value={r.value}>
@@ -158,7 +158,7 @@ function ReelStripEditor({
           <div
             key={`${id}-${i}`}
             className={`flex items-center gap-0.5 px-2 py-1 rounded text-xs ${
-              isLightMode ? "bg-black/5" : "bg-white/10"
+              _isLightMode ? "bg-black/5" : "bg-white/10"
             } ${textPrimary}`}
           >
             <span className="min-w-0 truncate max-w-[4rem]">{labelOf(id)}</span>
@@ -203,7 +203,7 @@ function ReelStripEditor({
                 setAddOpen(false);
               }}
               className={`px-2 py-1 rounded text-xs ${
-                isLightMode
+                _isLightMode
                   ? "bg-teal-100 text-teal-800"
                   : "bg-teal-500/20 text-teal-300"
               }`}
@@ -224,7 +224,7 @@ function ReelStripEditor({
           type="button"
           onClick={() => setAddOpen(true)}
           className={`text-xs px-2 py-1.5 rounded-lg flex items-center gap-1 w-fit ${
-            isLightMode
+            _isLightMode
               ? "bg-teal-100 text-teal-700 hover:bg-teal-200"
               : "bg-teal-500/20 text-teal-400 hover:bg-teal-500/30"
           }`}
