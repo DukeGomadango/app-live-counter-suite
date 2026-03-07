@@ -237,7 +237,7 @@ export interface SlotTemplate {
   reelStrips: string[][];
 }
 
-const MAX_SAVED_TEMPLATES = 30;
+const _MAX_SAVED_TEMPLATES = 30;
 
 export function createSlotTemplate(
   name: string,
@@ -286,7 +286,7 @@ export function createDefaultSettings(): SlotSettings {
     presetName: "標準",
     ceilingSpins: 0,
     bonusGamesCount: 15,
-    visibleRows: 1,
+    visibleRows: 3,
     paylines: [[1, 1, 1]],
     artEnabled: false,
     artAddGames: 3,
@@ -395,13 +395,12 @@ export function checkPaylines(
   const n = reelResults.length;
   if (n === 0 || reelStrips.length < n || !paylines.length) return empty;
 
-  const rows = visibleRows === 3 ? 3 : 1;
   const wins: SlotLineWin[] = [];
 
   for (let lineIdx = 0; lineIdx < paylines.length; lineIdx++) {
     const line = paylines[lineIdx];
     if (!line || line.length < n) continue;
-    let firstSym: SlotSymbol | null = getSymbolAt(reelStrips, reelResults, 0, line[0]!, visibleRows);
+    const firstSym: SlotSymbol | null = getSymbolAt(reelStrips, reelResults, 0, line[0]!, visibleRows);
     if (!firstSym) continue;
     let same = true;
     for (let r = 1; r < n; r++) {
@@ -456,7 +455,7 @@ export function calculateTheoreticalPayoutPercent(
   const rows = visibleRows === 3 ? 3 : 1;
   const normPaylines = paylines.length ? paylines : [Array(reelStrips.length).fill(rows === 3 ? 1 : 0)];
 
-  for (const line of normPaylines) {
+  for (const _ of normPaylines) {
     for (const sid of symbolIds) {
       let prob = 1;
       for (let r = 0; r < reelStrips.length; r++) {
@@ -492,8 +491,6 @@ export interface SlotSpinRecord {
   winLabels: string[];
 }
 
-/** グローバル履歴の最大件数（マイグレーション・後方互換用） */
-const MAX_SPIN_HISTORY = 500;
 /** プレイヤーごとの履歴の最大件数（ガチャの MAX_RUN_HISTORY に合わせる） */
 export const MAX_SPIN_HISTORY_PER_PLAYER = 100;
 

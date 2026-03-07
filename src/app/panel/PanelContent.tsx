@@ -582,7 +582,7 @@ export default function PanelContent({
         );
       }
     },
-    [getRect, clientToPct, setOverlays]
+    [getRect, clientToPct, setOverlays, overlays]
   );
 
   const handleOverlayPointerUp = useCallback(() => {

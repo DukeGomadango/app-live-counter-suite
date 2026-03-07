@@ -36,9 +36,9 @@ interface SymbolEditRowProps {
 
 function SymbolEditRow({
   symbol,
-  isLightMode,
-  inputBg,
-  inputBorder,
+  isLightMode: _isLightMode,
+  inputBg: _inputBg,
+  inputBorder: _inputBorder,
   textPrimary,
   onSave,
   onCancel,
@@ -127,9 +127,9 @@ interface ReelStripEditorProps {
 function ReelStripEditor({
   stripIds,
   symbolMaster,
-  isLightMode,
-  inputBg,
-  inputBorder,
+  isLightMode: _isLightMode,
+  inputBg: _inputBg,
+  inputBorder: _inputBorder,
   textPrimary,
   textSecondary,
   onStripChange,

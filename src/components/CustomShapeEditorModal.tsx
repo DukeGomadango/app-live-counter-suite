@@ -78,13 +78,16 @@ export default function CustomShapeEditorModal({
   }, [open, showSaveTemplate, onCancel]);
 
   useEffect(() => {
-    if (open) {
-      setParts(initialParts.length ? cloneParts(initialParts) : []);
+    if (!open) return;
+    const nextParts = initialParts.length ? cloneParts(initialParts) : [];
+    const id = requestAnimationFrame(() => {
+      setParts(nextParts);
       setSelectedPartId(null);
       setAddShape(null);
       setShowSaveTemplate(false);
       setTemplateName("");
-    }
+    });
+    return () => cancelAnimationFrame(id);
   }, [open, initialParts]);
 
   const getRect = useCallback(() => canvasRef.current?.getBoundingClientRect() ?? null, []);
@@ -168,7 +171,6 @@ export default function CustomShapeEditorModal({
       if (part && selectedPartId === part.id) {
         e.preventDefault();
         (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-        const { x: px, y: py } = clientToPct(e.clientX, e.clientY);
         dragRef.current = { id: part.id, startX: e.clientX, startY: e.clientY, startPX: part.x, startPY: part.y };
         return;
       }

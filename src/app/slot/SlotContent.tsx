@@ -40,7 +40,6 @@ import {
   createSlotTemplate,
   normalizeReelStripsForLoad,
   appendSpinRecord,
-  getAllPlayersSpinHistory,
   getNumbers17Preset,
   type SlotSpinRecord,
   MIN_REEL_COUNT,
@@ -61,7 +60,7 @@ function playSlotSound(slug: "spin" | "stop" | "reach" | "win", enabled: boolean
 
 export default function SlotContent({
   isSplitMode = false,
-  isRightPane = false,
+  isRightPane: _isRightPane = false,
 }: {
   isSplitMode?: boolean;
   isRightPane?: boolean;
@@ -327,6 +326,7 @@ export default function SlotContent({
     settings.bonusGamesCount,
     settings.paylines,
     settings.visibleRows,
+    settings.soundEnabled,
     setPlayers,
   ]);
 
@@ -343,7 +343,7 @@ export default function SlotContent({
         return next;
       });
     },
-    [canStop]
+    [canStop, settings.soundEnabled]
   );
 
   const appliedWinRef = useRef(false);
@@ -454,37 +454,12 @@ export default function SlotContent({
     let payout = bet * winResult.multiplier;
     if (winResult.isReplay) {
       payout += bet;
-      setReplayFreeSpin(true);
     }
     const bonusCount = settings.bonusGamesCount ?? 15;
-    if (winResult.win && winResult.symbol?.role === "bonus" && bonusCount > 0) {
-      setBonusGamesRemaining(bonusCount);
-    }
     const winInfo =
       winResult.win
         ? { label: winResult.symbol?.label ?? "", payout, isReplay: winResult.isReplay }
         : null;
-    setLastWin(winInfo);
-    setShowFlash(!!winInfo);
-    setShowHitEffect(!!(winInfo && (winInfo.isReplay || (winResult.symbol?.role === "bonus") || payout >= 10)));
-    if (winResult.win) playSlotSound("win", settings.soundEnabled);
-    if (winResult.win && (payout > 0 || winResult.isReplay)) {
-      setPlayers((prev) =>
-        prev.map((p) =>
-          p.id === activePlayer.id ? { ...p, balance: p.balance + payout } : p
-        )
-      );
-    }
-    if (wasInBonus) {
-      setBonusGamesRemaining((prev) => {
-        const next = Math.max(0, prev - 1);
-        const artAdd =
-          settings.artEnabled && (settings.artAddGames ?? 0) > 0 && winResult.wins.some((w) => w.symbol.role === "bonus")
-            ? settings.artAddGames ?? 0
-            : 0;
-        return next + artAdd;
-      });
-    }
     const record: Omit<SlotSpinRecord, "id"> = {
       timestamp: Date.now(),
       playerId: activePlayer.id,
@@ -497,16 +472,43 @@ export default function SlotContent({
       ceilingTriggered: false,
       winLabels: winResult.wins.map((w) => w.symbol.label),
     };
-    setPlayers((prev) =>
-      prev.map((p) =>
-        p.id === activePlayer.id
-          ? { ...p, spinHistory: appendSpinRecord(p.spinHistory ?? [], record) }
-          : p
-      )
-    );
-    pendingReelResultsRef.current = null;
-    setIsSpinning(false);
-  }, [allStopped, isSpinning, activePlayer, reelResults, strips, setPlayers, settings.soundEnabled, settings.paylines, settings.visibleRows, bonusGamesRemaining, settings.bonusGamesCount]);
+    queueMicrotask(() => {
+      if (winResult.isReplay) setReplayFreeSpin(true);
+      if (winResult.win && winResult.symbol?.role === "bonus" && bonusCount > 0) {
+        setBonusGamesRemaining(bonusCount);
+      }
+      setLastWin(winInfo);
+      setShowFlash(!!winInfo);
+      setShowHitEffect(!!(winInfo && (winInfo.isReplay || (winResult.symbol?.role === "bonus") || payout >= 10)));
+      if (winResult.win) playSlotSound("win", settings.soundEnabled);
+      if (winResult.win && (payout > 0 || winResult.isReplay)) {
+        setPlayers((prev) =>
+          prev.map((p) =>
+            p.id === activePlayer.id ? { ...p, balance: p.balance + payout } : p
+          )
+        );
+      }
+      if (wasInBonus) {
+        setBonusGamesRemaining((prev) => {
+          const next = Math.max(0, prev - 1);
+          const artAdd =
+            settings.artEnabled && (settings.artAddGames ?? 0) > 0 && winResult.wins.some((w) => w.symbol.role === "bonus")
+              ? settings.artAddGames ?? 0
+              : 0;
+          return next + artAdd;
+        });
+      }
+      setPlayers((prev) =>
+        prev.map((p) =>
+          p.id === activePlayer.id
+            ? { ...p, spinHistory: appendSpinRecord(p.spinHistory ?? [], record) }
+            : p
+        )
+      );
+      pendingReelResultsRef.current = null;
+      setIsSpinning(false);
+    });
+  }, [allStopped, isSpinning, activePlayer, reelResults, strips, setPlayers, settings.soundEnabled, settings.paylines, settings.visibleRows, bonusGamesRemaining, settings.bonusGamesCount, settings.artEnabled, settings.artAddGames]);
 
   useEffect(() => {
     if (!showFlash) return;
@@ -530,7 +532,7 @@ export default function SlotContent({
 
   useEffect(() => {
     if (playerHistoryViewId && !players.some((p) => p.id === playerHistoryViewId)) {
-      setPlayerHistoryViewId(null);
+      queueMicrotask(() => setPlayerHistoryViewId(null));
     }
   }, [playerHistoryViewId, players]);
 
@@ -620,14 +622,14 @@ export default function SlotContent({
         const pending = sidebarResizePendingRef.current;
         if (pending !== null) setSidebarWidthPx(pending);
         sidebarResizePendingRef.current = null;
-        document.removeEventListener("touchmove", onMove, { capture: true } as any);
+        document.removeEventListener("touchmove", onMove, { capture: true });
         document.removeEventListener("touchend", onEnd);
         document.removeEventListener("touchcancel", onEnd);
       };
       document.addEventListener("touchmove", onMove, {
         passive: false,
         capture: true,
-      } as any);
+      });
       document.addEventListener("touchend", onEnd);
       document.addEventListener("touchcancel", onEnd);
     },
