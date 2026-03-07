@@ -109,6 +109,12 @@ export default function SlotContent({
   const [playerHistoryViewId, setPlayerHistoryViewId] = useState<string | null>(null);
   const slotMigratedRef = useRef(false);
 
+  useEffect(() => {
+    if (isLightMode) document.body.classList.add("light-mode");
+    else document.body.classList.remove("light-mode");
+    return () => document.body.classList.remove("light-mode");
+  }, [isLightMode]);
+
   const reelCount = Math.min(
     MAX_REEL_COUNT,
     Math.max(MIN_REEL_COUNT, settings.reelCount)
