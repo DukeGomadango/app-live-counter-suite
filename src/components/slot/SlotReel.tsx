@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { motion, useMotionValue, animate } from "framer-motion";
+import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import type { SlotSymbol } from "@/lib/slot";
 
-/** ルーレットと同様の減速カーブ（終盤でじりじり止まる） */
+/** 減速カーブ（始めは回転速度と同じ→終盤でじりじり止まる）。cubic-bezier の t=0 での傾きで duration を決め、ストップ初速を SPIN_SPEED に揃える */
 const SPIN_EASE = [0.1, 0.78, 0.62, 0.98] as const;
+const EASE_INITIAL_SLOPE = 0.78 / 0.1;
 
 const CELL_HEIGHT = 56;
 const SPIN_SPEED = 600; // px per second (when spinning) — 5x of original 120
-const STOP_DURATION = 0.4;
+const MIN_COAST_PX = 80; // 止まる前に最低この分は進んでから減速（ホップ感を防ぐ）
+const STOP_DURATION_MIN = 0.25;
+const STOP_DURATION_MAX = 2.2;
 
 interface SlotReelProps {
   symbols: SlotSymbol[];
@@ -37,6 +40,7 @@ export default function SlotReel({
   visibleRows = 1,
 }: SlotReelProps) {
   const y = useMotionValue(0);
+  const displayY = useTransform(y, (v) => -v);
   const rows = visibleRows === 3 ? 3 : 1;
   const windowHeight = CELL_HEIGHT * rows;
   const stripLen = symbols.length * CELL_HEIGHT;
@@ -47,13 +51,13 @@ export default function SlotReel({
   useEffect(() => {
     if (symbols.length === 0) return;
     if (!isSpinning || stoppedIndex !== null) return;
-    y.set(0);
     const step = (t: number) => {
       const dt = (t - lastTimeRef.current) / 1000;
       lastTimeRef.current = t;
       const prev = y.get();
-      const next = prev - SPIN_SPEED * dt;
-      y.set(next <= -stripLen ? next + stripLen : next);
+      let next = prev + SPIN_SPEED * dt;
+      if (next >= stripLen) next -= stripLen;
+      y.set(next);
       rafRef.current = requestAnimationFrame(step);
     };
     lastTimeRef.current = performance.now();
@@ -69,21 +73,36 @@ export default function SlotReel({
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
-    const targetY =
+    const offset =
       rows === 3
-        ? -((stoppedIndex - 1 + symbols.length) % symbols.length) * CELL_HEIGHT
-        : -(stoppedIndex * CELL_HEIGHT);
+        ? ((stoppedIndex - 1 + symbols.length) % symbols.length) * CELL_HEIGHT
+        : stoppedIndex * CELL_HEIGHT;
+    const targetY = offset === 0 ? 0 : stripLen - offset;
     const currentY = y.get();
-    animateStopRef.current = animate(currentY, targetY, {
+    const norm = (v: number) => ((v % stripLen) + stripLen) % stripLen;
+    // 回転方向（y 増加）に進んでから減速して止める。最短経路だとホップして見えるので避ける
+    let to: number =
+      currentY <= targetY ? targetY : targetY + stripLen;
+    let dist = to - currentY;
+    if (dist < MIN_COAST_PX && dist > 0) {
+      to += stripLen;
+      dist = to - currentY;
+    }
+    // ストップ初速が回転速度と同じになるよう duration を決める（慣性で自然に減速）
+    const duration = Math.min(
+      STOP_DURATION_MAX,
+      Math.max(STOP_DURATION_MIN, (dist / SPIN_SPEED) * EASE_INITIAL_SLOPE)
+    );
+    animateStopRef.current = animate(currentY, to, {
       type: "tween",
-      duration: STOP_DURATION,
+      duration,
       ease: SPIN_EASE,
-      onUpdate: (v) => y.set(v),
+      onUpdate: (v) => y.set(norm(v)),
     });
     return () => {
       animateStopRef.current?.stop();
     };
-  }, [stoppedIndex, symbols.length, rows, y]);
+  }, [stoppedIndex, symbols.length, rows, stripLen, y]);
 
   if (symbols.length === 0) {
     return (
@@ -124,15 +143,19 @@ export default function SlotReel({
           background: isLightMode ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.2)",
         }}
       >
-        <motion.div
-          className="flex flex-col items-center justify-center w-full"
-          style={{
-            y,
-            width: 80,
-          }}
-        >
-          {stripContent}
-        </motion.div>
+        <div style={{ transform: "scaleY(-1)", height: "100%", minHeight: windowHeight }}>
+          <motion.div
+            className="flex flex-col items-center justify-center w-full"
+            style={{
+              y: displayY,
+              width: 80,
+            }}
+          >
+            <div style={{ transform: "scaleY(-1)" }}>
+              {stripContent}
+            </div>
+          </motion.div>
+        </div>
       </div>
       <button
         type="button"
