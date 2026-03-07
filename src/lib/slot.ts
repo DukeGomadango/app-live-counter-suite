@@ -11,6 +11,8 @@ export interface SlotSymbol {
   /** 役成立時の倍率。払い出し枚数 = BET × payoutMultiplier */
   payoutMultiplier: number;
   role: SlotSymbolRole;
+  /** オフにすると抽選・リールに使われない。未指定は true */
+  enabled?: boolean;
 }
 
 export interface SlotPlayer {
@@ -87,12 +89,12 @@ const genId = () => crypto.randomUUID?.() ?? `id-${Date.now()}-${Math.random().t
 /** デフォルト図柄（7・ベル・スイカ・チェリー・リプレイ等）。図柄率を上げて当たりやすくした初期値 */
 export function createDefaultSymbols(): SlotSymbol[] {
   return [
-    { id: "seven", label: "7", weight: 5, payoutMultiplier: 10, role: "bonus" },
-    { id: "bell", label: "🔔", weight: 11, payoutMultiplier: 5, role: "small" },
-    { id: "watermelon", label: "🍉", weight: 13, payoutMultiplier: 3, role: "small" },
-    { id: "cherry", label: "🍒", weight: 18, payoutMultiplier: 2, role: "small" },
-    { id: "replay", label: "🔄", weight: 15, payoutMultiplier: 0, role: "replay" },
-    { id: "blank", label: "⬜", weight: 38, payoutMultiplier: 0, role: "chance" },
+    { id: "seven", label: "7", weight: 5, payoutMultiplier: 10, role: "bonus", enabled: true },
+    { id: "bell", label: "🔔", weight: 11, payoutMultiplier: 5, role: "small", enabled: true },
+    { id: "watermelon", label: "🍉", weight: 13, payoutMultiplier: 3, role: "small", enabled: true },
+    { id: "cherry", label: "🍒", weight: 18, payoutMultiplier: 2, role: "small", enabled: true },
+    { id: "replay", label: "🔄", weight: 15, payoutMultiplier: 0, role: "replay", enabled: true },
+    { id: "blank", label: "⬜", weight: 38, payoutMultiplier: 0, role: "chance", enabled: true },
   ];
 }
 
@@ -206,6 +208,24 @@ export function applyProbabilityTemplate(
   });
 }
 
+/** 1〜7 数字スロット用プリセット（等確率・当たりなし）。図柄マスタと3リール分の id 配列を返す */
+export function getNumbers17Preset(): {
+  symbolMaster: SlotSymbol[];
+  reelStrips: string[][];
+} {
+  const symbolMaster: SlotSymbol[] = [1, 2, 3, 4, 5, 6, 7].map((n) => ({
+    id: `num${n}`,
+    label: String(n),
+    weight: 1,
+    payoutMultiplier: 0,
+    role: "chance" as const,
+    enabled: true,
+  }));
+  const ids = symbolMaster.map((s) => s.id);
+  const reelStrips = [[...ids], [...ids], [...ids]];
+  return { symbolMaster, reelStrips };
+}
+
 /** ユーザー保存用スロットテンプレート（リール数・天井・確率・リール配列を含む） */
 export interface SlotTemplate {
   id: string;
@@ -307,18 +327,29 @@ export function createDefaultPlayer(name: string): SlotPlayer {
 
 /**
  * 重み付き乱数で図柄インデックスを1つ選ぶ。
- * 目押しB: 各リールのストップ時にこの関数を呼ぶ。
+ * enabled が false の図柄は抽選対象から外す。返すのは元配列でのインデックス。
+ * 同じ図柄が複数ある場合はそのうちランダムに1つを返す。
  */
 export function pickSymbolByWeight(symbols: SlotSymbol[]): number {
   if (symbols.length === 0) return 0;
-  const totalWeight = symbols.reduce((s, sym) => s + sym.weight, 0);
-  if (totalWeight <= 0) return 0;
+  const enabled = symbols.filter((s) => s.enabled !== false);
+  if (enabled.length === 0) return 0;
+  const totalWeight = enabled.reduce((s, sym) => s + sym.weight, 0);
+  if (totalWeight <= 0) return symbols.indexOf(enabled[0]!);
   let rand = Math.random() * totalWeight;
-  for (let i = 0; i < symbols.length; i++) {
-    rand -= symbols[i]!.weight;
-    if (rand <= 0) return i;
+  let chosen: SlotSymbol = enabled[0]!;
+  for (let i = 0; i < enabled.length; i++) {
+    rand -= enabled[i]!.weight;
+    if (rand <= 0) {
+      chosen = enabled[i]!;
+      break;
+    }
+    chosen = enabled[i]!;
   }
-  return symbols.length - 1;
+  const indices = symbols
+    .map((s, i) => (s === chosen ? i : -1))
+    .filter((i) => i >= 0);
+  return indices[Math.floor(Math.random() * indices.length)] ?? 0;
 }
 
 /**

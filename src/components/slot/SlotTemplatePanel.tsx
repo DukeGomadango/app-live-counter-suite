@@ -16,6 +16,8 @@ interface SlotTemplatePanelProps {
   onSaveTemplate: (name: string) => void;
   onLoadTemplate: (templateId: string) => void;
   isLightMode: boolean;
+  /** 1〜7 数字スロット（等確率・当たりなし）を一括適用 */
+  onApplyNumbers17Preset?: () => void;
 }
 
 export default function SlotTemplatePanel({
@@ -25,6 +27,7 @@ export default function SlotTemplatePanel({
   onSaveTemplate,
   onLoadTemplate,
   isLightMode,
+  onApplyNumbers17Preset,
 }: SlotTemplatePanelProps) {
   const [templateName, setTemplateName] = useState("");
   const { glassBg, glassBorder } = useGlassStyle(isLightMode);
@@ -42,6 +45,30 @@ export default function SlotTemplatePanel({
         backdropFilter: "blur(12px)",
       }}
     >
+      {onApplyNumbers17Preset && (
+        <div>
+          <label
+            className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}
+          >
+            スロット構成プリセット
+          </label>
+          <p className={`text-[10px] ${textSecondary} mb-2`}>
+            図柄・リール配列をまとめて差し替えます（天井・ボーナスは0にします）。
+          </p>
+          <button
+            type="button"
+            onClick={onApplyNumbers17Preset}
+            className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition ${
+              isLightMode
+                ? "bg-black/5 text-gray-700 border border-black/10 hover:bg-black/10"
+                : "bg-white/10 text-white/80 border border-white/10 hover:bg-white/15"
+            }`}
+            title="1〜7の数字のみ・等確率・当たりなしのスロットに変更"
+          >
+            1〜7 数字スロット
+          </button>
+        </div>
+      )}
       <div>
         <label
           className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}

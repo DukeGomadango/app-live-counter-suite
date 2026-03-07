@@ -483,20 +483,82 @@ export default function SlotReelSymbolPanel({
         >
           図柄マスタ
         </label>
+        <div className="flex flex-wrap gap-2 mb-2">
+          <button
+            type="button"
+            onClick={() =>
+              onSymbolMasterChange(
+                symbolMaster.map((s) => ({ ...s, enabled: true }))
+              )
+            }
+            className={`px-2 py-1 rounded text-xs font-medium ${
+              isLightMode
+                ? "bg-black/5 text-gray-700 border border-black/10 hover:bg-black/10"
+                : "bg-white/10 text-white/80 border border-white/10 hover:bg-white/15"
+            }`}
+            title="全図柄をオンにする"
+          >
+            すべてオン
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const enabledIds = symbolMaster.filter((s) => s.enabled !== false).map((s) => s.id);
+              if (enabledIds.length <= 1) return;
+              const keepId = enabledIds[0]!;
+              onSymbolMasterChange(
+                symbolMaster.map((s) => ({ ...s, enabled: s.id === keepId }))
+              );
+            }}
+            disabled={symbolMaster.filter((s) => s.enabled !== false).length <= 1}
+            className={`px-2 py-1 rounded text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed ${
+              isLightMode
+                ? "bg-black/5 text-gray-700 border border-black/10 hover:bg-black/10"
+                : "bg-white/10 text-white/80 border border-white/10 hover:bg-white/15"
+            }`}
+            title="1種類だけオンにして他をオフにする（最低1種類は必要）"
+          >
+            すべてオフ（1種類残す）
+          </button>
+        </div>
         <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto mb-2">
           {(() => {
-            const totalWeight = symbolMaster.reduce((s, m) => s + m.weight, 0);
+            const enabledMaster = symbolMaster.filter((m) => m.enabled !== false);
+            const totalWeight = enabledMaster.reduce((s, m) => s + m.weight, 0);
+            const enabledCount = enabledMaster.length;
             return symbolMaster.map((sym) => {
-              const prob = totalWeight > 0 ? (sym.weight / totalWeight) * 100 : 0;
+              const prob = totalWeight > 0 && sym.enabled !== false ? (sym.weight / totalWeight) * 100 : 0;
               const isEditing = symbolEditId === sym.id;
               const used = isSymbolUsedInReels(sym.id, reelStripIds);
+              const isEnabled = sym.enabled !== false;
+              const isOnlyEnabled = isEnabled && enabledCount <= 1;
+              const handleToggleEnabled = () => {
+                if (isEnabled && isOnlyEnabled) return;
+                if (isEnabled) {
+                  onSymbolMasterChange(
+                    symbolMaster.map((s) => (s.id === sym.id ? { ...s, enabled: false } : s))
+                  );
+                } else {
+                  onSymbolMasterChange(
+                    symbolMaster.map((s) => (s.id === sym.id ? { ...s, enabled: true } : s))
+                  );
+                }
+              };
               return (
               <div
                 key={sym.id}
                 className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm ${
                   isLightMode ? "bg-black/5" : "bg-white/10"
-                }`}
+                } ${!isEnabled ? "opacity-60" : ""}`}
               >
+                <input
+                  type="checkbox"
+                  checked={isEnabled}
+                  disabled={isOnlyEnabled}
+                  onChange={handleToggleEnabled}
+                  title={isOnlyEnabled ? "1種類以上オンにする必要があります" : isEnabled ? "オフにすると抽選・リールから外れます" : "オンにする"}
+                  className="rounded shrink-0"
+                />
                 {isEditing ? (
                   <SymbolEditRow
                     symbol={sym}
@@ -506,7 +568,7 @@ export default function SlotReelSymbolPanel({
                     textPrimary={textPrimary}
                     onSave={(next) => {
                       onSymbolMasterChange(
-                        symbolMaster.map((s) => (s.id === sym.id ? next : s))
+                        symbolMaster.map((s) => (s.id === sym.id ? { ...next, enabled: s.enabled } : s))
                       );
                       setSymbolEditId(null);
                     }}
@@ -515,7 +577,8 @@ export default function SlotReelSymbolPanel({
                 ) : (
                   <>
                     <span className={`flex-1 min-w-0 truncate ${textPrimary}`}>
-                      {sym.label} (確率{prob.toFixed(1)}%・{sym.payoutMultiplier}枚)
+                      {sym.label}
+                      {isEnabled ? ` (確率${prob.toFixed(1)}%・${sym.payoutMultiplier}枚)` : " (オフ)"}
                     </span>
                     <button
                       type="button"
@@ -566,7 +629,7 @@ export default function SlotReelSymbolPanel({
             const id = `sym-${Date.now()}`;
             onSymbolMasterChange([
               ...symbolMaster,
-              { id, label: "新規", weight: 10, payoutMultiplier: 0, role: "chance" },
+              { id, label: "新規", weight: 10, payoutMultiplier: 0, role: "chance", enabled: true },
             ]);
             setSymbolEditId(id);
           }}
