@@ -5,6 +5,7 @@ import { useGlassStyle } from "@/hooks/useGlassStyle";
 import {
   getSlotProbabilityTemplates,
   applyProbabilityTemplate,
+  applyEqualWeights,
   type SlotSymbol,
   type SlotTemplate,
 } from "@/lib/slot";
@@ -97,9 +98,21 @@ export default function SlotTemplatePanel({
           標準テンプレート（確率）
         </label>
         <p className={`text-[10px] ${textSecondary} mb-2`}>
-          図柄マスタの確率だけを一括で差し替えます（id が一致する図柄のみ）。
+          図柄マスタの確率だけを一括で差し替えます（id が一致する図柄のみ）。「均等」で全図柄を等確率にします。
         </p>
         <div className="flex flex-wrap gap-2 mb-2">
+          <button
+            type="button"
+            onClick={() => onSymbolMasterChange(applyEqualWeights(symbolMaster))}
+            className={`min-w-0 px-3 py-2 rounded-lg text-sm font-medium transition ${
+              isLightMode
+                ? "bg-black/5 text-gray-700 border border-black/10 hover:bg-black/10"
+                : "bg-white/10 text-white/80 border border-white/10 hover:bg-white/15"
+            }`}
+            title="全図柄の確率を等倍（均等）にする"
+          >
+            均等
+          </button>
           {getSlotProbabilityTemplates().map((tpl) => (
             <button
               key={tpl.id}

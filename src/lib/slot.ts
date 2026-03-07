@@ -208,6 +208,11 @@ export function applyProbabilityTemplate(
   });
 }
 
+/** 現在の図柄マスタの全図柄の重みを 1（均等）にする */
+export function applyEqualWeights(master: SlotSymbol[]): SlotSymbol[] {
+  return master.map((s) => ({ ...s, weight: 1 }));
+}
+
 /** デフォルト図柄モード用プリセット（7・BAR・スイカ等）。図柄マスタと3リール分の id 配列を返す */
 export function getDefaultSymbolsPreset(): {
   symbolMaster: SlotSymbol[];
