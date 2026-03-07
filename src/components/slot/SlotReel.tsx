@@ -8,7 +8,7 @@ import type { SlotSymbol } from "@/lib/slot";
 const SPIN_EASE = [0.1, 0.78, 0.62, 0.98] as const;
 
 const CELL_HEIGHT = 56;
-const SPIN_SPEED = 120; // px per second (when spinning)
+const SPIN_SPEED = 600; // px per second (when spinning) — 5x of original 120
 const STOP_DURATION = 0.4;
 
 interface SlotReelProps {
@@ -21,6 +21,8 @@ interface SlotReelProps {
   accentColor?: string;
   /** リーチ時（左・中が揃いこのリールだけ回転中）のハイライト */
   isReach?: boolean;
+  /** 表示行数（1＝1段、3＝3段） */
+  visibleRows?: 1 | 3;
 }
 
 export default function SlotReel({
@@ -32,8 +34,11 @@ export default function SlotReel({
   isLightMode = false,
   accentColor = "#a855f7",
   isReach = false,
+  visibleRows = 1,
 }: SlotReelProps) {
   const y = useMotionValue(0);
+  const rows = visibleRows === 3 ? 3 : 1;
+  const windowHeight = CELL_HEIGHT * rows;
   const stripLen = symbols.length * CELL_HEIGHT;
   const rafRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
@@ -64,7 +69,10 @@ export default function SlotReel({
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
-    const targetY = -(stoppedIndex * CELL_HEIGHT);
+    const targetY =
+      rows === 3
+        ? -((stoppedIndex - 1 + symbols.length) % symbols.length) * CELL_HEIGHT
+        : -(stoppedIndex * CELL_HEIGHT);
     const currentY = y.get();
     animateStopRef.current = animate(currentY, targetY, {
       type: "tween",
@@ -75,7 +83,7 @@ export default function SlotReel({
     return () => {
       animateStopRef.current?.stop();
     };
-  }, [stoppedIndex, symbols.length, y]);
+  }, [stoppedIndex, symbols.length, rows, y]);
 
   if (symbols.length === 0) {
     return (
@@ -109,7 +117,7 @@ export default function SlotReel({
       <div
         className="relative overflow-hidden rounded-xl border-2 transition-colors"
         style={{
-          height: CELL_HEIGHT,
+          height: windowHeight,
           width: 80,
           boxShadow: "inset 0 8px 16px -8px rgba(0,0,0,0.4), inset 0 -8px 16px -8px rgba(0,0,0,0.4)",
           borderColor: isReach ? accentColor : canStop ? "rgb(251 191 36)" : isLightMode ? "rgb(229 231 235)" : "rgba(255,255,255,0.2)",

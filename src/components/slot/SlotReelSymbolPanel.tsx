@@ -6,6 +6,8 @@ import { useGlassStyle } from "@/hooks/useGlassStyle";
 import {
   MIN_REEL_COUNT,
   MAX_REEL_COUNT,
+  PAYLINE_PRESETS,
+  normalizePaylines,
   type SlotSettings,
   type SlotSymbol,
   type SlotSymbolRole,
@@ -62,6 +64,8 @@ function SymbolEditRow({
         onChange={(e) => setWeight(Number(e.target.value) || 0)}
         className="w-14 px-2 py-1 rounded text-sm text-center"
         style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+        title="確率（相対値・合計に対する割合で%表示されます）"
+        placeholder="確率"
       />
       <input
         type="number"
@@ -328,6 +332,151 @@ export default function SlotReelSymbolPanel({
         />
       </div>
 
+      <div>
+        <label
+          className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}
+        >
+          ボーナスゲーム数（0で1回払い出しのみ）
+        </label>
+        <input
+          type="number"
+          min={0}
+          max={999}
+          value={settings.bonusGamesCount ?? 15}
+          onChange={(e) =>
+            onSettingsChange({
+              ...settings,
+              bonusGamesCount: Math.max(0, Number(e.target.value) || 0),
+            })
+          }
+          className={`w-full px-3 py-2 rounded-lg border text-sm ${
+            isLightMode
+              ? "bg-white border-gray-200 text-gray-800"
+              : "bg-white/10 border-white/20 text-white"
+          }`}
+        />
+        <p className={`text-[10px] ${textSecondary} mt-1`}>
+          ボーナス役（7揃い等）で突入する無料ゲーム数。0なら従来どおり1回払い出しのみ。
+        </p>
+      </div>
+
+      <div>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={settings.artEnabled ?? false}
+            onChange={(e) =>
+              onSettingsChange({ ...settings, artEnabled: e.target.checked })
+            }
+            className="rounded"
+          />
+          <span className={`text-sm ${textPrimary}`}>ART（ボーナス中にボーナス図柄で当たりでゲーム加算）</span>
+        </label>
+        {(settings.artEnabled ?? false) && (
+          <div className="mt-2 flex items-center gap-2">
+            <label className={`text-xs ${textSecondary}`}>加算ゲーム数</label>
+            <input
+              type="number"
+              min={0}
+              max={99}
+              value={settings.artAddGames ?? 3}
+              onChange={(e) =>
+                onSettingsChange({
+                  ...settings,
+                  artAddGames: Math.max(0, Number(e.target.value) || 0),
+                })
+              }
+              className={`w-16 px-2 py-1 rounded text-sm ${
+                isLightMode
+                  ? "bg-white border-gray-200 text-gray-800"
+                  : "bg-white/10 border-white/20 text-white"
+              }`}
+            />
+          </div>
+        )}
+        <p className={`text-[10px] ${textSecondary} mt-1`}>
+          ボーナス消化中にボーナス図柄（7等）で当たると残りゲーム数に加算されます。
+        </p>
+      </div>
+
+      <div>
+        <label
+          className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}
+        >
+          表示段数
+        </label>
+        <div className="flex flex-wrap gap-2">
+          {([1, 3] as const).map((n) => (
+            <button
+              key={n}
+              type="button"
+              onClick={() =>
+                onSettingsChange({
+                  ...settings,
+                  visibleRows: n,
+                  paylines:
+                    n === 3 && reelCount === 3
+                      ? settings.paylines ?? PAYLINE_PRESETS.three
+                      : normalizePaylines(settings.paylines, reelCount, n),
+                })
+              }
+              className={`min-w-[4rem] py-2 rounded-lg text-sm font-medium transition ${
+                (settings.visibleRows ?? 1) === n
+                  ? "bg-teal-500/30 text-teal-200 border border-teal-500/50"
+                  : isLightMode
+                    ? "bg-black/5 text-gray-600 border border-black/10"
+                    : "bg-white/10 text-white/70 border border-white/10"
+              }`}
+            >
+              {n}段
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {reelCount === 3 && (settings.visibleRows ?? 1) === 3 && (
+        <div>
+          <label
+            className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}
+          >
+            ペイライン（3リール・3段時）
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { key: "one", label: "1ライン" },
+              { key: "three", label: "3ライン" },
+              { key: "five", label: "5ライン" },
+            ].map(({ key, label }) => {
+              const preset = PAYLINE_PRESETS[key];
+              const isActive =
+                JSON.stringify(settings.paylines ?? []) ===
+                JSON.stringify(preset ?? []);
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() =>
+                    onSettingsChange({
+                      ...settings,
+                      paylines: preset ?? PAYLINE_PRESETS.one,
+                    })
+                  }
+                  className={`min-w-[4.5rem] py-2 rounded-lg text-sm font-medium transition ${
+                    isActive
+                      ? "bg-teal-500/30 text-teal-200 border border-teal-500/50"
+                      : isLightMode
+                        ? "bg-black/5 text-gray-600 border border-black/10"
+                        : "bg-white/10 text-white/70 border border-white/10"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       <div className="border-t pt-4" style={{ borderColor: glassBorder }}>
         <label
           className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}
@@ -335,10 +484,13 @@ export default function SlotReelSymbolPanel({
           図柄マスタ
         </label>
         <div className="flex flex-col gap-1.5 max-h-40 overflow-y-auto mb-2">
-          {symbolMaster.map((sym) => {
-            const isEditing = symbolEditId === sym.id;
-            const used = isSymbolUsedInReels(sym.id, reelStripIds);
-            return (
+          {(() => {
+            const totalWeight = symbolMaster.reduce((s, m) => s + m.weight, 0);
+            return symbolMaster.map((sym) => {
+              const prob = totalWeight > 0 ? (sym.weight / totalWeight) * 100 : 0;
+              const isEditing = symbolEditId === sym.id;
+              const used = isSymbolUsedInReels(sym.id, reelStripIds);
+              return (
               <div
                 key={sym.id}
                 className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm ${
@@ -363,7 +515,7 @@ export default function SlotReelSymbolPanel({
                 ) : (
                   <>
                     <span className={`flex-1 min-w-0 truncate ${textPrimary}`}>
-                      {sym.label} (重み{sym.weight}・{sym.payoutMultiplier}枚)
+                      {sym.label} (確率{prob.toFixed(1)}%・{sym.payoutMultiplier}枚)
                     </span>
                     <button
                       type="button"
@@ -405,7 +557,8 @@ export default function SlotReelSymbolPanel({
                 )}
               </div>
             );
-          })}
+          });
+          })()}
         </div>
         <button
           type="button"

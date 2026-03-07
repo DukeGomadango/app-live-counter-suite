@@ -11,12 +11,16 @@ import SlotReel from "@/components/slot/SlotReel";
 import SlotSettingsPanel from "@/components/slot/SlotSettingsPanel";
 import SlotPlayerManager from "@/components/slot/SlotPlayerManager";
 import SlotReelSymbolPanel from "@/components/slot/SlotReelSymbolPanel";
+import SlotTemplatePanel from "@/components/slot/SlotTemplatePanel";
+import SlotStatsPanel from "@/components/slot/SlotStatsPanel";
+import SlotPlayerHistoryCard from "@/components/slot/SlotPlayerHistoryCard";
 import RouletteHitEffect from "@/components/roulette/RouletteHitEffect";
 import { X } from "lucide-react";
 import {
   type SlotSymbol,
   type SlotPlayer,
   type SlotSettings,
+  type SlotTemplate,
   createDefaultSymbols,
   createDefaultReelStrips,
   createDefaultReelStripIds,
@@ -28,13 +32,21 @@ import {
   isReelStripsLegacyFormat,
   migrateReelStripsToSymbolMasterAndIds,
   pickSymbolByWeight,
-  checkWin,
+  checkPaylines,
+  normalizePaylines,
   getBonusSymbolIds,
   pickCeilingBonusIndices,
   calculateTheoreticalPayoutPercent,
+  createSlotTemplate,
+  normalizeReelStripsForLoad,
+  appendSpinRecord,
+  getAllPlayersSpinHistory,
+  type SlotSpinRecord,
   MIN_REEL_COUNT,
   MAX_REEL_COUNT,
 } from "@/lib/slot";
+
+const MAX_SAVED_SLOT_TEMPLATES = 30;
 
 const DEFAULT_SYMBOLS = createDefaultSymbols();
 const DEFAULT_STRIPS = createDefaultReelStrips(DEFAULT_SYMBOLS);
@@ -79,11 +91,22 @@ export default function SlotContent({
   );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"reel" | "players">("reel");
+  const [sidebarTab, setSidebarTab] = useState<"reel" | "players" | "templates" | "stats">("reel");
   const [sidebarWidthPx, setSidebarWidthPx] = useLocalStorage<number>(
     "slot-sidebar-width",
     320
   );
+  const [templates, setTemplates] = useLocalStorage<SlotTemplate[]>(
+    "slot-templates",
+    []
+  );
+  /** 旧形式のグローバル履歴（マイグレーション用。移行後に空にする） */
+  const [legacySpinHistory, setLegacySpinHistory] = useLocalStorage<SlotSpinRecord[]>(
+    "slot-spin-history",
+    []
+  );
+  const [playerHistoryViewId, setPlayerHistoryViewId] = useState<string | null>(null);
+  const slotMigratedRef = useRef(false);
 
   const reelCount = Math.min(
     MAX_REEL_COUNT,
@@ -157,6 +180,8 @@ export default function SlotContent({
   const [ceilingCount, setCeilingCount] = useState(0);
   const [ceilingReached, setCeilingReached] = useState(false);
   const [replayFreeSpin, setReplayFreeSpin] = useState(false);
+  /** ボーナスゲーム残数（0＝通常時）。ボーナス役成立で設定され、1スピン終了ごとに減る */
+  const [bonusGamesRemaining, setBonusGamesRemaining] = useState(0);
   const [lastWin, setLastWin] = useState<{ label: string; payout: number; isReplay: boolean } | null>(null);
   const [showFlash, setShowFlash] = useState(false);
   const [showHitEffect, setShowHitEffect] = useState(false);
@@ -184,12 +209,35 @@ export default function SlotContent({
     [reelResults, reelCount]
   );
 
+  // 旧グローバル履歴をプレイヤー別 spinHistory に移行（1回だけ）
+  useEffect(() => {
+    if (slotMigratedRef.current || legacySpinHistory.length === 0) return;
+    slotMigratedRef.current = true;
+    const byPlayer = new Map<string, SlotSpinRecord[]>();
+    for (const r of legacySpinHistory) {
+      const arr = byPlayer.get(r.playerId) ?? [];
+      arr.push(r);
+      byPlayer.set(r.playerId, arr);
+    }
+    setPlayers((prev) =>
+      prev.map((p) => {
+        const legacy = byPlayer.get(p.id) ?? [];
+        const merged = [...(p.spinHistory ?? []), ...legacy]
+          .sort((a, b) => a.timestamp - b.timestamp)
+          .slice(-100);
+        return { ...p, spinHistory: merged };
+      })
+    );
+    setLegacySpinHistory([]);
+  }, [legacySpinHistory, setPlayers, setLegacySpinHistory]);
+
   const handleSpin = useCallback(() => {
     if (strips.some((s) => s.length === 0)) return;
     const player = activePlayer;
     if (!player) return;
     const bet = player.defaultBet;
-    if (!replayFreeSpin && player.balance < bet) return;
+    const inBonus = bonusGamesRemaining > 0;
+    if (!replayFreeSpin && !inBonus && player.balance < bet) return;
 
     if (ceilingReached) {
       const bonusIds = getBonusSymbolIds(strips);
@@ -198,7 +246,8 @@ export default function SlotContent({
         setReelResults(forced);
         setCeilingReached(false);
         setCeilingCount(0);
-        const winResult = checkWin(forced, strips);
+        const paylines = normalizePaylines(settings.paylines, strips.length, settings.visibleRows ?? 1);
+        const winResult = checkPaylines(forced, strips, paylines, settings.visibleRows ?? 1);
         const payout = bet * winResult.multiplier + (winResult.isReplay ? bet : 0);
         const deduct = replayFreeSpin ? 0 : bet;
         setLastWin({
@@ -213,11 +262,34 @@ export default function SlotContent({
         );
         if (replayFreeSpin) setReplayFreeSpin(false);
         if (winResult.isReplay) setReplayFreeSpin(true);
+        const bonusCount = settings.bonusGamesCount ?? 15;
+        if (bonusCount > 0 && winResult.symbol?.role === "bonus") {
+          setBonusGamesRemaining(bonusCount);
+        }
+        const ceilingRecord: Omit<SlotSpinRecord, "id"> = {
+          timestamp: Date.now(),
+          playerId: player.id,
+          bet,
+          reelResults: forced,
+          payout,
+          isReplay: winResult.isReplay,
+          bonusTriggered: winResult.symbol?.role === "bonus",
+          inBonus: false,
+          ceilingTriggered: true,
+          winLabels: winResult.wins.map((w) => w.symbol.label),
+        };
+        setPlayers((prev) =>
+          prev.map((p) =>
+            p.id === player.id
+              ? { ...p, spinHistory: appendSpinRecord(p.spinHistory ?? [], ceilingRecord) }
+              : p
+          )
+        );
       }
       return;
     }
 
-    if (!replayFreeSpin) {
+    if (!replayFreeSpin && !inBonus) {
       setPlayers((prev) =>
         prev.map((p) =>
           p.id === player.id ? { ...p, balance: p.balance - bet } : p
@@ -227,11 +299,14 @@ export default function SlotContent({
       setReplayFreeSpin(false);
     }
 
+    const pendingResults = strips.slice(0, reelCount).map((strip) => pickSymbolByWeight(strip));
+    pendingReelResultsRef.current = pendingResults;
     setReelResults(Array(reelCount).fill(null));
     setIsSpinning(true);
     setLastWin(null);
     playSlotSound("spin", settings.soundEnabled);
     setCeilingCount((c) => {
+      if (inBonus) return c;
       const next = c + 1;
       const ceiling = settings.ceilingSpins;
       if (ceiling > 0 && next >= ceiling) {
@@ -244,30 +319,36 @@ export default function SlotContent({
     strips,
     activePlayer,
     replayFreeSpin,
+    bonusGamesRemaining,
     ceilingReached,
     reelCount,
     settings.ceilingSpins,
+    settings.bonusGamesCount,
+    settings.paylines,
+    settings.visibleRows,
     setPlayers,
   ]);
 
   const handleStop = useCallback(
     (reelIndex: number) => {
       if (!canStop(reelIndex)) return;
-      const strip = strips[reelIndex];
-      if (!strip || strip.length === 0) return;
+      const pending = pendingReelResultsRef.current;
+      if (!pending || reelIndex >= pending.length) return;
       playSlotSound("stop", settings.soundEnabled);
-      const idx = pickSymbolByWeight(strip);
+      const idx = pending[reelIndex];
       setReelResults((prev) => {
         const next = [...prev];
-        next[reelIndex] = idx;
+        next[reelIndex] = idx ?? null;
         return next;
       });
     },
-    [canStop, strips, settings.soundEnabled]
+    [canStop]
   );
 
   const appliedWinRef = useRef(false);
   const reachSoundPlayedRef = useRef(false);
+  /** ビデオスロット方式: スピン開始時に確定した全リールの止まり位置（ストップで順に表示） */
+  const pendingReelResultsRef = useRef<number[] | null>(null);
 
   const addPlayer = useCallback(
     (name: string) => {
@@ -309,17 +390,62 @@ export default function SlotContent({
     [setPlayers]
   );
 
+  const handleSaveSlotTemplate = useCallback(
+    (name: string) => {
+      const reelStripIds = strips.map((strip) => strip.map((s) => s.id));
+      const t = createSlotTemplate(
+        name,
+        reelCount,
+        settings.ceilingSpins,
+        symbolMaster,
+        reelStripIds
+      );
+      setTemplates((prev) =>
+        [...prev.filter((x) => x.id !== t.id), t].slice(-MAX_SAVED_SLOT_TEMPLATES)
+      );
+    },
+    [strips, reelCount, settings.ceilingSpins, symbolMaster, setTemplates]
+  );
+
+  const handleLoadSlotTemplate = useCallback(
+    (templateId: string) => {
+      const t = templates.find((x) => x.id === templateId);
+      if (!t) return;
+      setSettings((prev) => ({
+        ...prev,
+        reelCount: t.reelCount,
+        ceilingSpins: t.ceilingSpins,
+      }));
+      setSymbolMaster(t.symbolMaster);
+      setReelStrips(
+        normalizeReelStripsForLoad(
+          t.reelStrips,
+          t.reelCount,
+          t.symbolMaster
+        )
+      );
+    },
+    [templates, setSettings, setSymbolMaster, setReelStrips]
+  );
+
   useEffect(() => {
     if (!allStopped || !isSpinning || !activePlayer) return;
     if (appliedWinRef.current) return;
     appliedWinRef.current = true;
+    const wasInBonus = bonusGamesRemaining > 0;
     const results = reelResults as number[];
-    const winResult = checkWin(results, strips);
+    const visibleRows = settings.visibleRows ?? 1;
+    const paylines = normalizePaylines(settings.paylines, strips.length, visibleRows);
+    const winResult = checkPaylines(results, strips, paylines, visibleRows);
     const bet = activePlayer.defaultBet;
     let payout = bet * winResult.multiplier;
     if (winResult.isReplay) {
       payout += bet;
       setReplayFreeSpin(true);
+    }
+    const bonusCount = settings.bonusGamesCount ?? 15;
+    if (winResult.win && winResult.symbol?.role === "bonus" && bonusCount > 0) {
+      setBonusGamesRemaining(bonusCount);
     }
     const winInfo =
       winResult.win
@@ -336,8 +462,38 @@ export default function SlotContent({
         )
       );
     }
+    if (wasInBonus) {
+      setBonusGamesRemaining((prev) => {
+        const next = Math.max(0, prev - 1);
+        const artAdd =
+          settings.artEnabled && (settings.artAddGames ?? 0) > 0 && winResult.wins.some((w) => w.symbol.role === "bonus")
+            ? settings.artAddGames ?? 0
+            : 0;
+        return next + artAdd;
+      });
+    }
+    const record: Omit<SlotSpinRecord, "id"> = {
+      timestamp: Date.now(),
+      playerId: activePlayer.id,
+      bet,
+      reelResults: results,
+      payout,
+      isReplay: winResult.isReplay,
+      bonusTriggered: !!(winResult.win && winResult.symbol?.role === "bonus"),
+      inBonus: wasInBonus,
+      ceilingTriggered: false,
+      winLabels: winResult.wins.map((w) => w.symbol.label),
+    };
+    setPlayers((prev) =>
+      prev.map((p) =>
+        p.id === activePlayer.id
+          ? { ...p, spinHistory: appendSpinRecord(p.spinHistory ?? [], record) }
+          : p
+      )
+    );
+    pendingReelResultsRef.current = null;
     setIsSpinning(false);
-  }, [allStopped, isSpinning, activePlayer, reelResults, strips, setPlayers, settings.soundEnabled]);
+  }, [allStopped, isSpinning, activePlayer, reelResults, strips, setPlayers, settings.soundEnabled, settings.paylines, settings.visibleRows, bonusGamesRemaining, settings.bonusGamesCount]);
 
   useEffect(() => {
     if (!showFlash) return;
@@ -358,6 +514,12 @@ export default function SlotContent({
   useEffect(() => {
     if (!isSpinning) reachSoundPlayedRef.current = false;
   }, [isSpinning]);
+
+  useEffect(() => {
+    if (playerHistoryViewId && !players.some((p) => p.id === playerHistoryViewId)) {
+      setPlayerHistoryViewId(null);
+    }
+  }, [playerHistoryViewId, players]);
 
   const isReach = useMemo(() => {
     if (!isSpinning || strips.length < 3) return false;
@@ -489,6 +651,15 @@ export default function SlotContent({
           天井まで {Math.max(0, settings.ceilingSpins - ceilingCount)} 回
         </p>
       )}
+      {bonusGamesRemaining > 0 && (
+        <p
+          className={`text-sm font-bold ${
+            displayLight ? "text-amber-600" : "text-amber-400"
+          }`}
+        >
+          BONUS 残り {bonusGamesRemaining} ゲーム
+        </p>
+      )}
       {activePlayer && (
         <p
           className={`text-xs ${
@@ -498,7 +669,9 @@ export default function SlotContent({
           理論機械割{" "}
           {calculateTheoreticalPayoutPercent(
             strips,
-            activePlayer.defaultBet
+            activePlayer.defaultBet,
+            normalizePaylines(settings.paylines, strips.length, settings.visibleRows ?? 1),
+            settings.visibleRows ?? 1
           ).toFixed(1)}
           %
         </p>
@@ -519,6 +692,7 @@ export default function SlotContent({
               isLightMode={displayLight}
               accentColor={accentColor}
               isReach={i === 2 && isReach}
+              visibleRows={settings.visibleRows ?? 1}
             />
           );
         })}
@@ -539,7 +713,8 @@ export default function SlotContent({
           isSpinning ||
           strips.some((s) => s.length === 0) ||
           !activePlayer ||
-          (!replayFreeSpin &&
+          (bonusGamesRemaining === 0 &&
+            !replayFreeSpin &&
             (activePlayer?.balance ?? 0) <
               (activePlayer?.defaultBet ?? 0))
         }
@@ -700,6 +875,8 @@ export default function SlotContent({
                 {[
                   { id: "reel" as const, label: "リール・図柄" },
                   { id: "players" as const, label: "プレイヤー" },
+                  { id: "templates" as const, label: "テンプレート" },
+                  { id: "stats" as const, label: "統計" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -731,14 +908,43 @@ export default function SlotContent({
                     isLightMode={displayLight}
                   />
                 )}
-                {sidebarTab === "players" && (
-                  <SlotPlayerManager
+                {sidebarTab === "templates" && (
+                  <SlotTemplatePanel
+                    symbolMaster={symbolMaster}
+                    onSymbolMasterChange={setSymbolMaster}
+                    templates={templates}
+                    onSaveTemplate={handleSaveSlotTemplate}
+                    onLoadTemplate={handleLoadSlotTemplate}
+                    isLightMode={displayLight}
+                  />
+                )}
+                {sidebarTab === "players" &&
+                  (playerHistoryViewId ? (
+                    (() => {
+                      const p = players.find((x) => x.id === playerHistoryViewId);
+                      return p ? (
+                        <SlotPlayerHistoryCard
+                          player={p}
+                          isLightMode={displayLight}
+                          onClose={() => setPlayerHistoryViewId(null)}
+                        />
+                      ) : null;
+                    })()
+                  ) : (
+                    <SlotPlayerManager
+                      players={players}
+                      activePlayerId={activePlayer?.id ?? null}
+                      onSelectPlayer={(id) => setActivePlayerId(id)}
+                      onAddPlayer={addPlayer}
+                      onRemovePlayer={removePlayer}
+                      onUpdatePlayer={updatePlayer}
+                      isLightMode={displayLight}
+                      onViewPlayerHistory={setPlayerHistoryViewId}
+                    />
+                  ))}
+                {sidebarTab === "stats" && (
+                  <SlotStatsPanel
                     players={players}
-                    activePlayerId={activePlayer?.id ?? null}
-                    onSelectPlayer={(id) => setActivePlayerId(id)}
-                    onAddPlayer={addPlayer}
-                    onRemovePlayer={removePlayer}
-                    onUpdatePlayer={updatePlayer}
                     isLightMode={displayLight}
                   />
                 )}
@@ -815,6 +1021,8 @@ export default function SlotContent({
                         {[
                           { id: "reel" as const, label: "リール・図柄" },
                           { id: "players" as const, label: "プレイヤー" },
+                          { id: "templates" as const, label: "テンプレート" },
+                          { id: "stats" as const, label: "統計" },
                         ].map((tab) => (
                           <button
                             key={tab.id}
@@ -863,14 +1071,43 @@ export default function SlotContent({
                           isLightMode={displayLight}
                         />
                       )}
-                      {sidebarTab === "players" && (
-                        <SlotPlayerManager
+                      {sidebarTab === "templates" && (
+                        <SlotTemplatePanel
+                          symbolMaster={symbolMaster}
+                          onSymbolMasterChange={setSymbolMaster}
+                          templates={templates}
+                          onSaveTemplate={handleSaveSlotTemplate}
+                          onLoadTemplate={handleLoadSlotTemplate}
+                          isLightMode={displayLight}
+                        />
+                      )}
+                      {sidebarTab === "players" &&
+                        (playerHistoryViewId ? (
+                          (() => {
+                            const p = players.find((x) => x.id === playerHistoryViewId);
+                            return p ? (
+                              <SlotPlayerHistoryCard
+                                player={p}
+                                isLightMode={displayLight}
+                                onClose={() => setPlayerHistoryViewId(null)}
+                              />
+                            ) : null;
+                          })()
+                        ) : (
+                          <SlotPlayerManager
+                            players={players}
+                            activePlayerId={activePlayer?.id ?? null}
+                            onSelectPlayer={(id) => setActivePlayerId(id)}
+                            onAddPlayer={addPlayer}
+                            onRemovePlayer={removePlayer}
+                            onUpdatePlayer={updatePlayer}
+                            isLightMode={displayLight}
+                            onViewPlayerHistory={setPlayerHistoryViewId}
+                          />
+                        ))}
+                      {sidebarTab === "stats" && (
+                        <SlotStatsPanel
                           players={players}
-                          activePlayerId={activePlayer?.id ?? null}
-                          onSelectPlayer={(id) => setActivePlayerId(id)}
-                          onAddPlayer={addPlayer}
-                          onRemovePlayer={removePlayer}
-                          onUpdatePlayer={updatePlayer}
                           isLightMode={displayLight}
                         />
                       )}

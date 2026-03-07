@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { UserPlus, Trash2, Pencil, Check, X } from "lucide-react";
+import { UserPlus, Trash2, Pencil, Check, X, ChevronRight } from "lucide-react";
 import type { SlotPlayer } from "@/lib/slot";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -18,6 +18,7 @@ interface SlotPlayerManagerProps {
     patch: { name?: string; balance?: number; defaultBet?: number }
   ) => void;
   isLightMode: boolean;
+  onViewPlayerHistory?: (playerId: string) => void;
 }
 
 export default function SlotPlayerManager({
@@ -28,6 +29,7 @@ export default function SlotPlayerManager({
   onRemovePlayer,
   onUpdatePlayer,
   isLightMode,
+  onViewPlayerHistory,
 }: SlotPlayerManagerProps) {
   const [newPlayerName, setNewPlayerName] = useState("");
   const [playerToDelete, setPlayerToDelete] = useState<string | null>(null);
@@ -266,6 +268,24 @@ export default function SlotPlayerManager({
                           >
                             <Pencil size={14} />
                           </button>
+                          {onViewPlayerHistory && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onViewPlayerHistory(player.id);
+                              }}
+                              className={`p-1.5 rounded-lg transition-all ${
+                                isLightMode
+                                  ? "text-blue-700 hover:bg-blue-50"
+                                  : "text-blue-400 hover:bg-blue-500/10"
+                              }`}
+                              title="履歴を見る"
+                              aria-label="履歴を見る"
+                            >
+                              <ChevronRight size={14} />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={(e) => {
