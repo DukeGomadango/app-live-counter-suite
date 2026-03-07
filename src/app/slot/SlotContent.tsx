@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useCallback, useMemo, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, Menu, Settings } from "lucide-react";
+import { Sun, Moon, Menu, Settings, ImageDown } from "lucide-react";
+import { toPng } from "html-to-image";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
@@ -14,8 +16,10 @@ import SlotReelSymbolPanel from "@/components/slot/SlotReelSymbolPanel";
 import SlotTemplatePanel from "@/components/slot/SlotTemplatePanel";
 import SlotStatsPanel from "@/components/slot/SlotStatsPanel";
 import SlotPlayerHistoryCard from "@/components/slot/SlotPlayerHistoryCard";
+import SlotShareSummary from "@/components/slot/SlotShareSummary";
 import RouletteHitEffect from "@/components/roulette/RouletteHitEffect";
 import { X } from "lucide-react";
+import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
 import {
   type SlotSymbol,
   type SlotPlayer,
@@ -42,6 +46,7 @@ import {
   appendSpinRecord,
   getNumbers17Preset,
   getDefaultSymbolsPreset,
+  formatSlotShareText,
   type SlotSpinRecord,
   MIN_REEL_COUNT,
   MAX_REEL_COUNT,
@@ -192,6 +197,9 @@ export default function SlotContent({
   const [lastWin, setLastWin] = useState<{ label: string; payout: number; isReplay: boolean } | null>(null);
   const [showFlash, setShowFlash] = useState(false);
   const [showHitEffect, setShowHitEffect] = useState(false);
+  const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
+  const shareAreaRef = useRef<HTMLDivElement | null>(null);
+  const tweetUrlAfterDownloadRef = useRef<string | null>(null);
 
   const activePlayer = useMemo(() => {
     const id = activePlayerId ?? players[0]?.id ?? null;
@@ -202,6 +210,21 @@ export default function SlotContent({
     const idx = reelResults.findIndex((r) => r === null);
     return idx >= 0 ? idx : reelCount;
   }, [reelResults, reelCount]);
+
+  const slotSharePayload = useMemo(() => {
+    const labels = strips.slice(0, reelCount).map((strip, i) => {
+      const idx = reelResults[i];
+      if (idx == null) return "?";
+      const sym = strip[idx % strip.length];
+      return sym?.label ?? "?";
+    });
+    const line = lastWin
+      ? lastWin.isReplay
+        ? "REPLAY!"
+        : `${lastWin.label} ${lastWin.payout}枚`
+      : "はずれ";
+    return { reelLabels: labels, resultLine: line };
+  }, [strips, reelCount, reelResults, lastWin]);
 
   const canStop = useCallback(
     (reelIndex: number) =>
@@ -460,6 +483,16 @@ export default function SlotContent({
     }));
   }, [setSymbolMaster, setReelStrips, setSettings]);
 
+  const handleShareAsImage = useCallback(() => {
+    const text = formatSlotShareText(
+      activePlayer?.name,
+      slotSharePayload.reelLabels,
+      slotSharePayload.resultLine
+    );
+    tweetUrlAfterDownloadRef.current = generateShareUrl(text);
+    setIsCapturingShareImage(true);
+  }, [activePlayer?.name, slotSharePayload.reelLabels, slotSharePayload.resultLine]);
+
   useEffect(() => {
     if (!allStopped || !isSpinning || !activePlayer) return;
     if (appliedWinRef.current) return;
@@ -528,6 +561,54 @@ export default function SlotContent({
       setIsSpinning(false);
     });
   }, [allStopped, isSpinning, activePlayer, reelResults, strips, setPlayers, settings.soundEnabled, settings.paylines, settings.visibleRows, bonusGamesRemaining, settings.bonusGamesCount, settings.artEnabled, settings.artAddGames]);
+
+  useEffect(() => {
+    if (!isCapturingShareImage) return;
+    const id = setTimeout(async () => {
+      const el = shareAreaRef.current;
+      if (!el) {
+        setIsCapturingShareImage(false);
+        return;
+      }
+      try {
+        const dataUrl = await toPng(el, {
+          backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e",
+          pixelRatio: 2,
+        });
+        const shareText = formatSlotShareText(
+          activePlayer?.name,
+          slotSharePayload.reelLabels,
+          slotSharePayload.resultLine
+        );
+        const filename = `slot-result-${getTimestampForFilename()}.png`;
+        const shared = await shareImageWithText(dataUrl, shareText, filename);
+        if (shared) {
+          tweetUrlAfterDownloadRef.current = null;
+          return;
+        }
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = filename;
+        a.click();
+        const urlToOpen = tweetUrlAfterDownloadRef.current;
+        if (urlToOpen) {
+          tweetUrlAfterDownloadRef.current = null;
+          window.open(urlToOpen, "_blank", "noopener,noreferrer");
+        }
+      } catch (err) {
+        console.warn("Slot image export failed:", err);
+      } finally {
+        setIsCapturingShareImage(false);
+      }
+    }, 50);
+    return () => clearTimeout(id);
+  }, [
+    isCapturingShareImage,
+    isLightMode,
+    activePlayer?.name,
+    slotSharePayload.reelLabels,
+    slotSharePayload.resultLine,
+  ]);
 
   useEffect(() => {
     if (!showFlash) return;
@@ -775,12 +856,41 @@ export default function SlotContent({
     </div>
   );
 
+  const shareOverlay =
+    typeof document !== "undefined" && isCapturingShareImage
+      ? createPortal(
+          <div
+            ref={shareAreaRef}
+            style={{
+              position: "fixed",
+              left: "50%",
+              top: 0,
+              transform: "translateX(-50%)",
+              width: "min(100%, 400px)",
+              maxWidth: 400,
+              zIndex: -1,
+              pointerEvents: "none",
+            }}
+            aria-hidden
+          >
+            <SlotShareSummary
+              playerName={activePlayer?.name}
+              reelLabels={slotSharePayload.reelLabels}
+              resultLine={slotSharePayload.resultLine}
+              isLightMode={displayLight}
+            />
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
     <div
       className={`flex flex-col overflow-hidden relative z-10 min-w-0 pt-14 ${
         isSplitMode ? "h-full w-full" : "h-screen w-screen"
       }`}
     >
+      {shareOverlay}
       {/* 背景オーブ */}
       <div
         className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${
@@ -834,6 +944,17 @@ export default function SlotContent({
           {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleShareAsImage}
+            className={`p-1.5 rounded-lg transition-all shrink-0 ${
+              displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"
+            }`}
+            title="画像で共有"
+            aria-label="画像で共有"
+          >
+            <ImageDown size={16} />
+          </button>
           <button
             type="button"
             onClick={() => setShowSettingsPanel(true)}

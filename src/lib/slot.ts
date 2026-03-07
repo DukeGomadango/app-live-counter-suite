@@ -556,3 +556,19 @@ export function pickCeilingBonusIndices(
     return idx >= 0 ? idx : 0;
   });
 }
+
+/** 画像共有時のツイート文（ガチャ同様・画像は share の files で渡すため文面には含めない） */
+export function formatSlotShareText(
+  playerName: string | undefined,
+  reelLabels: string[],
+  resultLine: string
+): string {
+  const lines: string[] = [];
+  const name = playerName?.trim();
+  if (name) lines.push(name);
+  const result = reelLabels.length > 0 ? `${reelLabels.join(" ")} ${resultLine}` : resultLine;
+  lines.push(`🎰 ${result}`);
+  lines.push("");
+  lines.push("#だんごツール");
+  return lines.join("\n");
+}
