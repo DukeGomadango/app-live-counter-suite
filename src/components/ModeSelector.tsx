@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Home } from "lucide-react";
-import { TOOLS } from "@/lib/tools";
+import { TOOLS, TOOLS_BY_CATEGORY } from "@/lib/tools";
 
 interface ModeSelectorProps {
     isLightMode?: boolean;
@@ -21,7 +21,9 @@ const TOP_ENTRY = {
     activeBorder: "border-gray-500/40",
 };
 
-const MODES = [
+type ModeEntry = typeof TOP_ENTRY & { id: string; path: string; label: string };
+
+const ALL_MODES: ModeEntry[] = [
     TOP_ENTRY,
     ...TOOLS.map((t) => ({
         id: t.id,
@@ -39,7 +41,7 @@ export default function ModeSelector({ isLightMode = false }: ModeSelectorProps)
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
 
-    const currentMode = MODES.find((m) => m.path === pathname) ?? MODES[0]!;
+    const currentMode = ALL_MODES.find((m) => m.path === pathname) ?? ALL_MODES[0]!;
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -98,32 +100,73 @@ export default function ModeSelector({ isLightMode = false }: ModeSelectorProps)
                             <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 ${isLightMode ? "text-gray-400" : "text-white/30"}`}>
                                 Switch Mode
                             </span>
-                            {MODES.map((mode) => {
-                                const ModeIcon = mode.icon;
-                                const isActive = currentMode.id === mode.id;
-
-                                return (
-                                    <Link
-                                        href={mode.path}
-                                        key={mode.id}
-                                        onClick={() => setIsOpen(false)}
-                                        className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${isActive
-                                            ? `${mode.activeBg} ${mode.color} font-medium`
-                                            : `${textColor} ${bgHover}`
-                                            }`}
-                                    >
-                                        <ModeIcon size={16} className={isActive ? mode.color : isLightMode ? "text-gray-400" : "text-white/40"} />
-                                        {mode.label}
-                                        {isActive && (
-                                            <motion.div
-                                                layoutId="active-indicator"
-                                                className={`ml-auto w-1.5 h-1.5 rounded-full`}
-                                                style={{ backgroundColor: isActive ? 'currentColor' : 'transparent' }}
-                                            />
-                                        )}
-                                    </Link>
-                                );
-                            })}
+                            {/* ホーム */}
+                            <div className="pt-0.5">
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 ${isLightMode ? "text-gray-400" : "text-white/30"}`}>
+                                    ホーム
+                                </span>
+                                <Link
+                                    href={TOP_ENTRY.path}
+                                    onClick={() => setIsOpen(false)}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${currentMode.id === TOP_ENTRY.id ? `${TOP_ENTRY.activeBg} ${TOP_ENTRY.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                >
+                                    <TOP_ENTRY.icon size={16} className={currentMode.id === TOP_ENTRY.id ? TOP_ENTRY.color : isLightMode ? "text-gray-400" : "text-white/40"} />
+                                    {TOP_ENTRY.label}
+                                    {currentMode.id === TOP_ENTRY.id && (
+                                        <motion.div layoutId="active-indicator" className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "currentColor" }} />
+                                    )}
+                                </Link>
+                            </div>
+                            {/* ツール */}
+                            <div>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 ${isLightMode ? "text-gray-400" : "text-white/30"}`}>
+                                    ツール
+                                </span>
+                                {TOOLS_BY_CATEGORY.tools.map((t) => {
+                                    const mode = ALL_MODES.find((m) => m.id === t.id)!;
+                                    const isActive = currentMode.id === t.id;
+                                    const Icon = t.icon;
+                                    return (
+                                        <Link
+                                            href={t.path}
+                                            key={t.id}
+                                            onClick={() => setIsOpen(false)}
+                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${isActive ? `${mode.activeBg} ${mode.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                        >
+                                            <Icon size={16} className={isActive ? mode.color : isLightMode ? "text-gray-400" : "text-white/40"} />
+                                            {mode.label}
+                                            {isActive && (
+                                                <motion.div layoutId="active-indicator" className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "currentColor" }} />
+                                            )}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
+                            {/* ゲーム */}
+                            <div>
+                                <span className={`text-[10px] font-bold uppercase tracking-wider px-3 py-1 ${isLightMode ? "text-gray-400" : "text-white/30"}`}>
+                                    ゲーム
+                                </span>
+                                {TOOLS_BY_CATEGORY.games.map((t) => {
+                                    const mode = ALL_MODES.find((m) => m.id === t.id)!;
+                                    const isActive = currentMode.id === t.id;
+                                    const Icon = t.icon;
+                                    return (
+                                        <Link
+                                            href={t.path}
+                                            key={t.id}
+                                            onClick={() => setIsOpen(false)}
+                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${isActive ? `${mode.activeBg} ${mode.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                        >
+                                            <Icon size={16} className={isActive ? mode.color : isLightMode ? "text-gray-400" : "text-white/40"} />
+                                            {mode.label}
+                                            {isActive && (
+                                                <motion.div layoutId="active-indicator" className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "currentColor" }} />
+                                            )}
+                                        </Link>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </motion.div>
                 )}

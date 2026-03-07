@@ -7,7 +7,7 @@ import { Sun, Moon, LayoutGrid, List, ChevronDown, ChevronRight } from "lucide-r
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import PwaInstallChip from "@/components/PwaInstallChip";
-import { TOOLS } from "@/lib/tools";
+import { TOOLS_BY_CATEGORY } from "@/lib/tools";
 import { SITE_CONFIG } from "@/lib/site";
 import { LP_FAQ_GROUPED } from "@/lib/lp-faq";
 import { LP_CHANGELOG, type ChangelogImportance } from "@/lib/lp-changelog";
@@ -189,119 +189,139 @@ export default function LandingPage() {
         />
 
         {effectiveLayout === "strip" ? (
-          /* B: ストリップ表示（大きめのチップで存在感を） */
-          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-6 py-6 md:py-8">
-            <div className="flex flex-wrap justify-center gap-4 md:gap-5">
-              {TOOLS.map((tool, i) => {
-                const Icon = tool.icon;
-                return (
-                  <motion.div
-                    key={tool.id}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.25, delay: i * 0.03 }}
-                  >
-                    <Link
-                      href={tool.path}
-                      className={`flex items-center gap-4 rounded-2xl px-5 py-4 md:px-6 md:py-4 transition-all duration-200 hover:scale-[1.02] ${effectiveLight ? "hover:bg-white/90 text-neutral-800" : "hover:bg-white/10 text-white"}`}
-                      style={{
-                        background: effectiveLight ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)",
-                        backdropFilter: "blur(12px)",
-                        border: effectiveLight ? "1px solid rgba(0,0,0,0.06)" : `1px solid ${tool.accentHex}25`,
-                      }}
-                    >
-                      <span
-                        className="shrink-0 w-11 h-11 md:w-12 md:h-12 rounded-xl flex items-center justify-center"
-                        style={{ background: `${tool.accentHex}25`, color: tool.accentHex }}
+          /* B: ストリップ表示（ツール・ゲームの2セクション） */
+          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-6 py-6 md:py-8 space-y-10">
+            {(["tools", "games"] as const).map((cat) => (
+              <section key={cat} aria-labelledby={`strip-heading-${cat}`}>
+                <h2
+                  id={`strip-heading-${cat}`}
+                  className={`text-sm font-bold uppercase tracking-wider mb-3 ${effectiveLight ? "text-neutral-500" : "text-white/50"}`}
+                >
+                  {cat === "tools" ? "ツール" : "ゲーム"}
+                </h2>
+                <div className="flex flex-wrap justify-center gap-4 md:gap-5">
+                  {TOOLS_BY_CATEGORY[cat].map((tool, i) => {
+                    const Icon = tool.icon;
+                    return (
+                      <motion.div
+                        key={tool.id}
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.25, delay: i * 0.03 }}
                       >
-                        <Icon size={22} strokeWidth={2} className="md:w-6 md:h-6" />
-                      </span>
-                      <span className="font-semibold text-base md:text-lg whitespace-nowrap">{tool.labelJa}</span>
-                      <span className={`text-sm ${effectiveLight ? "text-neutral-500" : "text-white/50"}`}>使ってみる</span>
-                    </Link>
-                  </motion.div>
-                );
-              })}
-            </div>
+                        <Link
+                          href={tool.path}
+                          className={`flex items-center gap-4 rounded-2xl px-5 py-4 md:px-6 md:py-4 transition-all duration-200 hover:scale-[1.02] ${effectiveLight ? "hover:bg-white/90 text-neutral-800" : "hover:bg-white/10 text-white"}`}
+                          style={{
+                            background: effectiveLight ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.05)",
+                            backdropFilter: "blur(12px)",
+                            border: effectiveLight ? "1px solid rgba(0,0,0,0.06)" : `1px solid ${tool.accentHex}25`,
+                          }}
+                        >
+                          <span
+                            className="shrink-0 w-11 h-11 md:w-12 md:h-12 rounded-xl flex items-center justify-center"
+                            style={{ background: `${tool.accentHex}25`, color: tool.accentHex }}
+                          >
+                            <Icon size={22} strokeWidth={2} className="md:w-6 md:h-6" />
+                          </span>
+                          <span className="font-semibold text-base md:text-lg whitespace-nowrap">{tool.labelJa}</span>
+                          <span className={`text-sm ${effectiveLight ? "text-neutral-500" : "text-white/50"}`}>使ってみる</span>
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         ) : (
-          /* A: カード表示（「使ってみる」を行で揃える） */
-          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-4 py-6 md:py-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 md:grid-rows-2 gap-4 md:gap-4 md:[grid-auto-rows:minmax(0,1fr)]">
-              {TOOLS.map((tool, i) => {
-                const Icon = tool.icon;
-                return (
-                  <motion.article
-                    key={tool.id}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: i * 0.05 }}
-                    whileHover={{
-                      scale: 1.02,
-                      boxShadow: effectiveLight
-                        ? `0 12px 40px rgba(0,0,0,0.08), 0 0 0 1px ${tool.accentHex}30, inset 0 1px 0 rgba(255,255,255,0.6)`
-                        : `0 16px 48px rgba(0,0,0,0.4), 0 0 24px ${tool.accentHex}25, inset 0 1px 0 rgba(255,255,255,0.05)`,
-                    }}
-                    className="rounded-2xl overflow-hidden transition-shadow duration-200 md:min-h-0 md:flex md:flex-col"
-                    style={{
-                      background: panelBg,
-                      backdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
-                      WebkitBackdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
-                      border: panelBorder,
-                      boxShadow: panelShadow,
-                    }}
-                  >
-                    <div
-                      className="h-[2px] opacity-70"
-                      style={{ background: `linear-gradient(90deg, transparent, ${tool.accentHex}, transparent)` }}
-                      aria-hidden
-                    />
-                    <div className="p-3 sm:p-4 md:p-4 flex flex-col md:min-h-0 md:flex-1">
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span
-                          className="shrink-0 w-9 h-9 md:w-8 md:h-8 rounded-lg flex items-center justify-center"
-                          style={{ background: `${tool.accentHex}20`, color: tool.accentHex }}
-                        >
-                          <Icon size={18} strokeWidth={2} className="md:w-4 md:h-4" />
-                        </span>
-                        <h2 className={`font-bold text-base sm:text-lg md:text-base leading-tight tracking-tight ${effectiveLight ? "text-neutral-900" : "text-white"}`}>
-                          {tool.labelJa}
-                        </h2>
-                      </div>
-                      <p
-                        className={`mt-2 text-xs sm:text-sm md:text-xs line-clamp-2 md:line-clamp-3 leading-normal w-full flex-1 min-h-0 ${effectiveLight ? "text-neutral-500" : "text-white/60"}`}
-                        style={{ lineBreak: "strict" }}
+          /* A: カード表示（ツール・ゲームの2セクション） */
+          <div className="w-full max-w-4xl mx-auto mt-6 md:mt-4 py-6 md:py-8 space-y-10">
+            {(["tools", "games"] as const).map((cat) => (
+              <section key={cat} aria-labelledby={`cards-heading-${cat}`}>
+                <h2
+                  id={`cards-heading-${cat}`}
+                  className={`text-sm font-bold uppercase tracking-wider mb-3 ${effectiveLight ? "text-neutral-500" : "text-white/50"}`}
+                >
+                  {cat === "tools" ? "ツール" : "ゲーム"}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-4 md:[grid-auto-rows:minmax(0,1fr)]">
+                  {TOOLS_BY_CATEGORY[cat].map((tool, i) => {
+                    const Icon = tool.icon;
+                    return (
+                      <motion.article
+                        key={tool.id}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: i * 0.05 }}
+                        whileHover={{
+                          scale: 1.02,
+                          boxShadow: effectiveLight
+                            ? `0 12px 40px rgba(0,0,0,0.08), 0 0 0 1px ${tool.accentHex}30, inset 0 1px 0 rgba(255,255,255,0.6)`
+                            : `0 16px 48px rgba(0,0,0,0.4), 0 0 24px ${tool.accentHex}25, inset 0 1px 0 rgba(255,255,255,0.05)`,
+                        }}
+                        className="rounded-2xl overflow-hidden transition-shadow duration-200 md:min-h-0 md:flex md:flex-col"
+                        style={{
+                          background: panelBg,
+                          backdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
+                          WebkitBackdropFilter: effectiveLight ? "blur(20px) saturate(1.2)" : "blur(16px)",
+                          border: panelBorder,
+                          boxShadow: panelShadow,
+                        }}
                       >
-                        {tool.descriptionNarrowBreakAfter ? (
-                          <>
-                            <span className="block">
-                              {tool.description.slice(
-                                0,
-                                tool.description.indexOf(tool.descriptionNarrowBreakAfter) + tool.descriptionNarrowBreakAfter.length
-                              )}
+                        <div
+                          className="h-[2px] opacity-70"
+                          style={{ background: `linear-gradient(90deg, transparent, ${tool.accentHex}, transparent)` }}
+                          aria-hidden
+                        />
+                        <div className="p-3 sm:p-4 md:p-4 flex flex-col md:min-h-0 md:flex-1">
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span
+                              className="shrink-0 w-9 h-9 md:w-8 md:h-8 rounded-lg flex items-center justify-center"
+                              style={{ background: `${tool.accentHex}20`, color: tool.accentHex }}
+                            >
+                              <Icon size={18} strokeWidth={2} className="md:w-4 md:h-4" />
                             </span>
-                            <span className="block">
-                              {tool.description.slice(
-                                tool.description.indexOf(tool.descriptionNarrowBreakAfter) + tool.descriptionNarrowBreakAfter.length
-                              )}
-                            </span>
-                          </>
-                        ) : (
-                          tool.description
-                        )}
-                      </p>
-                      <Link
-                        href={tool.path}
-                        className={`mt-3 md:mt-2 shrink-0 inline-flex items-center justify-center rounded-lg py-2 px-3 text-xs md:text-sm font-medium transition-colors ${effectiveLight ? "bg-black/8 hover:bg-black/12 text-neutral-800" : "bg-white/10 hover:bg-white/20 text-white"}`}
-                        style={{ border: `1px solid ${tool.accentHex}40` }}
-                      >
-                        使ってみる
-                      </Link>
-                    </div>
-                  </motion.article>
-                );
-              })}
-            </div>
+                            <h3 className={`font-bold text-base sm:text-lg md:text-base leading-tight tracking-tight ${effectiveLight ? "text-neutral-900" : "text-white"}`}>
+                              {tool.labelJa}
+                            </h3>
+                          </div>
+                          <p
+                            className={`mt-2 text-xs sm:text-sm md:text-xs line-clamp-2 md:line-clamp-3 leading-normal w-full flex-1 min-h-0 ${effectiveLight ? "text-neutral-500" : "text-white/60"}`}
+                            style={{ lineBreak: "strict" }}
+                          >
+                            {tool.descriptionNarrowBreakAfter ? (
+                              <>
+                                <span className="block">
+                                  {tool.description.slice(
+                                    0,
+                                    tool.description.indexOf(tool.descriptionNarrowBreakAfter) + tool.descriptionNarrowBreakAfter.length
+                                  )}
+                                </span>
+                                <span className="block">
+                                  {tool.description.slice(
+                                    tool.description.indexOf(tool.descriptionNarrowBreakAfter) + tool.descriptionNarrowBreakAfter.length
+                                  )}
+                                </span>
+                              </>
+                            ) : (
+                              tool.description
+                            )}
+                          </p>
+                          <Link
+                            href={tool.path}
+                            className={`mt-3 md:mt-2 shrink-0 inline-flex items-center justify-center rounded-lg py-2 px-3 text-xs md:text-sm font-medium transition-colors ${effectiveLight ? "bg-black/8 hover:bg-black/12 text-neutral-800" : "bg-white/10 hover:bg-white/20 text-white"}`}
+                            style={{ border: `1px solid ${tool.accentHex}40` }}
+                          >
+                            使ってみる
+                          </Link>
+                        </div>
+                      </motion.article>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </div>
         )}
 

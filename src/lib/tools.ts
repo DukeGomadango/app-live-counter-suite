@@ -4,6 +4,8 @@
  */
 import { Users, Network, Sparkles, CircleDot, Dices, LayoutGrid, Calculator, Clock, PanelTopOpen, type LucideIcon } from "lucide-react";
 
+export type ToolCategory = "tools" | "games";
+
 export interface ToolDef {
   id: string;
   path: string;
@@ -18,8 +20,12 @@ export interface ToolDef {
   activeBorder: string;
   /** LP のカード・アクセントライン用 */
   accentHex: string;
+  /** ホーム・LP のセクション分け用 */
+  category: ToolCategory;
 }
 
+/** ツール: カウンター, フローチャート, パネル, 電卓, 時計, スプリット */
+/** ゲーム: ガチャ, ルーレット, スロット */
 export const TOOLS: ToolDef[] = [
   {
     id: "counter",
@@ -33,6 +39,7 @@ export const TOOLS: ToolDef[] = [
     activeBg: "bg-purple-500/20",
     activeBorder: "border-purple-500/40",
     accentHex: "#a855f7",
+    category: "tools",
   },
   {
     id: "flowchart",
@@ -46,84 +53,7 @@ export const TOOLS: ToolDef[] = [
     activeBg: "bg-blue-500/20",
     activeBorder: "border-blue-500/40",
     accentHex: "#60a5fa",
-  },
-  {
-    id: "gacha",
-    path: "/gacha",
-    labelEn: "Gacha",
-    labelJa: "ガチャシミュレーター",
-    description: "確率・レア度・天井をカスタマイズ。配信やイベントの演出に。",
-    descriptionNarrowBreakAfter: "カスタマイズ。",
-    icon: Sparkles,
-    colorClass: "text-yellow-400",
-    activeBg: "bg-yellow-500/20",
-    activeBorder: "border-yellow-500/40",
-    accentHex: "#facc15",
-  },
-  {
-    id: "roulette",
-    path: "/roulette",
-    labelEn: "Roulette",
-    labelJa: "ルーレット",
-    description: "スロットを回して抽選。予測や履歴で盛り上げる。",
-    descriptionNarrowBreakAfter: "抽選。",
-    icon: CircleDot,
-    colorClass: "text-amber-400",
-    activeBg: "bg-amber-500/20",
-    activeBorder: "border-amber-500/40",
-    accentHex: "#fbbf24",
-  },
-  {
-    id: "slot",
-    path: "/slot",
-    labelEn: "Slot",
-    labelJa: "スロット",
-    description: "順押し・目押し・BET・天井・リプレイ。図柄と確率をカスタマイズ。",
-    descriptionNarrowBreakAfter: "リプレイ。",
-    icon: Dices,
-    colorClass: "text-teal-400",
-    activeBg: "bg-teal-500/20",
-    activeBorder: "border-teal-500/40",
-    accentHex: "#14b8a6",
-  },
-  {
-    id: "clock",
-    path: "/clock",
-    labelEn: "Clock",
-    labelJa: "時計",
-    description: "現在時刻・ストップウォッチ・タイマー。デジタルとアナログ表示に対応。",
-    descriptionNarrowBreakAfter: "タイマー。",
-    icon: Clock,
-    colorClass: "text-orange-400",
-    activeBg: "bg-orange-500/20",
-    activeBorder: "border-orange-500/40",
-    accentHex: "#f97316",
-  },
-  {
-    id: "split",
-    path: "/split",
-    labelEn: "Split",
-    labelJa: "スプリットビュー",
-    description: "カウンター・フローチャート・ガチャなどを1画面で切り替え。",
-    descriptionNarrowBreakAfter: "1画面で",
-    icon: LayoutGrid,
-    colorClass: "text-emerald-400",
-    activeBg: "bg-emerald-500/20",
-    activeBorder: "border-emerald-500/40",
-    accentHex: "#34d399",
-  },
-  {
-    id: "calculator",
-    path: "/calculator",
-    labelEn: "Calculator",
-    labelJa: "電卓",
-    description: "四則演算・分数・確率の簡易計算。配信のサポートツールとして。",
-    descriptionNarrowBreakAfter: "簡易計算。",
-    icon: Calculator,
-    colorClass: "text-cyan-400",
-    activeBg: "bg-cyan-500/20",
-    activeBorder: "border-cyan-500/40",
-    accentHex: "#22d3ee",
+    category: "tools",
   },
   {
     id: "panel",
@@ -137,8 +67,98 @@ export const TOOLS: ToolDef[] = [
     activeBg: "bg-violet-500/20",
     activeBorder: "border-violet-500/40",
     accentHex: "#8b5cf6",
+    category: "tools",
+  },
+  {
+    id: "calculator",
+    path: "/calculator",
+    labelEn: "Calculator",
+    labelJa: "電卓",
+    description: "四則演算・分数・確率の簡易計算。配信のサポートツールとして。",
+    descriptionNarrowBreakAfter: "簡易計算。",
+    icon: Calculator,
+    colorClass: "text-cyan-400",
+    activeBg: "bg-cyan-500/20",
+    activeBorder: "border-cyan-500/40",
+    accentHex: "#22d3ee",
+    category: "tools",
+  },
+  {
+    id: "clock",
+    path: "/clock",
+    labelEn: "Clock",
+    labelJa: "時計",
+    description: "現在時刻・ストップウォッチ・タイマー。デジタルとアナログ表示に対応。",
+    descriptionNarrowBreakAfter: "タイマー。",
+    icon: Clock,
+    colorClass: "text-orange-400",
+    activeBg: "bg-orange-500/20",
+    activeBorder: "border-orange-500/40",
+    accentHex: "#f97316",
+    category: "tools",
+  },
+  {
+    id: "split",
+    path: "/split",
+    labelEn: "Split",
+    labelJa: "スプリットビュー",
+    description: "カウンター・フローチャート・ガチャなどを1画面で切り替え。",
+    descriptionNarrowBreakAfter: "1画面で",
+    icon: LayoutGrid,
+    colorClass: "text-emerald-400",
+    activeBg: "bg-emerald-500/20",
+    activeBorder: "border-emerald-500/40",
+    accentHex: "#34d399",
+    category: "tools",
+  },
+  {
+    id: "gacha",
+    path: "/gacha",
+    labelEn: "Gacha",
+    labelJa: "ガチャシミュレーター",
+    description: "確率・レア度・天井をカスタマイズ。配信やイベントの演出に。",
+    descriptionNarrowBreakAfter: "カスタマイズ。",
+    icon: Sparkles,
+    colorClass: "text-yellow-400",
+    activeBg: "bg-yellow-500/20",
+    activeBorder: "border-yellow-500/40",
+    accentHex: "#facc15",
+    category: "games",
+  },
+  {
+    id: "roulette",
+    path: "/roulette",
+    labelEn: "Roulette",
+    labelJa: "ルーレット",
+    description: "スロットを回して抽選。予測や履歴で盛り上げる。",
+    descriptionNarrowBreakAfter: "抽選。",
+    icon: CircleDot,
+    colorClass: "text-amber-400",
+    activeBg: "bg-amber-500/20",
+    activeBorder: "border-amber-500/40",
+    accentHex: "#fbbf24",
+    category: "games",
+  },
+  {
+    id: "slot",
+    path: "/slot",
+    labelEn: "Slot",
+    labelJa: "スロット",
+    description: "順押し・目押し・BET・天井・リプレイ。図柄と確率をカスタマイズ。",
+    descriptionNarrowBreakAfter: "リプレイ。",
+    icon: Dices,
+    colorClass: "text-teal-400",
+    activeBg: "bg-teal-500/20",
+    activeBorder: "border-teal-500/40",
+    accentHex: "#14b8a6",
+    category: "games",
   },
 ];
+
+export const TOOLS_BY_CATEGORY: Record<ToolCategory, ToolDef[]> = {
+  tools: TOOLS.filter((t) => t.category === "tools"),
+  games: TOOLS.filter((t) => t.category === "games"),
+};
 
 /** path から日本語ラベルを取得（JsonLd のパンくず用） */
 export function getToolLabelJa(path: string): string | null {
