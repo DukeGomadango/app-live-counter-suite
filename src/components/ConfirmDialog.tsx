@@ -71,17 +71,19 @@ export default function ConfirmDialog({
                                     >
                                         {cancelLabel}
                                     </button>
-                                    <button
-                                        type="button"
-                                        onClick={onConfirm}
-                                        className={`px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors ${
-                                            danger
-                                                ? "bg-red-500 hover:bg-red-600"
-                                                : "bg-purple-500 hover:bg-purple-600"
-                                        }`}
-                                    >
-                                        {confirmLabel}
-                                    </button>
+                                    {confirmLabel ? (
+                                        <button
+                                            type="button"
+                                            onClick={onConfirm}
+                                            className={`px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors ${
+                                                danger
+                                                    ? "bg-red-500 hover:bg-red-600"
+                                                    : "bg-purple-500 hover:bg-purple-600"
+                                            }`}
+                                        >
+                                            {confirmLabel}
+                                        </button>
+                                    ) : null}
                                 </div>
                     </motion.div>
                 </motion.div>

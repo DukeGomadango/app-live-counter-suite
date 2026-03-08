@@ -495,14 +495,6 @@ const DEDUP_AREA_RATIO = 0.02;
 /** 同一領域とみなす重心距離（%）。頂点数が違う同じ形の重複を拾うためやや広め */
 const DEDUP_CENTROID_DIST = 8;
 
-/** 多角形の重心（0–100） */
-function polygonCenter(poly: Polygon100): Point {
-  if (poly.length === 0) return { x: 50, y: 50 };
-  const sx = poly.reduce((s, p) => s + p.x, 0);
-  const sy = poly.reduce((s, p) => s + p.y, 0);
-  return { x: sx / poly.length, y: sy / poly.length };
-}
-
 function polygonAreaAbs(poly: Polygon100): number {
   let area = 0;
   for (let i = 0; i < poly.length; i++) {

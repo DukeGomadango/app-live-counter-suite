@@ -231,6 +231,7 @@ export default function PanelContent({
   const [freeDrawPreviewPoints, setFreeDrawPreviewPoints] = useState<{ x: number; y: number }[]>([]);
   const freePointsRef = useRef<{ x: number; y: number }[]>([]);
   const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
+  const [allAchieveConfirmOpen, setAllAchieveConfirmOpen] = useState(false);
   const [renamePanelId, setRenamePanelId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [pendingCropDataUrl, setPendingCropDataUrl] = useState<string | null>(null);
@@ -312,32 +313,24 @@ export default function PanelContent({
     return () => document.body.classList.remove("light-mode");
   }, [isLightMode, isSplitMode]);
 
-  // 線で切り分けを抜けたら選択を解除
-  useEffect(() => {
-    if (!isLineStep) setSelectedLineIndex(null);
-  }, [isLineStep]);
-
-  // 線の本数が減って選択インデックスが範囲外になったら解除
-  useEffect(() => {
-    const len = partitionLines?.length ?? 0;
-    if (selectedLineIndex !== null && selectedLineIndex >= len) setSelectedLineIndex(null);
-  }, [partitionLines?.length, selectedLineIndex]);
-
-  // 線で切り分け時: キャプチャ枠内の画像表示範囲を state に保持（破線・線の表示位置合わせ用）
+  // 線で切り分け時: キャプチャ枠内の画像表示範囲を state に保持（破線・線の表示位置合わせ用）。setState は rAF で非同期にし effect 直下を避ける。
   useEffect(() => {
     const el = captureRef.current;
     if (!el || typeof imageAspectRatio !== "number") {
-      setImageBoundsPct(null);
-      return;
+      const rafId = requestAnimationFrame(() => setImageBoundsPct(null));
+      return () => cancelAnimationFrame(rafId);
     }
     const update = () => {
       const rect = el.getBoundingClientRect();
       setImageBoundsPct(getImageBoundsPct(rect, imageAspectRatio));
     };
-    update();
+    const rafId = requestAnimationFrame(update);
     const ro = new ResizeObserver(update);
     ro.observe(el);
-    return () => ro.disconnect();
+    return () => {
+      cancelAnimationFrame(rafId);
+      ro.disconnect();
+    };
   }, [imageAspectRatio]);
 
   // Migrate old state without filterIntensity
@@ -430,7 +423,7 @@ export default function PanelContent({
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isEditMode, panelEditStep, partitionLines, setPartitionLines, selectedLineIndex, setSelectedLineIndex, selectedOverlayId, overlays, setOverlays, setPanelState, pushOverlayHistory]);
 
-  const applyImageWithAspect = useCallback(
+  const _applyImageWithAspect = useCallback(
     (dataUrl: string, aspectRatio: number) => {
       setPanelState((s) => ({ ...s, imageDataUrl: dataUrl, imageAspectRatio: aspectRatio }));
     },
@@ -487,15 +480,21 @@ export default function PanelContent({
         return;
       }
       if (overlay.targetType === "number") {
-        setOverlays((prev) =>
-          prev.map((o) =>
-            o.id === overlay.id ? { ...o, count: o.count + 1 } : o
-          )
-        );
-        const nextCount = overlay.count + 1;
-        if (overlay.target > 0 && nextCount >= overlay.target) {
-          setAchievedOverlayId(overlay.id);
-        }
+        const overlayId = overlay.id;
+        setOverlays((prev) => {
+          const next = prev.map((o) =>
+            o.id === overlayId ? { ...o, count: o.count + 1 } : o
+          );
+          const updated = next.find((o) => o.id === overlayId);
+          if (
+            updated &&
+            updated.target > 0 &&
+            updated.count >= updated.target
+          ) {
+            queueMicrotask(() => setAchievedOverlayId(overlayId));
+          }
+          return next;
+        });
       }
     },
     [setOverlays]
@@ -797,28 +796,29 @@ export default function PanelContent({
     }
   }, [achievedOverlayId, setOverlays]);
 
+  const handleConfirmAllAchieve = useCallback(() => {
+    setOverlays(() => []);
+    setAllAchieveConfirmOpen(false);
+  }, [setOverlays]);
+
   const clientToPctForLine = useCallback(
     (clientX: number, clientY: number) => {
-      const drawRect = lineDrawAreaRef.current?.getBoundingClientRect();
       const rect = captureRef.current?.getBoundingClientRect();
-      if (drawRect && drawRect.width > 0 && drawRect.height > 0) {
-        const x = ((clientX - drawRect.left) / drawRect.width) * 100;
-        const y = ((clientY - drawRect.top) / drawRect.height) * 100;
-        return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
-      }
-      if (!rect) return { x: 0, y: 0 };
-      const bounds = getImageBoundsPct(rect, imageAspectRatio ?? undefined);
-      const framePx = ((clientX - rect.left) / rect.width) * 100;
-      const framePy = ((clientY - rect.top) / rect.height) * 100;
-      const imagePx = bounds.width > 0 ? ((framePx - bounds.x) / bounds.width) * 100 : 50;
-      const imagePy = bounds.height > 0 ? ((framePy - bounds.y) / bounds.height) * 100 : 50;
-      return {
-        x: Math.max(0, Math.min(100, imagePx)),
-        y: Math.max(0, Math.min(100, imagePy)),
-      };
+      if (!rect) return { x: 50, y: 50 };
+      const bounds = imageBoundsPct ?? getImageBoundsPct(rect, imageAspectRatio ?? undefined);
+      const imgLeft = rect.left + (rect.width * bounds.x) / 100;
+      const imgTop = rect.top + (rect.height * bounds.y) / 100;
+      const imgWidth = (rect.width * bounds.width) / 100;
+      const imgHeight = (rect.height * bounds.height) / 100;
+      if (imgWidth <= 0 || imgHeight <= 0) return { x: 50, y: 50 };
+      const x = ((clientX - imgLeft) / imgWidth) * 100;
+      const y = ((clientY - imgTop) / imgHeight) * 100;
+      return { x, y };
     },
-    [imageAspectRatio]
+    [imageAspectRatio, imageBoundsPct]
   );
+
+  const clampPct = useCallback((v: number) => Math.max(0, Math.min(100, v)), []);
 
   const LINE_HIT_THRESHOLD = 3;
 
@@ -889,22 +889,23 @@ export default function PanelContent({
       }
       const end = clientToPctForLine(e.clientX, e.clientY);
       if (lineDrawStart && (lineDrawStart.x !== end.x || lineDrawStart.y !== end.y)) {
-        const x1 = Math.max(0, Math.min(100, lineDrawStart.x));
-        const y1 = Math.max(0, Math.min(100, lineDrawStart.y));
-        const x2 = Math.max(0, Math.min(100, end.x));
-        const y2 = Math.max(0, Math.min(100, end.y));
+        const x1 = clampPct(lineDrawStart.x);
+        const y1 = clampPct(lineDrawStart.y);
+        const x2 = clampPct(end.x);
+        const y2 = clampPct(end.y);
         setPartitionLines((prev) => [...prev, { x1, y1, x2, y2 }]);
       }
       setLineDrawStart(null);
       setLineDrawEnd(null);
     },
-    [isLineStep, lineDrawStart, clientToPctForLine, setPartitionLines]
+    [isLineStep, lineDrawStart, clientToPctForLine, clampPct, setPartitionLines]
   );
 
   const handleGenerateRegions = useCallback(() => {
     const lines = partitionLines ?? [];
     const polygons = getRegionsFromLines(lines);
     const newOverlays = polygons.map((poly) => createFreeOverlayFromPolygon(poly));
+    setSelectedLineIndex(null);
     setPanelState((s) => ({ ...s, overlays: newOverlays, panelEditStep: "overlays" as PanelEditStep }));
   }, [setPanelState, partitionLines]);
 
@@ -1224,6 +1225,17 @@ export default function PanelContent({
             {isEditMode ? <Eye size={16} /> : <Pencil size={16} />}
             <span className="sr-only">{isEditMode ? "編集" : "パネル明け"}</span>
           </button>
+          {!isEditMode && (
+            <button
+              onClick={() => setAllAchieveConfirmOpen(true)}
+              className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
+              title="すべての覆いを開ける"
+            >
+              <PanelTopOpen size={16} />
+              <span className="sr-only">全達成</span>
+              <span className="ml-1 text-xs font-medium hidden sm:inline">全達成</span>
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -1417,7 +1429,10 @@ export default function PanelContent({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPanelState((s) => ({ ...s, panelEditStep: "overlays" }))}
+                  onClick={() => {
+                    setSelectedLineIndex(null);
+                    setPanelState((s) => ({ ...s, panelEditStep: "overlays" }));
+                  }}
                   className="px-2 py-1 rounded text-xs opacity-70 hover:opacity-100"
                 >
                   図形編集に戻る
@@ -1565,8 +1580,8 @@ export default function PanelContent({
           </div>
         )}
 
-        {/* Capture area: image + filters + overlays */}
-        <div className="flex-1 flex items-center justify-center p-4 min-h-0">
+        {/* Capture area: image + filters + overlays（線で切り分け時は余白を多めに） */}
+        <div className={`flex-1 flex items-center justify-center min-h-0 ${isLineStep ? "p-5 sm:p-8" : "p-4"}`}>
           <div
             ref={captureRef}
             className="relative w-full max-w-4xl max-h-[70vh] flex items-center justify-center overflow-hidden rounded-xl"
@@ -1698,17 +1713,23 @@ export default function PanelContent({
                     </svg>
                     <div
                       ref={lineDrawAreaRef}
-                      className={`absolute overflow-hidden touch-none ${lineToolMode === "pen" ? "cursor-crosshair" : "cursor-grab"}`}
-                      style={
-                        imageBoundsPct && imageBoundsPct.width > 0 && imageBoundsPct.height > 0
-                          ? {
-                              left: `${imageBoundsPct.x}%`,
-                              top: `${imageBoundsPct.y}%`,
-                              width: `${imageBoundsPct.width}%`,
-                              height: `${imageBoundsPct.height}%`,
-                            }
-                          : { left: 0, top: 0, width: "100%", height: "100%" }
-                      }
+                      className={`absolute overflow-visible touch-none ${lineToolMode === "pen" ? "cursor-crosshair" : "cursor-grab"}`}
+                      style={(() => {
+                        const margin = 10;
+                        if (!imageBoundsPct || imageBoundsPct.width <= 0 || imageBoundsPct.height <= 0) {
+                          return { left: 0, top: 0, width: "100%", height: "100%" };
+                        }
+                        const left = Math.max(0, imageBoundsPct.x - margin);
+                        const top = Math.max(0, imageBoundsPct.y - margin);
+                        const width = Math.min(100 - left, imageBoundsPct.width + margin * 2);
+                        const height = Math.min(100 - top, imageBoundsPct.height + margin * 2);
+                        return {
+                          left: `${left}%`,
+                          top: `${top}%`,
+                          width: `${width}%`,
+                          height: `${height}%`,
+                        };
+                      })()}
                       onPointerDown={handleLineDrawPointerDown}
                       onPointerMove={handleLineDrawPointerMove}
                       onPointerUp={handleLineDrawPointerUp}
@@ -1767,7 +1788,7 @@ export default function PanelContent({
                         transformOrigin: "center center",
                         opacity: (overlay.opacity ?? 100) / 100,
                         background: isFree || isImage || isCustom ? "transparent" : overlay.color,
-                        border: selected ? `2px solid ${overlay.color}` : "1px solid rgba(255,255,255,0.3)",
+                        border: isFree ? (selected ? `2px solid ${overlay.color}` : "none") : selected ? `2px solid ${overlay.color}` : "1px solid rgba(255,255,255,0.3)",
                         borderRadius: isCustom ? 0 : overlay.shape === "circle" ? "50%" : overlay.shape === "rect" ? 0 : 4,
                         clipPath: isCustom
                           ? undefined
@@ -2178,6 +2199,16 @@ export default function PanelContent({
         cancelLabel="いいえ"
         onConfirm={handleConfirmAchieve}
         onCancel={() => setAchievedOverlayId(null)}
+        danger={false}
+      />
+      <ConfirmDialog
+        open={allAchieveConfirmOpen}
+        title="全達成"
+        message="すべての覆いを開けますか？（目標の有無は問いません）"
+        confirmLabel="はい"
+        cancelLabel="いいえ"
+        onConfirm={handleConfirmAllAchieve}
+        onCancel={() => setAllAchieveConfirmOpen(false)}
         danger={false}
       />
       <ConfirmDialog
