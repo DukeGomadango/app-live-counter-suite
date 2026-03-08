@@ -53,8 +53,10 @@ export interface PanelOverlay {
   y: number;
   width: number;
   height: number;
-  /** 自由描画の path データ（shape === "free" のとき） */
+  /** 自由描画の頂点（shape === "free" のとき、pathD がない場合）。オーバーレイ (x,y) からの相対。 */
   points?: { x: number; y: number }[];
+  /** 自由描画の境界を SVG path の d（オーバーレイローカル 0,0 基準）。ある場合は <path> で描画。 */
+  pathD?: string;
   color: string;
   label?: string;
   /** 回転（度）。0 が無回転 */
@@ -77,6 +79,60 @@ export interface PartitionLine {
   y2: number;
 }
 
+/** 画像を切り分ける曲線（2次ベジェ、0–100%）。始点 (x1,y1)、終点 (x2,y2)、制御点 (cpx,cpy) */
+export interface PartitionCurve {
+  type: "curve";
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  cpx: number;
+  cpy: number;
+}
+
+/** 直線 or 曲線のパーティション */
+export type PartitionSegment = PartitionLine | PartitionCurve;
+
+/** 1ストローク = 複数セグメント（自由描画のくねくね曲線 or 直線/単一曲線1本） */
+export interface PartitionStroke {
+  segments: PartitionSegment[];
+}
+
+/** 境界セグメント（直線 L または 2次ベジェ Q）。0–100 座標で閉路を構成。 */
+export type BoundarySegment =
+  | { type: "L"; x1: number; y1: number; x2: number; y2: number }
+  | { type: "Q"; x1: number; y1: number; cpx: number; cpy: number; x2: number; y2: number };
+
+/** 1領域の境界（閉じた輪）。先頭の始点 = 末尾の終点、内側は左側に統一。 */
+export type CurvedRegion = BoundarySegment[];
+
+export function isPartitionLine(s: PartitionSegment): s is PartitionLine {
+  return !("type" in s) || (s as PartitionCurve).type !== "curve";
+}
+
+export function isPartitionCurve(s: PartitionSegment): s is PartitionCurve {
+  return "type" in s && (s as PartitionCurve).type === "curve";
+}
+
+/** ストローク列を平坦なセグメント配列に展開。後方互換: partitionStrokes が無い場合は partitionSegments / partitionLines を「1セグメント＝1ストローク」として解釈。 */
+export function getPartitionSegments(state: PanelState): PartitionSegment[] {
+  if (state.partitionStrokes != null) {
+    return state.partitionStrokes.flatMap((s) => s.segments);
+  }
+  if (state.partitionSegments != null) {
+    return state.partitionSegments;
+  }
+  const lines = state.partitionLines ?? [];
+  return lines.map((l) => ({ x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2 }));
+}
+
+/** ストローク列を返す。無い場合は partitionSegments / partitionLines から「1セグメント＝1ストローク」に展開。 */
+export function getPartitionStrokes(state: PanelState): PartitionStroke[] {
+  if (state.partitionStrokes != null) return state.partitionStrokes;
+  const segs = state.partitionSegments ?? (state.partitionLines ?? []).map((l) => ({ x1: l.x1, y1: l.y1, x2: l.x2, y2: l.y2 }));
+  return segs.map((seg) => ({ segments: [seg] }));
+}
+
 /** 編集ステップ: 線で切り分け → 領域生成 → 図形編集 → パネルあけ */
 export type PanelEditStep = "lines" | "overlays";
 
@@ -92,6 +148,10 @@ export interface PanelState {
   isEditMode: boolean;
   /** 線で切り分け: 画像上に引いた線（0–100%）。未指定時は [] */
   partitionLines?: PartitionLine[];
+  /** 線で切り分け: 直線＋曲線。未指定時は partitionLines を line として解釈 */
+  partitionSegments?: PartitionSegment[];
+  /** 線で切り分け: ストローク単位（1ストローク＝複数セグメント可）。未指定時は getPartitionStrokes で partitionSegments 等から展開 */
+  partitionStrokes?: PartitionStroke[];
   /** 編集ステップ。未指定時は "overlays"（従来どおり） */
   panelEditStep?: PanelEditStep;
 }
@@ -266,11 +326,17 @@ export function polygonCentroid(points: { x: number; y: number }[]): { x: number
   return { x: cx / a6, y: cy / a6 };
 }
 
-/** free オーバーレイの多角形重心（0–100）。points は overlay.x, overlay.y からのオフセットなので、足して絶対座標にしてから計算。 */
+/** free オーバーレイの重心（0–100）。points があれば多角形重心、pathD のみなら bbox 中心。 */
 export function getFreeOverlayCentroid(overlay: PanelOverlay): { x: number; y: number } | null {
-  if (overlay.shape !== "free" || !overlay.points?.length) return null;
-  const abs = overlay.points.map((p) => ({ x: overlay.x + p.x, y: overlay.y + p.y }));
-  return polygonCentroid(abs);
+  if (overlay.shape !== "free") return null;
+  if (overlay.points && overlay.points.length >= 2) {
+    const abs = overlay.points.map((p) => ({ x: overlay.x + p.x, y: overlay.y + p.y }));
+    return polygonCentroid(abs);
+  }
+  if (overlay.pathD) {
+    return { x: overlay.x + overlay.width / 2, y: overlay.y + overlay.height / 2 };
+  }
+  return null;
 }
 
 /** カスタム図形の面積重み付き重心（0–100）。テキスト配置用。 */
@@ -323,6 +389,111 @@ export function createFreeOverlayFromPolygon(points: { x: number; y: number }[])
     opacity: 100,
     flipX: false,
   };
+}
+
+/** CurvedRegion の bounding box（0–100） */
+export function curvedRegionBbox(region: CurvedRegion): { minX: number; minY: number; width: number; height: number } {
+  let minX = 100, minY = 100, maxX = 0, maxY = 0;
+  for (const seg of region) {
+    if (seg.type === "L") {
+      minX = Math.min(minX, seg.x1, seg.x2);
+      minY = Math.min(minY, seg.y1, seg.y2);
+      maxX = Math.max(maxX, seg.x1, seg.x2);
+      maxY = Math.max(maxY, seg.y1, seg.y2);
+    } else {
+      minX = Math.min(minX, seg.x1, seg.x2, seg.cpx);
+      minY = Math.min(minY, seg.y1, seg.y2, seg.cpy);
+      maxX = Math.max(maxX, seg.x1, seg.x2, seg.cpx);
+      maxY = Math.max(maxY, seg.y1, seg.y2, seg.cpy);
+    }
+  }
+  const width = Math.max(1, maxX - minX);
+  const height = Math.max(1, maxY - minY);
+  return { minX, minY, width, height };
+}
+
+/** 境界をオーバーレイローカル座標（左上 0,0）の SVG path d に変換。viewBox は width x height を 100 に合わせる想定。 */
+export function boundaryToPathD(region: CurvedRegion, bbox: { minX: number; minY: number; width: number; height: number }): string {
+  const { minX, minY, width, height } = bbox;
+  if (region.length === 0) return "";
+  const toLocal = (x: number, y: number) => ({ x: ((x - minX) / width) * 100, y: ((y - minY) / height) * 100 });
+  const parts: string[] = [];
+  for (let i = 0; i < region.length; i++) {
+    const seg = region[i]!;
+    if (seg.type === "L") {
+      const p = toLocal(seg.x2, seg.y2);
+      if (i === 0) {
+        const p0 = toLocal(seg.x1, seg.y1);
+        parts.push(`M ${p0.x} ${p0.y} L ${p.x} ${p.y}`);
+      } else {
+        parts.push(`L ${p.x} ${p.y}`);
+      }
+    } else {
+      const c = toLocal(seg.cpx, seg.cpy);
+      const p = toLocal(seg.x2, seg.y2);
+      if (i === 0) {
+        const p0 = toLocal(seg.x1, seg.y1);
+        parts.push(`M ${p0.x} ${p0.y} Q ${c.x} ${c.y} ${p.x} ${p.y}`);
+      } else {
+        parts.push(`Q ${c.x} ${c.y} ${p.x} ${p.y}`);
+      }
+    }
+  }
+  parts.push("Z");
+  return parts.join(" ");
+}
+
+/** 曲線境界から free オーバーレイを1つ作成（pathD を設定）。重心用に頂点列も points で保持し多角形重心を使う。 */
+export function createFreeOverlayFromCurvedRegion(region: CurvedRegion): PanelOverlay {
+  if (region.length < 1) {
+    return createDefaultOverlay("free", 0, 0);
+  }
+  const bbox = curvedRegionBbox(region);
+  const pathD = boundaryToPathD(region, bbox);
+  const polygon = curvedRegionToPolygon(region);
+  const points = polygon.map((p) => ({ x: p.x - bbox.minX, y: p.y - bbox.minY }));
+  return {
+    id: createOverlayId(),
+    shape: "free",
+    targetType: "number",
+    target: 0,
+    count: 0,
+    targetText: "",
+    x: bbox.minX,
+    y: bbox.minY,
+    width: bbox.width,
+    height: bbox.height,
+    pathD,
+    points: points.length >= 2 ? points : undefined,
+    color: DEFAULT_OVERLAY_COLOR,
+    rotation: 0,
+    opacity: 100,
+    flipX: false,
+  };
+}
+
+/** 多角形頂点列を L のみの CurvedRegion に変換（閉路） */
+export function polygonToCurvedRegion(points: { x: number; y: number }[]): CurvedRegion {
+  if (points.length < 3) return [];
+  return points.map((p, i) => {
+    const next = points[(i + 1) % points.length]!;
+    return { type: "L", x1: p.x, y1: p.y, x2: next.x, y2: next.y };
+  });
+}
+
+/** L のみの CurvedRegion を多角形頂点列に変換（互換用） */
+export function curvedRegionToPolygon(region: CurvedRegion): { x: number; y: number }[] {
+  const points: { x: number; y: number }[] = [];
+  for (const seg of region) {
+    if (seg.type === "L") {
+      if (points.length === 0) points.push({ x: seg.x1, y: seg.y1 });
+      points.push({ x: seg.x2, y: seg.y2 });
+    } else {
+      if (points.length === 0) points.push({ x: seg.x1, y: seg.y1 });
+      points.push({ x: seg.x2, y: seg.y2 });
+    }
+  }
+  return points;
 }
 
 /** パーツの clipPath（三角形用）。CSS に渡す値。 */

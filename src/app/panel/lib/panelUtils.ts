@@ -2,7 +2,10 @@
  * パネル機能用の純粋ユーティリティ（色・座標・線ヒットなど）。
  */
 
-import type { PartitionLine } from "./panelTypes";
+import type { PartitionLine, PartitionSegment } from "./panelTypes";
+import type { PartitionStroke } from "./panelTypes";
+import { isPartitionLine } from "./panelTypes";
+import { distanceSqPointToQuadratic } from "./panelBezier";
 
 /** グリッドスナップの刻み（%） */
 export const GRID_SNAP_PERCENT = 2;
@@ -186,4 +189,56 @@ export function findLineIndexAt(
     }
   });
   return bestIdx;
+}
+
+/** 点 (px,py) に最も近いセグメント（直線 or 曲線）のインデックス。threshold 以内ならその index。 */
+export function findSegmentIndexAt(
+  segments: PartitionSegment[],
+  px: number,
+  py: number,
+  threshold: number
+): number | null {
+  const threshSq = threshold * threshold;
+  let bestIdx: number | null = null;
+  let bestDistSq = threshSq + 1;
+  segments.forEach((seg, i) => {
+    let dSq: number;
+    if (isPartitionLine(seg)) {
+      dSq = distancePointToSegment(px, py, seg.x1, seg.y1, seg.x2, seg.y2) ** 2;
+    } else {
+      dSq = distanceSqPointToQuadratic(px, py, seg);
+    }
+    if (dSq < bestDistSq) {
+      bestDistSq = dSq;
+      bestIdx = i;
+    }
+  });
+  return bestIdx;
+}
+
+/** 点 (px,py) に最も近いストロークのインデックス。threshold 以内のセグメントを持つストロークのうち最も近いものを返す。 */
+export function findStrokeIndexAt(
+  strokes: PartitionStroke[],
+  px: number,
+  py: number,
+  threshold: number
+): number | null {
+  const threshSq = threshold * threshold;
+  let bestStrokeIdx: number | null = null;
+  let bestDistSq = threshSq + 1;
+  strokes.forEach((stroke, strokeIdx) => {
+    for (const seg of stroke.segments) {
+      let dSq: number;
+      if (isPartitionLine(seg)) {
+        dSq = distancePointToSegment(px, py, seg.x1, seg.y1, seg.x2, seg.y2) ** 2;
+      } else {
+        dSq = distanceSqPointToQuadratic(px, py, seg);
+      }
+      if (dSq < bestDistSq) {
+        bestDistSq = dSq;
+        bestStrokeIdx = strokeIdx;
+      }
+    }
+  });
+  return bestStrokeIdx;
 }

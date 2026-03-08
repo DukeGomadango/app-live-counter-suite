@@ -1,11 +1,12 @@
 /**
  * パネル: 線で切り分けた画像から領域（多角形）を検出する。
  * 幾何ベース: 交差・接点（他線分の端点が乗る場合含む）で線分を分割 → 平面アレンジメント → 面のトレース。
- * 2線の交差だけでなく、端同士・端と線分の途中・3本以上が1点で接する場合も考慮する。
+ * 直線に加え、2次ベジェ曲線の交差・分割にも対応する。
  */
 
-import type { PartitionLine } from "./panelTypes";
-import { polygonCentroid } from "./panelTypes";
+import type { PartitionLine, PartitionCurve, PartitionSegment, BoundarySegment, CurvedRegion } from "./panelTypes";
+import { polygonCentroid, polygonToCurvedRegion, curvedRegionToPolygon, isPartitionLine, isPartitionCurve } from "./panelTypes";
+import { lineQuadraticIntersection, splitQuadraticAt, quadraticQuadraticIntersection } from "./panelBezier";
 
 const EPS = 1e-10;
 const MIN_POLYGON_POINTS = 3;
@@ -136,6 +137,142 @@ function buildSplitSegments(lines: PartitionLine[]): PartitionLine[] {
     out.push(...sub);
   }
   return out;
+}
+
+/** BoundarySegment を逆向きにしたものを返す（有向辺の逆用） */
+function reverseBoundarySegment(seg: BoundarySegment): BoundarySegment {
+  if (seg.type === "L") {
+    return { type: "L", x1: seg.x2, y1: seg.y2, x2: seg.x1, y2: seg.y1 };
+  }
+  return { type: "Q", x1: seg.x2, y1: seg.y2, x2: seg.x1, y2: seg.y1, cpx: seg.cpx, cpy: seg.cpy };
+}
+
+/** 曲線を他セグメントとの交差点で分割し、Q セグメントの配列を返す */
+function splitCurveAtIntersections(
+  curve: PartitionCurve,
+  allSegments: PartitionSegment[],
+  excludeIndex: number
+): BoundarySegment[] {
+  const ts = new Set<number>();
+  ts.add(0);
+  ts.add(1);
+  const { x1: qx1, y1: qy1, x2: qx2, y2: qy2, cpx: qcpx, cpy: qcpy } = curve;
+  for (let i = 0; i < allSegments.length; i++) {
+    if (i === excludeIndex) continue;
+    const other = allSegments[i];
+    if (!other) continue;
+    if (isPartitionLine(other)) {
+      const tList = lineQuadraticIntersection(other.x1, other.y1, other.x2, other.y2, qx1, qy1, qcpx, qcpy, qx2, qy2);
+      tList.forEach((t) => { if (t > INTERIOR_EPS && t < 1 - INTERIOR_EPS) ts.add(t); });
+    } else {
+      const hits = quadraticQuadraticIntersection(curve, other);
+      hits.forEach(({ t1 }) => { if (t1 > INTERIOR_EPS && t1 < 1 - INTERIOR_EPS) ts.add(t1); });
+    }
+  }
+  const arr = Array.from(ts).sort((a, b) => a - b);
+  const out: BoundarySegment[] = [];
+  for (let i = 0; i < arr.length - 1; i++) {
+    const t0 = arr[i]!;
+    const t1 = arr[i + 1]!;
+    if (t1 - t0 <= EPS) continue;
+    const [, right] = splitQuadraticAt(curve, t0);
+    const segParam = (t1 - t0) / (1 - t0 + 1e-12);
+    const [left] = splitQuadraticAt(right, segParam);
+    out.push({ type: "Q", x1: left.x1, y1: left.y1, x2: left.x2, y2: left.y2, cpx: left.cpx, cpy: left.cpy });
+  }
+  return out;
+}
+
+/** 1本の線分を、他セグメント（直線・曲線）との交差で分割。曲線の場合は lineQuadratic で t を集める。 */
+function splitLineAtIntersectionsWithCurves(
+  seg: PartitionLine,
+  allSegments: PartitionSegment[],
+  excludeSelfIndex: number
+): BoundarySegment[] {
+  const ts = new Set<number>();
+  ts.add(0);
+  ts.add(1);
+  for (let i = 0; i < allSegments.length; i++) {
+    if (i === excludeSelfIndex) continue;
+    const other = allSegments[i];
+    if (!other) continue;
+    if (isPartitionLine(other)) {
+      const hit = segmentIntersection(seg, other);
+      if (hit && hit.t > INTERIOR_EPS && hit.t < 1 - INTERIOR_EPS) ts.add(hit.t);
+    } else {
+      const c = other as PartitionCurve;
+      const tList = lineQuadraticIntersection(seg.x1, seg.y1, seg.x2, seg.y2, c.x1, c.y1, c.cpx, c.cpy, c.x2, c.y2);
+      tList.forEach((t) => { if (t > INTERIOR_EPS && t < 1 - INTERIOR_EPS) ts.add(t); });
+    }
+  }
+  for (let i = 0; i < allSegments.length; i++) {
+    if (i === excludeSelfIndex) continue;
+    const other = allSegments[i];
+    if (!other) continue;
+    const o = other as { x1: number; y1: number; x2: number; y2: number };
+    for (const p of [{ x: o.x1, y: o.y1 }, { x: o.x2, y: o.y2 }]) {
+      const t = pointOnSegmentParameter(seg, p);
+      if (t !== null) ts.add(t);
+    }
+  }
+  const arr = Array.from(ts).sort((a, b) => a - b);
+  const out: BoundarySegment[] = [];
+  for (let i = 0; i < arr.length - 1; i++) {
+    const t0 = arr[i]!;
+    const t1 = arr[i + 1]!;
+    if (t1 - t0 <= EPS) continue;
+    const p0 = pointAt(seg, t0);
+    const p1 = pointAt(seg, t1);
+    out.push({ type: "L", x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y });
+  }
+  return out;
+}
+
+/** 全セグメント（直線＋曲線）を交差点で分割した BoundarySegment のリスト */
+function buildSplitEdges(segments: PartitionSegment[]): BoundarySegment[] {
+  const out: BoundarySegment[] = [];
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (!seg) continue;
+    if (isPartitionLine(seg)) {
+      out.push(...splitLineAtIntersectionsWithCurves(seg, segments, i));
+    } else {
+      out.push(...splitCurveAtIntersections(seg, segments, i));
+    }
+  }
+  return out;
+}
+
+/** BoundarySegment の端点で頂点を正規化し、辺と edgeSegments を返す（曲線対応） */
+function normalizeVerticesAndEdgesWithSegments(
+  segments: BoundarySegment[]
+): { vertices: Point[]; edges: [number, number][]; edgeSegments: BoundarySegment[] } {
+  const vertices: Point[] = [];
+  const edges: [number, number][] = [];
+  const edgeSegments: BoundarySegment[] = [];
+  const snapDistSq = VERTEX_SNAP_DIST * VERTEX_SNAP_DIST;
+
+  function addPoint(p: Point): number {
+    for (let i = 0; i < vertices.length; i++) {
+      if (distSq(p, vertices[i]!) <= snapDistSq) return i;
+    }
+    const idx = vertices.length;
+    vertices.push({ x: p.x, y: p.y });
+    return idx;
+  }
+
+  for (const seg of segments) {
+    const p1 = { x: seg.x1, y: seg.y1 };
+    const p2 = { x: seg.x2, y: seg.y2 };
+    if (pointEqual(p1, p2)) continue;
+    const i1 = addPoint(p1);
+    const i2 = addPoint(p2);
+    edges.push([i1, i2]);
+    edgeSegments.push(seg);
+    edges.push([i2, i1]);
+    edgeSegments.push(reverseBoundarySegment(seg));
+  }
+  return { vertices, edges, edgeSegments };
 }
 
 function distSq(a: Point, b: Point): number {
@@ -476,6 +613,11 @@ function faceToPolygon(vertices: Point[], face: number[], edges: [number, number
   });
 }
 
+/** 面（閉路）を CurvedRegion に変換（edgeSegments を使用） */
+function faceToCurvedRegion(face: number[], edgeSegments: BoundarySegment[]): CurvedRegion {
+  return face.map((ei) => edgeSegments[ei]!).filter(Boolean);
+}
+
 /** 画像の外枠（0–100% の矩形）を表す4本の線 */
 const IMAGE_FRAME_LINES: PartitionLine[] = [
   { x1: 0, y1: 0, x2: 100, y2: 0 },
@@ -730,10 +872,96 @@ function clipSegmentToBox(seg: PartitionLine): PartitionLine | null {
  */
 const LOG_PREFIX = "[panel-region]";
 
-export function getRegionsFromLines(lines: PartitionLine[]): Polygon100[] {
+/**
+ * 直線＋曲線のセグメントから領域を検出。曲線が含まれる場合は交差で分割して CurvedRegion を返す。
+ */
+export function getRegionsFromSegments(segments: PartitionSegment[]): CurvedRegion[] {
+  const hasCurves = segments.some((s) => isPartitionCurve(s));
+  if (!hasCurves) {
+    const lines = segments.map((s) =>
+      isPartitionLine(s) ? s : { x1: (s as { x1: number; y1: number; x2: number; y2: number }).x1, y1: (s as { x1: number; y1: number; x2: number; y2: number }).y1, x2: (s as { x1: number; y1: number; x2: number; y2: number }).x2, y2: (s as { x1: number; y1: number; x2: number; y2: number }).y2 }
+    );
+    return getRegionsFromLines(lines);
+  }
+
+  if (segments.length === 0) {
+    return [polygonToCurvedRegion([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }])];
+  }
+
+  const processed: PartitionSegment[] = [];
+  for (const seg of segments) {
+    if (isPartitionLine(seg)) {
+      const clipped = clipSegmentToBox(seg);
+      if (!clipped) continue;
+      let x1 = snapPointToFrame({ x: clipped.x1, y: clipped.y1 }).x;
+      let y1 = snapPointToFrame({ x: clipped.x1, y: clipped.y1 }).y;
+      let x2 = snapPointToFrame({ x: clipped.x2, y: clipped.y2 }).x;
+      let y2 = snapPointToFrame({ x: clipped.x2, y: clipped.y2 }).y;
+      if ((x2 - x1) ** 2 + (y2 - y1) ** 2 <= EPS * EPS) continue;
+      processed.push({ x1, y1, x2, y2 });
+    } else {
+      const curve = seg as PartitionCurve;
+      const p1 = snapPointToFrame({ x: curve.x1, y: curve.y1 });
+      const p2 = snapPointToFrame({ x: curve.x2, y: curve.y2 });
+      processed.push({ type: "curve", x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y, cpx: curve.cpx, cpy: curve.cpy });
+    }
+  }
+  const lineOnly = processed.filter(isPartitionLine);
+  const snappedLines = snapEndpointsToOtherLines(lineOnly.length ? lineOnly : []);
+  const allInput: PartitionSegment[] = [...IMAGE_FRAME_LINES, ...snappedLines, ...processed.filter(isPartitionCurve)];
+
+  const splitEdges = buildSplitEdges(allInput);
+  const lineSegmentsForSnap = splitEdges.filter((s): s is Extract<BoundarySegment, { type: "L" }> => s.type === "L").map((s) => ({ x1: s.x1, y1: s.y1, x2: s.x2, y2: s.y2 }));
+  const { vertices, edges, edgeSegments } = normalizeVerticesAndEdgesWithSegments(splitEdges);
+  snapVerticesToSegmentLines(vertices, lineSegmentsForSnap);
+
+  if (edges.length === 0) return [];
+
+  const outgoingByVertex = buildOutgoingByAngle(vertices, edges);
+  const faces = traceFaces(edges, vertices, outgoingByVertex);
+  type Candidate = { fi: number; poly: Polygon100; areaAbs: number; face: number[] };
+  const candidates: Candidate[] = [];
+  for (let fi = 0; fi < faces.length; fi++) {
+    const face = faces[fi]!;
+    const area = signedArea(vertices, face, edges);
+    let poly = faceToPolygon(vertices, face, edges);
+    poly = simplifyPolygon(poly);
+    if (poly.length < 3) continue;
+    const areaAbs = polygonAreaAbs(poly);
+    if (area < -EPS) continue;
+    if (face.length < MIN_POLYGON_POINTS) continue;
+    if (areaAbs <= EPS) continue;
+    if (snappedLines.length > 0 && isOuterFramePolygon(poly)) continue;
+    if (areaAbs >= OUTER_FACE_AREA_HALF) continue;
+    if (polygonContainsAnyVertexStrictly(poly, vertices)) continue;
+    candidates.push({ fi, poly, areaAbs, face });
+  }
+  candidates.sort((a, b) => a.areaAbs - b.areaAbs || a.poly.length - b.poly.length);
+
+  const regions: CurvedRegion[] = [];
+  for (let ci = 0; ci < candidates.length; ci++) {
+    const { poly, areaAbs, face } = candidates[ci]!;
+    if (polygonContainsSmallerOutputCentroid(poly, areaAbs, regions.map((r) => curvedRegionToPolygon(r)))) continue;
+    const existingPolys = regions.map((r) => curvedRegionToPolygon(r));
+    if (polygonContainsSmallerCandidateCentroid(poly, areaAbs, candidates.map((c) => ({ poly: c.poly, areaAbs: c.areaAbs })), ci)) continue;
+    const replaceIdx = findFusedDuplicateIn(poly, areaAbs, existingPolys);
+    if (replaceIdx >= 0) {
+      regions.splice(replaceIdx, 1);
+      regions.push(faceToCurvedRegion(face, edgeSegments));
+      continue;
+    }
+    if (isDuplicateOfExisting(poly, areaAbs, existingPolys)) continue;
+    const outCentroid = polygonCentroid(poly);
+    if (existingPolys.some((e) => polygonAreaAbs(e) > areaAbs && pointInPolygonStrict(outCentroid, e))) continue;
+    regions.push(faceToCurvedRegion(face, edgeSegments));
+  }
+  return regions;
+}
+
+export function getRegionsFromLines(lines: PartitionLine[]): CurvedRegion[] {
   if (lines.length === 0) {
     console.log(LOG_PREFIX, "入力線 0 本 → 画像全体 1 領域を返す");
-    return [[{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }]];
+    return [polygonToCurvedRegion([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }])];
   }
 
   console.log(LOG_PREFIX, "入力線", lines.length, "本:", lines.map((s) => `(${s.x1.toFixed(2)},${s.y1.toFixed(2)})-(${s.x2.toFixed(2)},${s.y2.toFixed(2)})`));
@@ -847,5 +1075,5 @@ export function getRegionsFromLines(lines: PartitionLine[]): Polygon100[] {
     polygons.push(poly);
   }
   console.log(LOG_PREFIX, "出力領域数", polygons.length);
-  return polygons;
+  return polygons.map(polygonToCurvedRegion);
 }

@@ -18,18 +18,26 @@ import {
   type FilterType,
   type OverlayShape,
   type PartitionLine,
+  type PartitionSegment,
+  type PartitionCurve,
+  type PartitionStroke,
   type PanelEditStep,
   createOverlayId,
   createDefaultOverlay,
   createImageOverlay,
   createCustomOverlay,
   createFreeOverlayFromPolygon,
+  createFreeOverlayFromCurvedRegion,
+  getPartitionSegments,
+  getPartitionStrokes,
+  isPartitionLine,
+  isPartitionCurve,
   getPartClipPath,
   getCustomOverlayCentroid,
   getFreeOverlayCentroid,
   DEFAULT_OVERLAY_COLOR,
 } from "../lib/panelTypes";
-import { getRegionsFromLines } from "../lib/panelRegionDetection";
+import { getRegionsFromSegments } from "../lib/panelRegionDetection";
 import {
   GRID_SNAP_PERCENT,
   snapToGrid,
@@ -38,7 +46,10 @@ import {
   getImageBoundsPct,
   distancePointToSegment,
   findLineIndexAt,
+  findSegmentIndexAt,
+  findStrokeIndexAt,
 } from "../lib/panelUtils";
+import { smoothPoints, pointsToBezierChain } from "../lib/panelStrokeUtils";
 import CustomShapeEditorModal from "@/components/CustomShapeEditorModal";
 import RotationDial from "./RotationDial";
 import PanelEditSidebar, { type PanelSidebarTabId } from "./PanelEditSidebar";
@@ -84,6 +95,8 @@ export default function PanelContent({
   const [lineDrawEnd, setLineDrawEnd] = useState<{ x: number; y: number } | null>(null);
   const [selectedLineIndex, setSelectedLineIndex] = useState<number | null>(null);
   const [lineToolMode, setLineToolMode] = useState<"pen" | "hand">("pen");
+  /** ペンで引く線の種類。曲線は2次ベジェ（始点・終点と制御点） */
+  const [lineSegmentMode, setLineSegmentMode] = useState<"line" | "curve">("line");
   /** 目標数値入力の編集中の文字列。空でフォーカスを外す or Enter で 0 にフォールバック */
   const [targetNumberDraft, setTargetNumberDraft] = useState<{ overlayId: string; value: string } | null>(null);
   /** 編集モード時サイドバーのタブ: 画像 | 覆い */
@@ -92,7 +105,8 @@ export default function PanelContent({
   const [isEditSidebarNarrow, setIsEditSidebarNarrow] = useState(false);
   /** 狭い画面で編集サイドバーオーバーレイを開いているか */
   const [editSidebarOverlayOpen, setEditSidebarOverlayOpen] = useState(false);
-  const lineDragRef = useRef<{ index: number; startP: { x: number; y: number }; originalLine: PartitionLine } | null>(null);
+  const lineDragRef = useRef<{ strokeIndex: number; startP: { x: number; y: number }; originalSegments: PartitionSegment[] } | null>(null);
+  const strokePointsRef = useRef<{ x: number; y: number }[]>([]);
   const [imageBoundsPct, setImageBoundsPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
   const captureWrapperRef = useRef<HTMLDivElement>(null);
@@ -142,9 +156,9 @@ export default function PanelContent({
     filterShowLabel,
     overlays,
     isEditMode,
-    partitionLines = [],
     panelEditStep = "overlays",
   } = panelState;
+  const partitionStrokes = getPartitionStrokes(panelState);
   const filterIntensity = rawFilterIntensity ?? 50;
   const isLineStep = isEditMode && panelEditStep === "lines";
   const setOverlays = useCallback(
@@ -154,9 +168,12 @@ export default function PanelContent({
     [setPanelState]
   );
 
-  const setPartitionLines = useCallback(
-    (updater: (prev: PartitionLine[]) => PartitionLine[]) => {
-      setPanelState((s) => ({ ...s, partitionLines: updater(s.partitionLines ?? []) }));
+  const setPartitionStrokes = useCallback(
+    (updater: (prev: PartitionStroke[]) => PartitionStroke[]) => {
+      setPanelState((s) => ({
+        ...s,
+        partitionStrokes: updater(getPartitionStrokes(s)),
+      }));
     },
     [setPanelState]
   );
@@ -263,10 +280,9 @@ export default function PanelContent({
       // Backspace / Delete: 線で切り分け中は選択中の線を削除、それ以外は選択中の覆いを削除
       if ((key === "Backspace" || key === "Delete") && !e.ctrlKey && !e.metaKey) {
         if (panelEditStep === "lines" && selectedLineIndex !== null) {
-          const lines = partitionLines ?? [];
-          if (selectedLineIndex >= 0 && selectedLineIndex < lines.length) {
+          if (selectedLineIndex >= 0 && selectedLineIndex < partitionStrokes.length) {
             e.preventDefault();
-            setPartitionLines((prev) => prev.filter((_, i) => i !== selectedLineIndex));
+            setPartitionStrokes((prev) => prev.filter((_, i) => i !== selectedLineIndex));
             setSelectedLineIndex(null);
           }
           return;
@@ -336,7 +352,7 @@ export default function PanelContent({
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isEditMode, panelEditStep, partitionLines, setPartitionLines, selectedLineIndex, setSelectedLineIndex, selectedOverlayId, overlays, setOverlays, setPanelState, pushOverlayHistory]);
+  }, [isEditMode, panelEditStep, partitionStrokes, setPartitionStrokes, selectedLineIndex, setSelectedLineIndex, selectedOverlayId, overlays, setOverlays, setPanelState, pushOverlayHistory]);
 
   const _applyImageWithAspect = useCallback(
     (dataUrl: string, aspectRatio: number) => {
@@ -351,7 +367,7 @@ export default function PanelContent({
         ...s,
         imageDataUrl: result.dataUrl,
         imageAspectRatio: result.aspectRatio,
-        partitionLines: [],
+        partitionStrokes: [],
         panelEditStep: "lines" as PanelEditStep,
       }));
       setPendingCropDataUrl(null);
@@ -745,11 +761,16 @@ export default function PanelContent({
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
       const p = clientToPctForLine(e.clientX, e.clientY);
       if (lineToolMode === "hand") {
-        const lines = partitionLines ?? [];
-        const hit = findLineIndexAt(lines, p.x, p.y, LINE_HIT_THRESHOLD);
-        if (hit !== null && lines[hit]) {
+        const hit = findStrokeIndexAt(partitionStrokes, p.x, p.y, LINE_HIT_THRESHOLD);
+        if (hit !== null && partitionStrokes[hit]) {
           setSelectedLineIndex(hit);
-          lineDragRef.current = { index: hit, startP: p, originalLine: { ...lines[hit] } };
+          const stroke = partitionStrokes[hit]!;
+          const originalSegments = stroke.segments.map((seg): PartitionSegment => {
+            if (isPartitionLine(seg)) return { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 };
+            const c = seg as PartitionCurve;
+            return { type: "curve" as const, x1: c.x1, y1: c.y1, x2: c.x2, y2: c.y2, cpx: c.cpx, cpy: c.cpy };
+          });
+          lineDragRef.current = { strokeIndex: hit, startP: p, originalSegments };
           return;
         }
         setSelectedLineIndex(null);
@@ -760,8 +781,11 @@ export default function PanelContent({
       lineDragRef.current = null;
       setLineDrawStart(p);
       setLineDrawEnd(p);
+      if (lineSegmentMode === "curve") {
+        strokePointsRef.current = [{ x: p.x, y: p.y }];
+      }
     },
-    [isLineStep, lineToolMode, clientToPctForLine, partitionLines]
+    [isLineStep, lineToolMode, lineSegmentMode, clientToPctForLine, partitionStrokes]
   );
 
   const handleLineDrawPointerMove = useCallback(
@@ -769,28 +793,32 @@ export default function PanelContent({
       if (!isLineStep) return;
       if (lineDragRef.current) {
         const p = clientToPctForLine(e.clientX, e.clientY);
-        const { index, startP, originalLine } = lineDragRef.current;
+        const { strokeIndex, startP, originalSegments } = lineDragRef.current;
         const dx = p.x - startP.x;
         const dy = p.y - startP.y;
-        setPartitionLines((prev) =>
-          prev.map((l, i) =>
-            i === index
-              ? {
-                  x1: Math.max(0, Math.min(100, originalLine.x1 + dx)),
-                  y1: Math.max(0, Math.min(100, originalLine.y1 + dy)),
-                  x2: Math.max(0, Math.min(100, originalLine.x2 + dx)),
-                  y2: Math.max(0, Math.min(100, originalLine.y2 + dy)),
-                }
-              : l
-          )
-        );
+        const clamp = (v: number) => Math.max(0, Math.min(100, v));
+        const moved = originalSegments.map((seg) => {
+          if (isPartitionLine(seg)) {
+            return { x1: clamp(seg.x1 + dx), y1: clamp(seg.y1 + dy), x2: clamp(seg.x2 + dx), y2: clamp(seg.y2 + dy) };
+          }
+          const curve = seg as PartitionCurve;
+          return { type: "curve" as const, x1: clamp(curve.x1 + dx), y1: clamp(curve.y1 + dy), x2: clamp(curve.x2 + dx), y2: clamp(curve.y2 + dy), cpx: clamp(curve.cpx + dx), cpy: clamp(curve.cpy + dy) };
+        });
+        setPartitionStrokes((prev) => prev.map((stroke, i) => (i === strokeIndex ? { segments: moved } : stroke)));
         return;
       }
       if (!lineDrawStart) return;
       const p = clientToPctForLine(e.clientX, e.clientY);
+      if (lineSegmentMode === "curve") {
+        const pts = strokePointsRef.current;
+        const last = pts[pts.length - 1];
+        if (last && (last.x - p.x) ** 2 + (last.y - p.y) ** 2 >= 0.3 ** 2) {
+          strokePointsRef.current = [...pts, { x: p.x, y: p.y }];
+        }
+      }
       setLineDrawEnd(p);
     },
-    [isLineStep, lineDrawStart, clientToPctForLine, setPartitionLines]
+    [isLineStep, lineDrawStart, lineSegmentMode, clientToPctForLine, setPartitionStrokes]
   );
 
   const handleLineDrawPointerUp = useCallback(
@@ -804,25 +832,37 @@ export default function PanelContent({
       }
       const end = clientToPctForLine(e.clientX, e.clientY);
       if (lineDrawStart && (lineDrawStart.x !== end.x || lineDrawStart.y !== end.y)) {
-        const x1 = clampPct(lineDrawStart.x);
-        const y1 = clampPct(lineDrawStart.y);
-        const x2 = clampPct(end.x);
-        const y2 = clampPct(end.y);
-        setPartitionLines((prev) => [...prev, { x1, y1, x2, y2 }]);
+        if (lineSegmentMode === "curve") {
+          const pts = strokePointsRef.current;
+          if (pts.length >= 2) {
+            const smoothed = smoothPoints(pts, 5);
+            const segments = pointsToBezierChain(smoothed);
+            if (segments.length > 0) {
+              setPartitionStrokes((prev) => [...prev, { segments }]);
+            }
+          }
+        } else {
+          const x1 = clampPct(lineDrawStart.x);
+          const y1 = clampPct(lineDrawStart.y);
+          const x2 = clampPct(end.x);
+          const y2 = clampPct(end.y);
+          setPartitionStrokes((prev) => [...prev, { segments: [{ x1, y1, x2, y2 }] }]);
+        }
       }
       setLineDrawStart(null);
       setLineDrawEnd(null);
+      strokePointsRef.current = [];
     },
-    [isLineStep, lineDrawStart, clientToPctForLine, clampPct, setPartitionLines]
+    [isLineStep, lineDrawStart, lineSegmentMode, clientToPctForLine, clampPct, setPartitionStrokes]
   );
 
   const handleGenerateRegions = useCallback(() => {
-    const lines = partitionLines ?? [];
-    const polygons = getRegionsFromLines(lines);
-    const newOverlays = polygons.map((poly) => createFreeOverlayFromPolygon(poly));
+    const segments = getPartitionSegments(panelState);
+    const regions = getRegionsFromSegments(segments);
+    const newOverlays = regions.map((region) => createFreeOverlayFromCurvedRegion(region));
     setSelectedLineIndex(null);
     setPanelState((s) => ({ ...s, overlays: newOverlays, panelEditStep: "overlays" as PanelEditStep }));
-  }, [setPanelState, partitionLines]);
+  }, [setPanelState, panelState]);
 
   const handleAddOverlayAtPoint = useCallback(
     (shape: OverlayShape, clientX: number, clientY: number) => {
@@ -1381,8 +1421,10 @@ export default function PanelContent({
                       isLineStep={isLineStep}
                       lineToolMode={lineToolMode}
                       setLineToolMode={setLineToolMode}
-                      partitionLines={partitionLines}
-                      setPartitionLines={setPartitionLines}
+                      lineSegmentMode={lineSegmentMode}
+                      setLineSegmentMode={setLineSegmentMode}
+                      partitionStrokes={partitionStrokes}
+                      setPartitionStrokes={setPartitionStrokes}
                       selectedLineIndex={selectedLineIndex}
                       setSelectedLineIndex={setSelectedLineIndex}
                       onGenerateRegions={handleGenerateRegions}
@@ -1441,8 +1483,10 @@ export default function PanelContent({
                 isLineStep={isLineStep}
                 lineToolMode={lineToolMode}
                 setLineToolMode={setLineToolMode}
-                partitionLines={partitionLines}
-                setPartitionLines={setPartitionLines}
+                lineSegmentMode={lineSegmentMode}
+                setLineSegmentMode={setLineSegmentMode}
+                partitionStrokes={partitionStrokes}
+                setPartitionStrokes={setPartitionStrokes}
                 selectedLineIndex={selectedLineIndex}
                 setSelectedLineIndex={setSelectedLineIndex}
                 onGenerateRegions={handleGenerateRegions}
@@ -1595,29 +1639,86 @@ export default function PanelContent({
                         strokeWidth={0.5}
                         strokeDasharray="2 2"
                       />
-                      {partitionLines.map((line, i) => (
-                        <line
-                          key={i}
-                          x1={line.x1}
-                          y1={line.y1}
-                          x2={line.x2}
-                          y2={line.y2}
-                          stroke={i === selectedLineIndex ? "rgba(251,191,36,0.95)" : "rgba(139,92,246,0.9)"}
-                          strokeWidth={i === selectedLineIndex ? 1.4 : 0.8}
-                          strokeLinecap="round"
-                        />
-                      ))}
+                      {partitionStrokes.flatMap((stroke, strokeIdx) =>
+                        stroke.segments.map((seg, segIdx) =>
+                          isPartitionLine(seg) ? (
+                            <line
+                              key={`${strokeIdx}-${segIdx}`}
+                              x1={seg.x1}
+                              y1={seg.y1}
+                              x2={seg.x2}
+                              y2={seg.y2}
+                              stroke={strokeIdx === selectedLineIndex ? "rgba(251,191,36,0.95)" : "rgba(139,92,246,0.9)"}
+                              strokeWidth={strokeIdx === selectedLineIndex ? 1.4 : 0.8}
+                              strokeLinecap="round"
+                            />
+                          ) : (
+                            (() => {
+                              const curve = seg as PartitionCurve;
+                              return (
+                                <path
+                                  key={`${strokeIdx}-${segIdx}`}
+                                  d={`M ${curve.x1} ${curve.y1} Q ${curve.cpx} ${curve.cpy} ${curve.x2} ${curve.y2}`}
+                                  fill="none"
+                                  stroke={strokeIdx === selectedLineIndex ? "rgba(251,191,36,0.95)" : "rgba(139,92,246,0.9)"}
+                                  strokeWidth={strokeIdx === selectedLineIndex ? 1.4 : 0.8}
+                                  strokeLinecap="round"
+                                />
+                              );
+                            })()
+                          )
+                        )
+                      )}
                       {lineDrawStart && lineDrawEnd && (
-                        <line
-                          x1={lineDrawStart.x}
-                          y1={lineDrawStart.y}
-                          x2={lineDrawEnd.x}
-                          y2={lineDrawEnd.y}
-                          stroke="rgba(251,191,36,0.95)"
-                          strokeWidth={1}
-                          strokeLinecap="round"
-                          strokeDasharray="2 2"
-                        />
+                        lineSegmentMode === "curve" && strokePointsRef.current.length >= 2 ? (
+                          (() => {
+                            const smoothed = smoothPoints(strokePointsRef.current, 5);
+                            const segments = pointsToBezierChain(smoothed) as PartitionCurve[];
+                            const d =
+                              segments.length > 0
+                                ? `M ${segments[0]!.x1} ${segments[0]!.y1}` +
+                                  segments.map((s) => ` Q ${s.cpx} ${s.cpy} ${s.x2} ${s.y2}`).join(" ")
+                                : "";
+                            return (
+                              <path
+                                d={d}
+                                fill="none"
+                                stroke="rgba(251,191,36,0.95)"
+                                strokeWidth={1}
+                                strokeLinecap="round"
+                                strokeDasharray="2 2"
+                              />
+                            );
+                          })()
+                        ) : lineSegmentMode === "curve" ? (
+                          (() => {
+                            const dx = lineDrawEnd.x - lineDrawStart.x;
+                            const dy = lineDrawEnd.y - lineDrawStart.y;
+                            const cpx = (lineDrawStart.x + lineDrawEnd.x) / 2 - 0.2 * dy;
+                            const cpy = (lineDrawStart.y + lineDrawEnd.y) / 2 + 0.2 * dx;
+                            return (
+                              <path
+                                d={`M ${lineDrawStart.x} ${lineDrawStart.y} Q ${cpx} ${cpy} ${lineDrawEnd.x} ${lineDrawEnd.y}`}
+                                fill="none"
+                                stroke="rgba(251,191,36,0.95)"
+                                strokeWidth={1}
+                                strokeLinecap="round"
+                                strokeDasharray="2 2"
+                              />
+                            );
+                          })()
+                        ) : (
+                          <line
+                            x1={lineDrawStart.x}
+                            y1={lineDrawStart.y}
+                            x2={lineDrawEnd.x}
+                            y2={lineDrawEnd.y}
+                            stroke="rgba(251,191,36,0.95)"
+                            strokeWidth={1}
+                            strokeLinecap="round"
+                            strokeDasharray="2 2"
+                          />
+                        )
                       )}
                     </svg>
                     <div
@@ -1646,6 +1747,7 @@ export default function PanelContent({
                         if (lineDrawStart) {
                           setLineDrawStart(null);
                           setLineDrawEnd(null);
+                          strokePointsRef.current = [];
                         }
                       }}
                     />
@@ -1671,7 +1773,7 @@ export default function PanelContent({
                   const isFree = overlay.shape === "free";
                   const isImage = overlay.shape === "image";
                   const isCustom = overlay.shape === "custom" && overlay.parts && overlay.parts.length > 0;
-                  const freePoints = isFree && overlay.points && overlay.points.length >= 2
+                  const freePoints = isFree && !overlay.pathD && overlay.points && overlay.points.length >= 2
                     ? overlay.points
                         .map((p) => {
                           const x = overlay.width ? (p.x / overlay.width) * 100 : 0;
@@ -1680,6 +1782,7 @@ export default function PanelContent({
                         })
                         .join(" ")
                     : "";
+                  const freePathD = isFree ? overlay.pathD : undefined;
                   const rotation = overlay.rotation ?? 0;
                   const selected = selectedOverlayId === overlay.id;
                   return (
@@ -1734,33 +1837,61 @@ export default function PanelContent({
                           <img src={overlay.imageDataUrl} alt="" className="w-full h-full object-contain pointer-events-none" />
                         </>
                       ) : null}
-                      {isFree && freePoints ? (
+                      {isFree && (freePathD || freePoints) ? (
                         <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-                          <polygon
-                            points={freePoints}
-                            fill={overlay.color}
-                            stroke="rgba(255,255,255,0.3)"
-                            strokeWidth={0.5}
-                            style={{ pointerEvents: "auto" }}
-                            onPointerDown={(e) => handlePointerDown(overlay, e)}
-                            onPointerMove={(e) => handleOverlayPointerMove(overlay, e)}
-                            onPointerUp={(e) => {
-                              handleOverlayPointerUp();
-                              handlePointerUp(overlay, e);
-                            }}
-                            onPointerLeave={() => {
-                              handleOverlayPointerUp();
-                              if (tapTimerRef.current) {
-                                clearTimeout(tapTimerRef.current);
-                                tapTimerRef.current = null;
-                              }
-                              tapPendingRef.current = false;
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (isEditMode) setSelectedOverlayId(selectedOverlayId === overlay.id ? null : overlay.id);
-                            }}
-                          />
+                          {freePathD ? (
+                            <path
+                              d={freePathD}
+                              fill={overlay.color}
+                              stroke="rgba(255,255,255,0.3)"
+                              strokeWidth={0.5}
+                              style={{ pointerEvents: "auto" }}
+                              onPointerDown={(e) => handlePointerDown(overlay, e)}
+                              onPointerMove={(e) => handleOverlayPointerMove(overlay, e)}
+                              onPointerUp={(e) => {
+                                handleOverlayPointerUp();
+                                handlePointerUp(overlay, e);
+                              }}
+                              onPointerLeave={() => {
+                                handleOverlayPointerUp();
+                                if (tapTimerRef.current) {
+                                  clearTimeout(tapTimerRef.current);
+                                  tapTimerRef.current = null;
+                                }
+                                tapPendingRef.current = false;
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isEditMode) setSelectedOverlayId(selectedOverlayId === overlay.id ? null : overlay.id);
+                              }}
+                            />
+                          ) : (
+                            <polygon
+                              points={freePoints}
+                              fill={overlay.color}
+                              stroke="rgba(255,255,255,0.3)"
+                              strokeWidth={0.5}
+                              style={{ pointerEvents: "auto" }}
+                              onPointerDown={(e) => handlePointerDown(overlay, e)}
+                              onPointerMove={(e) => handleOverlayPointerMove(overlay, e)}
+                              onPointerUp={(e) => {
+                                handleOverlayPointerUp();
+                                handlePointerUp(overlay, e);
+                              }}
+                              onPointerLeave={() => {
+                                handleOverlayPointerUp();
+                                if (tapTimerRef.current) {
+                                  clearTimeout(tapTimerRef.current);
+                                  tapTimerRef.current = null;
+                                }
+                                tapPendingRef.current = false;
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isEditMode) setSelectedOverlayId(selectedOverlayId === overlay.id ? null : overlay.id);
+                              }}
+                            />
+                          )}
                         </svg>
                       ) : null}
                       {isCustom && overlay.parts ? (
@@ -1789,7 +1920,7 @@ export default function PanelContent({
                           })}
                         </>
                       ) : null}
-                      {!isImage && (isFree ? (overlay.points && overlay.points.length > 0) : isCustom ? overlay.parts?.length : true) ? (
+                      {!isImage && (isFree ? ((overlay.points && overlay.points.length > 0) || !!overlay.pathD) : isCustom ? overlay.parts?.length : true) ? (
                         <div
                           className={`relative z-10 flex flex-col items-center justify-center p-0.5 ${
                             isEditMode ? "pointer-events-none" : ""
@@ -1805,7 +1936,7 @@ export default function PanelContent({
                                 maxWidth: "90%",
                               };
                             }
-                            if (isFree && overlay.points?.length && overlay.width && overlay.height) {
+                            if (isFree && overlay.width && overlay.height) {
                               const c = getFreeOverlayCentroid(overlay);
                               if (c) {
                                 const leftPct = ((c.x - overlay.x) / overlay.width) * 100;

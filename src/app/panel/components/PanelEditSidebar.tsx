@@ -2,7 +2,7 @@
 
 import { useRef } from "react";
 import { ImagePlus, Pencil, Hand } from "lucide-react";
-import type { PanelState, PanelOverlay, PartitionLine, FilterType, OverlayShape } from "../lib/panelTypes";
+import type { PanelState, PanelOverlay, PartitionStroke, FilterType, OverlayShape } from "../lib/panelTypes";
 import { DEFAULT_OVERLAY_COLOR } from "../lib/panelTypes";
 import { parseHexToRgb, rgbToHex, normalizeHex, rgbToHsl, hslToRgb } from "../lib/panelUtils";
 import RotationDial from "./RotationDial";
@@ -25,8 +25,10 @@ export interface PanelEditSidebarProps {
   isLineStep: boolean;
   lineToolMode: "pen" | "hand";
   setLineToolMode: (m: "pen" | "hand") => void;
-  partitionLines: PartitionLine[];
-  setPartitionLines: (updater: (prev: PartitionLine[]) => PartitionLine[]) => void;
+  lineSegmentMode: "line" | "curve";
+  setLineSegmentMode: (m: "line" | "curve") => void;
+  partitionStrokes: PartitionStroke[];
+  setPartitionStrokes: (updater: (prev: PartitionStroke[]) => PartitionStroke[]) => void;
   selectedLineIndex: number | null;
   setSelectedLineIndex: (i: number | null) => void;
   onGenerateRegions: () => void;
@@ -71,8 +73,10 @@ export default function PanelEditSidebar({
   isLineStep,
   lineToolMode,
   setLineToolMode,
-  partitionLines,
-  setPartitionLines,
+  lineSegmentMode,
+  setLineSegmentMode,
+  partitionStrokes,
+  setPartitionStrokes,
   selectedLineIndex,
   setSelectedLineIndex,
   onGenerateRegions,
@@ -182,7 +186,7 @@ export default function PanelEditSidebar({
             <div className="text-sm font-medium opacity-80 w-full">線で切り分け</div>
             <button
               type="button"
-              onClick={() => setPanelState((s) => ({ ...s, panelEditStep: "lines", partitionLines: s.partitionLines ?? [] }))}
+              onClick={() => setPanelState((s) => ({ ...s, panelEditStep: "lines" }))}
               className="w-full px-3 py-2.5 rounded-lg text-sm font-medium border-2 border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300 hover:bg-amber-500/25"
             >
               線で切り分けを開始
@@ -208,15 +212,37 @@ export default function PanelEditSidebar({
                     <Hand size={18} />
                   </button>
                 </div>
+                {lineToolMode === "pen" && (
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setLineSegmentMode("line")}
+                      title="直線"
+                      className={`px-2 py-1 rounded text-xs border ${lineSegmentMode === "line" ? "border-violet-500/50 bg-violet-500/15" : "border-transparent opacity-60 hover:opacity-100"}`}
+                    >
+                      直線
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLineSegmentMode("curve")}
+                      title="曲線（2次ベジェ）"
+                      className={`px-2 py-1 rounded text-xs border ${lineSegmentMode === "curve" ? "border-violet-500/50 bg-violet-500/15" : "border-transparent opacity-60 hover:opacity-100"}`}
+                    >
+                      曲線
+                    </button>
+                  </div>
+                )}
                 <div className="text-xs opacity-70">
-                  {lineToolMode === "pen" ? "ペン：ドラッグで線を引く" : "手：線をクリックで選択・ドラッグで移動・Deleteで削除"}
+                  {lineToolMode === "pen"
+                    ? (lineSegmentMode === "curve" ? "ペン（曲線）：ドラッグで軌道に沿ったなめらかな曲線を引く" : "ペン（直線）：ドラッグで線を引く")
+                    : "手：線をクリックで選択・ドラッグで移動・Deleteで削除"}
                 </div>
                 {selectedLineIndex !== null && (
                   <button
                     type="button"
                     onClick={() => {
                       if (selectedLineIndex === null) return;
-                      setPartitionLines((prev) => prev.filter((_, i) => i !== selectedLineIndex));
+                      setPartitionStrokes((prev) => prev.filter((_, i) => i !== selectedLineIndex));
                       setSelectedLineIndex(null);
                     }}
                     className="px-2 py-1 rounded text-xs border border-red-500/40 bg-red-500/10 text-red-400"
@@ -227,16 +253,16 @@ export default function PanelEditSidebar({
                 <div className="flex flex-wrap gap-1">
                   <button
                     type="button"
-                    onClick={() => { setPartitionLines((prev) => prev.slice(0, -1)); setSelectedLineIndex(null); }}
-                    disabled={partitionLines.length === 0}
+                    onClick={() => { setPartitionStrokes((prev) => prev.slice(0, -1)); setSelectedLineIndex(null); }}
+                    disabled={partitionStrokes.length === 0}
                     className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 disabled:opacity-40"
                   >
                     やり直し（1本削除）
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setPartitionLines(() => []); setSelectedLineIndex(null); }}
-                    disabled={partitionLines.length === 0}
+                    onClick={() => { setPartitionStrokes(() => []); setSelectedLineIndex(null); }}
+                    disabled={partitionStrokes.length === 0}
                     className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 disabled:opacity-40"
                   >
                     クリア
