@@ -242,6 +242,7 @@ export default function PanelContent({
   const lineDragRef = useRef<{ index: number; startP: { x: number; y: number }; originalLine: PartitionLine } | null>(null);
   const [imageBoundsPct, setImageBoundsPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
+  const captureWrapperRef = useRef<HTMLDivElement>(null);
   const lineDrawAreaRef = useRef<HTMLDivElement>(null);
   const tapPendingRef = useRef(false);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1360,6 +1361,12 @@ export default function PanelContent({
 
       <main
         className={`relative z-10 flex-1 flex flex-col min-h-0 overflow-auto scroll-touch ${isSplitMode ? "pt-0" : "pt-[56px]"}`}
+        onClick={(e) => {
+          if (isEditMode && captureWrapperRef.current && !captureWrapperRef.current.contains(e.target as Node)) {
+            setSelectedOverlayId(null);
+          }
+        }}
+        role="presentation"
       >
         {/* Toolbar (edit mode only) */}
         {isEditMode && (
@@ -1581,7 +1588,10 @@ export default function PanelContent({
         )}
 
         {/* Capture area: image + filters + overlays（線で切り分け時は余白を多めに） */}
-        <div className={`flex-1 flex items-center justify-center min-h-0 ${isLineStep ? "p-5 sm:p-8" : "p-4"}`}>
+        <div
+          ref={captureWrapperRef}
+          className={`flex-1 flex items-center justify-center min-h-0 ${isLineStep ? "p-5 sm:p-8" : "p-4"}`}
+        >
           <div
             ref={captureRef}
             className="relative w-full max-w-4xl max-h-[70vh] flex items-center justify-center overflow-hidden rounded-xl"
@@ -1787,6 +1797,7 @@ export default function PanelContent({
                         transform: `${overlay.flipX ? "scaleX(-1) " : ""}rotate(${rotation}deg)`,
                         transformOrigin: "center center",
                         opacity: (overlay.opacity ?? 100) / 100,
+                        pointerEvents: isFree ? "none" : undefined,
                         background: isFree || isImage || isCustom ? "transparent" : overlay.color,
                         border: isFree ? (selected ? `2px solid ${overlay.color}` : "none") : selected ? `2px solid ${overlay.color}` : "1px solid rgba(255,255,255,0.3)",
                         borderRadius: isCustom ? 0 : overlay.shape === "circle" ? "50%" : overlay.shape === "rect" ? 0 : 4,
@@ -1812,24 +1823,11 @@ export default function PanelContent({
                               : "polygon(50% 0%, 100% 100%, 0% 100%)"
                             : undefined,
                       }}
-                      onPointerDown={(e) => handlePointerDown(overlay, e)}
-                      onPointerMove={(e) => handleOverlayPointerMove(overlay, e)}
-                      onPointerUp={(e) => {
-                        handleOverlayPointerUp();
-                        handlePointerUp(overlay, e);
-                      }}
-                      onPointerLeave={() => {
-                        handleOverlayPointerUp();
-                        if (tapTimerRef.current) {
-                          clearTimeout(tapTimerRef.current);
-                          tapTimerRef.current = null;
-                        }
-                        tapPendingRef.current = false;
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isEditMode) setSelectedOverlayId(selectedOverlayId === overlay.id ? null : overlay.id);
-                      }}
+                      onPointerDown={!isFree ? (e) => handlePointerDown(overlay, e) : undefined}
+                      onPointerMove={!isFree ? (e) => handleOverlayPointerMove(overlay, e) : undefined}
+                      onPointerUp={!isFree ? (e) => { handleOverlayPointerUp(); handlePointerUp(overlay, e); } : undefined}
+                      onPointerLeave={!isFree ? () => { handleOverlayPointerUp(); if (tapTimerRef.current) { clearTimeout(tapTimerRef.current); tapTimerRef.current = null; } tapPendingRef.current = false; } : undefined}
+                      onClick={!isFree ? (e) => { e.stopPropagation(); if (isEditMode) setSelectedOverlayId(selectedOverlayId === overlay.id ? null : overlay.id); } : undefined}
                     >
                       {isImage && overlay.imageDataUrl ? (
                         <>
@@ -1839,7 +1837,31 @@ export default function PanelContent({
                       ) : null}
                       {isFree && freePoints ? (
                         <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-                          <polygon points={freePoints} fill={overlay.color} stroke="rgba(255,255,255,0.3)" strokeWidth={0.5} />
+                          <polygon
+                            points={freePoints}
+                            fill={overlay.color}
+                            stroke="rgba(255,255,255,0.3)"
+                            strokeWidth={0.5}
+                            style={{ pointerEvents: "auto" }}
+                            onPointerDown={(e) => handlePointerDown(overlay, e)}
+                            onPointerMove={(e) => handleOverlayPointerMove(overlay, e)}
+                            onPointerUp={(e) => {
+                              handleOverlayPointerUp();
+                              handlePointerUp(overlay, e);
+                            }}
+                            onPointerLeave={() => {
+                              handleOverlayPointerUp();
+                              if (tapTimerRef.current) {
+                                clearTimeout(tapTimerRef.current);
+                                tapTimerRef.current = null;
+                              }
+                              tapPendingRef.current = false;
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (isEditMode) setSelectedOverlayId(selectedOverlayId === overlay.id ? null : overlay.id);
+                            }}
+                          />
                         </svg>
                       ) : null}
                       {isCustom && overlay.parts ? (
