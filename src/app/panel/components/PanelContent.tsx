@@ -107,6 +107,8 @@ export default function PanelContent({
   const [editSidebarOverlayOpen, setEditSidebarOverlayOpen] = useState(false);
   const lineDragRef = useRef<{ strokeIndex: number; startP: { x: number; y: number }; originalSegments: PartitionSegment[] } | null>(null);
   const strokePointsRef = useRef<{ x: number; y: number }[]>([]);
+  /** 曲線プレビュー用の点列（レンダーで参照するため state） */
+  const [strokePreviewPoints, setStrokePreviewPoints] = useState<{ x: number; y: number }[]>([]);
   const [imageBoundsPct, setImageBoundsPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
   const captureWrapperRef = useRef<HTMLDivElement>(null);
@@ -185,9 +187,11 @@ export default function PanelContent({
     return () => document.body.classList.remove("light-mode");
   }, [isLightMode, isSplitMode]);
 
-  useEffect(() => {
+  /** 選択変更時にドラフトをクリアするため、setSelectedOverlayId の代わりに使用 */
+  const setSelectedOverlayIdAndClearDraft = useCallback((id: string | null) => {
+    setSelectedOverlayId(id);
     setTargetNumberDraft(null);
-  }, [selectedOverlayId]);
+  }, []);
 
   useEffect(() => {
     const w = Number(editSidebarWidthPx);
@@ -197,14 +201,15 @@ export default function PanelContent({
   }, [editSidebarWidthPx, setEditSidebarWidthPx]);
 
   useEffect(() => {
-    const check = () => setIsEditSidebarNarrow(typeof window !== "undefined" && window.innerWidth < 1024);
+    const check = () => {
+      const narrow = typeof window !== "undefined" && window.innerWidth < 1024;
+      setIsEditSidebarNarrow(narrow);
+      if (!narrow) setEditSidebarOverlayOpen(false);
+    };
     check();
     window.addEventListener("resize", check);
     return () => window.removeEventListener("resize", check);
   }, []);
-  useEffect(() => {
-    if (!isEditSidebarNarrow) setEditSidebarOverlayOpen(false);
-  }, [isEditSidebarNarrow]);
 
   const applySidebarResize = useCallback((clientX: number, startX: number, startW: number) => {
     const newW = Math.min(560, Math.max(200, startW + (clientX - startX)));
@@ -294,7 +299,7 @@ export default function PanelContent({
         e.preventDefault();
         pushOverlayHistory(current);
         setOverlays((prev) => prev.filter((p) => p.id !== selectedOverlayId));
-        setSelectedOverlayId(null);
+        setSelectedOverlayIdAndClearDraft(null);
         return;
       }
 
@@ -319,7 +324,7 @@ export default function PanelContent({
           overlayClipboardRef.current = { ...o };
           pushOverlayHistory(overlays);
           setOverlays((prev) => prev.filter((p) => p.id !== selectedOverlayId));
-          setSelectedOverlayId(null);
+          setSelectedOverlayIdAndClearDraft(null);
           e.preventDefault();
         }
         return;
@@ -331,7 +336,7 @@ export default function PanelContent({
         pushOverlayHistory(overlays);
         const dup: PanelOverlay = { ...clip, id: createOverlayId(), x: clip.x + 3, y: clip.y + 3 };
         setOverlays((prev) => [...prev, dup]);
-        setSelectedOverlayId(dup.id);
+        setSelectedOverlayIdAndClearDraft(dup.id);
         return;
       }
       if (lower === "d") {
@@ -347,7 +352,7 @@ export default function PanelContent({
           y: snapToGrid(Math.min(100 - o.height, o.y + 3)),
         };
         setOverlays((prev) => [...prev, dup]);
-        setSelectedOverlayId(dup.id);
+        setSelectedOverlayIdAndClearDraft(dup.id);
       }
     };
     document.addEventListener("keydown", handleKeyDown);
@@ -783,6 +788,7 @@ export default function PanelContent({
       setLineDrawEnd(p);
       if (lineSegmentMode === "curve") {
         strokePointsRef.current = [{ x: p.x, y: p.y }];
+        setStrokePreviewPoints([{ x: p.x, y: p.y }]);
       }
     },
     [isLineStep, lineToolMode, lineSegmentMode, clientToPctForLine, partitionStrokes]
@@ -813,7 +819,9 @@ export default function PanelContent({
         const pts = strokePointsRef.current;
         const last = pts[pts.length - 1];
         if (last && (last.x - p.x) ** 2 + (last.y - p.y) ** 2 >= 0.3 ** 2) {
-          strokePointsRef.current = [...pts, { x: p.x, y: p.y }];
+          const next = [...pts, { x: p.x, y: p.y }];
+          strokePointsRef.current = next;
+          setStrokePreviewPoints(next);
         }
       }
       setLineDrawEnd(p);
@@ -852,6 +860,7 @@ export default function PanelContent({
       setLineDrawStart(null);
       setLineDrawEnd(null);
       strokePointsRef.current = [];
+      setStrokePreviewPoints([]);
     },
     [isLineStep, lineDrawStart, lineSegmentMode, clientToPctForLine, clampPct, setPartitionStrokes]
   );
@@ -879,7 +888,7 @@ export default function PanelContent({
       newOverlay.width = snapToGrid(half * 2) || GRID_SNAP_PERCENT;
       newOverlay.height = snapToGrid(half * 2) || GRID_SNAP_PERCENT;
       setOverlays((prev) => [...prev, newOverlay]);
-      setSelectedOverlayId(newOverlay.id);
+      setSelectedOverlayIdAndClearDraft(newOverlay.id);
     },
     [setOverlays]
   );
@@ -933,7 +942,7 @@ export default function PanelContent({
         const cy = 50 - 10;
         const newOverlay = createCustomOverlay(parts, cx, cy, 20, 20);
         setOverlays((prev) => [...prev, newOverlay]);
-        setSelectedOverlayId(newOverlay.id);
+        setSelectedOverlayIdAndClearDraft(newOverlay.id);
       }
       setCustomShapeModalOpen(false);
       setCustomShapeEditingId(null);
@@ -1103,7 +1112,7 @@ export default function PanelContent({
         filterIntensity: state.filterIntensity ?? 50,
         imageAspectRatio: state.imageAspectRatio ?? undefined,
       });
-      setSelectedOverlayId(null);
+      setSelectedOverlayIdAndClearDraft(null);
       setIsMenuOpen(false);
     },
     [setPanelState]
@@ -1327,7 +1336,7 @@ export default function PanelContent({
         className={`relative z-10 flex-1 flex flex-col min-h-0 overflow-auto scroll-touch ${isSplitMode ? "pt-0" : "pt-[56px]"}`}
         onClick={(e) => {
           if (isEditMode && captureWrapperRef.current && !captureWrapperRef.current.contains(e.target as Node)) {
-            setSelectedOverlayId(null);
+            setSelectedOverlayIdAndClearDraft(null);
           }
         }}
         role="presentation"
@@ -1357,7 +1366,7 @@ export default function PanelContent({
                 pushOverlayHistory(s.overlays);
                 return { ...s, overlays: [...s.overlays, newOverlay] };
               });
-              setSelectedOverlayId(newOverlay.id);
+              setSelectedOverlayIdAndClearDraft(newOverlay.id);
             };
             reader.readAsDataURL(file);
             e.target.value = "";
@@ -1670,9 +1679,9 @@ export default function PanelContent({
                         )
                       )}
                       {lineDrawStart && lineDrawEnd && (
-                        lineSegmentMode === "curve" && strokePointsRef.current.length >= 2 ? (
+                        lineSegmentMode === "curve" && strokePreviewPoints.length >= 2 ? (
                           (() => {
-                            const smoothed = smoothPoints(strokePointsRef.current, 5);
+                            const smoothed = smoothPoints(strokePreviewPoints, 5);
                             const segments = pointsToBezierChain(smoothed) as PartitionCurve[];
                             const d =
                               segments.length > 0
@@ -1748,6 +1757,7 @@ export default function PanelContent({
                           setLineDrawStart(null);
                           setLineDrawEnd(null);
                           strokePointsRef.current = [];
+                          setStrokePreviewPoints([]);
                         }
                       }}
                     />
@@ -1829,7 +1839,7 @@ export default function PanelContent({
                       onPointerMove={!isFree ? (e) => handleOverlayPointerMove(overlay, e) : undefined}
                       onPointerUp={!isFree ? (e) => { handleOverlayPointerUp(); handlePointerUp(overlay, e); } : undefined}
                       onPointerLeave={!isFree ? () => { handleOverlayPointerUp(); if (tapTimerRef.current) { clearTimeout(tapTimerRef.current); tapTimerRef.current = null; } tapPendingRef.current = false; } : undefined}
-                      onClick={!isFree ? (e) => { e.stopPropagation(); if (isEditMode) setSelectedOverlayId(selectedOverlayId === overlay.id ? null : overlay.id); } : undefined}
+                      onClick={!isFree ? (e) => { e.stopPropagation(); if (isEditMode) setSelectedOverlayIdAndClearDraft(selectedOverlayId === overlay.id ? null : overlay.id); } : undefined}
                     >
                       {isImage && overlay.imageDataUrl ? (
                         <>
@@ -1862,7 +1872,7 @@ export default function PanelContent({
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (isEditMode) setSelectedOverlayId(selectedOverlayId === overlay.id ? null : overlay.id);
+                                if (isEditMode) setSelectedOverlayIdAndClearDraft(selectedOverlayId === overlay.id ? null : overlay.id);
                               }}
                             />
                           ) : (
@@ -1888,7 +1898,7 @@ export default function PanelContent({
                               }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (isEditMode) setSelectedOverlayId(selectedOverlayId === overlay.id ? null : overlay.id);
+                                if (isEditMode) setSelectedOverlayIdAndClearDraft(selectedOverlayId === overlay.id ? null : overlay.id);
                               }}
                             />
                           )}
@@ -1996,7 +2006,7 @@ export default function PanelContent({
                               e.stopPropagation();
                               pushOverlayHistory(overlays);
                               setOverlays((prev) => prev.filter((p) => p.id !== overlay.id));
-                              setSelectedOverlayId(null);
+                              setSelectedOverlayIdAndClearDraft(null);
                             }}
                             className="absolute top-0 right-0 w-6 h-6 -translate-y-1/2 translate-x-1/2 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shrink-0 shadow border-2 border-white"
                             style={{ zIndex: 25 }}

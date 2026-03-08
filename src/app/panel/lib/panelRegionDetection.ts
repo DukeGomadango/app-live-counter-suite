@@ -893,10 +893,10 @@ export function getRegionsFromSegments(segments: PartitionSegment[]): CurvedRegi
     if (isPartitionLine(seg)) {
       const clipped = clipSegmentToBox(seg);
       if (!clipped) continue;
-      let x1 = snapPointToFrame({ x: clipped.x1, y: clipped.y1 }).x;
-      let y1 = snapPointToFrame({ x: clipped.x1, y: clipped.y1 }).y;
-      let x2 = snapPointToFrame({ x: clipped.x2, y: clipped.y2 }).x;
-      let y2 = snapPointToFrame({ x: clipped.x2, y: clipped.y2 }).y;
+      const x1 = snapPointToFrame({ x: clipped.x1, y: clipped.y1 }).x;
+      const y1 = snapPointToFrame({ x: clipped.x1, y: clipped.y1 }).y;
+      const x2 = snapPointToFrame({ x: clipped.x2, y: clipped.y2 }).x;
+      const y2 = snapPointToFrame({ x: clipped.x2, y: clipped.y2 }).y;
       if ((x2 - x1) ** 2 + (y2 - y1) ** 2 <= EPS * EPS) continue;
       processed.push({ x1, y1, x2, y2 });
     } else {
