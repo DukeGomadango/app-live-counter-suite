@@ -196,21 +196,22 @@ function buildOutgoingByAngle(
   return result;
 }
 
-/** 辺 ei の終点から、反時計回りで「次の辺」のインデックスを返す */
+/** 辺 ei の終点から、反時計回りで「次の辺」のインデックスを返す。cycleStartEdge を渡すと、その辺を選べるときだけ優先して閉路を閉じる（他頂点への cycleCloseTo による早期クローズで degenerate になるのを防ぐ） */
 function nextEdgeCCW(
   ei: number,
   edges: [number, number][],
   vertices: Point[],
-  outgoingByVertex: number[][]
+  outgoingByVertex: number[][],
+  cycleStartEdge?: number
 ): number {
   const edge = edges[ei];
   if (!edge) return -1;
   const [from, to] = edge;
   const list = outgoingByVertex[to];
   if (!list || list.length === 0) return -1;
+  if (cycleStartEdge !== undefined && list.includes(cycleStartEdge)) return cycleStartEdge;
   const fromPoint = vertices[from]!;
   const toPoint = vertices[to]!;
-  // 進行方向（from→to）。この方向から左折（CCW）で次の辺を選ぶ
   const inAngle = Math.atan2(toPoint.y - fromPoint.y, toPoint.x - fromPoint.x);
   let bestEi = list[0]!;
   let bestDelta = 1e9;
@@ -218,13 +219,13 @@ function nextEdgeCCW(
     const nextEdge = edges[nextEi];
     if (!nextEdge) continue;
     const [, nextTo] = nextEdge;
-    if (nextTo === from) continue; // 来た辺は選ばない
+    if (nextTo === from) continue;
     const nextPoint = vertices[nextTo]!;
     const outAngle = Math.atan2(nextPoint.y - toPoint.y, nextPoint.x - toPoint.x);
     let delta = outAngle - inAngle;
     while (delta <= 0) delta += 2 * Math.PI;
     while (delta > 2 * Math.PI) delta -= 2 * Math.PI;
-    if (delta < bestDelta && delta > EPS) {
+    if (delta < bestDelta && delta >= 0) {
       bestDelta = delta;
       bestEi = nextEi;
     }
@@ -233,7 +234,19 @@ function nextEdgeCCW(
   return bestEi;
 }
 
-/** 有向辺の閉路を面として列挙（反時計回りでトレース） */
+/** 有向辺 ei の逆方向の辺のインデックスを返す */
+function findReverseEdgeIndex(ei: number, edges: [number, number][]): number {
+  const e = edges[ei];
+  if (!e) return -1;
+  const [from, to] = e;
+  for (let i = 0; i < edges.length; i++) {
+    const o = edges[i];
+    if (o && o[0] === to && o[1] === from) return i;
+  }
+  return -1;
+}
+
+/** 有向辺の閉路を面として列挙（反時計回りでトレース）。同一面を逆方向からトレースして重複しないよう、面に含まれた辺の逆も used に載せる */
 function traceFaces(
   edges: [number, number][],
   vertices: Point[],
@@ -248,7 +261,9 @@ function traceFaces(
     do {
       cycle.push(ei);
       used.add(ei);
-      const next = nextEdgeCCW(ei, edges, vertices, outgoingByVertex);
+      const rev = findReverseEdgeIndex(ei, edges);
+      if (rev >= 0) used.add(rev);
+      const next = nextEdgeCCW(ei, edges, vertices, outgoingByVertex, start);
       ei = next >= 0 ? next : -1;
       if (ei < 0) break;
     } while (ei !== start && cycle.length <= edges.length + 1);
@@ -317,6 +332,20 @@ function isOuterFramePolygon(poly: Polygon100): boolean {
 const BOX_MIN = 0;
 const BOX_MAX = 100;
 
+/** 枠の端にスナップする距離（%）。この範囲内の端点は外枠上に寄せる */
+const FRAME_SNAP_EPS = 1.5;
+
+/** 点が外枠（0–100）に十分近いとき、枠上にスナップする。端まで引いたつもりの線が確実に枠に接するようにする */
+function snapPointToFrame(p: Point): Point {
+  let x = p.x;
+  let y = p.y;
+  if (x <= FRAME_SNAP_EPS) x = BOX_MIN;
+  else if (x >= BOX_MAX - FRAME_SNAP_EPS) x = BOX_MAX;
+  if (y <= FRAME_SNAP_EPS) y = BOX_MIN;
+  else if (y >= BOX_MAX - FRAME_SNAP_EPS) y = BOX_MAX;
+  return { x, y };
+}
+
 /** 線分を 0–100 の矩形でクリップし、内側の部分だけ返す。完全に外なら null */
 function clipSegmentToBox(seg: PartitionLine): PartitionLine | null {
   let t0 = 0;
@@ -326,8 +355,8 @@ function clipSegmentToBox(seg: PartitionLine): PartitionLine | null {
   const dirs = [
     { p: -seg.x1 + BOX_MIN, q: -dx },
     { p: seg.x1 - BOX_MAX, q: dx },
-    { p: -seg.y1 + BOX_MIN, q: -dy },
-    { p: seg.y1 - BOX_MAX, q: dy },
+    { p: -seg.y1 + BOX_MIN, q: dy },
+    { p: seg.y1 - BOX_MAX, q: -dy },
   ];
   for (const { p, q } of dirs) {
     if (Math.abs(q) <= EPS) {
@@ -351,32 +380,80 @@ function clipSegmentToBox(seg: PartitionLine): PartitionLine | null {
 
 /**
  * 線の配列から、線で囲まれた各領域を多角形（0–100 座標）の配列として返す。
+ * 仕様: ユーザーが引いた線をそのまま多角形の辺として使い、閉じた輪になっている部分だけを領域として出力する。
+ * 輪になっていない線（端まで届かない単体の線など）は、いずれの領域の辺にも含まれない。
+ * 端点が外枠に十分近い（約 1.5% 以内）場合は枠上にスナップし、端まで引いたつもりの線が確実に枠に接するようにする。
  * 幾何ベース: 交差で線分を分割し、面を列挙。外側面（負の符号付き面積）は除外する。
  * ユーザー線は 0–100 の外枠でクリップし、外側は領域にならない。
  */
+const LOG_PREFIX = "[panel-region]";
+
 export function getRegionsFromLines(lines: PartitionLine[]): Polygon100[] {
   if (lines.length === 0) {
+    console.log(LOG_PREFIX, "入力線 0 本 → 画像全体 1 領域を返す");
     return [[{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }]];
   }
 
+  console.log(LOG_PREFIX, "入力線", lines.length, "本:", lines.map((s) => `(${s.x1.toFixed(2)},${s.y1.toFixed(2)})-(${s.x2.toFixed(2)},${s.y2.toFixed(2)})`));
+
   const clipped = lines.map((seg) => clipSegmentToBox(seg)).filter((s): s is PartitionLine => s !== null);
-  const allLines = [...IMAGE_FRAME_LINES, ...clipped];
+  console.log(LOG_PREFIX, "クリップ後", clipped.length, "本:", clipped.length ? clipped.map((s) => `(${s.x1.toFixed(2)},${s.y1.toFixed(2)})-(${s.x2.toFixed(2)},${s.y2.toFixed(2)})`) : "(なし)");
+
+  const snapped = clipped
+    .map((seg) => {
+      const p1 = snapPointToFrame({ x: seg.x1, y: seg.y1 });
+      const p2 = snapPointToFrame({ x: seg.x2, y: seg.y2 });
+      return { x1: p1.x, y1: p1.y, x2: p2.x, y2: p2.y };
+    })
+    .filter((seg) => {
+      const dx = seg.x2 - seg.x1;
+      const dy = seg.y2 - seg.y1;
+      return dx * dx + dy * dy > EPS * EPS;
+    });
+  console.log(LOG_PREFIX, "スナップ後", snapped.length, "本:", snapped.length ? snapped.map((s) => `(${s.x1},${s.y1})-(${s.x2},${s.y2})`) : "(なし・ degenerate で除外)");
+
+  const allLines = [...IMAGE_FRAME_LINES, ...snapped];
   const segments = buildSplitSegments(allLines);
+  console.log(LOG_PREFIX, "外枠+ユーザー線を交差で分割した辺", segments.length, "本");
+
   const { vertices, edges } = normalizeVerticesAndEdges(segments);
-  if (edges.length === 0) return [];
+  console.log(LOG_PREFIX, "頂点数", vertices.length, "辺数", edges.length / 2, "頂点一覧:", vertices.map((p, i) => `${i}:(${p.x.toFixed(2)},${p.y.toFixed(2)})`).join(" "));
+
+  if (edges.length === 0) {
+    console.log(LOG_PREFIX, "辺が 0 のため領域なし");
+    return [];
+  }
 
   const outgoingByVertex = buildOutgoingByAngle(vertices, edges);
   const faces = traceFaces(edges, vertices, outgoingByVertex);
+  console.log(LOG_PREFIX, "トレースした面の数", faces.length);
 
   const polygons: Polygon100[] = [];
-  for (const face of faces) {
+  for (let fi = 0; fi < faces.length; fi++) {
+    const face = faces[fi]!;
     const area = signedArea(vertices, face, edges);
-    if (area < -EPS) continue; // 外側面（CW）はスキップ
-    if (face.length < MIN_POLYGON_POINTS) continue;
     const poly = faceToPolygon(vertices, face, edges);
-    // ユーザーが線を描いているときは、外枠そのものの領域はオーバーレイにしない
-    if (clipped.length > 0 && isOuterFramePolygon(poly)) continue;
+    const areaAbs = Math.abs(area);
+    const isOuter = snapped.length > 0 && isOuterFramePolygon(poly);
+    if (area < -EPS) {
+      console.log(LOG_PREFIX, `面${fi}`, "面積", area.toFixed(2), "(CW・外側) → スキップ");
+      continue;
+    }
+    if (face.length < MIN_POLYGON_POINTS) {
+      console.log(LOG_PREFIX, `面${fi}`, "頂点数不足 → スキップ");
+      continue;
+    }
+    if (areaAbs <= EPS) {
+      console.log(LOG_PREFIX, `面${fi}`, "面積ほぼ0（degenerate） → スキップ");
+      continue;
+    }
+    if (isOuter) {
+      console.log(LOG_PREFIX, `面${fi}`, "外枠全体と判定(面積", areaAbs.toFixed(2), "bbox 等) → スキップ");
+      continue;
+    }
+    console.log(LOG_PREFIX, `面${fi}`, "→ 領域として出力", poly.length, "頂点", "面積", areaAbs.toFixed(2), poly.map((p) => `(${p.x.toFixed(2)},${p.y.toFixed(2)})`).join(" "));
     polygons.push(poly);
   }
+  console.log(LOG_PREFIX, "出力領域数", polygons.length);
   return polygons;
 }

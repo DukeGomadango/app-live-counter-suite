@@ -194,6 +194,7 @@ export default function PanelContent({
   const [lineDrawEnd, setLineDrawEnd] = useState<{ x: number; y: number } | null>(null);
   const [imageBoundsPct, setImageBoundsPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
+  const lineDrawAreaRef = useRef<HTMLDivElement>(null);
   const tapPendingRef = useRef(false);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -730,7 +731,13 @@ export default function PanelContent({
 
   const clientToPctForLine = useCallback(
     (clientX: number, clientY: number) => {
+      const drawRect = lineDrawAreaRef.current?.getBoundingClientRect();
       const rect = captureRef.current?.getBoundingClientRect();
+      if (drawRect && drawRect.width > 0 && drawRect.height > 0) {
+        const x = ((clientX - drawRect.left) / drawRect.width) * 100;
+        const y = ((clientY - drawRect.top) / drawRect.height) * 100;
+        return { x: Math.max(0, Math.min(100, x)), y: Math.max(0, Math.min(100, y)) };
+      }
       if (!rect) return { x: 0, y: 0 };
       const bounds = getImageBoundsPct(rect, imageAspectRatio ?? undefined);
       const framePx = ((clientX - rect.left) / rect.width) * 100;
@@ -785,11 +792,13 @@ export default function PanelContent({
   );
 
   const handleGenerateRegions = useCallback(() => {
-    const polygons = getRegionsFromLines(partitionLines);
-    const newOverlays = polygons.map((poly) => createFreeOverlayFromPolygon(poly));
-    setOverlays(() => newOverlays);
-    setPanelState((s) => ({ ...s, panelEditStep: "overlays" }));
-  }, [partitionLines, setOverlays, setPanelState]);
+    setPanelState((s) => {
+      const lines = s.partitionLines ?? [];
+      const polygons = getRegionsFromLines(lines);
+      const newOverlays = polygons.map((poly) => createFreeOverlayFromPolygon(poly));
+      return { ...s, overlays: newOverlays, panelEditStep: "overlays" as PanelEditStep };
+    });
+  }, [setPanelState]);
 
   const handleAddOverlayAtPoint = useCallback(
     (shape: OverlayShape, clientX: number, clientY: number) => {
@@ -1543,7 +1552,18 @@ export default function PanelContent({
                       )}
                     </svg>
                     <div
-                      className="absolute inset-0 cursor-crosshair overflow-hidden"
+                      ref={lineDrawAreaRef}
+                      className="absolute cursor-crosshair overflow-hidden"
+                      style={
+                        imageBoundsPct && imageBoundsPct.width > 0 && imageBoundsPct.height > 0
+                          ? {
+                              left: `${imageBoundsPct.x}%`,
+                              top: `${imageBoundsPct.y}%`,
+                              width: `${imageBoundsPct.width}%`,
+                              height: `${imageBoundsPct.height}%`,
+                            }
+                          : { left: 0, top: 0, width: "100%", height: "100%" }
+                      }
                       onPointerDown={handleLineDrawPointerDown}
                       onPointerMove={handleLineDrawPointerMove}
                       onPointerUp={handleLineDrawPointerUp}
@@ -1556,19 +1576,20 @@ export default function PanelContent({
                     />
                   </>
                 )}
-                {/* 画像の表示範囲内にクリップ（オーバーレイ・フリードローが破線の外にはみ出さない） */}
+                {/* 画像の表示範囲内にクリップ（オーバーレイ・フリードローが破線の外にはみ出さない）。線で切り分け中はクリックを透過させる */}
                 <div
                   className="absolute overflow-hidden"
-                  style={
-                    imageBoundsPct && imageBoundsPct.width > 0 && imageBoundsPct.height > 0
+                  style={{
+                    ...(imageBoundsPct && imageBoundsPct.width > 0 && imageBoundsPct.height > 0
                       ? {
                           left: `${imageBoundsPct.x}%`,
                           top: `${imageBoundsPct.y}%`,
                           width: `${imageBoundsPct.width}%`,
                           height: `${imageBoundsPct.height}%`,
                         }
-                      : { left: 0, top: 0, right: 0, bottom: 0 }
-                  }
+                      : { left: 0, top: 0, right: 0, bottom: 0 }),
+                    pointerEvents: isLineStep ? "none" : undefined,
+                  }}
                 >
                 {/* Overlays */}
                 {!isLineStep && overlays.map((overlay) => {
