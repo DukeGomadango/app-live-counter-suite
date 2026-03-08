@@ -14,7 +14,7 @@ import {
   CUSTOM_PRESET_TRAPEZOID,
   CUSTOM_PRESET_DIAMOND,
   DEFAULT_OVERLAY_COLOR,
-} from "@/lib/panelTypes";
+} from "@/app/panel/lib/panelTypes";
 
 const CANVAS_SIZE = 320;
 const MIN_PART = 4;

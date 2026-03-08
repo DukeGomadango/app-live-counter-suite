@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 
-const PanelContent = dynamic(() => import("./PanelContent"), {
+const PanelContent = dynamic(() => import("./components/PanelContent"), {
   ssr: false,
   loading: () => (
     <div className="flex items-center justify-center min-h-[50vh] text-gray-500 dark:text-white/60">

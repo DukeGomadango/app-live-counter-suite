@@ -32,7 +32,7 @@ const ClockPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
 const PanelPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
-  () => import("@/app/panel/PanelContent"),
+  () => import("@/app/panel/components/PanelContent"),
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
 import { useEffect, useState } from "react";

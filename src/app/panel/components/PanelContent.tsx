@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, PanelTopOpen, Menu, ImagePlus, Share2, Save, List, Pencil, Eye, Trash2, Edit3, Hand } from "lucide-react";
+import { Sun, Moon, PanelTopOpen, Menu, ImagePlus, Share2, Save, List, Pencil, Eye, Trash2, Edit3 } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -27,9 +27,21 @@ import {
   getPartClipPath,
   getCustomOverlayCentroid,
   getFreeOverlayCentroid,
-} from "@/lib/panelTypes";
-import { getRegionsFromLines } from "@/lib/panelRegionDetection";
+  DEFAULT_OVERLAY_COLOR,
+} from "../lib/panelTypes";
+import { getRegionsFromLines } from "../lib/panelRegionDetection";
+import {
+  GRID_SNAP_PERCENT,
+  snapToGrid,
+  snapToNearestGuide,
+  getTriangleTextAnchor,
+  getImageBoundsPct,
+  distancePointToSegment,
+  findLineIndexAt,
+} from "../lib/panelUtils";
 import CustomShapeEditorModal from "@/components/CustomShapeEditorModal";
+import RotationDial from "./RotationDial";
+import PanelEditSidebar, { type PanelSidebarTabId } from "./PanelEditSidebar";
 
 const defaultPanelState: PanelState = {
   imageDataUrl: null,
@@ -40,176 +52,7 @@ const defaultPanelState: PanelState = {
   isEditMode: true,
 };
 
-const GRID_SNAP_PERCENT = 2;
-function snapToGrid(v: number): number {
-  return Math.round(v / GRID_SNAP_PERCENT) * GRID_SNAP_PERCENT;
-}
-
-function snapToNearestGuide(v: number, guides: number[], threshold = 2): number {
-  if (!guides.length) return v;
-  let snapped = v;
-  let bestDiff = threshold + 0.001;
-  for (const g of guides) {
-    const d = Math.abs(v - g);
-    if (d < bestDiff) {
-      bestDiff = d;
-      snapped = g;
-    }
-  }
-  return snapped;
-}
-
-/** 三角形オーバーレイの種類ごとに、見た目の重心（バウンディングボックス内 0–100%）を返す。ラベル・数字を幅広い位置に置く用 */
-function getTriangleTextAnchor(kind: PanelOverlay["triangleKind"]): { x: number; y: number } {
-  switch (kind) {
-    case "rightTop":
-      return { x: 100 / 3, y: 100 / 3 };
-    case "rightBottom":
-      return { x: 100 / 3, y: 200 / 3 };
-    case "isoLeft":
-      return { x: 200 / 3, y: 50 };
-    case "isoRight":
-      return { x: 100 / 3, y: 50 };
-    case "diagDownUpper":
-      return { x: 100 / 3, y: 100 / 3 };
-    case "diagDownLower":
-      return { x: 200 / 3, y: 200 / 3 };
-    case "diagUpUpper":
-      return { x: 200 / 3, y: 100 / 3 };
-    case "diagUpLower":
-      return { x: 100 / 3, y: 200 / 3 };
-    default:
-      return { x: 50, y: 200 / 3 };
-  }
-}
-
-function getImageBoundsPct(
-  frameRect: DOMRect,
-  imageAspectRatio?: number | null
-): { x: number; y: number; width: number; height: number } {
-  const frameAR = frameRect.width / frameRect.height;
-  const imgAR = imageAspectRatio && imageAspectRatio > 0 ? imageAspectRatio : 16 / 9;
-  // object-contain と同様のロジックで、画像の実表示領域を0〜100%座標で返す
-  if (imgAR > frameAR) {
-    // 横長画像: 幅100%、高さは余白あり
-    const width = 100;
-    const height = (frameAR / imgAR) * 100;
-    const y = (100 - height) / 2;
-    return { x: 0, y, width, height };
-  } else {
-    // 縦長 or 正方形: 高さ100%、幅は余白あり
-    const height = 100;
-    const width = (imgAR / frameAR) * 100;
-    const x = (100 - width) / 2;
-    return { x, y: 0, width, height };
-  }
-}
-
-/** 点 (px,py) から線分 (x1,y1)-(x2,y2) までの距離（0–100座標）。 */
-function distancePointToSegment(
-  px: number,
-  py: number,
-  x1: number,
-  y1: number,
-  x2: number,
-  y2: number
-): number {
-  const vx = x2 - x1;
-  const vy = y2 - y1;
-  const wx = px - x1;
-  const wy = py - y1;
-  const c1 = wx * vx + wy * vy;
-  const c2 = vx * vx + vy * vy;
-  let t = 0;
-  if (c2 > 1e-10) {
-    t = Math.max(0, Math.min(1, c1 / c2));
-  }
-  const qx = x1 + t * vx;
-  const qy = y1 + t * vy;
-  return Math.hypot(px - qx, py - qy);
-}
-
-/** 点 (px,py) に最も近い線のインデックス。threshold 以内ならその index、なければ null。 */
-function findLineIndexAt(
-  lines: PartitionLine[],
-  px: number,
-  py: number,
-  threshold: number
-): number | null {
-  let bestIdx: number | null = null;
-  let bestDist = threshold;
-  lines.forEach((line, i) => {
-    const d = distancePointToSegment(px, py, line.x1, line.y1, line.x2, line.y2);
-    if (d < bestDist) {
-      bestDist = d;
-      bestIdx = i;
-    }
-  });
-  return bestIdx;
-}
-
 const TAP_WINDOW_MS = 200;
-
-const DIAL_SIZE = 48;
-const DIAL_R = 20;
-
-function RotationDial({
-  value,
-  onChange,
-  isLightMode,
-}: {
-  value: number;
-  onChange: (deg: number) => void;
-  isLightMode: boolean;
-}) {
-  const ref = useRef<SVGSVGElement>(null);
-  const getAngle = useCallback((clientX: number, clientY: number) => {
-    const svg = ref.current;
-    if (!svg) return value;
-    const rect = svg.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const angle = Math.atan2(-(clientY - cy), clientX - cx) * (180 / Math.PI);
-    const rotation = Math.round(angle - 90);
-    return Math.max(-360, Math.min(360, rotation));
-  }, [value]);
-
-  const handlePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      (e.target as SVGElement).setPointerCapture(e.pointerId);
-      onChange(getAngle(e.clientX, e.clientY));
-    },
-    [getAngle, onChange]
-  );
-  const handlePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (e.buttons !== 1) return;
-      onChange(getAngle(e.clientX, e.clientY));
-    },
-    [getAngle, onChange]
-  );
-
-  const rad = ((value + 90) * Math.PI) / 180;
-  const handX = 24 + DIAL_R * Math.cos(rad);
-  const handY = 24 - DIAL_R * Math.sin(rad);
-  const stroke = isLightMode ? "rgba(0,0,0,0.3)" : "rgba(255,255,255,0.5)";
-
-  return (
-    <svg
-      ref={ref}
-      width={DIAL_SIZE}
-      height={DIAL_SIZE}
-      className="cursor-grab active:cursor-grabbing touch-none"
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={(e) => (e.target as SVGElement).releasePointerCapture(e.pointerId)}
-      onPointerLeave={(e) => (e.target as SVGElement).releasePointerCapture(e.pointerId)}
-    >
-      <circle cx="24" cy="24" r={DIAL_R} fill="none" stroke={stroke} strokeWidth={2} />
-      <line x1="24" y1="24" x2={handX} y2={handY} stroke={stroke} strokeWidth={2} strokeLinecap="round" />
-    </svg>
-  );
-}
 
 export default function PanelContent({
   isSplitMode = false,
@@ -221,11 +64,14 @@ export default function PanelContent({
   const [panelState, setPanelState] = useLocalStorage<PanelState>("panel-state", defaultPanelState);
   const [savedPanels, setSavedPanels] = useLocalStorage<SavedPanel[]>("panel-saved-list", []);
   const [savedCustomShapes, setSavedCustomShapes] = useLocalStorage<SavedCustomShape[]>("panel-custom-shapes", []);
+  const [favoriteColors, setFavoriteColors] = useLocalStorage<string[]>("panel-favorite-colors", []);
+  const [editSidebarWidthPx, setEditSidebarWidthPx] = useLocalStorage<number>("panel-edit-sidebar-width", 288);
   const [customShapeModalOpen, setCustomShapeModalOpen] = useState(false);
   const [customShapeEditingId, setCustomShapeEditingId] = useState<string | null>(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [achievedOverlayId, setAchievedOverlayId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [showColorPicker, setShowColorPicker] = useState(false);
   const [addShape, setAddShape] = useState<OverlayShape | null>(null);
   const [isDrawingFree, setIsDrawingFree] = useState(false);
   const [freeDrawPreviewPoints, setFreeDrawPreviewPoints] = useState<{ x: number; y: number }[]>([]);
@@ -239,10 +85,15 @@ export default function PanelContent({
   const [lineDrawEnd, setLineDrawEnd] = useState<{ x: number; y: number } | null>(null);
   const [selectedLineIndex, setSelectedLineIndex] = useState<number | null>(null);
   const [lineToolMode, setLineToolMode] = useState<"pen" | "hand">("pen");
+  /** 目標数値入力の編集中の文字列。空でフォーカスを外す or Enter で 0 にフォールバック */
+  const [targetNumberDraft, setTargetNumberDraft] = useState<{ overlayId: string; value: string } | null>(null);
+  /** 編集モード時サイドバーのタブ: 画像 | 覆い */
+  const [panelSidebarTab, setPanelSidebarTab] = useState<PanelSidebarTabId>("overlay");
   const lineDragRef = useRef<{ index: number; startP: { x: number; y: number }; originalLine: PartitionLine } | null>(null);
   const [imageBoundsPct, setImageBoundsPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
   const captureWrapperRef = useRef<HTMLDivElement>(null);
+  const editSidebarRef = useRef<HTMLDivElement>(null);
   const lineDrawAreaRef = useRef<HTMLDivElement>(null);
   const tapPendingRef = useRef(false);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -313,6 +164,57 @@ export default function PanelContent({
     else document.body.classList.remove("light-mode");
     return () => document.body.classList.remove("light-mode");
   }, [isLightMode, isSplitMode]);
+
+  useEffect(() => {
+    setShowColorPicker(false);
+    setTargetNumberDraft(null);
+  }, [selectedOverlayId]);
+
+  useEffect(() => {
+    const w = Number(editSidebarWidthPx);
+    if (Number.isNaN(w) || w < 200 || w > 560) {
+      setEditSidebarWidthPx(288);
+    }
+  }, [editSidebarWidthPx, setEditSidebarWidthPx]);
+
+  const applySidebarResize = useCallback((clientX: number, startX: number, startW: number) => {
+    const newW = Math.min(560, Math.max(200, startW + (clientX - startX)));
+    setEditSidebarWidthPx(newW);
+  }, [setEditSidebarWidthPx]);
+  const handleEditSidebarResizeStart = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    const startX = e.clientX;
+    const startW = Math.max(200, Math.min(560, Number(editSidebarWidthPx) || 288));
+    const onMove = (moveEvent: MouseEvent) => applySidebarResize(moveEvent.clientX, startX, startW);
+    const onUp = () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+  }, [editSidebarWidthPx, applySidebarResize]);
+  const handleEditSidebarResizeTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.changedTouches.length === 0) return;
+    const startX = e.changedTouches[0]!.clientX;
+    const startW = Math.max(200, Math.min(560, Number(editSidebarWidthPx) || 288));
+    const onMove = (moveEvent: TouchEvent) => {
+      if (moveEvent.changedTouches.length === 0) return;
+      moveEvent.preventDefault();
+      applySidebarResize(moveEvent.changedTouches[0]!.clientX, startX, startW);
+    };
+    const onEnd = () => {
+      document.removeEventListener("touchmove", onMove, { capture: true });
+      document.removeEventListener("touchend", onEnd);
+      document.removeEventListener("touchcancel", onEnd);
+    };
+    document.addEventListener("touchmove", onMove, { passive: false, capture: true });
+    document.addEventListener("touchend", onEnd);
+    document.addEventListener("touchcancel", onEnd);
+  }, [editSidebarWidthPx, applySidebarResize]);
 
   // 線で切り分け時: キャプチャ枠内の画像表示範囲を state に保持（破線・線の表示位置合わせ用）。setState は rAF で非同期にし effect 直下を避ける。
   useEffect(() => {
@@ -1368,233 +1270,117 @@ export default function PanelContent({
         }}
         role="presentation"
       >
-        {/* Toolbar (edit mode only) */}
-        {isEditMode && (
-          <div className="shrink-0 flex flex-wrap items-center gap-2 p-2 border-b" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }}>
-            {isLineStep ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setLineToolMode("pen")}
-                  title="ペン：線を引く"
-                  className={`p-1.5 rounded border ${lineToolMode === "pen" ? "border-violet-500/60 bg-violet-500/20 text-violet-300" : "border-transparent opacity-60 hover:opacity-100"}`}
-                >
-                  <Pencil size={18} />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLineToolMode("hand")}
-                  title="手：線を選択・移動"
-                  className={`p-1.5 rounded border ${lineToolMode === "hand" ? "border-violet-500/60 bg-violet-500/20 text-violet-300" : "border-transparent opacity-60 hover:opacity-100"}`}
-                >
-                  <Hand size={18} />
-                </button>
-                <span className="text-sm opacity-80">
-                  {lineToolMode === "pen" ? "ペン：ドラッグで線を引く" : "手：線をクリックで選択・ドラッグで移動・Deleteで削除"}
-                </span>
-                {selectedLineIndex !== null && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selectedLineIndex === null) return;
-                      setPartitionLines((prev) => prev.filter((_, i) => i !== selectedLineIndex));
-                      setSelectedLineIndex(null);
-                    }}
-                    className="px-2 py-1 rounded text-xs border border-red-500/40 bg-red-500/10 text-red-400"
-                  >
-                    選択中の線を削除
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPartitionLines((prev) => prev.slice(0, -1));
-                    setSelectedLineIndex(null);
-                  }}
-                  disabled={partitionLines.length === 0}
-                  className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 disabled:opacity-40"
-                >
-                  やり直し（1本削除）
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPartitionLines(() => []);
-                    setSelectedLineIndex(null);
-                  }}
-                  disabled={partitionLines.length === 0}
-                  className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 disabled:opacity-40"
-                >
-                  クリア
-                </button>
-                <button
-                  type="button"
-                  onClick={handleGenerateRegions}
-                  className="px-3 py-1.5 rounded text-sm font-medium border border-violet-500/40 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30"
-                >
-                  領域を生成
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSelectedLineIndex(null);
-                    setPanelState((s) => ({ ...s, panelEditStep: "overlays" }));
-                  }}
-                  className="px-2 py-1 rounded text-xs opacity-70 hover:opacity-100"
-                >
-                  図形編集に戻る
-                </button>
-              </>
-            ) : (
-              <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageUpload}
-            />
-            <input
-              ref={imageOverlayInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (!file?.type.startsWith("image/")) return;
-                const reader = new FileReader();
-                reader.onload = () => {
-                  const dataUrl = reader.result as string;
-                  const newOverlay = createImageOverlay(dataUrl, 42.5, 42.5);
-                  setPanelState((s) => {
-                    pushOverlayHistory(s.overlays);
-                    return { ...s, overlays: [...s.overlays, newOverlay] };
-                  });
-                  setSelectedOverlayId(newOverlay.id);
-                };
-                reader.readAsDataURL(file);
-                e.target.value = "";
-              }}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm border border-violet-500/40 bg-violet-500/10 text-violet-400"
-            >
-              <ImagePlus size={14} /> 画像を選択
-            </button>
-            <button
-              onClick={() => imageOverlayInputRef.current?.click()}
-              className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-sm border border-amber-500/40 bg-amber-500/10 text-amber-400"
-            >
-              <ImagePlus size={14} /> 画像を追加
-            </button>
-            <button
-              type="button"
-              onClick={() => setPanelState((s) => ({ ...s, panelEditStep: "lines", partitionLines: s.partitionLines ?? [] }))}
-              className="px-2 py-1 rounded text-xs border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
-            >
-              線で切り分け
-            </button>
-            <span className="text-xs opacity-70">覆いの形:</span>
-            {(["rect", "circle", "triangle", "custom", "free"] as const).map((shape) => (
-              <button
-                key={shape}
-                onClick={() => {
-                  if (shape === "free") {
-                    setAddShape(addShape === shape ? null : shape);
-                    setIsDrawingFree(false);
-                    return;
-                  }
-                  if (shape === "custom") {
-                    setCustomShapeEditingId(null);
-                    setCustomShapeModalOpen(true);
-                    setAddShape(null);
-                    setIsDrawingFree(false);
-                    return;
-                  }
-                  if (!captureRef.current) {
-                    setAddShape(addShape === shape ? null : shape);
-                    setIsDrawingFree(false);
-                    return;
-                  }
-                  // クイック追加: 図形ボタンで中央付近に1つ出す
-                  const rect = captureRef.current.getBoundingClientRect();
-                  const centerX = rect.left + rect.width / 2;
-                  const centerY = rect.top + rect.height / 2;
-                  pushOverlayHistory(overlays);
-                  handleAddOverlayAtPoint(shape, centerX, centerY);
-                  setAddShape(null);
-                  setIsDrawingFree(false);
-                }}
-                className={`px-2 py-1 rounded text-xs ${addShape === shape ? "bg-violet-500/30 text-white" : isLightMode ? "bg-gray-100 text-gray-700" : "bg-white/10 text-white/80"}`}
-              >
-                {shape === "rect" ? "四角" : shape === "circle" ? "丸" : shape === "triangle" ? "三角" : shape === "custom" ? "カスタム" : "自由"}
-              </button>
-            ))}
-            <span className="text-xs opacity-70 ml-2">MECE:</span>
-            <button
-              type="button"
-              onClick={() => handleAddRectGrid(2, 2)}
-              className="px-2 py-1 rounded text-xs border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
-            >
-              四角2×2
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAddRectGrid(3, 3)}
-              className="px-2 py-1 rounded text-xs border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
-            >
-              四角3×3
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAddTriangleStripes(3)}
-              className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
-            >
-              三角3段
-            </button>
-            <span className="text-xs opacity-70 ml-2">フィルター:</span>
-            {(["noise", "grid", "blur"] as FilterType[]).map((f) => (
-              <button
-                key={f}
-                onClick={() => toggleFilter(f)}
-                className={`px-2 py-1 rounded text-xs ${activeFilters.includes(f) ? "bg-violet-500/30 text-white" : isLightMode ? "bg-gray-100 text-gray-700" : "bg-white/10 text-white/80"}`}
-              >
-                {f === "noise" ? "ノイズ" : f === "grid" ? "グリッド" : "ぼかし"}
-              </button>
-            ))}
-            <label className="flex items-center gap-1 text-xs opacity-80">
-              <input
-                type="checkbox"
-                checked={filterShowLabel}
-                onChange={(e) => setPanelState((s) => ({ ...s, filterShowLabel: e.target.checked }))}
-                className="rounded"
-              />
-              AI読み取り防止
-            </label>
-            <span className="text-xs opacity-70 ml-2">強さ:</span>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              value={filterIntensity}
-              onChange={(e) => setPanelState((s) => ({ ...s, filterIntensity: Number(e.target.value) }))}
-              className="w-20 h-1.5 accent-violet-500"
-            />
-            <span className="text-[10px] tabular-nums opacity-70">{filterIntensity}</span>
-              </>
-            )}
-          </div>
-        )}
-
-        {/* Capture area: image + filters + overlays（線で切り分け時は余白を多めに） */}
+        {/* 画像選択・追加用（常にマウント。編集モード外のクリックやサイドバーから参照） */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageUpload}
+          aria-hidden
+        />
+        <input
+          ref={imageOverlayInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file?.type.startsWith("image/")) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+              const dataUrl = reader.result as string;
+              const newOverlay = createImageOverlay(dataUrl, 42.5, 42.5);
+              setPanelState((s) => {
+                pushOverlayHistory(s.overlays);
+                return { ...s, overlays: [...s.overlays, newOverlay] };
+              });
+              setSelectedOverlayId(newOverlay.id);
+            };
+            reader.readAsDataURL(file);
+            e.target.value = "";
+          }}
+          aria-hidden
+        />
+        {/* Capture area: 編集モード時は常に左にサイドバー・右に画像。覆い未選択時はサイドバーに案内を表示 */}
         <div
           ref={captureWrapperRef}
-          className={`flex-1 flex items-center justify-center min-h-0 ${isLineStep ? "p-5 sm:p-8" : "p-4"}`}
+          className={`flex-1 flex min-h-0 ${isEditMode ? "flex-row" : "flex-col"}`}
         >
+          {isEditMode && (() => {
+            const effectiveSidebarWidth = Math.max(200, Math.min(560, Number(editSidebarWidthPx) || 288));
+            const selectedOverlay = selectedOverlayId ? overlays.find((x) => x.id === selectedOverlayId) ?? null : null;
+            return (
+              <>
+              <PanelEditSidebar
+                tab={panelSidebarTab}
+                setTab={setPanelSidebarTab}
+                isLightMode={isLightMode}
+                editSidebarRef={editSidebarRef}
+                effectiveSidebarWidth={effectiveSidebarWidth}
+                fileInputRef={fileInputRef}
+                imageOverlayInputRef={imageOverlayInputRef}
+                imageDataUrl={imageDataUrl}
+                setPendingCropDataUrl={setPendingCropDataUrl}
+                setPanelState={setPanelState}
+                isLineStep={isLineStep}
+                lineToolMode={lineToolMode}
+                setLineToolMode={setLineToolMode}
+                partitionLines={partitionLines}
+                setPartitionLines={setPartitionLines}
+                selectedLineIndex={selectedLineIndex}
+                setSelectedLineIndex={setSelectedLineIndex}
+                onGenerateRegions={handleGenerateRegions}
+                selectedOverlay={selectedOverlay}
+                overlays={overlays}
+                setOverlays={setOverlays}
+                targetNumberDraft={targetNumberDraft}
+                setTargetNumberDraft={setTargetNumberDraft}
+                showColorPicker={showColorPicker}
+                setShowColorPicker={setShowColorPicker}
+                favoriteColors={favoriteColors}
+                setFavoriteColors={setFavoriteColors}
+                pushOverlayHistory={pushOverlayHistory}
+                setSelectedOverlayId={setSelectedOverlayId}
+                setCustomShapeEditingId={setCustomShapeEditingId}
+                setCustomShapeModalOpen={setCustomShapeModalOpen}
+                addShape={addShape}
+                setAddShape={setAddShape}
+                setIsDrawingFree={setIsDrawingFree}
+                captureRef={captureRef}
+                onAddOverlayAtPoint={handleAddOverlayAtPoint}
+                onAddRectGrid={handleAddRectGrid}
+                onAddTriangleStripes={handleAddTriangleStripes}
+                activeFilters={activeFilters}
+                toggleFilter={toggleFilter}
+                filterShowLabel={filterShowLabel}
+                filterIntensity={filterIntensity}
+                setCustomShapeModalOpenForNew={() => { setCustomShapeEditingId(null); setCustomShapeModalOpen(true); }}
+              />
+              <div
+                role="separator"
+                aria-label="編集パネル幅を調節"
+                onMouseDown={handleEditSidebarResizeStart}
+                onTouchStart={handleEditSidebarResizeTouchStart}
+                className="shrink-0 w-4 h-full cursor-col-resize select-none flex items-center justify-center group touch-manipulation"
+                style={{ minWidth: 16 }}
+              >
+                <span
+                  className="w-0.5 h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                  style={{ background: isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.2)" }}
+                />
+              </div>
+              </>
+            );
+          })()}
+          <div
+            className={`flex-1 min-w-0 flex items-center justify-center ${isLineStep ? "p-5 sm:p-8" : "p-4"}`}
+          >
           <div
             ref={captureRef}
-            className="relative w-full max-w-4xl max-h-[70vh] flex items-center justify-center overflow-hidden rounded-xl"
+            className={`relative w-full flex items-center justify-center overflow-hidden rounded-xl ${
+              isEditMode ? "max-w-full max-h-full" : "max-w-4xl max-h-[70vh]"
+            }`}
             style={{
               aspectRatio: imageDataUrl && typeof imageAspectRatio === "number" ? imageAspectRatio : 16 / 9,
               background: imageDataUrl ? "transparent" : (isLightMode ? "#e0e0e0" : "#1a1a2e"),
@@ -2049,169 +1835,8 @@ export default function PanelContent({
               </>
             )}
           </div>
+          </div>
         </div>
-
-        {/* Selected overlay edit (edit mode) */}
-        {isEditMode && selectedOverlayId && (() => {
-          const o = overlays.find((x) => x.id === selectedOverlayId);
-          if (!o) return null;
-          const isImageOverlay = o.shape === "image";
-          return (
-            <div
-              className="shrink-0 p-3 border-t flex flex-wrap items-center gap-3"
-              style={{ borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }}
-            >
-              {!isImageOverlay ? (
-                <>
-                  <span className="text-sm font-medium">何を:</span>
-                  <input
-                    type="text"
-                    value={o.label ?? ""}
-                    onChange={(e) =>
-                      setOverlays((prev) =>
-                        prev.map((p) => (p.id === o.id ? { ...p, label: e.target.value } : p))
-                      )
-                    }
-                    placeholder="例: 景品、コメント"
-                    className="w-28 px-2 py-1 rounded border text-sm"
-                  />
-                  <span className="text-sm font-medium">目標:</span>
-                  <label className="flex items-center gap-1 text-sm">
-                    <input
-                      type="radio"
-                      checked={o.targetType === "number"}
-                      onChange={() =>
-                        setOverlays((prev) =>
-                          prev.map((p) => (p.id === o.id ? { ...p, targetType: "number" as const, targetText: "" } : p))
-                        )
-                      }
-                    />
-                    数値
-                  </label>
-                  <label className="flex items-center gap-1 text-sm">
-                    <input
-                      type="radio"
-                      checked={o.targetType === "text"}
-                      onChange={() =>
-                        setOverlays((prev) =>
-                          prev.map((p) => (p.id === o.id ? { ...p, targetType: "text" as const, target: 0, count: 0 } : p))
-                        )
-                      }
-                    />
-                    日本語
-                  </label>
-                  {o.targetType === "number" ? (
-                    <input
-                      type="number"
-                      min={0}
-                      value={o.target}
-                      onChange={(e) =>
-                        setOverlays((prev) =>
-                          prev.map((p) => (p.id === o.id ? { ...p, target: Math.max(0, parseInt(e.target.value, 10) || 0) } : p))
-                        )
-                      }
-                      className="w-16 px-2 py-1 rounded border text-sm"
-                    />
-                  ) : (
-                    <input
-                      type="text"
-                      value={o.targetText}
-                      onChange={(e) =>
-                        setOverlays((prev) =>
-                          prev.map((p) => (p.id === o.id ? { ...p, targetText: e.target.value } : p))
-                        )
-                      }
-                      placeholder="目標テキスト"
-                      className="flex-1 min-w-[120px] px-2 py-1 rounded border text-sm"
-                    />
-                  )}
-                </>
-              ) : null}
-              <span className="text-sm font-medium">色:</span>
-              <input
-                type="color"
-                value={o.color}
-                onChange={(e) =>
-                  setOverlays((prev) =>
-                    prev.map((p) => (p.id === o.id ? { ...p, color: e.target.value } : p))
-                  )
-                }
-                className="w-8 h-8 rounded cursor-pointer border-0"
-              />
-              <span className="text-sm font-medium">透明度:</span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                value={o.opacity ?? 100}
-                onChange={(e) =>
-                  setOverlays((prev) =>
-                    prev.map((p) => (p.id === o.id ? { ...p, opacity: Number(e.target.value) } : p))
-                  )
-                }
-                className="w-20 h-1.5 accent-violet-500"
-              />
-              <span className="text-xs tabular-nums opacity-70 w-8">{o.opacity ?? 100}%</span>
-              <span className="text-sm font-medium">回転:</span>
-              <RotationDial
-                value={Math.round(o.rotation ?? 0)}
-                onChange={(deg) =>
-                  setOverlays((prev) =>
-                    prev.map((p) => (p.id === o.id ? { ...p, rotation: Math.max(-360, Math.min(360, deg)) } : p))
-                  )
-                }
-                isLightMode={isLightMode}
-              />
-              <input
-                type="number"
-                min={-360}
-                max={360}
-                value={Math.round(o.rotation ?? 0)}
-                onChange={(e) =>
-                  setOverlays((prev) =>
-                    prev.map((p) => (p.id === o.id ? { ...p, rotation: Math.max(-360, Math.min(360, parseInt(e.target.value, 10) || 0)) } : p))
-                  )
-                }
-                className="w-14 px-2 py-1 rounded border text-sm"
-              />
-              <span className="text-xs opacity-70">度</span>
-              <button
-                onClick={() => {
-                  if (!o) return;
-                  pushOverlayHistory(overlays);
-                  setOverlays((prev) =>
-                    prev.map((p) => (p.id === o.id ? { ...p, flipX: !p.flipX } : p))
-                  );
-                }}
-                className="px-2 py-1 rounded text-sm bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25"
-              >
-                左右反転
-              </button>
-              {o.shape === "custom" && o.parts && o.parts.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomShapeEditingId(o.id);
-                    setCustomShapeModalOpen(true);
-                  }}
-                  className="px-2 py-1 rounded text-sm bg-violet-500/20 text-violet-400 hover:bg-violet-500/30"
-                >
-                  図形を編集
-                </button>
-              ) : null}
-              <button
-                onClick={() => {
-                  pushOverlayHistory(overlays);
-                  setOverlays((prev) => prev.filter((p) => p.id !== o.id));
-                  setSelectedOverlayId(null);
-                }}
-                className="px-2 py-1 rounded text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30"
-              >
-                削除
-              </button>
-            </div>
-          );
-        })()}
       </main>
 
       <ConfirmDialog
