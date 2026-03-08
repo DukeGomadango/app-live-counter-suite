@@ -796,13 +796,11 @@ export default function PanelContent({
   );
 
   const handleGenerateRegions = useCallback(() => {
-    setPanelState((s) => {
-      const lines = s.partitionLines ?? [];
-      const polygons = getRegionsFromLines(lines);
-      const newOverlays = polygons.map((poly) => createFreeOverlayFromPolygon(poly));
-      return { ...s, overlays: newOverlays, panelEditStep: "overlays" as PanelEditStep };
-    });
-  }, [setPanelState]);
+    const lines = partitionLines ?? [];
+    const polygons = getRegionsFromLines(lines);
+    const newOverlays = polygons.map((poly) => createFreeOverlayFromPolygon(poly));
+    setPanelState((s) => ({ ...s, overlays: newOverlays, panelEditStep: "overlays" as PanelEditStep }));
+  }, [setPanelState, partitionLines]);
 
   const handleAddOverlayAtPoint = useCallback(
     (shape: OverlayShape, clientX: number, clientY: number) => {
