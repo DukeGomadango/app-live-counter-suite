@@ -1133,7 +1133,7 @@ export default function PanelContent({
       a.href = dataUrl;
       a.download = filename;
       a.click();
-      window.open(generateShareUrl(""), "_blank", "noopener,noreferrer");
+      window.open(generateShareUrl("", { toolId: "panel" }), "_blank", "noopener,noreferrer");
     } catch (err) {
       console.warn("Panel image export failed:", err);
     }
@@ -1540,12 +1540,18 @@ export default function PanelContent({
             );
           })()}
           <div
-            className={`flex-1 min-w-0 flex items-center justify-center ${isLineStep ? "p-5 sm:p-8" : "p-4"}`}
+            className={`flex-1 min-w-0 flex items-center justify-center ${
+              isEditMode
+                ? isLineStep
+                  ? "p-5 sm:p-8"
+                  : "p-4"
+                : "min-h-0 overflow-y-auto overflow-x-hidden py-8 px-4 sm:py-10 sm:px-6 scroll-touch"
+            }`}
           >
           <div
             ref={captureRef}
             className={`relative w-full flex items-center justify-center overflow-hidden rounded-xl ${
-              isEditMode ? "max-w-full max-h-full" : "max-w-4xl max-h-[70vh]"
+              isEditMode ? "max-w-full max-h-full" : "max-w-4xl min-h-[45vmin]"
             }`}
             style={{
               aspectRatio: imageDataUrl && typeof imageAspectRatio === "number" ? imageAspectRatio : 16 / 9,

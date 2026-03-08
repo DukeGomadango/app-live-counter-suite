@@ -16,6 +16,7 @@ import type { GachaPool, Player, GachaResult, GachaSettings, GachaPoolPreset } f
 import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds, clonePoolWithNewIds, getSampleTemplates, migratePoolItemsForLink } from "@/lib/gacha";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import ShareReplyToField from "@/components/ShareReplyToField";
 
 type MobileTab = "setup" | "gacha" | "results" | "players" | "items";
 type SidebarTab = "setup" | "players" | "items" | "presets";
@@ -152,6 +153,15 @@ function GachaSettingsPanel({
                             className={`w-full px-2 py-1.5 rounded-lg text-xs ${textPrimary} outline-none`}
                             style={{ background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)", border: `1px solid ${glassBorder}` }}
                         />
+                    </div>
+
+                    {/* X共有時の返信先 */}
+                    <div>
+                        <label className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} mb-1 block`}>
+                            X共有の返信先
+                        </label>
+                        <p className={`text-[10px] ${textSecondary} mb-1.5`}>設定すると、共有時にそのツイートへの返信として開きます</p>
+                        <ShareReplyToField toolId="gacha" isLightMode={isLightMode} compact />
                     </div>
                 </div>
             </motion.div>
@@ -660,11 +670,14 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     );
                 })()}
 
-                {/* メインコンテンツ（固定ヘッダー時のみ pt-12、Split時はヘッダーがstickyで流れるので不要） */}
+                {/* メインコンテンツ（固定ヘッダー時のみ pt-12。下余白はタブバー＋safe-area分を確保） */}
                 <div
                     ref={mobileTab === "setup" ? setupScrollRef : undefined}
-                    className={`flex-1 min-h-0 ${!isSplitMode ? "pt-12" : ""} pb-14 relative z-10 ${mobileTab === "setup" ? "overflow-y-auto overflow-x-hidden scroll-smooth scroll-touch rounded-t-2xl mx-2 border border-t border-l border-r" : "overflow-hidden"}`}
-                    style={mobileTab === "setup" ? { borderColor: glassBorder } : undefined}
+                    className={`flex-1 min-h-0 ${!isSplitMode ? "pt-12" : ""} relative z-10 ${mobileTab === "setup" ? "overflow-y-auto overflow-x-hidden scroll-smooth scroll-touch rounded-t-2xl mx-2 border border-t border-l border-r" : "overflow-hidden"}`}
+                    style={{
+                        ...(mobileTab === "setup" ? { borderColor: glassBorder } : {}),
+                        paddingBottom: "max(6rem, calc(4rem + env(safe-area-inset-bottom, 0px)))",
+                    }}
                     onScroll={mobileTab === "setup" ? (e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowScrollHint(false); } : undefined}
                 >
                     {mobileTab === "setup" && showScrollHint && (
@@ -682,7 +695,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     )}
                     <AnimatePresence mode="wait">
                         {mobileTab === "setup" && (
-                            <motion.div key="setup" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="px-3 pt-2 min-h-full pb-2">
+                            <motion.div key="setup" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="px-3 pt-2 min-h-full pb-10">
                                 <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={false} />
                             </motion.div>
                         )}
@@ -713,37 +726,43 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                         {mobileTab === "players" && (
                             <motion.div key="players" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
                                 <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
-                                    <GachaPlayerManager
-                                        players={players}
-                                        activePlayerId={activePlayerId}
-                                        onSelectPlayer={setActivePlayerId}
-                                        onAddPlayer={addPlayer}
-                                        onRemovePlayer={removePlayer}
-                                        onResetPlayer={resetPlayer}
-                                        onResetAllPlayers={resetAllPlayers}
-                                        onViewPlayerHistory={setPlayerHistoryViewId}
-                                        pool={pool}
-                                        isLightMode={isLightMode}
-                                        textContrastLight={false}
-                                        shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
-                                    />
+                                    <div className="pb-10">
+                                        <GachaPlayerManager
+                                            players={players}
+                                            activePlayerId={activePlayerId}
+                                            onSelectPlayer={setActivePlayerId}
+                                            onAddPlayer={addPlayer}
+                                            onRemovePlayer={removePlayer}
+                                            onResetPlayer={resetPlayer}
+                                            onResetAllPlayers={resetAllPlayers}
+                                            onViewPlayerHistory={setPlayerHistoryViewId}
+                                            pool={pool}
+                                            isLightMode={isLightMode}
+                                            textContrastLight={false}
+                                            shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
+                                        />
+                                    </div>
                                 </div>
                             </motion.div>
                         )}
                         {mobileTab === "items" && (
                             <motion.div key="items" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
                                 <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
-                                    <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={false} />
+                                    <div className="pb-10">
+                                        <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={false} />
+                                    </div>
                                 </div>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
 
-                {/* モバイルタブバー */}
+                {/* モバイルタブバー（safe-area でホームインジケーター回避） */}
                 <div
-                    className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around px-1 py-1.5"
+                    className="fixed left-0 right-0 z-50 flex items-center justify-around px-1 py-1.5"
                     style={{
+                        bottom: 0,
+                        paddingBottom: "max(0.375rem, env(safe-area-inset-bottom, 0px))",
                         background: headerBg,
                         backdropFilter: "blur(12px)",
                         borderTop: `1px solid ${glassBorder}`,

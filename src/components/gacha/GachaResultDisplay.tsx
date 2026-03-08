@@ -85,13 +85,13 @@ export default function GachaResultDisplay({
 
     const handleShare = () => {
         const text = formatResultsForShare(results, pool, shareHashtags, playerName);
-        const url = generateShareUrl(text);
+        const url = generateShareUrl(text, { toolId: "gacha" });
         window.open(url, "_blank", "noopener,noreferrer");
     };
 
     const handleShareAsImage = () => {
         const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
-        tweetUrlAfterDownloadRef.current = generateShareUrl(headerText);
+        tweetUrlAfterDownloadRef.current = generateShareUrl(headerText, { toolId: "gacha" });
         setIsCapturingShareImage(true);
     };
 

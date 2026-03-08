@@ -3,6 +3,8 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Users, GitMerge, LayoutGrid, Sparkles, Calculator, Home, CircleDot, Clock, PanelTopOpen, Dices } from "lucide-react";
 import { useEffect } from "react";
+import ShareReplyToField from "@/components/ShareReplyToField";
+import { getToolIdFromPath } from "@/lib/share";
 
 interface HelpModalProps {
     isOpen: boolean;
@@ -31,6 +33,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
     const textPrimary = isLightMode ? "text-gray-900" : "text-white";
     const textSecondary = isLightMode ? "text-gray-600" : "text-white/70";
     const bgSubtle = isLightMode ? "bg-black/5" : "bg-white/5";
+    const shareToolId = getToolIdFromPath(currentPath || "", activeModule);
 
     const getContent = () => {
         const path = currentPath || "/";
@@ -108,6 +111,12 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
                         items: [
                             "上部のドロップダウンで「ホーム」「ツール」「ゲーム」のグループからモードを切り替えられます",
                             "太陽・月アイコンでライト/ダークテーマを切り替えられます",
+                        ]
+                    },
+                    {
+                        title: "X共有の返信先",
+                        items: [
+                            "カウンター・ガチャなど各ツールのページでヘルプを開くと「X共有の設定」が表示されます。返信先ツイート（URL または ID）を指定すると、そのツールで共有時にそのツイートへの返信として投稿画面が開きます。x.com/.../status/... のURLをそのまま貼ってOK。ツールごとに別設定です",
                         ]
                     },
                     {
@@ -470,6 +479,21 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
                                             </ul>
                                         </div>
                                     ))}
+
+                                    {/* X共有時の返信先（ツールごと） */}
+                                    <div className="pt-4 mt-4 border-t" style={{ borderColor }}>
+                                        <h3 className={`text-sm font-bold uppercase tracking-wider mb-3 ${textPrimary} flex items-center gap-2`}>
+                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+                                            X共有の設定
+                                        </h3>
+                                        {shareToolId ? (
+                                            <ShareReplyToField toolId={shareToolId} isLightMode={isLightMode} />
+                                        ) : (
+                                            <p className={`text-xs ${textSecondary}`}>
+                                                カウンター・ガチャなど各ツールのページでヘルプを開くと、そのツール用の返信先を設定できます。
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 

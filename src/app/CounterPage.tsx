@@ -315,7 +315,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
         a.href = dataUrl;
         a.download = filename;
         a.click();
-        window.open(generateShareUrl(tweetText), "_blank", "noopener,noreferrer");
+        window.open(generateShareUrl(tweetText, { toolId: "counter" }), "_blank", "noopener,noreferrer");
       } catch (err) {
         console.warn("Image export failed:", err);
       } finally {

@@ -489,7 +489,7 @@ export default function SlotContent({
       slotSharePayload.reelLabels,
       slotSharePayload.resultLine
     );
-    tweetUrlAfterDownloadRef.current = generateShareUrl(text);
+    tweetUrlAfterDownloadRef.current = generateShareUrl(text, { toolId: "slot" });
     setIsCapturingShareImage(true);
   }, [activePlayer?.name, slotSharePayload.reelLabels, slotSharePayload.resultLine]);
 

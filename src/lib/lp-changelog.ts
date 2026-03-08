@@ -15,6 +15,14 @@ export type ChangelogEntry = {
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-03-08",
+    importance: "normal",
+    title: "X共有で返信先を選べるように",
+    items: [
+      "ヘルプ内の「X共有の設定」で、共有時の返信先ツイート（URL または ID）を指定できます。x.com/.../status/... のURLをそのまま貼ってOK。指定すると、そのツールで X の投稿画面がそのツイートへの返信として開きます。ツールごとに別設定で、空なら新規ツイートです",
+    ],
+  },
+  {
+    date: "2026-03-08",
     importance: "minor",
     title: "ガチャ：確率入力に％表記を追加",
     items: [

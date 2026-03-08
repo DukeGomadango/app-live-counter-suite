@@ -2,6 +2,53 @@
  * 共有用ユーティリティ。ツイート用 URL などを共通化。
  */
 
+const SHARE_REPLY_TO_PREFIX = "share-in-reply-to-";
+
+/** パス（と split 時の activeModule）からツールIDを取得。トップなど該当なしなら null */
+export function getToolIdFromPath(path: string, activeModule?: string | null): string | null {
+  const p = (path || "").toLowerCase();
+  const m = (activeModule || "").toLowerCase();
+  if (p.includes("gacha") || m === "gacha") return "gacha";
+  if (p.includes("panel") || m === "panel") return "panel";
+  if (p.includes("slot") || m === "slot") return "slot";
+  if (p.includes("counter") || m === "counter") return "counter";
+  if (p.includes("flowchart") || m === "flowchart") return "flowchart";
+  if (p.includes("roulette") || m === "roulette") return "roulette";
+  if (p.includes("clock") || m === "clock") return "clock";
+  if (p.includes("calculator") || m === "calculator") return "calculator";
+  return null;
+}
+
+/** 保存されている共有時の返信先（ツイートURL or ID）。toolId ごとに別保存。未設定時は null */
+export function getShareReplyTo(toolId: string): string | null {
+  if (typeof localStorage === "undefined" || !toolId) return null;
+  const v = localStorage.getItem(SHARE_REPLY_TO_PREFIX + toolId);
+  return v && v.trim() ? v.trim() : null;
+}
+
+/** 共有時の返信先を保存（null でクリア）。toolId ごとに別保存 */
+export function setShareReplyTo(toolId: string, value: string | null): void {
+  if (typeof localStorage === "undefined" || !toolId) return;
+  const key = SHARE_REPLY_TO_PREFIX + toolId;
+  if (value === null || !value.trim()) {
+    localStorage.removeItem(key);
+    return;
+  }
+  localStorage.setItem(key, value.trim());
+}
+
+/** ツイートURL または ID 文字列からツイートID（数値のみ）を取得。無効なら null */
+export function parseTweetId(input: string): string | null {
+  const s = input.trim();
+  if (!s) return null;
+  // status/1234567890 形式（x.com / twitter.com）
+  const m = /(?:twitter\.com|x\.com)\/[^/]+\/status\/(\d+)/i.exec(s);
+  if (m?.[1]) return m[1];
+  // 数値のみの場合はそのまま（ツイートID）
+  if (/^\d+$/.test(s)) return s;
+  return null;
+}
+
 /** ダウンロードファイル名用のタイムスタンプ（YYYYMMDD-HHmmss）。同名上書き確認を避けるため。 */
 export function getTimestampForFilename(): string {
   const d = new Date();
@@ -9,8 +56,21 @@ export function getTimestampForFilename(): string {
   return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
 }
 
-export function generateShareUrl(text: string): string {
-  return `https://x.com/intent/tweet?text=${encodeURIComponent(text)}`;
+export interface GenerateShareUrlOptions {
+  /** 返信先ツイートのURL or ID。省略時は toolId の保存値を使用 */
+  inReplyTo?: string | null;
+  /** ツールID。指定時はそのツール用に保存した返信先を使用（counter / panel / gacha / slot など） */
+  toolId?: string;
+}
+
+export function generateShareUrl(text: string, options?: GenerateShareUrlOptions): string {
+  const raw = options?.inReplyTo ?? (options?.toolId ? getShareReplyTo(options.toolId) : null);
+  const inReplyToId = raw ? parseTweetId(raw) : null;
+  let url = `https://x.com/intent/tweet?text=${encodeURIComponent(text)}`;
+  if (inReplyToId) {
+    url += `&in_reply_to=${inReplyToId}`;
+  }
+  return url;
 }
 
 /** iPad かどうか（iPadOS 13+ のデスクトップ表示も含む）。画像共有でツイートを先に開く判定に使用。 */
