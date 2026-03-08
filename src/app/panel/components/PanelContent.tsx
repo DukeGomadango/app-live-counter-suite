@@ -71,7 +71,6 @@ export default function PanelContent({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [achievedOverlayId, setAchievedOverlayId] = useState<string | null>(null);
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
-  const [showColorPicker, setShowColorPicker] = useState(false);
   const [addShape, setAddShape] = useState<OverlayShape | null>(null);
   const [isDrawingFree, setIsDrawingFree] = useState(false);
   const [freeDrawPreviewPoints, setFreeDrawPreviewPoints] = useState<{ x: number; y: number }[]>([]);
@@ -166,7 +165,6 @@ export default function PanelContent({
   }, [isLightMode, isSplitMode]);
 
   useEffect(() => {
-    setShowColorPicker(false);
     setTargetNumberDraft(null);
   }, [selectedOverlayId]);
 
@@ -1336,8 +1334,6 @@ export default function PanelContent({
                 setOverlays={setOverlays}
                 targetNumberDraft={targetNumberDraft}
                 setTargetNumberDraft={setTargetNumberDraft}
-                showColorPicker={showColorPicker}
-                setShowColorPicker={setShowColorPicker}
                 favoriteColors={favoriteColors}
                 setFavoriteColors={setFavoriteColors}
                 pushOverlayHistory={pushOverlayHistory}

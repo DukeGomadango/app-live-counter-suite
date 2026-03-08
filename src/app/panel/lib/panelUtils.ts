@@ -27,6 +27,56 @@ export function rgbToHex(r: number, g: number, b: number): string {
   return "#" + [R, G, B].map((x) => x.toString(16).padStart(2, "0")).join("");
 }
 
+/** RGB (0–255) を HSL に変換。h: 0–360, s: 0–100, l: 0–100 */
+export function rgbToHsl(r: number, g: number, b: number): { h: number; s: number; l: number } {
+  const R = r / 255;
+  const G = g / 255;
+  const B = b / 255;
+  const max = Math.max(R, G, B);
+  const min = Math.min(R, G, B);
+  let h = 0;
+  let s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === R) h = ((G - B) / d + (G < B ? 6 : 0)) / 6;
+    else if (max === G) h = ((B - R) / d + 2) / 6;
+    else h = ((R - G) / d + 4) / 6;
+  }
+  return { h: h * 360, s: s * 100, l: l * 100 };
+}
+
+/** HSL (h: 0–360, s: 0–100, l: 0–100) を RGB (0–255) に変換 */
+export function hslToRgb(h: number, s: number, l: number): { r: number; g: number; b: number } {
+  const H = ((h % 360) + 360) % 360 / 360;
+  const S = Math.max(0, Math.min(100, s)) / 100;
+  const L = Math.max(0, Math.min(100, l)) / 100;
+  let r: number;
+  let g: number;
+  let b: number;
+  if (S === 0) {
+    r = g = b = L;
+  } else {
+    const q = L < 0.5 ? L * (1 + S) : L + S - L * S;
+    const p = 2 * L - q;
+    r = hueToRgb(p, q, H + 1 / 3);
+    g = hueToRgb(p, q, H);
+    b = hueToRgb(p, q, H - 1 / 3);
+  }
+  return { r: Math.round(r * 255), g: Math.round(g * 255), b: Math.round(b * 255) };
+}
+
+function hueToRgb(p: number, q: number, t: number): number {
+  let T = t;
+  if (T < 0) T += 1;
+  if (T > 1) T -= 1;
+  if (T < 1 / 6) return p + (q - p) * 6 * T;
+  if (T < 1 / 2) return q;
+  if (T < 2 / 3) return p + (q - p) * (2 / 3 - T) * 6;
+  return p;
+}
+
 /** お気に入り登録用に #rgb / #rrggbb を #rrggbb 小文字に正規化 */
 export function normalizeHex(hex: string): string {
   let s = hex.replace(/^#/, "").trim().toLowerCase();

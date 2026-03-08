@@ -1,9 +1,10 @@
 "use client";
 
+import { useRef } from "react";
 import { ImagePlus, Pencil, Hand } from "lucide-react";
 import type { PanelState, PanelOverlay, PartitionLine, FilterType, OverlayShape } from "../lib/panelTypes";
 import { DEFAULT_OVERLAY_COLOR } from "../lib/panelTypes";
-import { parseHexToRgb, rgbToHex, normalizeHex } from "../lib/panelUtils";
+import { parseHexToRgb, rgbToHex, normalizeHex, rgbToHsl, hslToRgb } from "../lib/panelUtils";
 import RotationDial from "./RotationDial";
 
 export type PanelSidebarTabId = "image" | "lines" | "overlay" | "shapes";
@@ -35,8 +36,6 @@ export interface PanelEditSidebarProps {
   setOverlays: (updater: (prev: PanelOverlay[]) => PanelOverlay[]) => void;
   targetNumberDraft: { overlayId: string; value: string } | null;
   setTargetNumberDraft: React.Dispatch<React.SetStateAction<{ overlayId: string; value: string } | null>>;
-  showColorPicker: boolean;
-  setShowColorPicker: React.Dispatch<React.SetStateAction<boolean>>;
   favoriteColors: string[];
   setFavoriteColors: React.Dispatch<React.SetStateAction<string[]>>;
   pushOverlayHistory: (overlays: PanelOverlay[]) => void;
@@ -82,8 +81,6 @@ export default function PanelEditSidebar({
   setOverlays,
   targetNumberDraft,
   setTargetNumberDraft,
-  showColorPicker,
-  setShowColorPicker,
   favoriteColors,
   setFavoriteColors,
   pushOverlayHistory,
@@ -103,6 +100,11 @@ export default function PanelEditSidebar({
   filterIntensity,
   setCustomShapeModalOpenForNew,
 }: PanelEditSidebarProps) {
+  const slSquareRef = useRef<HTMLDivElement>(null);
+  const hStripRef = useRef<HTMLDivElement>(null);
+  /** パレット上でドラッグ中か（リサイズ時の誤反応を防ぐ）。ドラッグ中は開始時の rect を使いレイアウト変化で色が飛ばないようにする */
+  const colorPickerDraggingRef = useRef<"sl" | "h" | null>(null);
+  const colorPickerRectRef = useRef<DOMRect | null>(null);
   return (
     <div
       ref={editSidebarRef}
@@ -145,7 +147,7 @@ export default function PanelEditSidebar({
           図形
         </button>
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-3 p-3">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-3 p-3 pb-10">
         {tab === "image" && (
           <>
             <div className="text-sm font-medium opacity-80 w-full">画像</div>
@@ -335,12 +337,10 @@ export default function PanelEditSidebar({
                 ) : null}
                 <div className="w-full flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium shrink-0">色:</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowColorPicker((v) => !v)}
-                    className="w-8 h-8 rounded border-2 shrink-0 cursor-pointer border-white/30 hover:border-white/50 transition-colors"
+                  <div
+                    className="w-8 h-8 rounded border-2 shrink-0 border-white/30"
                     style={{ background: o.color ?? DEFAULT_OVERLAY_COLOR }}
-                    title={showColorPicker ? "色パレットを閉じる" : "色を変更"}
+                    title="現在の色"
                   />
                   {favoriteColors.length > 0 && (
                     <div className="flex flex-wrap gap-1">
@@ -357,31 +357,101 @@ export default function PanelEditSidebar({
                     </div>
                   )}
                 </div>
-                {showColorPicker && (() => {
+                {(() => {
                   const color = o.color ?? DEFAULT_OVERLAY_COLOR;
                   const rgb = parseHexToRgb(color);
-                  const update = (r: number, g: number, b: number) =>
+                  const hsl = rgbToHsl(rgb.r, rgb.g, rgb.b);
+                  const updateFromHsl = (h: number, s: number, l: number) => {
+                    const { r, g, b } = hslToRgb(h, s, l);
                     setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, color: rgbToHex(r, g, b) } : p)));
+                  };
+                  const handleSlDown = (e: React.PointerEvent) => {
+                    const el = slSquareRef.current;
+                    if (el) colorPickerRectRef.current = el.getBoundingClientRect();
+                    colorPickerDraggingRef.current = "sl";
+                    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                  };
+                  const handleSlMove = (e: React.PointerEvent) => {
+                    if (colorPickerDraggingRef.current !== "sl" || e.buttons !== 1) return;
+                    const rect = colorPickerRectRef.current;
+                    if (!rect) return;
+                    const x = (e.clientX - rect.left) / rect.width;
+                    const y = (e.clientY - rect.top) / rect.height;
+                    const s = Math.max(0, Math.min(1, x)) * 100;
+                    const l = Math.max(0, Math.min(1, 1 - y)) * 100;
+                    updateFromHsl(hsl.h, s, l);
+                  };
+                  const handleSlUp = (e: React.PointerEvent) => {
+                    colorPickerDraggingRef.current = null;
+                    colorPickerRectRef.current = null;
+                    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+                  };
+                  const handleHDown = (e: React.PointerEvent) => {
+                    const el = hStripRef.current;
+                    if (el) colorPickerRectRef.current = el.getBoundingClientRect();
+                    colorPickerDraggingRef.current = "h";
+                    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                  };
+                  const handleHMove = (e: React.PointerEvent) => {
+                    if (colorPickerDraggingRef.current !== "h" || e.buttons !== 1) return;
+                    const rect = colorPickerRectRef.current;
+                    if (!rect) return;
+                    const y = (e.clientY - rect.top) / rect.height;
+                    const h = Math.max(0, Math.min(360, y * 360));
+                    updateFromHsl(h, hsl.s, hsl.l);
+                  };
+                  const handleHUp = (e: React.PointerEvent) => {
+                    colorPickerDraggingRef.current = null;
+                    colorPickerRectRef.current = null;
+                    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+                  };
                   return (
-                    <div className="flex flex-col gap-1.5 p-2 rounded border bg-black/20 border-white/15 w-full max-w-[200px]">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs w-5">R</span>
-                        <input type="range" min={0} max={255} value={rgb.r} onChange={(e) => update(parseInt(e.target.value, 10), rgb.g, rgb.b)} className="flex-1 h-1.5 accent-red-500" />
-                        <span className="text-xs tabular-nums w-7">{rgb.r}</span>
+                    <div className="flex flex-col gap-2 p-2 rounded border bg-black/20 border-white/15 w-full min-w-0">
+                      <div className="flex gap-2 items-stretch w-full min-w-0">
+                        <div
+                          ref={slSquareRef}
+                          className="relative flex-1 min-w-0 aspect-square rounded border border-white/30 cursor-crosshair touch-none"
+                          style={{
+                            backgroundImage: `linear-gradient(to bottom, transparent 0%, black 100%), linear-gradient(to right, white 0%, hsl(${hsl.h}, 100%, 50%) 100%)`,
+                          }}
+                          onPointerDown={handleSlDown}
+                          onPointerMove={handleSlMove}
+                          onPointerUp={handleSlUp}
+                          onPointerLeave={handleSlUp}
+                        >
+                          <div
+                            className="absolute w-3 h-3 rounded-full border-2 border-white shadow-lg pointer-events-none"
+                            style={{
+                              left: `${hsl.s}%`,
+                              top: `${100 - hsl.l}%`,
+                              transform: "translate(-50%, -50%)",
+                              background: color,
+                            }}
+                          />
+                        </div>
+                        <div
+                          ref={hStripRef}
+                          className="relative w-5 shrink-0 self-stretch rounded border border-white/30 cursor-ns-resize touch-none"
+                          style={{
+                            background: "linear-gradient(to bottom, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%), hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%))",
+                          }}
+                          onPointerDown={handleHDown}
+                          onPointerMove={handleHMove}
+                          onPointerUp={handleHUp}
+                          onPointerLeave={handleHUp}
+                        >
+                          <div
+                            className="absolute left-1/2 w-4 h-1.5 -translate-x-1/2 rounded border-2 border-white shadow pointer-events-none"
+                            style={{ top: `${(hsl.h / 360) * 100}%`, transform: "translate(-50%, -50%)" }}
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs w-5">G</span>
-                        <input type="range" min={0} max={255} value={rgb.g} onChange={(e) => update(rgb.r, parseInt(e.target.value, 10), rgb.b)} className="flex-1 h-1.5 accent-green-500" />
-                        <span className="text-xs tabular-nums w-7">{rgb.g}</span>
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-white/70">
+                        <span className="font-mono">{color}</span>
+                        <span className="font-mono tabular-nums">R {rgb.r} G {rgb.g} B {rgb.b}</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs w-5">B</span>
-                        <input type="range" min={0} max={255} value={rgb.b} onChange={(e) => update(rgb.r, rgb.g, parseInt(e.target.value, 10))} className="flex-1 h-1.5 accent-blue-500" />
-                        <span className="text-xs tabular-nums w-7">{rgb.b}</span>
-                      </div>
-                      <div className="text-xs text-white/70 font-mono mt-0.5">{color}</div>
                       {favoriteColors.length > 0 ? (
-                        <div className="mt-2">
+                        <div>
                           <span className="text-xs opacity-80">お気に入り:</span>
                           <div className="flex flex-wrap gap-1 mt-1">
                             {favoriteColors.map((fav, idx) => (
@@ -407,7 +477,7 @@ export default function PanelEditSidebar({
                           if (!normalized) return;
                           setFavoriteColors((prev) => (prev.some((c) => normalizeHex(c) === normalized) ? prev : [...prev, normalized]));
                         }}
-                        className="mt-2 px-2 py-1 rounded text-xs border border-white/20 bg-white/10 hover:bg-white/15 transition-colors"
+                        className="px-2 py-1 rounded text-xs border border-white/20 bg-white/10 hover:bg-white/15 transition-colors"
                       >
                         現在の色を登録
                       </button>
