@@ -232,6 +232,47 @@ export function createPresetPartsWithIds(preset: Omit<CustomPart, "id">[]): Cust
   return preset.map((p, i) => ({ ...p, id: `part-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}` }));
 }
 
+/** 多角形の幾何重心（頂点座標はそのままの系で返す）。テキスト配置用。 */
+export function polygonCentroid(points: { x: number; y: number }[]): { x: number; y: number } {
+  const n = points.length;
+  if (n < 3) {
+    if (n === 1) return { x: points[0]!.x, y: points[0]!.y };
+    if (n === 2) return { x: (points[0]!.x + points[1]!.x) / 2, y: (points[0]!.y + points[1]!.y) / 2 };
+    return { x: 50, y: 50 };
+  }
+  let area = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const xi = points[i]!.x;
+    const yi = points[i]!.y;
+    const xj = points[j]!.x;
+    const yj = points[j]!.y;
+    const cross = xi * yj - xj * yi;
+    area += cross;
+    cx += (xi + xj) * cross;
+    cy += (yi + yj) * cross;
+  }
+  area *= 0.5;
+  const a6 = 6 * area;
+  if (Math.abs(a6) < 1e-20) {
+    const minX = Math.min(...points.map((p) => p.x));
+    const minY = Math.min(...points.map((p) => p.y));
+    const maxX = Math.max(...points.map((p) => p.x));
+    const maxY = Math.max(...points.map((p) => p.y));
+    return { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
+  }
+  return { x: cx / a6, y: cy / a6 };
+}
+
+/** free オーバーレイの多角形重心（0–100）。points は overlay.x, overlay.y からのオフセットなので、足して絶対座標にしてから計算。 */
+export function getFreeOverlayCentroid(overlay: PanelOverlay): { x: number; y: number } | null {
+  if (overlay.shape !== "free" || !overlay.points?.length) return null;
+  const abs = overlay.points.map((p) => ({ x: overlay.x + p.x, y: overlay.y + p.y }));
+  return polygonCentroid(abs);
+}
+
 /** カスタム図形の面積重み付き重心（0–100）。テキスト配置用。 */
 export function getCustomOverlayCentroid(parts: CustomPart[]): { x: number; y: number } {
   if (!parts.length) return { x: 50, y: 50 };

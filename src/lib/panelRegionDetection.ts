@@ -346,30 +346,30 @@ function snapPointToFrame(p: Point): Point {
   return { x, y };
 }
 
-/** 線分を 0–100 の矩形でクリップし、内側の部分だけ返す。完全に外なら null */
+/** 線分を 0–100 の矩形でクリップし、内側の部分だけ返す。完全に外なら null（Liang–Barsky） */
 function clipSegmentToBox(seg: PartitionLine): PartitionLine | null {
   let t0 = 0;
   let t1 = 1;
   const dx = seg.x2 - seg.x1;
   const dy = seg.y2 - seg.y1;
   const dirs = [
-    { p: -seg.x1 + BOX_MIN, q: -dx },
-    { p: seg.x1 - BOX_MAX, q: dx },
-    { p: -seg.y1 + BOX_MIN, q: dy },
-    { p: seg.y1 - BOX_MAX, q: -dy },
+    { p: -dx, q: seg.x1 - BOX_MIN },
+    { p: dx, q: BOX_MAX - seg.x1 },
+    { p: -dy, q: seg.y1 - BOX_MIN },
+    { p: dy, q: BOX_MAX - seg.y1 },
   ];
   for (const { p, q } of dirs) {
-    if (Math.abs(q) <= EPS) {
-      if (p < 0) return null;
+    if (Math.abs(p) <= EPS) {
+      if (q < 0) return null;
       continue;
     }
-    const t = p / q;
-    if (q > 0) {
-      if (t > t1) return null;
-      t0 = Math.max(t0, t);
-    } else {
+    const t = q / p;
+    if (p > 0) {
       if (t < t0) return null;
       t1 = Math.min(t1, t);
+    } else {
+      if (t > t1) return null;
+      t0 = Math.max(t0, t);
     }
   }
   if (t0 >= t1 - EPS) return null;

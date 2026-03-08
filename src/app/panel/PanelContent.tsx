@@ -26,6 +26,7 @@ import {
   createFreeOverlayFromPolygon,
   getPartClipPath,
   getCustomOverlayCentroid,
+  getFreeOverlayCentroid,
 } from "@/lib/panelTypes";
 import { getRegionsFromLines } from "@/lib/panelRegionDetection";
 import CustomShapeEditorModal from "@/components/CustomShapeEditorModal";
@@ -1706,30 +1707,46 @@ export default function PanelContent({
                         <div
                           className={`relative z-10 flex flex-col items-center justify-center p-0.5 ${
                             isEditMode ? "pointer-events-none" : ""
-                          } ${overlay.shape === "triangle" ? "" : isCustom ? "" : "w-full h-full"}`}
-                          style={
-                            isCustom && overlay.parts?.length
-                              ? {
-                                  position: "absolute",
-                                  left: `${getCustomOverlayCentroid(overlay.parts).x}%`,
-                                  top: `${getCustomOverlayCentroid(overlay.parts).y}%`,
+                          } ${overlay.shape === "triangle" ? "" : isCustom ? "" : isFree ? "" : "w-full h-full"}`}
+                          style={(() => {
+                            if (isCustom && overlay.parts?.length) {
+                              const c = getCustomOverlayCentroid(overlay.parts);
+                              return {
+                                position: "absolute" as const,
+                                left: `${c.x}%`,
+                                top: `${c.y}%`,
+                                transform: `${overlay.flipX ? "scaleX(-1) " : ""}translate(-50%, -50%)`,
+                                maxWidth: "90%",
+                              };
+                            }
+                            if (isFree && overlay.points?.length && overlay.width && overlay.height) {
+                              const c = getFreeOverlayCentroid(overlay);
+                              if (c) {
+                                const leftPct = ((c.x - overlay.x) / overlay.width) * 100;
+                                const topPct = ((c.y - overlay.y) / overlay.height) * 100;
+                                return {
+                                  position: "absolute" as const,
+                                  left: `${leftPct}%`,
+                                  top: `${topPct}%`,
                                   transform: `${overlay.flipX ? "scaleX(-1) " : ""}translate(-50%, -50%)`,
                                   maxWidth: "90%",
-                                }
-                              : overlay.shape === "triangle"
-                              ? {
-                                  position: "absolute",
-                                  left: `${getTriangleTextAnchor(overlay.triangleKind).x}%`,
-                                  top: `${getTriangleTextAnchor(overlay.triangleKind).y}%`,
-                                  transform: `${overlay.flipX ? "scaleX(-1) " : ""}translate(-50%, -50%)`,
-                                  maxWidth: "90%",
-                                }
-                              : overlay.flipX
-                              ? {
-                                  transform: "scaleX(-1)",
-                                }
-                              : undefined
-                          }
+                                };
+                              }
+                            }
+                            if (overlay.shape === "triangle") {
+                              return {
+                                position: "absolute" as const,
+                                left: `${getTriangleTextAnchor(overlay.triangleKind).x}%`,
+                                top: `${getTriangleTextAnchor(overlay.triangleKind).y}%`,
+                                transform: `${overlay.flipX ? "scaleX(-1) " : ""}translate(-50%, -50%)`,
+                                maxWidth: "90%",
+                              };
+                            }
+                            if (overlay.flipX) {
+                              return { transform: "scaleX(-1)" };
+                            }
+                            return undefined;
+                          })()}
                         >
                           {overlay.label ? (
                             <span className={`text-[10px] font-medium truncate w-full text-center ${isLightMode ? "text-gray-800" : "text-white/90"}`}>
