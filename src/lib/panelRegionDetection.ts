@@ -16,7 +16,7 @@ const POINT_ON_SEGMENT_EPS = 1e-3;
 /** 線分の端点とみなさないためのマージン（ここより内側なら分割する） */
 const ENDPOINT_MARGIN = 1e-6;
 /** 頂点を同一とみなす距離（%）。交差計算の誤差で生じる近接頂点を1つにまとめ、他頂点を内側と誤判定するのを防ぐ */
-const VERTEX_SNAP_DIST = 0.35;
+const VERTEX_SNAP_DIST = 0.75;
 /** 頂点を線分上にスナップする距離（%）。この範囲内で線分上に投影し、辺のつながりを安定させる */
 const SNAP_VERTEX_TO_LINE_EPS = 0.5;
 
@@ -543,9 +543,13 @@ function pointInPolygonStrict(p: Point, poly: Polygon100): boolean {
   return inside;
 }
 
-/** 多角形が他の頂点を strictly 内側に含むか。含む場合は「複数セルをまとめた面」なので出力しない。 */
+/** 「他頂点を内側に含む」判定で境界とみなす距離（%）。これ以内なら境界上とみなし、含まないとする。中央の六角形・左下五角形などが誤って弾かれないようやや広め。 */
+const CONTAINS_BOUNDARY_TOL = 2.0;
+
+/** 多角形が他の頂点を strictly 内側に含むか。含む場合は「複数セルをまとめた面」なので出力しない。境界付近の頂点は境界上とみなす。 */
 function polygonContainsAnyVertexStrictly(poly: Polygon100, allVertices: Point[]): boolean {
   for (const v of allVertices) {
+    if (pointOnPolygonBoundary(v, poly, CONTAINS_BOUNDARY_TOL)) continue;
     if (pointInPolygonStrict(v, poly)) return true;
   }
   return false;
@@ -562,6 +566,41 @@ function polygonContainsSmallerOutputCentroid(poly: Polygon100, areaAbs: number,
   return false;
 }
 
+/** 候補のうち、自分より面積が小さいものの重心を内側に含むか。含む場合は融合面なので出力しない（最小セルが「他頂点を内側に含む」で落ちていても有効）。 */
+function polygonContainsSmallerCandidateCentroid(
+  poly: Polygon100,
+  areaAbs: number,
+  candidates: { poly: Polygon100; areaAbs: number }[],
+  currentIndex: number
+): boolean {
+  for (let i = 0; i < candidates.length; i++) {
+    if (i === currentIndex) continue;
+    const c = candidates[i]!;
+    if (c.areaAbs >= areaAbs) continue;
+    const ec = polygonCentroid(c.poly);
+    if (pointInPolygonStrict(ec, poly)) return true;
+  }
+  return false;
+}
+
+/** 連続する重複・近接頂点を削除し、最低3頂点の多角形を返す。同一頂点の繰り返しで重なって見えるのを防ぐ。 */
+function simplifyPolygon(poly: Polygon100, tol = 0.5): Polygon100 {
+  if (poly.length <= 3) return poly;
+  const out: Polygon100 = [];
+  for (let i = 0; i < poly.length; i++) {
+    const p = poly[i]!;
+    const prev = out[out.length - 1];
+    if (prev && Math.hypot(p.x - prev.x, p.y - prev.y) <= tol) continue;
+    out.push({ x: p.x, y: p.y });
+  }
+  if (out.length >= 2 && out.length < poly.length) {
+    const first = out[0]!;
+    const last = out[out.length - 1]!;
+    if (Math.hypot(first.x - last.x, first.y - last.y) <= tol) out.pop();
+  }
+  return out.length >= 3 ? out : poly;
+}
+
 /** 既存のどれかと同一領域（面積・幾何重心が近い）なら true。頂点数が違う同じ形は幾何重心で判定する。 */
 function isDuplicateOfExisting(poly: Polygon100, areaAbs: number, existing: Polygon100[]): boolean {
   const c = polygonCentroid(poly);
@@ -572,6 +611,19 @@ function isDuplicateOfExisting(poly: Polygon100, areaAbs: number, existing: Poly
     if (Math.hypot(c.x - ec.x, c.y - ec.y) <= DEDUP_CENTROID_DIST) return true;
   }
   return false;
+}
+
+/** 既出のうち、現在の多角形と同領域で頂点数が多いものを返す。融合面を最小セルで置き換えるために使う。 */
+function findFusedDuplicateIn(poly: Polygon100, areaAbs: number, existing: Polygon100[]): number {
+  const c = polygonCentroid(poly);
+  for (let i = 0; i < existing.length; i++) {
+    const e = existing[i]!;
+    const ea = polygonAreaAbs(e);
+    if (Math.abs(areaAbs - ea) / Math.max(areaAbs, ea, 1) > DEDUP_AREA_RATIO) continue;
+    const ec = polygonCentroid(e);
+    if (Math.hypot(c.x - ec.x, c.y - ec.y) <= DEDUP_CENTROID_DIST && e.length > poly.length) return i;
+  }
+  return -1;
 }
 
 /** 多角形が画像外枠（0–100 の矩形）と一致するか、または外枠に沿った外側面（凹多角形）か */
@@ -730,12 +782,18 @@ export function getRegionsFromLines(lines: PartitionLine[]): Polygon100[] {
   const faces = traceFaces(edges, vertices, outgoingByVertex);
   console.log(LOG_PREFIX, "トレースした面の数", faces.length, "(各有向辺の左・右両側をトレースするため、幾何的な領域数より多くなります)");
 
-  const polygons: Polygon100[] = [];
+  type Candidate = { fi: number; poly: Polygon100; areaAbs: number };
+  const candidates: Candidate[] = [];
   for (let fi = 0; fi < faces.length; fi++) {
     const face = faces[fi]!;
     const area = signedArea(vertices, face, edges);
-    const poly = faceToPolygon(vertices, face, edges);
-    const areaAbs = Math.abs(area);
+    let poly = faceToPolygon(vertices, face, edges);
+    poly = simplifyPolygon(poly);
+    if (poly.length < 3) {
+      console.log(LOG_PREFIX, `面${fi}`, "簡素化で頂点不足 → スキップ");
+      continue;
+    }
+    const areaAbs = polygonAreaAbs(poly);
     const isOuter = snapped.length > 0 && isOuterFramePolygon(poly);
     if (area < -EPS) {
       console.log(LOG_PREFIX, `面${fi}`, "面積", area.toFixed(2), "(CW・外側) → スキップ");
@@ -761,12 +819,36 @@ export function getRegionsFromLines(lines: PartitionLine[]): Polygon100[] {
       console.log(LOG_PREFIX, `面${fi}`, "他頂点を内側に含む(非最小面) → スキップ");
       continue;
     }
+    candidates.push({ fi, poly, areaAbs });
+  }
+  candidates.sort((a, b) => a.areaAbs - b.areaAbs || a.poly.length - b.poly.length);
+
+  const polygons: Polygon100[] = [];
+  for (let ci = 0; ci < candidates.length; ci++) {
+    const { fi, poly, areaAbs } = candidates[ci]!;
     if (polygonContainsSmallerOutputCentroid(poly, areaAbs, polygons)) {
       console.log(LOG_PREFIX, `面${fi}`, "より小さい既出領域の重心を内側に含む(融合面) → スキップ");
       continue;
     }
+    if (polygonContainsSmallerCandidateCentroid(poly, areaAbs, candidates, ci)) {
+      console.log(LOG_PREFIX, `面${fi}`, "より小さい候補の重心を内側に含む(融合面) → スキップ");
+      continue;
+    }
+    const replaceIdx = findFusedDuplicateIn(poly, areaAbs, polygons);
+    if (replaceIdx >= 0) {
+      polygons.splice(replaceIdx, 1);
+      console.log(LOG_PREFIX, `面${fi}`, "→ 領域として出力(既出の融合面を置換)", poly.length, "頂点", "面積", areaAbs.toFixed(2), poly.map((p) => `(${p.x.toFixed(2)},${p.y.toFixed(2)})`).join(" "));
+      polygons.push(poly);
+      continue;
+    }
     if (isDuplicateOfExisting(poly, areaAbs, polygons)) {
       console.log(LOG_PREFIX, `面${fi}`, "既出の領域と重複 → スキップ");
+      continue;
+    }
+    const outCentroid = polygonCentroid(poly);
+    const containedInLarger = polygons.some((e) => polygonAreaAbs(e) > areaAbs && pointInPolygonStrict(outCentroid, e));
+    if (containedInLarger) {
+      console.log(LOG_PREFIX, `面${fi}`, "より大きい既出領域の内側にある → スキップ");
       continue;
     }
     console.log(LOG_PREFIX, `面${fi}`, "→ 領域として出力", poly.length, "頂点", "面積", areaAbs.toFixed(2), poly.map((p) => `(${p.x.toFixed(2)},${p.y.toFixed(2)})`).join(" "));

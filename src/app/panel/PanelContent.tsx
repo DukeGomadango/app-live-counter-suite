@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, PanelTopOpen, Menu, ImagePlus, Share2, Save, List, Pencil, Eye, Trash2, Edit3 } from "lucide-react";
+import { Sun, Moon, PanelTopOpen, Menu, ImagePlus, Share2, Save, List, Pencil, Eye, Trash2, Edit3, Hand } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -105,6 +105,49 @@ function getImageBoundsPct(
   }
 }
 
+/** 点 (px,py) から線分 (x1,y1)-(x2,y2) までの距離（0–100座標）。 */
+function distancePointToSegment(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): number {
+  const vx = x2 - x1;
+  const vy = y2 - y1;
+  const wx = px - x1;
+  const wy = py - y1;
+  const c1 = wx * vx + wy * vy;
+  const c2 = vx * vx + vy * vy;
+  let t = 0;
+  if (c2 > 1e-10) {
+    t = Math.max(0, Math.min(1, c1 / c2));
+  }
+  const qx = x1 + t * vx;
+  const qy = y1 + t * vy;
+  return Math.hypot(px - qx, py - qy);
+}
+
+/** 点 (px,py) に最も近い線のインデックス。threshold 以内ならその index、なければ null。 */
+function findLineIndexAt(
+  lines: PartitionLine[],
+  px: number,
+  py: number,
+  threshold: number
+): number | null {
+  let bestIdx: number | null = null;
+  let bestDist = threshold;
+  lines.forEach((line, i) => {
+    const d = distancePointToSegment(px, py, line.x1, line.y1, line.x2, line.y2);
+    if (d < bestDist) {
+      bestDist = d;
+      bestIdx = i;
+    }
+  });
+  return bestIdx;
+}
+
 const TAP_WINDOW_MS = 200;
 
 const DIAL_SIZE = 48;
@@ -193,6 +236,9 @@ export default function PanelContent({
   const [pendingCropDataUrl, setPendingCropDataUrl] = useState<string | null>(null);
   const [lineDrawStart, setLineDrawStart] = useState<{ x: number; y: number } | null>(null);
   const [lineDrawEnd, setLineDrawEnd] = useState<{ x: number; y: number } | null>(null);
+  const [selectedLineIndex, setSelectedLineIndex] = useState<number | null>(null);
+  const [lineToolMode, setLineToolMode] = useState<"pen" | "hand">("pen");
+  const lineDragRef = useRef<{ index: number; startP: { x: number; y: number }; originalLine: PartitionLine } | null>(null);
   const [imageBoundsPct, setImageBoundsPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
   const lineDrawAreaRef = useRef<HTMLDivElement>(null);
@@ -266,6 +312,17 @@ export default function PanelContent({
     return () => document.body.classList.remove("light-mode");
   }, [isLightMode, isSplitMode]);
 
+  // 線で切り分けを抜けたら選択を解除
+  useEffect(() => {
+    if (!isLineStep) setSelectedLineIndex(null);
+  }, [isLineStep]);
+
+  // 線の本数が減って選択インデックスが範囲外になったら解除
+  useEffect(() => {
+    const len = partitionLines?.length ?? 0;
+    if (selectedLineIndex !== null && selectedLineIndex >= len) setSelectedLineIndex(null);
+  }, [partitionLines?.length, selectedLineIndex]);
+
   // 線で切り分け時: キャプチャ枠内の画像表示範囲を state に保持（破線・線の表示位置合わせ用）
   useEffect(() => {
     const el = captureRef.current;
@@ -295,8 +352,17 @@ export default function PanelContent({
       if (tag === "input" || tag === "textarea") return;
       const key = e.key;
 
-      // Backspace / Delete: 選択中の覆いを削除
+      // Backspace / Delete: 線で切り分け中は選択中の線を削除、それ以外は選択中の覆いを削除
       if ((key === "Backspace" || key === "Delete") && !e.ctrlKey && !e.metaKey) {
+        if (panelEditStep === "lines" && selectedLineIndex !== null) {
+          const lines = partitionLines ?? [];
+          if (selectedLineIndex >= 0 && selectedLineIndex < lines.length) {
+            e.preventDefault();
+            setPartitionLines((prev) => prev.filter((_, i) => i !== selectedLineIndex));
+            setSelectedLineIndex(null);
+          }
+          return;
+        }
         if (!selectedOverlayId) return;
         const current = overlays;
         const exists = current.some((o) => o.id === selectedOverlayId);
@@ -362,7 +428,7 @@ export default function PanelContent({
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isEditMode, selectedOverlayId, overlays, setOverlays, setPanelState, pushOverlayHistory]);
+  }, [isEditMode, panelEditStep, partitionLines, setPartitionLines, selectedLineIndex, setSelectedLineIndex, selectedOverlayId, overlays, setOverlays, setPanelState, pushOverlayHistory]);
 
   const applyImageWithAspect = useCallback(
     (dataUrl: string, aspectRatio: number) => {
@@ -754,6 +820,8 @@ export default function PanelContent({
     [imageAspectRatio]
   );
 
+  const LINE_HIT_THRESHOLD = 3;
+
   const handleLineDrawPointerDown = useCallback(
     (e: React.PointerEvent) => {
       const isPrimary = e.button === 0 || e.pointerType === "touch";
@@ -761,19 +829,53 @@ export default function PanelContent({
       e.preventDefault();
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
       const p = clientToPctForLine(e.clientX, e.clientY);
+      if (lineToolMode === "hand") {
+        const lines = partitionLines ?? [];
+        const hit = findLineIndexAt(lines, p.x, p.y, LINE_HIT_THRESHOLD);
+        if (hit !== null && lines[hit]) {
+          setSelectedLineIndex(hit);
+          lineDragRef.current = { index: hit, startP: p, originalLine: { ...lines[hit] } };
+          return;
+        }
+        setSelectedLineIndex(null);
+        lineDragRef.current = null;
+        return;
+      }
+      setSelectedLineIndex(null);
+      lineDragRef.current = null;
       setLineDrawStart(p);
       setLineDrawEnd(p);
     },
-    [isLineStep, clientToPctForLine]
+    [isLineStep, lineToolMode, clientToPctForLine, partitionLines]
   );
 
   const handleLineDrawPointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!isLineStep || !lineDrawStart) return;
+      if (!isLineStep) return;
+      if (lineDragRef.current) {
+        const p = clientToPctForLine(e.clientX, e.clientY);
+        const { index, startP, originalLine } = lineDragRef.current;
+        const dx = p.x - startP.x;
+        const dy = p.y - startP.y;
+        setPartitionLines((prev) =>
+          prev.map((l, i) =>
+            i === index
+              ? {
+                  x1: Math.max(0, Math.min(100, originalLine.x1 + dx)),
+                  y1: Math.max(0, Math.min(100, originalLine.y1 + dy)),
+                  x2: Math.max(0, Math.min(100, originalLine.x2 + dx)),
+                  y2: Math.max(0, Math.min(100, originalLine.y2 + dy)),
+                }
+              : l
+          )
+        );
+        return;
+      }
+      if (!lineDrawStart) return;
       const p = clientToPctForLine(e.clientX, e.clientY);
       setLineDrawEnd(p);
     },
-    [isLineStep, lineDrawStart, clientToPctForLine]
+    [isLineStep, lineDrawStart, clientToPctForLine, setPartitionLines]
   );
 
   const handleLineDrawPointerUp = useCallback(
@@ -781,6 +883,10 @@ export default function PanelContent({
       const isPrimary = e.button === 0 || e.pointerType === "touch";
       if (!isLineStep || !isPrimary) return;
       (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
+      if (lineDragRef.current) {
+        lineDragRef.current = null;
+        return;
+      }
       const end = clientToPctForLine(e.clientX, e.clientY);
       if (lineDrawStart && (lineDrawStart.x !== end.x || lineDrawStart.y !== end.y)) {
         const x1 = Math.max(0, Math.min(100, lineDrawStart.x));
@@ -1248,10 +1354,44 @@ export default function PanelContent({
           <div className="shrink-0 flex flex-wrap items-center gap-2 p-2 border-b" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }}>
             {isLineStep ? (
               <>
-                <span className="text-sm opacity-80">画像上をドラッグして線を引き、領域を区切ります</span>
                 <button
                   type="button"
-                  onClick={() => setPartitionLines((prev) => prev.slice(0, -1))}
+                  onClick={() => setLineToolMode("pen")}
+                  title="ペン：線を引く"
+                  className={`p-1.5 rounded border ${lineToolMode === "pen" ? "border-violet-500/60 bg-violet-500/20 text-violet-300" : "border-transparent opacity-60 hover:opacity-100"}`}
+                >
+                  <Pencil size={18} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setLineToolMode("hand")}
+                  title="手：線を選択・移動"
+                  className={`p-1.5 rounded border ${lineToolMode === "hand" ? "border-violet-500/60 bg-violet-500/20 text-violet-300" : "border-transparent opacity-60 hover:opacity-100"}`}
+                >
+                  <Hand size={18} />
+                </button>
+                <span className="text-sm opacity-80">
+                  {lineToolMode === "pen" ? "ペン：ドラッグで線を引く" : "手：線をクリックで選択・ドラッグで移動・Deleteで削除"}
+                </span>
+                {selectedLineIndex !== null && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (selectedLineIndex === null) return;
+                      setPartitionLines((prev) => prev.filter((_, i) => i !== selectedLineIndex));
+                      setSelectedLineIndex(null);
+                    }}
+                    className="px-2 py-1 rounded text-xs border border-red-500/40 bg-red-500/10 text-red-400"
+                  >
+                    選択中の線を削除
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPartitionLines((prev) => prev.slice(0, -1));
+                    setSelectedLineIndex(null);
+                  }}
                   disabled={partitionLines.length === 0}
                   className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 disabled:opacity-40"
                 >
@@ -1259,7 +1399,10 @@ export default function PanelContent({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setPartitionLines(() => [])}
+                  onClick={() => {
+                    setPartitionLines(() => []);
+                    setSelectedLineIndex(null);
+                  }}
                   disabled={partitionLines.length === 0}
                   className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 disabled:opacity-40"
                 >
@@ -1535,8 +1678,8 @@ export default function PanelContent({
                           y1={line.y1}
                           x2={line.x2}
                           y2={line.y2}
-                          stroke="rgba(139,92,246,0.9)"
-                          strokeWidth={0.8}
+                          stroke={i === selectedLineIndex ? "rgba(251,191,36,0.95)" : "rgba(139,92,246,0.9)"}
+                          strokeWidth={i === selectedLineIndex ? 1.4 : 0.8}
                           strokeLinecap="round"
                         />
                       ))}
@@ -1555,7 +1698,7 @@ export default function PanelContent({
                     </svg>
                     <div
                       ref={lineDrawAreaRef}
-                      className="absolute cursor-crosshair overflow-hidden touch-none"
+                      className={`absolute overflow-hidden touch-none ${lineToolMode === "pen" ? "cursor-crosshair" : "cursor-grab"}`}
                       style={
                         imageBoundsPct && imageBoundsPct.width > 0 && imageBoundsPct.height > 0
                           ? {
