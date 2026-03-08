@@ -650,15 +650,18 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         </select>
                                     </div>
                                     <div className="flex gap-2">
-                                        <input
-                                            type="text"
-                                            inputMode="decimal"
-                                            value={newItemProb}
-                                            onChange={e => setNewItemProb(e.target.value)}
-                                            placeholder="確率(%)"
-                                            className={`w-24 px-2 py-1.5 rounded-lg text-xs ${textPrimary} ${placeholderCls} outline-none`}
-                                            style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                                        />
+                                        <span className="flex items-center gap-1">
+                                            <input
+                                                type="text"
+                                                inputMode="decimal"
+                                                value={newItemProb}
+                                                onChange={e => setNewItemProb(e.target.value)}
+                                                placeholder="確率"
+                                                className={`w-20 px-2 py-1.5 rounded-lg text-xs ${textPrimary} ${placeholderCls} outline-none`}
+                                                style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                                            />
+                                            <span className={textMuted}>%</span>
+                                        </span>
                                         <button
                                             onClick={addItem}
                                             disabled={!newItemName.trim()}
@@ -972,21 +975,24 @@ function SortableItem({
                     {formatProb(prob)}%
                 </span>
             ) : (
-                <input
-                    type="text"
-                    inputMode="decimal"
-                    value={probDisplay}
-                    onFocus={() => setProbInput(formatProb(prob))}
-                    onChange={e => setProbInput(e.target.value)}
-                    onBlur={() => {
-                        const s = probInput !== null ? probInput.trim() : formatProb(prob);
-                        const n = parseFloat(s);
-                        if (!Number.isNaN(n) && n >= 0) onProbabilityBlur(itemIndex, n);
-                        setProbInput(null);
-                    }}
-                    className={`w-16 text-[10px] px-1.5 py-0.5 rounded text-right ${textPrimary} outline-none`}
-                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                />
+                <span className="flex items-center gap-0.5 shrink-0">
+                    <input
+                        type="text"
+                        inputMode="decimal"
+                        value={probDisplay}
+                        onFocus={() => setProbInput(formatProb(prob))}
+                        onChange={e => setProbInput(e.target.value)}
+                        onBlur={() => {
+                            const s = probInput !== null ? probInput.trim() : formatProb(prob);
+                            const n = parseFloat(s);
+                            if (!Number.isNaN(n) && n >= 0) onProbabilityBlur(itemIndex, n);
+                            setProbInput(null);
+                        }}
+                        className={`w-14 text-[10px] px-1.5 py-0.5 rounded text-right ${textPrimary} outline-none`}
+                        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                    />
+                    <span className={`text-[10px] ${textMuted}`}>%</span>
+                </span>
             )}
 
             {/* 添付（画像・音声）：1ボタンでモーダルを開き、モーダル内でファイル or URL を登録 */}

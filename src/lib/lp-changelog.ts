@@ -15,6 +15,14 @@ export type ChangelogEntry = {
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-03-08",
+    importance: "minor",
+    title: "ガチャ：確率入力に％表記を追加",
+    items: [
+      "排出品目の確率入力欄（各品目の確率・新規追加フォーム）の右に「%」を表示し、単位が分かりやすくなるようにしました",
+    ],
+  },
+  {
+    date: "2026-03-08",
     importance: "normal",
     title: "パネル：編集サイドバーを4タブ化・リサイズ・小画面時オーバーレイ",
     items: [
