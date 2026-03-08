@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, PanelTopOpen, Menu, ImagePlus, Share2, Save, List, Pencil, Eye, Trash2, Edit3 } from "lucide-react";
+import { Sun, Moon, PanelTopOpen, Menu, ImagePlus, Share2, Save, List, Pencil, Eye, Trash2, Edit3, PanelLeft, X } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -88,6 +88,10 @@ export default function PanelContent({
   const [targetNumberDraft, setTargetNumberDraft] = useState<{ overlayId: string; value: string } | null>(null);
   /** 編集モード時サイドバーのタブ: 画像 | 覆い */
   const [panelSidebarTab, setPanelSidebarTab] = useState<PanelSidebarTabId>("overlay");
+  /** 編集サイドバーをオーバーレイ表示する幅か（1024px未満） */
+  const [isEditSidebarNarrow, setIsEditSidebarNarrow] = useState(false);
+  /** 狭い画面で編集サイドバーオーバーレイを開いているか */
+  const [editSidebarOverlayOpen, setEditSidebarOverlayOpen] = useState(false);
   const lineDragRef = useRef<{ index: number; startP: { x: number; y: number }; originalLine: PartitionLine } | null>(null);
   const [imageBoundsPct, setImageBoundsPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const captureRef = useRef<HTMLDivElement>(null);
@@ -174,6 +178,16 @@ export default function PanelContent({
       setEditSidebarWidthPx(288);
     }
   }, [editSidebarWidthPx, setEditSidebarWidthPx]);
+
+  useEffect(() => {
+    const check = () => setIsEditSidebarNarrow(typeof window !== "undefined" && window.innerWidth < 1024);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  useEffect(() => {
+    if (!isEditSidebarNarrow) setEditSidebarOverlayOpen(false);
+  }, [isEditSidebarNarrow]);
 
   const applySidebarResize = useCallback((clientX: number, startX: number, startW: number) => {
     const newW = Math.min(560, Math.max(200, startW + (clientX - startX)));
@@ -1115,6 +1129,16 @@ export default function PanelContent({
       >
         <div className="flex items-center gap-2">
           {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
+          {isEditMode && isEditSidebarNarrow && (
+            <button
+              onClick={() => setEditSidebarOverlayOpen(true)}
+              className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
+              title="編集パネルを開く"
+              aria-label="編集パネルを開く"
+            >
+              <PanelLeft size={16} />
+            </button>
+          )}
           <button
             onClick={() => {
               setPanelState((s) => ({ ...s, isEditMode: !s.isEditMode }));
@@ -1300,12 +1324,105 @@ export default function PanelContent({
           }}
           aria-hidden
         />
-        {/* Capture area: 編集モード時は常に左にサイドバー・右に画像。覆い未選択時はサイドバーに案内を表示 */}
+        {/* 狭い画面: 編集サイドバーをオーバーレイで表示 */}
+        <AnimatePresence>
+          {isEditMode && isEditSidebarNarrow && editSidebarOverlayOpen && (() => {
+            const selectedOverlay = selectedOverlayId ? overlays.find((x) => x.id === selectedOverlayId) ?? null : null;
+            const overlaySidebarWidth = typeof window !== "undefined" ? Math.min(320, Math.max(260, window.innerWidth * 0.85)) : 320;
+            return (
+              <>
+                <motion.div
+                  aria-hidden
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed left-0 top-14 bottom-0 right-0 z-[60]"
+                  style={{ background: isLightMode ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.5)" }}
+                  onClick={() => setEditSidebarOverlayOpen(false)}
+                />
+                <motion.aside
+                  initial={{ x: "-100%" }}
+                  animate={{ x: 0 }}
+                  exit={{ x: "-100%" }}
+                  transition={{ type: "tween", duration: 0.2 }}
+                  className="fixed left-0 top-14 bottom-0 z-[61] flex flex-col overflow-hidden shadow-xl"
+                  style={{
+                    width: overlaySidebarWidth,
+                    background: isLightMode ? "rgba(248,250,252,0.98)" : "rgba(10,5,30,0.98)",
+                    borderRight: `1px solid ${isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.1)"}`,
+                    backdropFilter: "blur(12px)",
+                  }}
+                >
+                  <div
+                    className={`flex items-center justify-between px-3 py-2 shrink-0 border-b ${isLightMode ? "text-gray-800 border-gray-200" : "text-white/90 border-white/10"}`}
+                  >
+                    <span className="text-sm font-medium">編集パネル</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditSidebarOverlayOpen(false)}
+                      className={`p-1.5 rounded-lg ${isLightMode ? "hover:bg-gray-200 text-gray-600" : "hover:bg-white/10 text-white/70"}`}
+                      aria-label="閉じる"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+                    <PanelEditSidebar
+                      tab={panelSidebarTab}
+                      setTab={setPanelSidebarTab}
+                      isLightMode={isLightMode}
+                      editSidebarRef={editSidebarRef}
+                      effectiveSidebarWidth={overlaySidebarWidth}
+                      fileInputRef={fileInputRef}
+                      imageOverlayInputRef={imageOverlayInputRef}
+                      imageDataUrl={imageDataUrl}
+                      setPendingCropDataUrl={setPendingCropDataUrl}
+                      setPanelState={setPanelState}
+                      isLineStep={isLineStep}
+                      lineToolMode={lineToolMode}
+                      setLineToolMode={setLineToolMode}
+                      partitionLines={partitionLines}
+                      setPartitionLines={setPartitionLines}
+                      selectedLineIndex={selectedLineIndex}
+                      setSelectedLineIndex={setSelectedLineIndex}
+                      onGenerateRegions={handleGenerateRegions}
+                      selectedOverlay={selectedOverlay}
+                      overlays={overlays}
+                      setOverlays={setOverlays}
+                      targetNumberDraft={targetNumberDraft}
+                      setTargetNumberDraft={setTargetNumberDraft}
+                      favoriteColors={favoriteColors}
+                      setFavoriteColors={setFavoriteColors}
+                      pushOverlayHistory={pushOverlayHistory}
+                      setSelectedOverlayId={setSelectedOverlayId}
+                      setCustomShapeEditingId={setCustomShapeEditingId}
+                      setCustomShapeModalOpen={setCustomShapeModalOpen}
+                      addShape={addShape}
+                      setAddShape={setAddShape}
+                      setIsDrawingFree={setIsDrawingFree}
+                      captureRef={captureRef}
+                      onAddOverlayAtPoint={handleAddOverlayAtPoint}
+                      onAddRectGrid={handleAddRectGrid}
+                      onAddTriangleStripes={handleAddTriangleStripes}
+                      activeFilters={activeFilters}
+                      toggleFilter={toggleFilter}
+                      filterShowLabel={filterShowLabel}
+                      filterIntensity={filterIntensity}
+                      setCustomShapeModalOpenForNew={() => { setCustomShapeEditingId(null); setCustomShapeModalOpen(true); }}
+                    />
+                  </div>
+                </motion.aside>
+              </>
+            );
+          })()}
+        </AnimatePresence>
+
+        {/* Capture area: 編集モード時は常に左にサイドバー・右に画像（狭い画面ではサイドバーはオーバーレイで表示） */}
         <div
           ref={captureWrapperRef}
           className={`flex-1 flex min-h-0 ${isEditMode ? "flex-row" : "flex-col"}`}
         >
-          {isEditMode && (() => {
+          {isEditMode && !isEditSidebarNarrow && (() => {
             const effectiveSidebarWidth = Math.max(200, Math.min(560, Number(editSidebarWidthPx) || 288));
             const selectedOverlay = selectedOverlayId ? overlays.find((x) => x.id === selectedOverlayId) ?? null : null;
             return (
