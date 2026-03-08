@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback, startTransition } from "react";
-import { getShareReplyTo, setShareReplyTo } from "@/lib/share";
+import { useState, useCallback, useSyncExternalStore } from "react";
+import { getShareReplyTo, setShareReplyTo, subscribeShareReplyTo } from "@/lib/share";
 import { X } from "lucide-react";
+
+const emptySubscribe = () => () => {};
+const getClientSnapshot = () => true;
+const getServerSnapshot = () => false;
 
 interface ShareReplyToFieldProps {
   /** ツールID（counter / panel / gacha / slot など）。このツール用の返信先のみ保存・参照 */
@@ -23,30 +27,29 @@ export default function ShareReplyToField({
   compact = false,
   className = "",
 }: ShareReplyToFieldProps) {
-  const [value, setValue] = useState("");
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!mounted || !toolId || typeof getShareReplyTo !== "function") return;
-    const stored = getShareReplyTo(toolId);
-    startTransition(() => setValue(stored ?? ""));
-  }, [mounted, toolId]);
+  const isClient = useSyncExternalStore(emptySubscribe, getClientSnapshot, getServerSnapshot);
+  const storedValue = useSyncExternalStore(
+    subscribeShareReplyTo,
+    () => (toolId ? getShareReplyTo(toolId) ?? "" : ""),
+    () => ""
+  );
+  const [draft, setDraft] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const displayValue = isEditing ? draft : storedValue;
 
   const save = useCallback((v: string) => {
     if (!toolId) return;
     const trimmed = v.trim();
     setShareReplyTo(toolId, trimmed || null);
-    setValue(trimmed);
+    setIsEditing(false);
+    setDraft("");
   }, [toolId]);
 
   const handleClear = useCallback(() => {
     if (!toolId) return;
     setShareReplyTo(toolId, null);
-    setValue("");
+    setIsEditing(false);
+    setDraft("");
   }, [toolId]);
 
   const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
@@ -54,7 +57,7 @@ export default function ShareReplyToField({
   const inputBg = isLightMode ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)";
   const inputBorder = isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.12)";
 
-  if (!mounted || !toolId) {
+  if (!isClient || !toolId) {
     return (
       <div className={`flex items-center gap-2 ${className}`}>
         <span className={`text-sm ${textSecondary}`}>返信先（任意）</span>
@@ -75,15 +78,16 @@ export default function ShareReplyToField({
         <span className={`text-xs shrink-0 ${textSecondary}`}>返信先:</span>
         <input
           type="text"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={() => save(value)}
+          value={displayValue}
+          onFocus={() => { setIsEditing(true); setDraft(storedValue); }}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => { save(isEditing ? draft : storedValue); }}
           placeholder="ツイートURL or ID（任意）"
           className={`flex-1 min-w-0 px-2 py-1 rounded text-xs ${textPrimary} outline-none`}
           style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
           title="Xで共有するとき、このツイートへの返信として開きます。空なら新規ツイート"
         />
-        {value ? (
+        {displayValue ? (
           <button
             type="button"
             onClick={handleClear}
@@ -109,15 +113,16 @@ export default function ShareReplyToField({
       <div className="flex items-center gap-2">
         <input
           type="text"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={() => save(value)}
+          value={displayValue}
+          onFocus={() => { setIsEditing(true); setDraft(storedValue); }}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => { save(isEditing ? draft : storedValue); }}
           placeholder="x.com/username/status/123... または ツイートID"
           className={`flex-1 min-w-0 px-3 py-2 rounded-lg text-sm ${textPrimary} outline-none`}
           style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
           title="Xで共有するとき、このツイートへの返信として開きます。空なら新規ツイート"
         />
-        {value ? (
+        {displayValue ? (
           <button
             type="button"
             onClick={handleClear}

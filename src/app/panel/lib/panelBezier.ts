@@ -67,7 +67,7 @@ export function splitQuadraticAt(
     x: cpx + t1 * (x2 - cpx),
     y: cpy + t1 * (y2 - cpy),
   };
-  const mid = {
+  const _mid = {
     x: q0.x + t1 * (q1.x - q0.x),
     y: q0.y + t1 * (q1.y - q0.y),
   };

@@ -17,7 +17,6 @@ import {
   type CustomPart,
   type FilterType,
   type OverlayShape,
-  type PartitionLine,
   type PartitionSegment,
   type PartitionCurve,
   type PartitionStroke,
@@ -26,16 +25,13 @@ import {
   createDefaultOverlay,
   createImageOverlay,
   createCustomOverlay,
-  createFreeOverlayFromPolygon,
   createFreeOverlayFromCurvedRegion,
   getPartitionSegments,
   getPartitionStrokes,
   isPartitionLine,
-  isPartitionCurve,
   getPartClipPath,
   getCustomOverlayCentroid,
   getFreeOverlayCentroid,
-  DEFAULT_OVERLAY_COLOR,
 } from "../lib/panelTypes";
 import { getRegionsFromSegments } from "../lib/panelRegionDetection";
 import {
@@ -44,14 +40,10 @@ import {
   snapToNearestGuide,
   getTriangleTextAnchor,
   getImageBoundsPct,
-  distancePointToSegment,
-  findLineIndexAt,
-  findSegmentIndexAt,
   findStrokeIndexAt,
 } from "../lib/panelUtils";
 import { smoothPoints, pointsToBezierChain } from "../lib/panelStrokeUtils";
 import CustomShapeEditorModal from "@/components/CustomShapeEditorModal";
-import RotationDial from "./RotationDial";
 import PanelEditSidebar, { type PanelSidebarTabId } from "./PanelEditSidebar";
 
 const defaultPanelState: PanelState = {
@@ -357,7 +349,7 @@ export default function PanelContent({
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isEditMode, panelEditStep, partitionStrokes, setPartitionStrokes, selectedLineIndex, setSelectedLineIndex, selectedOverlayId, overlays, setOverlays, setPanelState, pushOverlayHistory]);
+  }, [isEditMode, panelEditStep, partitionStrokes, setPartitionStrokes, selectedLineIndex, setSelectedLineIndex, selectedOverlayId, overlays, setOverlays, setPanelState, pushOverlayHistory, setSelectedOverlayIdAndClearDraft]);
 
   const _applyImageWithAspect = useCallback(
     (dataUrl: string, aspectRatio: number) => {
@@ -890,7 +882,7 @@ export default function PanelContent({
       setOverlays((prev) => [...prev, newOverlay]);
       setSelectedOverlayIdAndClearDraft(newOverlay.id);
     },
-    [setOverlays]
+    [setOverlays, setSelectedOverlayIdAndClearDraft]
   );
 
   const handleAddTriangleStripes = useCallback(
@@ -947,7 +939,7 @@ export default function PanelContent({
       setCustomShapeModalOpen(false);
       setCustomShapeEditingId(null);
     },
-    [customShapeEditingId, overlays, pushOverlayHistory, setOverlays]
+    [customShapeEditingId, overlays, pushOverlayHistory, setOverlays, setSelectedOverlayIdAndClearDraft]
   );
 
   const handleSaveCustomTemplate = useCallback(
@@ -1115,7 +1107,7 @@ export default function PanelContent({
       setSelectedOverlayIdAndClearDraft(null);
       setIsMenuOpen(false);
     },
-    [setPanelState]
+    [setPanelState, setSelectedOverlayIdAndClearDraft]
   );
 
   const handleShare = useCallback(async () => {

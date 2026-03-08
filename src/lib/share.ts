@@ -26,15 +26,24 @@ export function getShareReplyTo(toolId: string): string | null {
   return v && v.trim() ? v.trim() : null;
 }
 
+const replyToListeners = new Set<() => void>();
+
+/** 返信先が変更されたときに呼ばれる（useSyncExternalStore 用） */
+export function subscribeShareReplyTo(listener: () => void): () => void {
+  replyToListeners.add(listener);
+  return () => replyToListeners.delete(listener);
+}
+
 /** 共有時の返信先を保存（null でクリア）。toolId ごとに別保存 */
 export function setShareReplyTo(toolId: string, value: string | null): void {
   if (typeof localStorage === "undefined" || !toolId) return;
   const key = SHARE_REPLY_TO_PREFIX + toolId;
   if (value === null || !value.trim()) {
     localStorage.removeItem(key);
-    return;
+  } else {
+    localStorage.setItem(key, value.trim());
   }
-  localStorage.setItem(key, value.trim());
+  replyToListeners.forEach((f) => f());
 }
 
 /** ツイートURL または ID 文字列からツイートID（数値のみ）を取得。無効なら null */
