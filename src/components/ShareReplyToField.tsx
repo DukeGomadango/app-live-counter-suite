@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, startTransition } from "react";
 import { getShareReplyTo, setShareReplyTo } from "@/lib/share";
 import { X } from "lucide-react";
 
@@ -33,7 +33,7 @@ export default function ShareReplyToField({
   useEffect(() => {
     if (!mounted || !toolId || typeof getShareReplyTo !== "function") return;
     const stored = getShareReplyTo(toolId);
-    setValue(stored ?? "");
+    startTransition(() => setValue(stored ?? ""));
   }, [mounted, toolId]);
 
   const save = useCallback((v: string) => {

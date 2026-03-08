@@ -48,7 +48,7 @@ function GachaSettingsPanel({
                 className="fixed inset-0 z-[90] bg-black/30 backdrop-blur-sm"
                 onClick={onClose}
             />
-            {/* パネル（画面内に収め、中身はスクロール） */}
+            {/* パネル（画面内に収め、中身はスクロール。iOS Safari のアドレスバー・下ナビに被らないよう dvh と下余白を多めに） */}
             <motion.div
                 initial={{ opacity: 0, scale: 0.95, y: -10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -58,7 +58,7 @@ function GachaSettingsPanel({
                     background: overlayBg,
                     border: `1px solid ${glassBorder}`,
                     backdropFilter: "blur(20px)",
-                    maxHeight: "min(85vh, calc(100vh - 5rem))",
+                    maxHeight: "min(80dvh, calc(100dvh - 10rem - env(safe-area-inset-bottom, 0px)), calc(100vh - 10rem))",
                 }}
             >
                 {/* ヘッダー */}
