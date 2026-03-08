@@ -447,7 +447,8 @@ export default function PanelContent({
 
   const handlePointerDown = useCallback(
     (overlay: PanelOverlay, e: React.PointerEvent) => {
-      if (e.button !== 0) return;
+      const isPrimary = e.button === 0 || e.pointerType === "touch";
+      if (!isPrimary) return;
       const el = e.target as HTMLElement;
       if (el.closest("button") || el.closest("input")) return;
       const handle = el.closest("[data-handle]")?.getAttribute("data-handle");
@@ -755,7 +756,8 @@ export default function PanelContent({
 
   const handleLineDrawPointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (!isLineStep || e.button !== 0) return;
+      const isPrimary = e.button === 0 || e.pointerType === "touch";
+      if (!isLineStep || !isPrimary) return;
       e.preventDefault();
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
       const p = clientToPctForLine(e.clientX, e.clientY);
@@ -776,7 +778,8 @@ export default function PanelContent({
 
   const handleLineDrawPointerUp = useCallback(
     (e: React.PointerEvent) => {
-      if (!isLineStep || e.button !== 0) return;
+      const isPrimary = e.button === 0 || e.pointerType === "touch";
+      if (!isLineStep || !isPrimary) return;
       (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
       const end = clientToPctForLine(e.clientX, e.clientY);
       if (lineDrawStart && (lineDrawStart.x !== end.x || lineDrawStart.y !== end.y)) {
@@ -1554,7 +1557,7 @@ export default function PanelContent({
                     </svg>
                     <div
                       ref={lineDrawAreaRef}
-                      className="absolute cursor-crosshair overflow-hidden"
+                      className="absolute cursor-crosshair overflow-hidden touch-none"
                       style={
                         imageBoundsPct && imageBoundsPct.width > 0 && imageBoundsPct.height > 0
                           ? {
