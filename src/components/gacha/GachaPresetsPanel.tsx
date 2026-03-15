@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Save, FolderOpen, Trash2, FileStack } from "lucide-react";
 import type { GachaPool, GachaPoolPreset } from "@/lib/gacha";
-import { generateId, getSampleTemplates, clonePoolWithNewIds } from "@/lib/gacha";
+import { generateId, getSampleTemplates, clonePoolKeepingIds } from "@/lib/gacha";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 
@@ -78,7 +78,7 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
                             >
                                 <span className={`text-xs flex-1 truncate ${textPrimary}`}>{pre.name}</span>
                                 <button
-                                    onClick={() => onPoolChange(clonePoolWithNewIds(pre.pool))}
+                                    onClick={() => onPoolChange(clonePoolKeepingIds(pre.pool))}
                                     className={`p-1.5 rounded text-[10px] transition-all ${isLightMode ? "text-blue-700 hover:bg-blue-50" : "text-blue-400 hover:bg-blue-500/20"}`}
                                     title="読み込む"
                                 >
@@ -109,7 +109,7 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
                         <button
                             key={t.id}
                             type="button"
-                            onClick={() => onPoolChange(clonePoolWithNewIds(t.pool))}
+                            onClick={() => onPoolChange(clonePoolKeepingIds(t.pool))}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all ${isLightMode ? "hover:bg-purple-50 text-gray-900" : "hover:bg-white/10 text-white/90"}`}
                             style={{ border: `1px solid ${glassBorder}` }}
                         >

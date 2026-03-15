@@ -192,6 +192,15 @@ export function migratePoolItemsForLink(pool: GachaPool): GachaPool {
     return changed ? { ...pool, items } : pool;
 }
 
+/** プリセット・サンプル切り替え時用。pool をコピーするが id はそのままにし、同じガチャに戻ったときに履歴が表示されるようにする */
+export function clonePoolKeepingIds(pool: GachaPool): GachaPool {
+    return {
+        ...pool,
+        rarities: pool.rarities.map((r) => ({ ...r })),
+        items: pool.items.map((it) => ({ ...it })),
+    };
+}
+
 /** プリセット・サンプル読み込み用に pool をクローンし、id を新規発行する */
 export function clonePoolWithNewIds(pool: GachaPool): GachaPool {
     const newId = () => crypto.randomUUID ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;

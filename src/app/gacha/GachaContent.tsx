@@ -13,7 +13,7 @@ import GachaPlayerManager from "@/components/gacha/GachaPlayerManager";
 import PlayerHistoryCard from "@/components/gacha/PlayerHistoryCard";
 import GachaSwitchDropdown from "@/components/gacha/GachaSwitchDropdown";
 import type { GachaPool, Player, GachaResult, GachaSettings, GachaPoolPreset } from "@/lib/gacha";
-import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds, clonePoolWithNewIds, getSampleTemplates, migratePoolItemsForLink } from "@/lib/gacha";
+import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds, clonePoolKeepingIds, getSampleTemplates, migratePoolItemsForLink } from "@/lib/gacha";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ShareReplyToField from "@/components/ShareReplyToField";
@@ -544,11 +544,11 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         if (value.startsWith("sample:")) {
             const id = value.slice(7);
             const t = sampleTemplates.find(s => s.id === id);
-            if (t) setPool(migratePoolItemsForLink(clonePoolWithNewIds(t.pool)));
+            if (t) setPool(migratePoolItemsForLink(clonePoolKeepingIds(t.pool)));
         } else if (value.startsWith("preset:")) {
             const id = value.slice(7);
             const pre = presets.find(p => p.id === id);
-            if (pre) setPool(migratePoolItemsForLink(clonePoolWithNewIds(pre.pool)));
+            if (pre) setPool(migratePoolItemsForLink(clonePoolKeepingIds(pre.pool)));
         }
     }, [presets, sampleTemplates, setPool]);
 
