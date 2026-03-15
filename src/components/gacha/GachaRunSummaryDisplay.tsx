@@ -131,8 +131,7 @@ export default function GachaRunSummaryDisplay({
             }
         }, 50);
         return () => clearTimeout(id);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isCapturingShareImage, isDesktop, isLightMode, run.runIndex]);
+    }, [isCapturingShareImage, isDesktop, isLightMode, run.runIndex, pool, shareHashtags, playerName]);
 
     const rarityMap = new Map(pool.rarities.map(r => [r.id, r]));
     const sortOrderMap = new Map(pool.rarities.map(r => [r.id, r.sortOrder]));
