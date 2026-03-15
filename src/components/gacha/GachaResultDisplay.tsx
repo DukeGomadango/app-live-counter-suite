@@ -110,10 +110,13 @@ export default function GachaResultDisplay({
                 });
                 const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
                 const filename = `gacha-result-${getTimestampForFilename()}.png`;
-                const shared = await shareImageWithText(dataUrl, headerText, filename);
-                if (shared) {
-                    tweetUrlAfterDownloadRef.current = null;
-                    return;
+                // PCでは共有シート（モーダル）を出さず、ダウンロード＋ツイートURLを開く
+                if (isMobile) {
+                    const shared = await shareImageWithText(dataUrl, headerText, filename);
+                    if (shared) {
+                        tweetUrlAfterDownloadRef.current = null;
+                        return;
+                    }
                 }
                 const a = document.createElement("a");
                 a.href = dataUrl;
@@ -131,7 +134,7 @@ export default function GachaResultDisplay({
             }
         }, 50);
         return () => clearTimeout(id);
-    }, [isCapturingShareImage, isLightMode, pool, shareHashtags, playerName]);
+    }, [isCapturingShareImage, isLightMode, isMobile, pool, shareHashtags, playerName]);
 
     const handleCopy = async () => {
         const text = formatResultsForShare(results, pool, shareHashtags, playerName);
@@ -167,29 +170,32 @@ export default function GachaResultDisplay({
         { value: "count", label: "個数順" },
     ];
 
+    // キャプチャ対象は position:fixed にしない（html-to-image が fixed で位置ずれするため）
+    // オフスクリーンに固定幅の div を置き、その要素を toPng に渡す
     const shareOverlay =
         typeof document !== "undefined" && isCapturingShareImage
             ? createPortal(
                 <div
-                    ref={shareAreaRef}
                     style={{
                         position: "fixed",
-                        left: "50%",
+                        left: -9999,
                         top: 0,
-                        transform: "translateX(-50%)",
-                        width: "min(100%, 608px)",
-                        maxWidth: 608,
                         zIndex: -1,
                         pointerEvents: "none",
                     }}
                     aria-hidden
                 >
-                    <GachaShareSummary
-                        results={results}
-                        pool={pool}
-                        isLightMode={isLightMode}
-                        playerName={playerName}
-                    />
+                    <div
+                        ref={shareAreaRef}
+                        style={{ width: 608 }}
+                    >
+                        <GachaShareSummary
+                            results={results}
+                            pool={pool}
+                            isLightMode={isLightMode}
+                            playerName={playerName}
+                        />
+                    </div>
                 </div>,
                 document.body,
             )

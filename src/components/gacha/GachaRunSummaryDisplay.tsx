@@ -7,6 +7,7 @@ import type { GachaPool, RunSummary, GachaResult } from "@/lib/gacha";
 import { formatRunSummaryForShare, formatResultsHeaderForShare } from "@/lib/gacha";
 import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { toPng } from "html-to-image";
 import GachaShareSummary from "@/components/gacha/GachaShareSummary";
 
@@ -30,6 +31,7 @@ export default function GachaRunSummaryDisplay({
     runsForPool,
     onSelectRunIndex,
 }: GachaRunSummaryDisplayProps) {
+    const isDesktop = useMediaQuery("(min-width: 768px)");
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-700" : "text-white/75";
@@ -105,10 +107,13 @@ export default function GachaRunSummaryDisplay({
                 });
                 const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
                 const filename = `gacha-run-${run.runIndex}-${getTimestampForFilename()}.png`;
-                const shared = await shareImageWithText(dataUrl, headerText, filename);
-                if (shared) {
-                    tweetUrlAfterDownloadRef.current = null;
-                    return;
+                // PCでは共有シート（モーダル）を出さず、ダウンロード＋ツイートURLを開く
+                if (!isDesktop) {
+                    const shared = await shareImageWithText(dataUrl, headerText, filename);
+                    if (shared) {
+                        tweetUrlAfterDownloadRef.current = null;
+                        return;
+                    }
                 }
                 const a = document.createElement("a");
                 a.href = dataUrl;
@@ -127,7 +132,7 @@ export default function GachaRunSummaryDisplay({
         }, 50);
         return () => clearTimeout(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isCapturingShareImage, isLightMode, run.runIndex]);
+    }, [isCapturingShareImage, isDesktop, isLightMode, run.runIndex]);
 
     const rarityMap = new Map(pool.rarities.map(r => [r.id, r]));
     const sortOrderMap = new Map(pool.rarities.map(r => [r.id, r.sortOrder]));
@@ -156,29 +161,32 @@ export default function GachaRunSummaryDisplay({
         })
         .filter(s => s.count > 0);
 
+    // キャプチャ対象は position:fixed にしない（html-to-image が fixed で位置ずれするため）
+    // オフスクリーンに固定幅の div を置き、その要素を toPng に渡す
     const shareOverlay =
         typeof document !== "undefined" && isCapturingShareImage
             ? createPortal(
                 <div
-                    ref={shareAreaRef}
                     style={{
                         position: "fixed",
-                        left: "50%",
+                        left: -9999,
                         top: 0,
-                        transform: "translateX(-50%)",
-                        width: "min(100%, 608px)",
-                        maxWidth: 608,
                         zIndex: -1,
                         pointerEvents: "none",
                     }}
                     aria-hidden
                 >
-                    <GachaShareSummary
-                        results={expandedResults}
-                        pool={pool}
-                        isLightMode={isLightMode}
-                        playerName={playerName}
-                    />
+                    <div
+                        ref={shareAreaRef}
+                        style={{ width: 608 }}
+                    >
+                        <GachaShareSummary
+                            results={expandedResults}
+                            pool={pool}
+                            isLightMode={isLightMode}
+                            playerName={playerName}
+                        />
+                    </div>
                 </div>,
                 document.body,
             )
