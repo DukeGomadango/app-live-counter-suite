@@ -15,6 +15,14 @@ export type ChangelogEntry = {
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-03-17",
+    importance: "minor",
+    title: "サイトのファビコンを新デザインに変更",
+    items: [
+      "ブラウザのタブやお気に入りに表示されるアイコンを、だんご＋歯車の新しいデザインに差し替えました",
+    ],
+  },
+  {
+    date: "2026-03-17",
     importance: "normal",
     title: "カウンターに目標達成ボタンを追加",
     items: [
