@@ -63,6 +63,8 @@ interface HamburgerMenuProps {
     onSetGlobalTarget?: (t: number) => void;
     flowchartNodes?: FlowchartNodeForMenu[];
     onSetNodeTarget?: (id: string, target: number) => void;
+    onRequestAchieveTarget?: (id: string) => void;
+    onRequestAchieveAllTargets?: () => void;
 }
 
 // EMOJI_OPTIONS and COLOR_OPTIONS are now imported from @/lib/constants
@@ -105,6 +107,9 @@ export default function HamburgerMenu({
     onSetGlobalTarget,
     flowchartNodes = [],
     onSetNodeTarget,
+
+    onRequestAchieveTarget,
+    onRequestAchieveAllTargets,
 }: HamburgerMenuProps) {
     const [activeTab, setActiveTab] = useState<TabId>(viewMode === "counter" ? "templates" : "actions");
     const [confirmReset, setConfirmReset] = useState(false);
@@ -615,9 +620,6 @@ export default function HamburgerMenu({
                                                 <h3 className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>
                                                     一括目標設定
                                                 </h3>
-                                                <p className={`text-xs ${textMuted} mb-2`}>
-                                                    全ての項目に同じ目標数値を設定します（0で目標解除）
-                                                </p>
                                                 <div className="flex gap-2">
                                                     <input
                                                         type="number"
@@ -640,41 +642,77 @@ export default function HamburgerMenu({
                                             </div>
 
                                             {/* Per-item targets */}
-                                            <h3 className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider mb-2`}>
-                                                項目別の目標
-                                            </h3>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <h3 className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>
+                                                    項目別の目標
+                                                </h3>
+                                                <button
+                                                    type="button"
+                                                    onClick={onRequestAchieveAllTargets}
+                                                    className={`px-2 py-1 rounded-lg text-[11px] border flex items-center gap-1 ${
+                                                        items.length > 0 &&
+                                                        items.every((it) => it.target > 0 && it.count >= it.target)
+                                                            ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
+                                                            : `${bgSubtle} ${borderSubtle} ${bgSubtleHover} ${textSecondary}`
+                                                    }`}
+                                                >
+                                                    <Check size={11} />
+                                                    <span>全目標達成</span>
+                                                </button>
+                                            </div>
                                             <div className="space-y-1.5 max-h-[50vh] overflow-y-auto scroll-touch pr-1">
-                                                {items.map((item) => (
-                                                    <div
-                                                        key={item.id}
-                                                        className={`flex items-center gap-2 p-2 rounded-xl ${bgSubtle} border ${borderSubtle}`}
-                                                    >
-                                                        <span className="text-base w-6 text-center">{item.emoji}</span>
-                                                        <span className={`flex-1 text-sm ${isLightMode ? "text-gray-700" : "text-white/80"} truncate`}>
-                                                            {item.label}
-                                                        </span>
-                                                        <div className="flex items-center gap-1">
-                                                            <span
-                                                                className="text-xs font-mono tabular-nums"
-                                                                style={{ color: item.color }}
-                                                            >
-                                                                {item.count}
+                                                {items.map((item) => {
+                                                    const reached = item.target > 0 && item.count >= item.target;
+                                                    const canAchieve = item.target > 0 && item.count < item.target && !!onRequestAchieveTarget;
+                                                    return (
+                                                        <div
+                                                            key={item.id}
+                                                            className={`flex items-center gap-2 p-2 rounded-xl ${bgSubtle} border ${borderSubtle}`}
+                                                        >
+                                                            <span className="text-base w-6 text-center">{item.emoji}</span>
+                                                            <span className={`flex-1 text-sm ${isLightMode ? "text-gray-700" : "text-white/80"} truncate`}>
+                                                                {item.label}
                                                             </span>
-                                                            <span className={`text-xs ${textMuted}`}>/</span>
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                value={item.target || ""}
-                                                                onChange={(e) => {
-                                                                    const val = parseInt(e.target.value, 10);
-                                                                    onSetTarget?.(item.id, isNaN(val) ? 0 : val);
-                                                                }}
-                                                                placeholder="0"
-                                                                className={`w-12 ${inputBg} border ${inputBorder} rounded-lg px-1.5 py-0.5 text-xs text-center ${textPrimary} outline-none focus:border-purple-500/40 tabular-nums`}
-                                                            />
+                                                            <div className="flex items-center gap-1">
+                                                                {canAchieve && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => onRequestAchieveTarget?.(item.id)}
+                                                                        className="px-2 py-0.5 rounded text-[10px] border border-black/15 dark:border-white/20 text-xs text-gray-600 dark:text-white/70 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15"
+                                                                    >
+                                                                        達成
+                                                                    </button>
+                                                                )}
+                                                                {reached && (
+                                                                    <span className="text-[10px] font-semibold text-emerald-400 flex items-center gap-0.5">
+                                                                        <Check size={10} />
+                                                                        達成
+                                                                    </span>
+                                                                )}
+                                                                <div className="flex items-center gap-1 ml-auto pl-1.5">
+                                                                    <span
+                                                                        className="text-xs font-mono tabular-nums"
+                                                                        style={{ color: item.color }}
+                                                                    >
+                                                                        {item.count}
+                                                                    </span>
+                                                                    <span className={`text-xs ${textMuted}`}>/</span>
+                                                                    <input
+                                                                        type="number"
+                                                                        min="0"
+                                                                        value={item.target || ""}
+                                                                        onChange={(e) => {
+                                                                            const val = parseInt(e.target.value, 10);
+                                                                            onSetTarget?.(item.id, isNaN(val) ? 0 : val);
+                                                                        }}
+                                                                        placeholder="0"
+                                                                        className={`w-12 ${inputBg} border ${inputBorder} rounded-lg px-1.5 py-0.5 text-xs text-center ${textPrimary} outline-none focus:border-purple-500/40 tabular-nums`}
+                                                                    />
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         </motion.div>
                                     )}

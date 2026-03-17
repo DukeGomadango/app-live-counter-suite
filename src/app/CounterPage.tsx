@@ -106,6 +106,8 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
       showStep10: true,
       showStepFree: false,
       stepFreeValue: 1,
+      showCardEditDelete: true,
+      showAchieveTargetButtonOnCard: true,
     }
   );
   const windowWidth = useWindowWidth();
@@ -187,6 +189,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
         showStepFree: prev.showStepFree ?? hadLegacy ?? false,
         stepFreeValue: prev.stepFreeValue ?? 1,
         showCardEditDelete: prev.showCardEditDelete ?? true,
+        showAchieveTargetButtonOnCard: prev.showAchieveTargetButtonOnCard ?? true,
       };
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -287,6 +290,46 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   const handleReset = useCallback(() => {
     setItems((prev) => prev.map((item) => ({ ...item, count: 0 })));
   }, [setItems]);
+
+  const [itemIdToAchieveTarget, setItemIdToAchieveTarget] = useState<string | null>(null);
+  const [allTargetsConfirmOpen, setAllTargetsConfirmOpen] = useState(false);
+
+  const handleRequestAchieveTarget = useCallback((id: string) => {
+    setItemIdToAchieveTarget(id);
+  }, []);
+
+  const handleConfirmAchieveTarget = useCallback(() => {
+    if (!itemIdToAchieveTarget) return;
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === itemIdToAchieveTarget && item.target > 0
+          ? { ...item, count: Math.max(item.count, item.target) }
+          : item
+      )
+    );
+    setItemIdToAchieveTarget(null);
+  }, [itemIdToAchieveTarget, setItems]);
+
+  const handleCancelAchieveTarget = useCallback(() => {
+    setItemIdToAchieveTarget(null);
+  }, []);
+
+  const handleRequestAchieveAllTargets = useCallback(() => {
+    setAllTargetsConfirmOpen(true);
+  }, []);
+
+  const handleConfirmAchieveAllTargets = useCallback(() => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.target > 0 ? { ...item, count: Math.max(item.count, item.target) } : item
+      )
+    );
+    setAllTargetsConfirmOpen(false);
+  }, [setItems]);
+
+  const handleCancelAchieveAllTargets = useCallback(() => {
+    setAllTargetsConfirmOpen(false);
+  }, []);
 
   const handleShareAsImage = useCallback(() => {
     captureDimsRef.current = { w: window.innerWidth, h: window.innerHeight };
@@ -655,6 +698,8 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
                         onEditItem={() => {}}
                         isLightMode={isLightMode}
                         showEditDeleteOnCard={false}
+                        onRequestAchieveTarget={undefined}
+                        showAchieveTargetButton={false}
                         cardSize={appSettings.cardSize}
                       />
                     </div>
@@ -759,6 +804,8 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
         onDeleteItem={(id) => setItemToDelete(id)}
         onSetTarget={handleSetTarget}
         onSetAllTargets={handleSetAllTargets}
+        onRequestAchieveTarget={handleRequestAchieveTarget}
+        onRequestAchieveAllTargets={handleRequestAchieveAllTargets}
         currentTemplateId={currentTemplateId}
         onSaveCustomTemplate={handleSaveCustomTemplate}
         customTemplates={customTemplates}
@@ -913,6 +960,8 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
                       onEditItem={(id) => setEditingItemId(id)}
                       isLightMode={isLightMode}
                       showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
+                      onRequestAchieveTarget={handleRequestAchieveTarget}
+                      showAchieveTargetButton={appSettings.showAchieveTargetButtonOnCard ?? true}
                       cardSize={appSettings.cardSize}
                     />
                   </div>
@@ -967,6 +1016,8 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
                         onEditItem={(id) => setEditingItemId(id)}
                         isLightMode={isLightMode}
                         showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
+                      onRequestAchieveTarget={handleRequestAchieveTarget}
+                      showAchieveTargetButton={appSettings.showAchieveTargetButtonOnCard ?? true}
                         cardSize={appSettings.cardSize}
                       />
                     </div>
@@ -1083,6 +1134,24 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
           }
         }}
         onCancel={() => setItemToDelete(null)}
+      />
+      <ConfirmDialog
+        open={itemIdToAchieveTarget !== null}
+        message="目標を達成しますか？"
+        confirmLabel="はい"
+        cancelLabel="いいえ"
+        onConfirm={handleConfirmAchieveTarget}
+        onCancel={handleCancelAchieveTarget}
+      />
+      <ConfirmDialog
+        open={allTargetsConfirmOpen}
+        title="全目標達成"
+        message="すべての項目を目標値まで進めますか？"
+        confirmLabel="はい"
+        cancelLabel="いいえ"
+        onConfirm={handleConfirmAchieveAllTargets}
+        onCancel={handleCancelAchieveAllTargets}
+        danger={false}
       />
     </div>
   );

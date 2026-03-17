@@ -86,6 +86,8 @@ interface CounterPanelProps {
     showStep10?: boolean;
     showStepFree?: boolean;
     stepFreeValue?: number;
+  onRequestAchieveTarget?: (id: string) => void;
+  showAchieveTargetButton?: boolean;
     onDeleteItem: (id: string) => void;
     onEditItem: (id: string) => void;
     isLightMode: boolean;
@@ -117,6 +119,8 @@ export default function CounterPanel({
     isOverlay = false,
     showEditDeleteOnCard = true,
     cardSize = "M",
+  onRequestAchieveTarget,
+  showAchieveTargetButton = true,
 }: CounterPanelProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled: isOverlay });
     const lastIncrementAt = useRef<number>(0);
@@ -316,6 +320,7 @@ export default function CounterPanel({
         : "none";
     const labelColor = isLightMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)";
     const targetReached = target > 0 && count >= target;
+  const canAchieveTarget = target > 0 && count < target && !!onRequestAchieveTarget;
 
     // Arrow button styles
     const arrowBg = isLightMode ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)";
@@ -518,14 +523,65 @@ export default function CounterPanel({
                     {label}
                 </span>
 
-                {/* Target reached indicator - Absolutely positioned to prevent layout shift */}
-                {targetReached && (
-                    <span
-                        className="absolute top-1.5 left-2 z-20 text-[10px] font-bold tracking-wider"
-                        style={{ color }}
-                    >
-                        ✓ 達成
-                    </span>
+                {/* Target reached indicator / achieve button */}
+                {showAchieveTargetButton && (
+                    <div className="absolute top-1.5 left-2 z-20 flex items-center gap-1">
+                        {targetReached && (
+                            <span
+                                className="text-[10px] font-bold tracking-wider"
+                                style={{ color }}
+                            >
+                                ✓ 達成
+                            </span>
+                        )}
+                        {canAchieveTarget && (
+                            <button
+                                type="button"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onRequestAchieveTarget?.(id);
+                                }}
+                                className="px-1.5 py-0.5 rounded-full text-[10px] font-medium border transition-colors duration-150"
+                                style={
+                                    isLightMode
+                                        ? {
+                                              borderColor: `${color}33`,
+                                              backgroundColor: `${color}0f`,
+                                              color: "#374151",
+                                          }
+                                        : {
+                                              borderColor: `${color}4d`,
+                                              backgroundColor: `${color}14`,
+                                              color: "#ffffff",
+                                          }
+                                }
+                                onMouseEnter={(e) => {
+                                    if (isLightMode) {
+                                        e.currentTarget.style.backgroundColor = `${color}3d`;
+                                        e.currentTarget.style.borderColor = `${color}80`;
+                                        e.currentTarget.style.color = "#111827";
+                                    } else {
+                                        e.currentTarget.style.backgroundColor = `${color}66`;
+                                        e.currentTarget.style.borderColor = `${color}99`;
+                                        e.currentTarget.style.color = "#ffffff";
+                                    }
+                                }}
+                                onMouseLeave={(e) => {
+                                    if (isLightMode) {
+                                        e.currentTarget.style.backgroundColor = `${color}0f`;
+                                        e.currentTarget.style.borderColor = `${color}33`;
+                                        e.currentTarget.style.color = "#374151";
+                                    } else {
+                                        e.currentTarget.style.backgroundColor = `${color}14`;
+                                        e.currentTarget.style.borderColor = `${color}4d`;
+                                        e.currentTarget.style.color = "#ffffff";
+                                    }
+                                }}
+                            >
+                                達成する
+                            </button>
+                        )}
+                    </div>
                 )}
 
                 {/* Edit & Delete buttons（設定でオフ可・スマホでは常時表示） */}
