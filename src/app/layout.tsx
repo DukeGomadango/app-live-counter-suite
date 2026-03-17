@@ -48,6 +48,9 @@ export const metadata: Metadata = {
   alternates: {
     canonical: SITE_CONFIG.url,
   },
+  icons: {
+    icon: "/3だんごツールファビコン.jpg",
+  },
   manifest: "/manifest.json",
   robots: {
     index: true,
