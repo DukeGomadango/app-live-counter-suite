@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>OGP案C プレビュー - だんごツール</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a2e;
+      padding: 24px;
+      font-family: "Montserrat", "Yu Gothic", sans-serif;
+    }
+    .frame {
+      box-shadow: 0 25px 80px rgba(0,0,0,0.5);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .ogp {
+      width: 1200px;
+      height: 630px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: row;
+      background: linear-gradient(135deg, #0a0118 0%, #1a0a2e 40%, #0d1b3e 70%, #0a0118 100%);
+    }
+    /* 魔法①: サイバー背景を全面に＋光を強めて浮かび上がらせる */
+    .ogp::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(168,85,247,0.13) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(168,85,247,0.13) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .ogp::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(105deg, transparent 0%, rgba(168,85,247,0.07) 50%, transparent 100%),
+        linear-gradient(75deg, transparent 0%, rgba(6,182,212,0.05) 50%, transparent 100%);
+      background-size: 200% 200%;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .orb-top {
+      top: -10%;
+      left: -5%;
+      width: 380px;
+      height: 380px;
+      background: radial-gradient(circle, rgba(168,85,247,0.62) 0%, transparent 65%);
+    }
+    .orb-bottom {
+      bottom: -12%;
+      right: -5%;
+      width: 400px;
+      height: 400px;
+      background: radial-gradient(circle, rgba(168,85,247,0.48) 0%, transparent 60%);
+    }
+    .left {
+      position: relative;
+      z-index: 1;
+      width: 50%;
+      padding: 64px 56px 64px 64px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .title-block {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+    .dango {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .dango span {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.95);
+      box-shadow: 0 0 12px rgba(168,85,247,0.5);
+    }
+    .title {
+      font-size: 72px;
+      font-weight: 900;
+      color: #ffffff;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+      text-shadow:
+        0 0 1px rgba(168,85,247,0.8),
+        0 0 2px rgba(168,85,247,0.6),
+        0 0 24px rgba(168,85,247,0.5),
+        0 0 48px rgba(168,85,247,0.25);
+      line-height: 1;
+    }
+    .catch {
+      font-size: 24px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.92);
+      line-height: 1.5;
+    }
+    .catch strong { font-weight: 800; color: #fff; }
+    .catch .accent { color: #06b6d4; font-weight: 700; }
+    .catch .no-wrap { white-space: nowrap; }
+
+    /* 右半分: サイバー背景が透ける（重いオーバーレイなし） */
+    .right {
+      position: relative;
+      z-index: 1;
+      width: 50%;
+      padding: 36px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .stack {
+      position: relative;
+      width: 100%;
+      max-width: 520px;
+      height: 100%;
+      min-height: 340px;
+    }
+    /* 魔法②③: デバイスフレーム＋光で浮かび上がらせる */
+    .device {
+      position: absolute;
+      background: linear-gradient(145deg, rgba(22,22,35,0.96) 0%, rgba(10,6,24,0.98) 100%);
+      border: 1px solid rgba(255,255,255,0.14);
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.08),
+        0 0 40px rgba(168,85,247,0.12),
+        0 24px 56px rgba(0,0,0,0.35),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+      overflow: hidden;
+    }
+    /* スマホフレーム（ガチャ・カウンター） */
+    .device-phone {
+      border-radius: 20px;
+    }
+    .device-phone .device-bar {
+      border-radius: 20px 20px 0 0;
+    }
+    .device-phone .phone-home {
+      width: 32px;
+      height: 4px;
+      margin: 6px auto 0;
+      border-radius: 2px;
+      background: rgba(255,255,255,0.25);
+    }
+    /* ノートPCフレーム（ルーレット） */
+    .device-laptop {
+      border-radius: 10px 10px 0 0;
+    }
+    .device-laptop .device-body {
+      border-radius: 0 0 8px 8px;
+    }
+    .device-laptop .laptop-base {
+      height: 14px;
+      margin-top: 2px;
+      background: linear-gradient(180deg, rgba(30,30,40,0.98) 0%, rgba(18,16,28,0.99) 100%);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-top: none;
+      border-radius: 0 0 12px 12px;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+    }
+    .device-laptop .laptop-hinge {
+      width: 60%;
+      height: 3px;
+      margin: 0 auto;
+      background: rgba(0,0,0,0.4);
+      border-radius: 0 0 2px 2px;
+    }
+    .device-bar {
+      height: 24px;
+      padding: 0 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.04);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .device-bar span {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.2);
+    }
+    .device-bar span:nth-child(1) { background: rgba(239,68,68,0.8); }
+    .device-bar span:nth-child(2) { background: rgba(234,179,8,0.8); }
+    .device-bar span:nth-child(3) { background: rgba(34,197,94,0.8); }
+    .device-body {
+      padding: 14px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%);
+    }
+    /* 奥: カウンター（スマホ風・左後ろ） */
+    .device-counter {
+      left: 2%;
+      top: 50%;
+      transform: translateY(-50%) rotate(-8deg);
+      width: 118px;
+      z-index: 1;
+    }
+    .device-counter .device-body {
+      padding: 12px 10px;
+    }
+    .device-counter .num-wrap {
+      background: linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 10px 8px;
+      margin-bottom: 10px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .device-counter .num {
+      font-size: 32px;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+      color: #fff;
+      text-shadow: 0 0 20px rgba(168,85,247,0.5);
+      line-height: 1;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+    .device-counter .btns {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+    }
+    .device-counter .btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: linear-gradient(180deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%);
+      color: rgba(255,255,255,0.95);
+      font-size: 18px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    /* 中央手前: ルーレット（ノートPC・メイン） */
+    .device-roulette {
+      left: 50%;
+      top: 50%;
+      transform: translate(-48%, -50%) rotate(-2deg);
+      width: 172px;
+      z-index: 3;
+    }
+    .device-roulette .device-body {
+      padding: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 132px;
+    }
+    .device-roulette .wheel {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      background: conic-gradient(
+        #ef4444 0deg 45deg,
+        #f97316 45deg 90deg,
+        #eab308 90deg 135deg,
+        #22c55e 135deg 180deg,
+        #06b6d4 180deg 225deg,
+        #3b82f6 225deg 270deg,
+        #a855f7 270deg 315deg,
+        #ec4899 315deg 360deg
+      );
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow:
+        0 8px 24px rgba(0,0,0,0.4),
+        0 0 0 3px rgba(255,255,255,0.08),
+        inset 0 2px 4px rgba(255,255,255,0.15);
+    }
+    .device-roulette .wheel-inner {
+      width: 50%;
+      height: 50%;
+      border-radius: 50%;
+      background: linear-gradient(145deg, #1e0f35 0%, #0d0620 100%);
+      border: 2px solid rgba(255,255,255,0.1);
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.85);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+    }
+    /* 手前右: ガチャ（リッチに） */
+    .device-gacha {
+      right: 4%;
+      top: 50%;
+      transform: translateY(-50%) rotate(6deg);
+      width: 108px;
+      z-index: 2;
+    }
+    .device-gacha .device-body {
+      padding: 14px 10px;
+      background: linear-gradient(180deg, rgba(250,204,21,0.08) 0%, transparent 50%);
+    }
+    .device-gacha .star-wrap {
+      width: 36px;
+      height: 36px;
+      margin: 0 auto 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: linear-gradient(145deg, rgba(250,204,21,0.25) 0%, rgba(250,204,21,0.08) 100%);
+      box-shadow: 0 0 20px rgba(250,204,21,0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+    }
+    .device-gacha .star {
+      width: 20px;
+      height: 20px;
+      color: #facc15;
+    }
+    .device-gacha .label {
+      font-size: 14px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.95);
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+    .device-gacha .btn-spin {
+      display: block;
+      width: 100%;
+      margin-top: 8px;
+      padding: 6px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.95);
+      text-align: center;
+      background: linear-gradient(180deg, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.06) 100%);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.12), 0 2px 6px rgba(0,0,0,0.2);
+    }
+    /* 4枚目: 奥に小さく（電卓風・奥行き） */
+    .device-calc {
+      left: 18%;
+      bottom: 22%;
+      transform: rotate(-12deg);
+      width: 96px;
+      z-index: 0;
+    }
+    .device-calc .device-body {
+      padding: 10px 8px;
+    }
+    .device-calc .row {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .device-calc .key {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .device-calc .display {
+      height: 20px;
+      margin-bottom: 8px;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="ogp">
+      <div class="orb orb-top" aria-hidden="true"></div>
+      <div class="orb orb-bottom" aria-hidden="true"></div>
+      <div class="left">
+        <div class="title-block">
+          <div class="dango" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </div>
+          <h1 class="title">だんごツール</h1>
+        </div>
+        <p class="catch">
+          <strong>配信・クリエイター向け</strong>の<span class="accent">無料</span>Webツール
+        </p>
+      </div>
+      <div class="right">
+        <div class="stack" aria-hidden="true">
+          <div class="device device-calc">
+            <div class="device-bar"><span></span><span></span><span></span></div>
+            <div class="device-body">
+              <div class="display"></div>
+              <div class="row"><span class="key"></span><span class="key"></span><span class="key"></span></div>
+              <div class="row"><span class="key"></span><span class="key"></span><span class="key"></span></div>
+            </div>
+          </div>
+          <div class="device device-phone device-counter">
+            <div class="device-bar"><span></span><span></span><span></span></div>
+            <div class="device-body">
+              <div class="num-wrap"><div class="num">128</div></div>
+              <div class="btns">
+                <span class="btn">−</span>
+                <span class="btn">+</span>
+              </div>
+              <div class="phone-home" aria-hidden="true"></div>
+            </div>
+          </div>
+          <div class="device device-phone device-gacha">
+            <div class="device-bar"><span></span><span></span><span></span></div>
+            <div class="device-body">
+              <div class="star-wrap">
+                <svg class="star" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              </div>
+              <span class="label">ガチャ</span>
+              <span class="btn-spin">回す</span>
+              <div class="phone-home" aria-hidden="true"></div>
+            </div>
+          </div>
+          <div class="device device-laptop device-roulette">
+            <div class="device-bar"><span></span><span></span><span></span></div>
+            <div class="device-body">
+              <div class="wheel">
+                <div class="wheel-inner">ルーレット</div>
+              </div>
+            </div>
+            <div class="laptop-base" aria-hidden="true">
+              <div class="laptop-hinge"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

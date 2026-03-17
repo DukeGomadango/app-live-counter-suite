@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "ogp:capture": "node scripts/capture-ogp.mjs",
     "dev": "next dev",
     "dev:webpack": "next dev --webpack",
     "build": "next build",
@@ -38,6 +39,7 @@
     "eslint-config-next": "16.1.6",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "jsdom": "^28.1.0",
+    "puppeteer": "^24.0.0",
     "tailwindcss": "^4",
     "typescript": "5.9.3",
     "vitest": "^4.0.18"
