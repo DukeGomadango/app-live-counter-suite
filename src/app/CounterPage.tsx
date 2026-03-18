@@ -518,15 +518,15 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   // Always count one extra slot for the add panel placeholder to prevent layout shift
   const totalSlots = items.length + 1;
 
-  // Compute responsive columns so cards never overlap; vertical scroll is fine.
+  // Compute responsive columns for max-width/centering calculations.
+  // Grid itself uses CSS auto-fit/minmax; vertical scroll is fine.
   // Account for page horizontal padding: px-3 / sm:px-4
   const gridCols = useMemo(() => {
     const paddingX = windowWidth >= 640 ? 32 : 24;
     const availableW = Math.max(0, windowWidth - paddingX);
     const denom = effectiveColMaxPx + gridGapPx;
     const colsByWidth = denom > 0 ? Math.floor((availableW + gridGapPx) / denom) : 1;
-    const maxCols = windowWidth <= 480 ? 3 : windowWidth <= 768 ? 4 : 5;
-    return Math.max(1, Math.min(maxCols, colsByWidth || 1));
+    return Math.max(1, colsByWidth || 1);
   }, [windowWidth, effectiveColMaxPx, gridGapPx]);
 
   const effectiveCols = Math.min(gridCols, totalSlots || 1);
@@ -657,9 +657,9 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
                       style={{
                         left: `${pos.x}%`,
                         top: `${pos.y}%`,
-                        width: captureColMaxPxBase,
-                        height: captureColMaxPxBase,
-                        transform: `translate(-50%, -50%) scale(${cardScale})`,
+                        width: captureColMaxPx,
+                        height: captureColMaxPx,
+                        transform: "translate(-50%, -50%)",
                       }}
                     >
                       <CounterPanel
@@ -693,18 +693,19 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
               <div
                 className="grid gap-2 sm:gap-2.5 w-full"
                 style={{
-                  gridTemplateColumns: `repeat(${effectiveCols}, ${captureColMaxPx}px)`,
+                  gridTemplateColumns: `repeat(auto-fit, minmax(${captureColMaxPx}px, ${captureColMaxPx}px))`,
                   maxWidth: `${captureGridMaxWidth}px`,
                   width: `${captureGridMaxWidth}px`,
                   padding: 0,
                   margin: 0,
                   transform: `scale(${captureScale})`,
                   transformOrigin: "top left",
+                  justifyContent: "center",
                 }}
               >
               {items.map((item) => (
                 <div key={item.id} style={{ minHeight: 0 }}>
-                  <div style={{ width: captureColMaxPxBase, transform: `scale(${cardScale})`, transformOrigin: "top left" }}>
+                  <div style={{ width: captureColMaxPx, transformOrigin: "top left" }}>
                     <CounterPanel
                       id={item.id}
                       label={item.label}
@@ -919,9 +920,9 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
                     style={{
                       left: `${pos.x}%`,
                       top: `${pos.y}%`,
-                      width: colMaxPx,
-                      height: colMaxPx,
-                      transform: `translate(-50%, -50%) scale(${cardScale})`,
+                      width: effectiveColMaxPx,
+                      height: effectiveColMaxPx,
+                      transform: "translate(-50%, -50%)",
                     }}
                   >
                     <CounterPanel
@@ -971,15 +972,16 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
               <div
                 className="grid gap-2 sm:gap-2.5 w-full"
                 style={{
-                  gridTemplateColumns: `repeat(${effectiveCols}, ${effectiveColMaxPx}px)`,
+                  gridTemplateColumns: `repeat(auto-fit, minmax(${effectiveColMaxPx}px, ${effectiveColMaxPx}px))`,
                   maxWidth: `${gridMaxWidth}px`,
                   padding: 0,
                   margin: 0,
+                  justifyContent: "center",
                 }}
               >
                 {items.map((item) => (
                   <div key={item.id} style={{ minHeight: 0 }}>
-                    <div style={{ width: colMaxPx, transform: `scale(${cardScale})`, transformOrigin: "top left" }}>
+                    <div style={{ width: effectiveColMaxPx }}>
                       <CounterPanel
                         id={item.id}
                         label={item.label}
@@ -1023,7 +1025,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
               }}
             >
               {activeItem ? (
-                <div style={{ transform: `scale(${cardScale * 1.05})`, cursor: "grabbing" }}>
+                <div style={{ width: effectiveColMaxPx, cursor: "grabbing" }}>
                   <CounterPanel
                     id={activeItem.id}
                     label={activeItem.label}
