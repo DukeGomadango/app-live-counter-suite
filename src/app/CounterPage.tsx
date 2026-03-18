@@ -497,39 +497,6 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
     [setCustomTemplates]
   );
 
-  // Responsive grid columns — factor in cardSize
-  const gridCols = useMemo(() => {
-    const n = items.length;
-    const size = appSettings.cardSize;
-    // Mobile: ≤ 480px
-    if (windowWidth <= 480) {
-      if (size === "XL") return n <= 1 ? 1 : 2;
-      if (size === "L") return n <= 2 ? Math.min(n, 2) : 3;
-      if (n <= 2) return 2;
-      return 3;
-    }
-    // Tablet: ≤ 768px
-    if (windowWidth <= 768) {
-      if (size === "XL") return n <= 2 ? Math.min(n, 2) : 3;
-      if (n <= 4) return 2;
-      if (n <= 9) return 3;
-      return 4;
-    }
-    // Desktop
-    if (size === "XL") {
-      if (n <= 2) return Math.min(n, 2);
-      if (n <= 4) return Math.min(n, 2);
-      return 3;
-    }
-    if (n <= 2) return 2;
-    if (n <= 4) return 2;
-    if (n <= 6) return 3;
-    if (n <= 9) return 3;
-    if (n <= 12) return 4;
-    if (n <= 16) return 4;
-    return 5;
-  }, [items.length, windowWidth, appSettings.cardSize]);
-
   // Card size multiplier based on settings
   const cardSizeMap: Record<CardSize, { mobile: number; tablet: number; desktop: number }> = {
     S: { mobile: 96, tablet: 136, desktop: 168 },
@@ -543,20 +510,36 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   const colMaxPx = windowWidth <= 480 ? sizeConfig.mobile : windowWidth <= 768 ? sizeConfig.tablet : sizeConfig.desktop;
   const cardScale = (appSettings.cardScale ?? 100) / 100;
   const effectiveColMaxPx = colMaxPx * cardScale;
+
+  // Grid gap (tailwind: gap-2 / sm:gap-2.5)
+  const gridGapPx = windowWidth >= 640 ? 10 : 8;
+
   // Limit columns to actual item count to prevent empty columns (centering fix)
   // Always count one extra slot for the add panel placeholder to prevent layout shift
   const totalSlots = items.length + 1;
+
+  // Compute responsive columns so cards never overlap; vertical scroll is fine.
+  // Account for page horizontal padding: px-3 / sm:px-4
+  const gridCols = useMemo(() => {
+    const paddingX = windowWidth >= 640 ? 32 : 24;
+    const availableW = Math.max(0, windowWidth - paddingX);
+    const denom = effectiveColMaxPx + gridGapPx;
+    const colsByWidth = denom > 0 ? Math.floor((availableW + gridGapPx) / denom) : 1;
+    const maxCols = windowWidth <= 480 ? 3 : windowWidth <= 768 ? 4 : 5;
+    return Math.max(1, Math.min(maxCols, colsByWidth || 1));
+  }, [windowWidth, effectiveColMaxPx, gridGapPx]);
+
   const effectiveCols = Math.min(gridCols, totalSlots || 1);
-  const gridMaxWidth = effectiveCols * effectiveColMaxPx;
+  const gridMaxWidth = effectiveCols * effectiveColMaxPx + (effectiveCols - 1) * gridGapPx;
 
   // キャプチャ時はクリック直後の window サイズを使い、リサイズ直後の余白ずれを防ぐ
   const captureW = isCapturingShareImage && captureDimsRef.current ? captureDimsRef.current.w : windowWidth;
   const captureH = isCapturingShareImage && captureDimsRef.current ? captureDimsRef.current.h : winH;
   const captureColMaxPxBase = captureW <= 480 ? sizeConfig.mobile : captureW <= 768 ? sizeConfig.tablet : sizeConfig.desktop;
   const captureColMaxPx = captureColMaxPxBase * cardScale;
-  const captureGridMaxWidth = effectiveCols * captureColMaxPx;
   const captureRows = Math.ceil(totalSlots / effectiveCols);
   const captureGap = 10;
+  const captureGridMaxWidth = effectiveCols * captureColMaxPx + (effectiveCols - 1) * captureGap;
   const captureEstimatedGridHeight = captureRows * captureColMaxPx + (captureRows - 1) * captureGap + 20;
   const captureScale = Math.min(
     captureW / captureGridMaxWidth,
@@ -710,7 +693,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
               <div
                 className="grid gap-2 sm:gap-2.5 w-full"
                 style={{
-                  gridTemplateColumns: `repeat(${effectiveCols}, 1fr)`,
+                  gridTemplateColumns: `repeat(${effectiveCols}, ${captureColMaxPx}px)`,
                   maxWidth: `${captureGridMaxWidth}px`,
                   width: `${captureGridMaxWidth}px`,
                   padding: 0,
@@ -720,7 +703,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
                 }}
               >
               {items.map((item) => (
-                <div key={item.id} style={{ width: captureColMaxPx, minHeight: 0 }}>
+                <div key={item.id} style={{ minHeight: 0 }}>
                   <div style={{ width: captureColMaxPxBase, transform: `scale(${cardScale})`, transformOrigin: "top left" }}>
                     <CounterPanel
                       id={item.id}
@@ -988,14 +971,14 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
               <div
                 className="grid gap-2 sm:gap-2.5 w-full"
                 style={{
-                  gridTemplateColumns: `repeat(${effectiveCols}, 1fr)`,
+                  gridTemplateColumns: `repeat(${effectiveCols}, ${effectiveColMaxPx}px)`,
                   maxWidth: `${gridMaxWidth}px`,
                   padding: 0,
                   margin: 0,
                 }}
               >
                 {items.map((item) => (
-                  <div key={item.id} style={{ width: effectiveColMaxPx, minHeight: 0 }}>
+                  <div key={item.id} style={{ minHeight: 0 }}>
                     <div style={{ width: colMaxPx, transform: `scale(${cardScale})`, transformOrigin: "top left" }}>
                       <CounterPanel
                         id={item.id}
