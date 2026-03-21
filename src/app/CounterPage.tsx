@@ -540,7 +540,9 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   const captureRows = Math.ceil(totalSlots / effectiveCols);
   const captureGap = 10;
   const captureGridMaxWidth = effectiveCols * captureColMaxPx + (effectiveCols - 1) * captureGap;
-  const captureEstimatedGridHeight = captureRows * captureColMaxPx + (captureRows - 1) * captureGap + 20;
+  /** 768px 未満は縦長カード、以上は aspect-square に合わせて行高＝列幅 */
+  const captureRowHeightPx = captureW >= 768 ? captureColMaxPx : captureColMaxPx + 52;
+  const captureEstimatedGridHeight = captureRows * captureRowHeightPx + (captureRows - 1) * captureGap + 20;
   const captureScale = Math.min(
     captureW / captureGridMaxWidth,
     captureH / captureEstimatedGridHeight,
@@ -691,7 +693,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
                 </div>
               ) : (
               <div
-                className="grid gap-2 sm:gap-2.5 w-full"
+                className="grid items-stretch gap-2 sm:gap-2.5 w-full"
                 style={{
                   gridTemplateColumns: `repeat(auto-fit, minmax(${captureColMaxPx}px, ${captureColMaxPx}px))`,
                   maxWidth: `${captureGridMaxWidth}px`,
@@ -970,7 +972,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
           >
             <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
               <div
-                className="grid gap-2 sm:gap-2.5 w-full"
+                className="grid items-stretch gap-2 sm:gap-2.5 w-full"
                 style={{
                   gridTemplateColumns: `repeat(auto-fit, minmax(${effectiveColMaxPx}px, ${effectiveColMaxPx}px))`,
                   maxWidth: `${gridMaxWidth}px`,

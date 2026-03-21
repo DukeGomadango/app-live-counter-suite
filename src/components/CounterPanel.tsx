@@ -2,17 +2,26 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp, ChevronDown, Trash2, Pencil } from "lucide-react";
-import { useState, useCallback, useRef, useEffect, type CSSProperties } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, type CSSProperties } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { CardSize } from "@/components/SettingsModal";
 
-const STEP_BTN_SIZE_CLASS: Record<CardSize, string> = {
-    S: "min-w-[1.25rem] h-5 px-0.5 text-[10px]",
-    M: "min-w-[1.25rem] h-5 px-0.5 text-[10px]",
-    L: "min-w-[1.5rem] h-6 px-1 text-xs",
-    XL: "min-w-[2rem] h-8 px-1.5 text-sm",
+/** ±5/±10 キーパッドのセル（ゴースト調・1パネル内グリッド） */
+const KEYPAD_CELL_CLASS: Record<CardSize, string> = {
+    S: "min-h-[22px] py-0.5 px-0.5 text-[10px]",
+    M: "min-h-[22px] py-0.5 px-0.5 text-[10px]",
+    L: "min-h-[26px] py-0.5 px-1 text-xs",
+    XL: "min-h-[30px] py-1 px-1 text-sm",
+};
+
+/** 768px 以上で aspect-square 内に収めるためのコンパクトセル */
+const KEYPAD_CELL_COMPACT: Record<CardSize, string> = {
+    S: "min-h-[17px] py-0 px-0.5 text-[9px] leading-none",
+    M: "min-h-[17px] py-0 px-0.5 text-[9px] leading-none",
+    L: "min-h-[19px] py-0 px-0.5 text-[10px] leading-none",
+    XL: "min-h-[21px] py-0 px-0.5 text-[10px] leading-none",
 };
 
 const ARROW_BTN_SIZE_CLASS: Record<CardSize, string> = {
@@ -37,37 +46,112 @@ const COUNT_TEXT_CLASS: Record<CardSize, string> = {
     XL: "text-4xl sm:text-5xl lg:text-6xl",
 };
 
-function StepBtn({
-    label,
-    onClick,
-    disabled,
-    arrowColor,
-    arrowBg,
-    arrowHoverBg,
-    cardSize = "M",
+/** 768px 以上の正方形カード内（ホバー前も読みやすいよう、はみ出しない範囲で一段大きめ） */
+const COUNT_TEXT_CLASS_SQUARE: Record<CardSize, string> = {
+    S: "text-xl",
+    M: "text-2xl",
+    L: "text-3xl",
+    XL: "text-4xl",
+};
+
+type StepKeypadColumn = {
+    plusLabel: string;
+    minusLabel: string;
+    plus: number;
+    minus: number;
+    disabledMinus: boolean;
+};
+
+/** ゴースト・キーパッド: 二重ガラスをやめカードのグラデを透かし、極細線で区切り。字は普段沈め、hover/active でだけ明るく */
+function StepKeypad({
+    id,
+    columns,
+    onAdjustBy,
+    isLightMode,
+    cardSize,
+    fullWidth,
+    compact = false,
 }: {
-    label: string;
-    onClick: () => void;
-    disabled?: boolean;
-    arrowColor: string;
-    arrowBg: string;
-    arrowHoverBg: string;
-    cardSize?: CardSize;
+    id: string;
+    columns: StepKeypadColumn[];
+    onAdjustBy: (itemId: string, delta: number) => void;
+    isLightMode: boolean;
+    cardSize: CardSize;
+    fullWidth: boolean;
+    /** 正方形カード内用にセルを詰める（768px 以上） */
+    compact?: boolean;
 }) {
-    const sizeClass = STEP_BTN_SIZE_CLASS[cardSize] ?? STEP_BTN_SIZE_CLASS.M;
+    const n = columns.length;
+    if (n === 0) return null;
+
+    const sizeTable = compact ? KEYPAD_CELL_COMPACT : KEYPAD_CELL_CLASS;
+    const cellClass = sizeTable[cardSize] ?? sizeTable.M;
+    const lineColor = isLightMode
+        ? compact
+            ? "rgba(0,0,0,0.09)"
+            : "rgba(0,0,0,0.06)"
+        : compact
+            ? "rgba(255,255,255,0.09)"
+            : "rgba(255,255,255,0.06)";
+
+    const cellFont = compact ? "font-semibold" : "font-medium";
+    const cellBase =
+        `${cellClass} ${cellFont} tabular-nums flex items-center justify-center bg-transparent select-none touch-manipulation ` +
+        "transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500/40";
+
+    const rowPlus = isLightMode
+        ? "text-neutral-600/50 hover:text-neutral-800 hover:bg-black/[0.05] active:bg-black/[0.08] active:text-neutral-900"
+        : "text-white/40 hover:text-white/90 hover:bg-white/10 active:bg-white/[0.14] active:text-white";
+
+    const rowMinusDisabled = isLightMode
+        ? "disabled:text-neutral-500/40 disabled:hover:bg-transparent disabled:hover:text-neutral-500/40 disabled:active:bg-transparent"
+        : "disabled:text-white/20 disabled:hover:bg-transparent disabled:hover:text-white/20 disabled:active:bg-transparent";
+
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            disabled={disabled}
-            aria-label={label}
-            className={`${sizeClass} rounded font-medium tabular-nums flex items-center justify-center select-none disabled:opacity-40 disabled:cursor-not-allowed ${arrowColor}`}
-            style={{ background: arrowBg }}
-            onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = arrowHoverBg; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
+        <div
+            role="group"
+            aria-label="まとめて増減（±5・±10 など）"
+            className={`shrink-0 rounded-lg border-t bg-transparent ${isLightMode ? (compact ? "border-black/14" : "border-black/10") : compact ? "border-white/14" : "border-white/10"} ${fullWidth ? "w-full" : "w-auto"}`}
+            onClick={(e) => e.stopPropagation()}
         >
-            {label}
-        </button>
+            <div
+                className="grid overflow-hidden rounded-b-md"
+                style={{
+                    gridTemplateColumns: `repeat(${n}, minmax(${fullWidth ? "0" : compact ? "1.65rem" : "2rem"}, 1fr))`,
+                }}
+            >
+                {columns.map((col, i) => (
+                    <button
+                        key={`plus-${col.plus}-${i}`}
+                        type="button"
+                        aria-label={`${col.plusLabel}する`}
+                        className={`${cellBase} ${rowPlus}`}
+                        style={{
+                            borderRight: i < n - 1 ? `1px solid ${lineColor}` : undefined,
+                            borderBottom: `1px solid ${lineColor}`,
+                        }}
+                        onClick={() => onAdjustBy(id, col.plus)}
+                    >
+                        {col.plusLabel}
+                    </button>
+                ))}
+                {columns.map((col, i) => (
+                    <button
+                        key={`minus-${col.plus}-${i}`}
+                        type="button"
+                        aria-label={`${col.minusLabel}する`}
+                        disabled={col.disabledMinus}
+                        className={`${cellBase} ${rowPlus} ${rowMinusDisabled} disabled:cursor-not-allowed`}
+                        style={{
+                            borderRight: i < n - 1 ? `1px solid ${lineColor}` : undefined,
+                        }}
+                        onClick={() => onAdjustBy(id, col.minus)}
+                    >
+                        {col.minusLabel}
+                    </button>
+                ))}
+            </div>
+        </div>
     );
 }
 
@@ -139,7 +223,10 @@ export default function CounterPanel({
     /** タブレット/PC で S/M のときも ± と △▽ を少なくとも L サイズにし、＋と－のサイズを常に揃える */
     const effectiveCardSizeForButtons: CardSize =
         isDesktop && (cardSize === "S" || cardSize === "M") ? "L" : cardSize;
-    const countTextClass = COUNT_TEXT_CLASS[cardSize] ?? COUNT_TEXT_CLASS.M;
+    const countTextClass = isDesktop
+        ? (COUNT_TEXT_CLASS_SQUARE[cardSize] ?? COUNT_TEXT_CLASS_SQUARE.M)
+        : (COUNT_TEXT_CLASS[cardSize] ?? COUNT_TEXT_CLASS.M);
+    const countFontClass = isDesktop ? "font-extrabold" : "font-bold";
     const [isEditingCount, setIsEditingCount] = useState(false);
     const [editCountValue, setEditCountValue] = useState("");
 
@@ -331,6 +418,54 @@ export default function CounterPanel({
     const arrowHoverBg = isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.18)";
     const arrowColor = isLightMode ? "text-gray-500" : "text-white/60";
 
+    const stepKeypadColumns = useMemo((): StepKeypadColumn[] => {
+        const c: StepKeypadColumn[] = [];
+        if (showStep5) {
+            c.push({ plusLabel: "+5", minusLabel: "-5", plus: 5, minus: -5, disabledMinus: count < 5 });
+        }
+        if (showStep10) {
+            c.push({ plusLabel: "+10", minusLabel: "-10", plus: 10, minus: -10, disabledMinus: count < 10 });
+        }
+        if (showStepFree && stepFreeValue >= 1) {
+            c.push({
+                plusLabel: `+${stepFreeValue}`,
+                minusLabel: `-${stepFreeValue}`,
+                plus: stepFreeValue,
+                minus: -stepFreeValue,
+                disabledMinus: count < stepFreeValue,
+            });
+        }
+        return c;
+    }, [showStep5, showStep10, showStepFree, stepFreeValue, count]);
+
+    const hasStepControls = stepKeypadColumns.length > 0 && !!onAdjustBy;
+
+    const stepControlsMotion = (
+        <AnimatePresence>
+            {showHoverControls && hasStepControls && onAdjustBy && (
+                <motion.div
+                    key="step-controls"
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 6 }}
+                    transition={{ duration: 0.15 }}
+                    className="flex flex-col w-full shrink-0 items-center"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <StepKeypad
+                        id={id}
+                        columns={stepKeypadColumns}
+                        onAdjustBy={onAdjustBy}
+                        isLightMode={isLightMode}
+                        cardSize={effectiveCardSizeForButtons}
+                        fullWidth
+                        compact={isDesktop}
+                    />
+                </motion.div>
+            )}
+        </AnimatePresence>
+    );
+
     return (
         <div
             ref={isOverlay ? undefined : setNodeRef}
@@ -343,7 +478,7 @@ export default function CounterPanel({
             }}
             {...(isOverlay ? {} : attributes)}
             {...(isOverlay ? {} : listeners)}
-            className={`no-context-menu relative group aspect-square ${isOverlay ? "cursor-grabbing" : isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+            className={`no-context-menu relative group w-full ${isDesktop ? "aspect-square" : "h-auto"} ${isOverlay ? "cursor-grabbing" : isDragging ? "cursor-grabbing" : "cursor-grab"}`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
         >
@@ -359,7 +494,11 @@ export default function CounterPanel({
                     tapPendingRef.current = false;
                 }}
                 onContextMenu={handleContextMenu}
-                className="relative flex flex-col items-center justify-center gap-0.5 rounded-2xl cursor-pointer transition-all duration-300 overflow-hidden w-full h-full"
+                className={
+                    isDesktop
+                        ? "relative flex flex-col items-center h-full min-h-0 gap-0 py-1 rounded-2xl cursor-pointer transition-all duration-300 overflow-hidden w-full"
+                        : "relative flex flex-col items-center justify-center gap-0.5 rounded-2xl cursor-pointer transition-all duration-300 overflow-hidden w-full h-auto min-h-0 py-0.5"
+                }
                 style={{
                     background: panelBg,
                     backdropFilter: isLightMode ? "blur(20px) saturate(1.2)" : "blur(16px)",
@@ -385,143 +524,131 @@ export default function CounterPanel({
                     }}
                 />
 
-                {/* Emoji */}
-                <span className="relative z-10 drop-shadow-lg text-xl sm:text-2xl lg:text-3xl">
+                {/* Emoji（PC 正方形内では一段小さく） */}
+                <span
+                    className={
+                        isDesktop
+                            ? "relative z-10 shrink-0 drop-shadow-lg text-lg sm:text-xl leading-none"
+                            : "relative z-10 drop-shadow-lg text-xl sm:text-2xl lg:text-3xl"
+                    }
+                >
                     {emoji}
                 </span>
 
-                {/* Count row: 左△▽ / 中央 数字 / 右 ステップボタン */}
-                <div className="relative z-10 flex items-center justify-center gap-1 min-w-0">
-                    {/* 左: △▽（スマホでは常時表示） */}
-                    <AnimatePresence>
-                        {showHoverControls && (
-                            <motion.div
-                                initial={{ opacity: 0, x: -5 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -5 }}
-                                transition={{ duration: 0.15 }}
-                                className="flex flex-col gap-0.5 shrink-0"
-                            >
-                                <button
-                                    type="button"
-                                    onClick={handleIncrementClick}
-                                    onPointerDown={handleIncrementPointerDown}
-                                    onPointerUp={handleIncrementPointerUp}
-                                    onPointerLeave={handleIncrementPointerUp}
-                                    onPointerCancel={handleIncrementPointerUp}
-                                    aria-label={`${label}を1増やす（長押しで連続）`}
-                                    className={`${ARROW_BTN_SIZE_CLASS[effectiveCardSizeForButtons]} rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
-                                    style={{ background: arrowBg }}
-                                    onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
-                                    onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
+                {/* Count block: 上段は △▽+数字、下段はステップキーパッド（全幅）。PC は flex-1 で正方形内に収める */}
+                <div
+                    className={
+                        isDesktop
+                            ? "relative z-10 flex flex-1 min-h-0 flex-col items-center justify-center gap-0.5 min-w-0 w-full px-0.5"
+                            : "relative z-10 flex flex-col items-center gap-0.5 min-w-0 w-full"
+                    }
+                >
+                    <div className="flex items-center justify-center gap-1 min-w-0 w-full">
+                        {/* 左: △▽（768px 未満は常時、以上はホバー時） */}
+                        <AnimatePresence>
+                            {showHoverControls && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: -5 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: -5 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="flex flex-col gap-0.5 shrink-0"
                                 >
-                                    <ChevronUp size={ARROW_ICON_SIZE[effectiveCardSizeForButtons]} />
-                                </button>
-                                {count > 0 && (
                                     <button
                                         type="button"
-                                        onClick={handleDecrementClick}
-                                        onPointerDown={handleDecrementPointerDown}
-                                        onPointerUp={handleDecrementPointerUp}
-                                        onPointerLeave={handleDecrementPointerUp}
-                                        onPointerCancel={handleDecrementPointerUp}
-                                        aria-label={`${label}を1減らす（長押しで連続）`}
+                                        onClick={handleIncrementClick}
+                                        onPointerDown={handleIncrementPointerDown}
+                                        onPointerUp={handleIncrementPointerUp}
+                                        onPointerLeave={handleIncrementPointerUp}
+                                        onPointerCancel={handleIncrementPointerUp}
+                                        aria-label={`${label}を1増やす（長押しで連続）`}
                                         className={`${ARROW_BTN_SIZE_CLASS[effectiveCardSizeForButtons]} rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
                                         style={{ background: arrowBg }}
                                         onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
                                         onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
                                     >
-                                        <ChevronDown size={ARROW_ICON_SIZE[effectiveCardSizeForButtons]} />
+                                        <ChevronUp size={ARROW_ICON_SIZE[effectiveCardSizeForButtons]} />
                                     </button>
-                                )}
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    {/* 中央: 数字 / target */}
-                    <div className="flex-1 flex justify-center items-baseline min-w-0">
-                        <div className="flex items-baseline gap-0.5">
-                            {isEditingCount && onSetCount ? (
-                                <input
-                                    type="number"
-                                    min={0}
-                                    value={editCountValue}
-                                    onChange={(e) => setEditCountValue(e.target.value.replace(/[^0-9]/g, ""))}
-                                    onBlur={() => {
-                                        const n = Math.max(0, parseInt(editCountValue, 10) || 0);
-                                        onSetCount(id, n);
-                                        setIsEditingCount(false);
-                                    }}
-                                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
-                                    autoFocus
-                                    className={`font-bold tabular-nums ${countTextClass} w-16 sm:w-20 bg-transparent border-b-2 outline-none text-center`}
-                                    style={{ color: countColor, borderColor: color }}
-                                    onClick={(e) => e.stopPropagation()}
-                                />
-                            ) : (
-                                <span
-                                    data-count-editable
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={(e) => { e.stopPropagation(); if (onSetCount) { setIsEditingCount(true); setEditCountValue(String(count)); } }}
-                                    onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && onSetCount) { e.preventDefault(); setIsEditingCount(true); setEditCountValue(String(count)); } }}
-                                    className={`font-bold tabular-nums ${countTextClass} ${onSetCount ? "cursor-text rounded px-0.5 hover:bg-black/5 dark:hover:bg-white/5" : ""}`}
-                                    style={{ color: countColor, textShadow: countShadow }}
-                                    title={onSetCount ? "クリックで数を直接編集" : undefined}
-                                >
-                                    <AnimatePresence mode="popLayout">
-                                        <motion.span
-                                            key={count}
-                                            initial={{ opacity: 0, y: popDirection === "up" ? 10 : -10, scale: 0.5 }}
-                                            animate={{ opacity: 1, y: 0, scale: isPop ? 1.3 : 1 }}
-                                            exit={{ opacity: 0, y: popDirection === "up" ? -10 : 10, scale: 0.5 }}
-                                            transition={{ type: "spring", stiffness: 500, damping: 25 }}
-                                            className="inline-block"
+                                    {count > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={handleDecrementClick}
+                                            onPointerDown={handleDecrementPointerDown}
+                                            onPointerUp={handleDecrementPointerUp}
+                                            onPointerLeave={handleDecrementPointerUp}
+                                            onPointerCancel={handleDecrementPointerUp}
+                                            aria-label={`${label}を1減らす（長押しで連続）`}
+                                            className={`${ARROW_BTN_SIZE_CLASS[effectiveCardSizeForButtons]} rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
+                                            style={{ background: arrowBg }}
+                                            onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
+                                            onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
                                         >
-                                            {count}
-                                        </motion.span>
-                                    </AnimatePresence>
-                                </span>
-                            )}
-                            {target > 0 && (
-                                <span className="text-xs sm:text-sm font-medium tabular-nums" style={{ color: isLightMode ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.25)" }}>/{target}</span>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* 右: ステップボタン（＋を上段・－を下段で縦に積む）（スマホでは常時表示） */}
-                    {(showStep5 || showStep10 || showStepFree) && onAdjustBy && (
-                        <AnimatePresence>
-                            {showHoverControls && (
-                                <motion.div
-                                    initial={{ opacity: 0, x: 5 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    exit={{ opacity: 0, x: 5 }}
-                                    transition={{ duration: 0.15 }}
-                                    className="flex flex-col gap-0.5 shrink-0 items-end"
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    {/* 上段: すべての ＋ */}
-                                    <div className="flex items-center gap-0.5">
-                                        {showStep5 && <StepBtn label="+5" onClick={() => onAdjustBy(id, 5)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
-                                        {showStep10 && <StepBtn label="+10" onClick={() => onAdjustBy(id, 10)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
-                                        {showStepFree && stepFreeValue >= 1 && <StepBtn label={`+${stepFreeValue}`} onClick={() => onAdjustBy(id, stepFreeValue)} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
-                                    </div>
-                                    {/* 下段: すべての － */}
-                                    <div className="flex items-center gap-0.5">
-                                        {showStep5 && <StepBtn label="-5" onClick={() => onAdjustBy(id, -5)} disabled={count < 5} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
-                                        {showStep10 && <StepBtn label="-10" onClick={() => onAdjustBy(id, -10)} disabled={count < 10} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
-                                        {showStepFree && stepFreeValue >= 1 && <StepBtn label={`-${stepFreeValue}`} onClick={() => onAdjustBy(id, -stepFreeValue)} disabled={count < stepFreeValue} arrowColor={arrowColor} arrowBg={arrowBg} arrowHoverBg={arrowHoverBg} cardSize={effectiveCardSizeForButtons} />}
-                                    </div>
+                                            <ChevronDown size={ARROW_ICON_SIZE[effectiveCardSizeForButtons]} />
+                                        </button>
+                                    )}
                                 </motion.div>
                             )}
                         </AnimatePresence>
-                    )}
+
+                        {/* 中央: 数字 / target */}
+                        <div className="flex-1 flex justify-center items-baseline min-w-0">
+                            <div className="flex items-baseline gap-0.5">
+                                {isEditingCount && onSetCount ? (
+                                    <input
+                                        type="number"
+                                        min={0}
+                                        value={editCountValue}
+                                        onChange={(e) => setEditCountValue(e.target.value.replace(/[^0-9]/g, ""))}
+                                        onBlur={() => {
+                                            const n = Math.max(0, parseInt(editCountValue, 10) || 0);
+                                            onSetCount(id, n);
+                                            setIsEditingCount(false);
+                                        }}
+                                        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                                        autoFocus
+                                        className={`${countFontClass} tabular-nums ${countTextClass} w-16 sm:w-20 bg-transparent border-b-2 outline-none text-center`}
+                                        style={{ color: countColor, borderColor: color }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    />
+                                ) : (
+                                    <span
+                                        data-count-editable
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => { e.stopPropagation(); if (onSetCount) { setIsEditingCount(true); setEditCountValue(String(count)); } }}
+                                        onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && onSetCount) { e.preventDefault(); setIsEditingCount(true); setEditCountValue(String(count)); } }}
+                                        className={`${countFontClass} tabular-nums ${countTextClass} ${onSetCount ? "cursor-text rounded px-0.5 hover:bg-black/5 dark:hover:bg-white/5" : ""}`}
+                                        style={{ color: countColor, textShadow: countShadow }}
+                                        title={onSetCount ? "クリックで数を直接編集" : undefined}
+                                    >
+                                        <AnimatePresence mode="popLayout">
+                                            <motion.span
+                                                key={count}
+                                                initial={{ opacity: 0, y: popDirection === "up" ? 10 : -10, scale: 0.5 }}
+                                                animate={{ opacity: 1, y: 0, scale: isPop ? 1.3 : 1 }}
+                                                exit={{ opacity: 0, y: popDirection === "up" ? -10 : 10, scale: 0.5 }}
+                                                transition={{ type: "spring", stiffness: 500, damping: 25 }}
+                                                className="inline-block"
+                                            >
+                                                {count}
+                                            </motion.span>
+                                        </AnimatePresence>
+                                    </span>
+                                )}
+                                {target > 0 && (
+                                    <span className="text-xs sm:text-sm font-medium tabular-nums" style={{ color: isLightMode ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.25)" }}>/{target}</span>
+                                )}
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {hasStepControls && stepControlsMotion}
                 </div>
 
                 {/* Label */}
                 <span
-                    className="relative z-10 font-medium tracking-wide text-xs sm:text-sm"
+                    className={`relative z-10 shrink-0 font-medium tracking-wide text-xs sm:text-sm max-w-[95%] truncate text-center ${isDesktop ? "mt-0.5" : ""}`}
                     style={{ color: labelColor }}
                 >
                     {label}
