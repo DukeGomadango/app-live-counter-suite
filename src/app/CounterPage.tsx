@@ -246,9 +246,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
     (id: string) => {
       setItems((prev) =>
         prev.map((item) =>
-          item.id === id && item.count > 0
-            ? { ...item, count: item.count - 1 }
-            : item
+          item.id === id ? { ...item, count: item.count - 1 } : item
         )
       );
     },
@@ -265,9 +263,13 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
 
   const handleSetCount = useCallback(
     (id: string, value: number) => {
+      const next =
+        typeof value === "number" && Number.isFinite(value)
+          ? Math.trunc(value)
+          : 0;
       setItems((prev) =>
         prev.map((item) =>
-          item.id === id ? { ...item, count: Math.max(0, value) } : item
+          item.id === id ? { ...item, count: next } : item
         )
       );
     },
@@ -277,11 +279,15 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   const handleAdjustBy = useCallback(
     (id: string, delta: number) => {
       setItems((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? { ...item, count: Math.max(0, item.count + delta) }
-            : item
-        )
+        prev.map((item) => {
+          if (item.id !== id) return item;
+          const sum = item.count + delta;
+          const next =
+            typeof sum === "number" && Number.isFinite(sum)
+              ? Math.trunc(sum)
+              : item.count;
+          return { ...item, count: next };
+        })
       );
     },
     [setItems]

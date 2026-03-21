@@ -54,6 +54,15 @@ const COUNT_TEXT_CLASS_SQUARE: Record<CardSize, string> = {
     XL: "text-4xl",
 };
 
+/** 直接編集用: 先頭のマイナスと数字のみ残す */
+function sanitizeSignedCountInput(raw: string): string {
+    const digitsAndMinus = raw.replace(/[^0-9-]/g, "");
+    if (digitsAndMinus.startsWith("-")) {
+        return "-" + digitsAndMinus.slice(1).replace(/-/g, "");
+    }
+    return digitsAndMinus.replace(/-/g, "");
+}
+
 type StepKeypadColumn = {
     plusLabel: string;
     minusLabel: string;
@@ -371,14 +380,14 @@ export default function CounterPanel({
             try {
                 (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
             } catch { /* ignore */ }
-            if (hadPointerDown && !wasRepeating && count > 0) {
+            if (hadPointerDown && !wasRepeating) {
                 onDecrement(id);
                 setPopDirection("down");
                 setIsPop(true);
                 setTimeout(() => setIsPop(false), 300);
             }
         },
-        [id, count, onDecrement, stopRepeat]
+        [id, onDecrement, stopRepeat]
     );
 
     const handleDecrementClick = useCallback((e: React.MouseEvent) => {
@@ -401,10 +410,12 @@ export default function CounterPanel({
     const panelShadow = isLightMode
         ? `0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.6)`
         : `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)`;
-    const countColor = count > 0 ? color : isLightMode ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.4)";
-    const countShadow = count > 0
-        ? `0 0 20px ${color}60, 0 0 40px ${color}30`
-        : "none";
+    const countColor =
+        count !== 0 ? color : isLightMode ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.4)";
+    const countShadow =
+        count !== 0
+            ? `0 0 20px ${color}60, 0 0 40px ${color}30`
+            : "none";
     const labelColor = isLightMode ? "rgba(0,0,0,0.5)" : "rgba(255,255,255,0.6)";
     const targetReached = target > 0 && count >= target;
   const canAchieveTarget = target > 0 && count < target && !!onRequestAchieveTarget;
@@ -421,10 +432,10 @@ export default function CounterPanel({
     const stepKeypadColumns = useMemo((): StepKeypadColumn[] => {
         const c: StepKeypadColumn[] = [];
         if (showStep5) {
-            c.push({ plusLabel: "+5", minusLabel: "-5", plus: 5, minus: -5, disabledMinus: count < 5 });
+            c.push({ plusLabel: "+5", minusLabel: "-5", plus: 5, minus: -5, disabledMinus: false });
         }
         if (showStep10) {
-            c.push({ plusLabel: "+10", minusLabel: "-10", plus: 10, minus: -10, disabledMinus: count < 10 });
+            c.push({ plusLabel: "+10", minusLabel: "-10", plus: 10, minus: -10, disabledMinus: false });
         }
         if (showStepFree && stepFreeValue >= 1) {
             c.push({
@@ -432,11 +443,11 @@ export default function CounterPanel({
                 minusLabel: `-${stepFreeValue}`,
                 plus: stepFreeValue,
                 minus: -stepFreeValue,
-                disabledMinus: count < stepFreeValue,
+                disabledMinus: false,
             });
         }
         return c;
-    }, [showStep5, showStep10, showStepFree, stepFreeValue, count]);
+    }, [showStep5, showStep10, showStepFree, stepFreeValue]);
 
     const hasStepControls = stepKeypadColumns.length > 0 && !!onAdjustBy;
 
@@ -569,23 +580,21 @@ export default function CounterPanel({
                                     >
                                         <ChevronUp size={ARROW_ICON_SIZE[effectiveCardSizeForButtons]} />
                                     </button>
-                                    {count > 0 && (
-                                        <button
-                                            type="button"
-                                            onClick={handleDecrementClick}
-                                            onPointerDown={handleDecrementPointerDown}
-                                            onPointerUp={handleDecrementPointerUp}
-                                            onPointerLeave={handleDecrementPointerUp}
-                                            onPointerCancel={handleDecrementPointerUp}
-                                            aria-label={`${label}を1減らす（長押しで連続）`}
-                                            className={`${ARROW_BTN_SIZE_CLASS[effectiveCardSizeForButtons]} rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
-                                            style={{ background: arrowBg }}
-                                            onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
-                                            onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
-                                        >
-                                            <ChevronDown size={ARROW_ICON_SIZE[effectiveCardSizeForButtons]} />
-                                        </button>
-                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handleDecrementClick}
+                                        onPointerDown={handleDecrementPointerDown}
+                                        onPointerUp={handleDecrementPointerUp}
+                                        onPointerLeave={handleDecrementPointerUp}
+                                        onPointerCancel={handleDecrementPointerUp}
+                                        aria-label={`${label}を1減らす（長押しで連続）`}
+                                        className={`${ARROW_BTN_SIZE_CLASS[effectiveCardSizeForButtons]} rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
+                                        style={{ background: arrowBg }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
+                                    >
+                                        <ChevronDown size={ARROW_ICON_SIZE[effectiveCardSizeForButtons]} />
+                                    </button>
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -595,18 +604,25 @@ export default function CounterPanel({
                             <div className="flex items-baseline gap-0.5">
                                 {isEditingCount && onSetCount ? (
                                     <input
-                                        type="number"
-                                        min={0}
+                                        type="text"
+                                        inputMode="numeric"
                                         value={editCountValue}
-                                        onChange={(e) => setEditCountValue(e.target.value.replace(/[^0-9]/g, ""))}
+                                        onChange={(e) => setEditCountValue(sanitizeSignedCountInput(e.target.value))}
                                         onBlur={() => {
-                                            const n = Math.max(0, parseInt(editCountValue, 10) || 0);
+                                            const t = editCountValue.trim();
+                                            const n =
+                                                t === "" || t === "-"
+                                                    ? 0
+                                                    : (() => {
+                                                        const p = parseInt(t, 10);
+                                                        return Number.isNaN(p) ? 0 : p;
+                                                    })();
                                             onSetCount(id, n);
                                             setIsEditingCount(false);
                                         }}
                                         onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                                         autoFocus
-                                        className={`${countFontClass} tabular-nums ${countTextClass} w-16 sm:w-20 bg-transparent border-b-2 outline-none text-center`}
+                                        className={`${countFontClass} tabular-nums ${countTextClass} w-[4.5rem] sm:w-24 min-w-0 bg-transparent border-b-2 outline-none text-center`}
                                         style={{ color: countColor, borderColor: color }}
                                         onClick={(e) => e.stopPropagation()}
                                     />

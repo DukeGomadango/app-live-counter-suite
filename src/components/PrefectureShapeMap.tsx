@@ -400,19 +400,16 @@ export default function PrefectureShapeMap({
                 {onDecrement != null && (
                   <button
                     type="button"
-                    className="rounded px-2 py-1 text-sm font-bold min-w-[1.75rem] transition opacity-90 hover:opacity-100 disabled:opacity-50"
+                    className="rounded px-2 py-1 text-sm font-bold min-w-[1.75rem] transition opacity-90 hover:opacity-100"
                     style={{
                       background: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.1)",
                       color: isLightMode ? "#374151" : "rgba(255,255,255,0.9)",
                       border: isLightMode ? "1px solid rgba(0,0,0,0.15)" : "1px solid rgba(255,255,255,0.25)",
                     }}
-                    disabled={openItem?.count === 0}
                     onClick={(e) => {
                       e.stopPropagation();
-                      if ((openItem?.count ?? 0) > 0) {
-                        onDecrement(openPrefectureIndex);
-                        setOpenPrefectureIndex(null);
-                      }
+                      onDecrement(openPrefectureIndex);
+                      setOpenPrefectureIndex(null);
                     }}
                     title="1減らす"
                   >

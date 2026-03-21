@@ -117,14 +117,13 @@ export default function PrefectureRankingPanel({
                           </button>
                           <button
                             type="button"
-                            className="rounded px-1.5 py-0.5 text-xs font-bold transition opacity-80 hover:opacity-100 disabled:opacity-50"
+                            className="rounded px-1.5 py-0.5 text-xs font-bold transition opacity-80 hover:opacity-100"
                             style={{
                               background: isLightMode ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)",
                               color: isLightMode ? "#374151" : "rgba(255,255,255,0.9)",
                               border: isLightMode ? "1px solid rgba(0,0,0,0.12)" : "1px solid rgba(255,255,255,0.2)",
                             }}
-                            disabled={item.count === 0}
-                            onClick={() => item.count > 0 && onDecrement(index)}
+                            onClick={() => onDecrement(index)}
                             title="1減らす"
                           >
                             ▽
