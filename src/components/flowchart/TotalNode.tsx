@@ -3,10 +3,8 @@
 import { memo, useState } from "react";
 import { Handle, Position, NodeProps, Node } from "@xyflow/react";
 import { Calculator } from "lucide-react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { AppSettings } from "@/components/SettingsModal";
 import { useFlowchartNodeEnv } from "./FlowchartNodeEnvContext";
-import type { LedgerTotalPersistedData } from "@/lib/flowchartLedger";
+import { flowchartCardVisualScale, type LedgerTotalPersistedData } from "@/lib/flowchartLedger";
 
 export type TotalNodeData = LedgerTotalPersistedData;
 export type TotalNodeType = Node<TotalNodeData, "total">;
@@ -29,20 +27,10 @@ function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
     const [editing, setEditing] = useState<LabelKey | null>(null);
     const [editValue, setEditValue] = useState("");
 
-    const [appSettings] = useLocalStorage<AppSettings>("flowchart-app-settings", {
-        cardSize: "L",
-        edgeThickness: "M",
-        showProjectName: false,
-        projectName: "",
-        projectNameSize: "M",
-        projectNameColor: "#a855f7",
-        accentColor: "#a855f7",
-        orbIntensity: 50,
-    });
+    const appSettings = env.appSettings;
+    const accentColor = env.accentColor;
 
-    const scaleMap: Record<string, number> = { S: 0.7, M: 0.85, L: 1.0, XL: 1.2 };
-    const scale = scaleMap[appSettings.cardSize] || 1.0;
-    const accentColor = appSettings.accentColor || "#a855f7";
+    const scale = flowchartCardVisualScale(appSettings.cardSize);
 
     const startEdit = (key: LabelKey) => {
         const cur = (data[key] as string | undefined) || DEFAULTS[key];

@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useState, useCallback, useMemo } from "react";
 import { TEMPLATES, type Template, type CounterItem } from "@/lib/templates";
-import { EMOJI_OPTIONS, COLOR_OPTIONS } from "@/lib/constants";
+import { COLOR_OPTIONS, DEFAULT_ITEM_EMOJI, EMOJI_OPTIONS, coerceStoredEmojiToDisplay } from "@/lib/constants";
 import ModeSelector from "@/components/ModeSelector";
 import type { SavedFlowChart, FlowchartNodeForMenu } from "@/lib/flowchartTypes";
 
@@ -67,7 +67,7 @@ interface HamburgerMenuProps {
     onRequestAchieveAllTargets?: () => void;
 }
 
-// EMOJI_OPTIONS and COLOR_OPTIONS are now imported from @/lib/constants
+// 絵文字一覧・色は @/lib/constants
 
 type TabId = "templates" | "items" | "targets" | "custom" | "actions" | "save_load";
 
@@ -114,7 +114,7 @@ export default function HamburgerMenu({
     const [activeTab, setActiveTab] = useState<TabId>(viewMode === "counter" ? "templates" : "actions");
     const [confirmReset, setConfirmReset] = useState(false);
     const [newLabel, setNewLabel] = useState("");
-    const [newEmoji, setNewEmoji] = useState("⭐");
+    const [newEmoji, setNewEmoji] = useState(DEFAULT_ITEM_EMOJI);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editLabel, setEditLabel] = useState("");
@@ -143,14 +143,14 @@ export default function HamburgerMenu({
         if (newLabel.trim() && onAddItem) {
             onAddItem(newLabel.trim(), newEmoji);
             setNewLabel("");
-            setNewEmoji("⭐");
+            setNewEmoji(DEFAULT_ITEM_EMOJI);
         }
     }, [newLabel, newEmoji, onAddItem]);
 
     const handleStartEdit = (item: CounterItem) => {
         setEditingId(item.id);
         setEditLabel(item.label);
-        setEditEmoji(item.emoji);
+        setEditEmoji(coerceStoredEmojiToDisplay(item.emoji));
         setEditTarget(item.target);
         setEditColor(item.color);
     };
@@ -437,6 +437,7 @@ export default function HamburgerMenu({
                                                 <div className="flex items-center gap-2">
                                                     <div className="relative">
                                                         <button
+                                                            type="button"
                                                             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                                                             className={`w-9 h-9 rounded-xl ${bgSubtle} border ${borderSubtle} flex items-center justify-center text-lg ${bgSubtleHover} transition-colors`}
                                                         >
@@ -444,7 +445,7 @@ export default function HamburgerMenu({
                                                         </button>
                                                         {showEmojiPicker && (
                                                             <div
-                                                                className="absolute top-full left-0 mt-1 p-2 rounded-xl border grid grid-cols-8 gap-1 z-50 w-64"
+                                                                className="absolute top-full left-0 mt-1 p-2 rounded-xl border grid grid-cols-8 gap-1 z-50 w-64 max-h-56 overflow-y-auto"
                                                                 style={{
                                                                     background: isLightMode ? "rgba(255,255,255,0.95)" : "rgba(15,8,35,0.95)",
                                                                     borderColor: isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
@@ -453,7 +454,11 @@ export default function HamburgerMenu({
                                                                 {EMOJI_OPTIONS.map((e) => (
                                                                     <button
                                                                         key={e}
-                                                                        onClick={() => { setNewEmoji(e); setShowEmojiPicker(false); }}
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            setNewEmoji(e);
+                                                                            setShowEmojiPicker(false);
+                                                                        }}
                                                                         className={`w-7 h-7 rounded ${bgSubtleHover} flex items-center justify-center text-sm`}
                                                                     >
                                                                         {e}
@@ -495,6 +500,7 @@ export default function HamburgerMenu({
                                                                 <div className="flex items-center gap-2">
                                                                     <div className="relative">
                                                                         <button
+                                                                            type="button"
                                                                             onClick={() => setShowEditEmojiPicker(!showEditEmojiPicker)}
                                                                             className={`w-8 h-8 rounded-lg ${bgSubtle} flex items-center justify-center text-base ${bgSubtleHover} transition-colors`}
                                                                         >
@@ -502,7 +508,7 @@ export default function HamburgerMenu({
                                                                         </button>
                                                                         {showEditEmojiPicker && (
                                                                             <div
-                                                                                className="absolute top-full left-0 mt-1 p-2 rounded-xl border grid grid-cols-8 gap-1 z-50 w-64"
+                                                                                className="absolute top-full left-0 mt-1 p-2 rounded-xl border grid grid-cols-8 gap-1 z-50 w-64 max-h-56 overflow-y-auto"
                                                                                 style={{
                                                                                     background: isLightMode ? "rgba(255,255,255,0.95)" : "rgba(15,8,35,0.95)",
                                                                                     borderColor: isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
@@ -511,7 +517,11 @@ export default function HamburgerMenu({
                                                                                 {EMOJI_OPTIONS.map((e) => (
                                                                                     <button
                                                                                         key={e}
-                                                                                        onClick={() => { setEditEmoji(e); setShowEditEmojiPicker(false); }}
+                                                                                        type="button"
+                                                                                        onClick={() => {
+                                                                                            setEditEmoji(e);
+                                                                                            setShowEditEmojiPicker(false);
+                                                                                        }}
                                                                                         className={`w-7 h-7 rounded ${bgSubtleHover} flex items-center justify-center text-sm`}
                                                                                     >
                                                                                         {e}
@@ -579,7 +589,9 @@ export default function HamburgerMenu({
                                                             </div>
                                                         ) : (
                                                             <>
-                                                                <span className="text-base w-7 text-center">{item.emoji}</span>
+                                                                <span className="text-base w-7 text-center shrink-0" style={{ color: item.color }}>
+                                                                    {coerceStoredEmojiToDisplay(item.emoji)}
+                                                                </span>
                                                                 <span className={`flex-1 text-sm ${isLightMode ? "text-gray-700" : "text-white/80"}`}>
                                                                     {item.label}
                                                                 </span>
@@ -671,7 +683,9 @@ export default function HamburgerMenu({
                                                             key={item.id}
                                                             className={`flex items-center gap-2 p-2 rounded-xl ${bgSubtle} border ${borderSubtle}`}
                                                         >
-                                                            <span className="text-base w-6 text-center">{item.emoji}</span>
+                                                            <span className="text-sm w-6 text-center shrink-0" style={{ color: item.color }}>
+                                                                {coerceStoredEmojiToDisplay(item.emoji)}
+                                                            </span>
                                                             <span className={`flex-1 text-sm ${isLightMode ? "text-gray-700" : "text-white/80"} truncate`}>
                                                                 {item.label}
                                                             </span>
@@ -773,7 +787,7 @@ export default function HamburgerMenu({
                                                             >
                                                                 <div className={`text-sm font-medium ${textPrimary}`}>{t.name}</div>
                                                                 <div className={`text-xs ${textMuted} mt-0.5`}>
-                                                                    {t.items.length}項目 · {t.items.map((i) => i.emoji).slice(0, 6).join(" ")}
+                                                                    {t.items.length}項目 · {t.items.slice(0, 6).map((i) => coerceStoredEmojiToDisplay(i.emoji)).join(" ")}
                                                                 </div>
                                                             </button>
                                                             <button
@@ -868,7 +882,7 @@ export default function HamburgerMenu({
                                                                         const step = data.step ?? data.value;
                                                                         return (
                                                                             <div key={node.id} className={`flex items-center gap-2 p-2 rounded-xl ${bgSubtle} border ${borderSubtle}`}>
-                                                                                <span className="text-base w-6 text-center">{data.emoji}</span>
+                                                                                <span className="text-sm w-6 text-center shrink-0">{coerceStoredEmojiToDisplay(data.emoji)}</span>
                                                                                 <span className={`flex-1 text-sm ${isLightMode ? "text-gray-700" : "text-white/80"} truncate`}>
                                                                                     {data.label}
                                                                                 </span>

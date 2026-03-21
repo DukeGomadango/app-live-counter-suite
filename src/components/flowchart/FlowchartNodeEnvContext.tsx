@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, type ReactNode } from "react";
+import type { AppSettings } from "@/components/SettingsModal";
 import type { LineNodePersistedData, LedgerTotalPersistedData } from "@/lib/flowchartLedger";
 
 /** localStorage / React Flow の node.data に保存するフィールドのみ（関数は含めない） */
@@ -9,6 +10,8 @@ export type { LineNodePersistedData };
 export type FlowchartNodeEnv = {
     isLightMode: boolean;
     accentColor: string;
+    /** FlowchartContent の state（カードサイズ等を全ノードで即時反映するため LS とは別に渡す） */
+    appSettings: AppSettings;
     globalTarget: number;
     onIncrement: (id: string) => void;
     onDecrement: (id: string) => void;

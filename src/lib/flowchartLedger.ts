@@ -1,4 +1,5 @@
-import type { Edge, Node } from "@xyflow/react";
+import type { CoordinateExtent, Edge, Node } from "@xyflow/react";
+import { coerceStoredEmojiToDisplay } from "@/lib/constants";
 
 export const FLOWCHART_TOTAL_ID = "total";
 
@@ -83,7 +84,7 @@ function migrateLineNode(n: Node): Node {
     const mode: LedgerMode = op === "-" || op === "/" ? "subtract" : "add";
     const data: LineNodePersistedData = {
         label: String(d.label ?? "項目"),
-        emoji: String(d.emoji ?? "✨"),
+        emoji: coerceStoredEmojiToDisplay(String(d.emoji ?? "✨")),
         step: Math.max(0, Number(d.value ?? 0)),
         count: Math.max(0, Number(d.count ?? 0)),
         mode,
@@ -143,10 +144,8 @@ export function migrateLegacyFlowchart(nodes: Node[], edges: Edge[]): { nodes: N
     return { nodes: nextNodes, edges: ensured, changed };
 }
 
-/** レイアウト用の近似サイズ（CSS スケール前の論理座標） */
+/** レイアウト用の近似サイズ（CSS スケール前の論理座標・カード幅は LineNode の w-[220px] に合わせる） */
 const LINE_W = 220;
-/** 行ノードの論理高さ（キーパッド・進捗バー分を含む目安） */
-const LINE_H = 360;
 const TOTAL_W = 340;
 const TOTAL_H = 400;
 const MARGIN = 48;
@@ -154,28 +153,141 @@ const GAP_Y = 24;
 /** 項目カード同士の横方向の隙間 */
 const GAP_X = 24;
 
+/**
+ * 項目が 2 個以上のときのグリッド列数の下限。
+ * 狭い幅で 1 列にしか収まらない場合でもこの列数を目安にし、行がビューポートより横に長くなった分はパンで見る。
+ */
+const MIN_LINE_GRID_COLS_WHEN_MULTIPLE = 2;
+
+/** 行ノードの推定高さ（キーパッド・進捗込み。パン境界・折り返し行の縦ピッチに使用） */
+const LINE_NODE_BOUNDS_H = 400;
+
+/** `translateExtent` のノード群まわりの余白 */
+const TRANSLATE_EXTENT_PADDING = 96;
+
+/**
+ * ノード位置とカードサイズから、パン可能範囲（React Flow の translateExtent）を求める。
+ */
+export function flowchartTranslateExtent(nodes: Node[], cardSize: string | undefined): CoordinateExtent {
+    const s = flowchartCardVisualScale(cardSize);
+    const lineW = LINE_W * s;
+    const lineH = LINE_NODE_BOUNDS_H * s;
+    const totalW = TOTAL_W * s;
+    const totalH = TOTAL_H * s;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    const bump = (x: number, y: number, w: number, h: number) => {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x + w);
+        maxY = Math.max(maxY, y + h);
+    };
+
+    for (const n of nodes) {
+        if (n.type === "line") {
+            bump(n.position.x, n.position.y, lineW, lineH);
+        } else if (n.type === "total" || n.id === FLOWCHART_TOTAL_ID) {
+            bump(n.position.x, n.position.y, totalW, totalH);
+        }
+    }
+
+    const pad = TRANSLATE_EXTENT_PADDING;
+
+    if (!Number.isFinite(minX)) {
+        return [
+            [-pad, -pad],
+            [totalW + pad, totalH + pad],
+        ];
+    }
+
+    return [
+        [minX - pad, minY - pad],
+        [maxX + pad, maxY + pad],
+    ];
+}
+
+/**
+ * フローチャート行／合計カードの `transform: scale()` と一致させること。
+ * （LineNode・TotalNode・layoutFlowchartNodes で共有し、スケール変更時に重ならないようにする）
+ */
+export function flowchartCardVisualScale(cardSize: string | undefined): number {
+    const map: Record<string, number> = { S: 0.7, M: 0.85, L: 1.0, XL: 1.2 };
+    const k = cardSize ?? "L";
+    return map[k] ?? 1.0;
+}
+
+export type FlowchartLayoutOptions = {
+    /** 設定のカードサイズ（未指定は L 相当の 1.0） */
+    cardSize?: string;
+};
+
 function snapGrid(v: number, grid: number): number {
     return Math.round(v / grid) * grid;
 }
 
-/** 合計を上中央、行をその下に横一列・全体を中央揃えで配置。位置が変わったときのみ changed */
-export function layoutFlowchartNodes(nodes: Node[], viewportW: number, viewportH: number): { nodes: Node[]; changed: boolean } {
-    const w = Math.max(400, viewportW);
+/** ビューポート幅に応じた左右マージン（狭い画面で無駄な余白を減らす） */
+function layoutHorizontalMargin(viewportW: number): number {
+    if (viewportW <= 360) return 12;
+    if (viewportW <= 480) return 16;
+    if (viewportW <= 640) return 24;
+    return MARGIN;
+}
+
+/**
+ * 合計を上中央、項目をその下にグリッド配置（収まる列数と最低列数の大きい方で折り返し）・各行は中央揃え。
+ * 位置が変わったときのみ changed
+ */
+export function layoutFlowchartNodes(
+    nodes: Node[],
+    viewportW: number,
+    _viewportH: number,
+    options?: FlowchartLayoutOptions
+): { nodes: Node[]; changed: boolean } {
+    const s = flowchartCardVisualScale(options?.cardSize);
+    const lineW = LINE_W * s;
+    const totalW = TOTAL_W * s;
+    const totalH = TOTAL_H * s;
+    const gapX = GAP_X * s;
+    const gapY = GAP_Y * s;
+
+    const w = Math.max(240, viewportW);
+    const m = layoutHorizontalMargin(viewportW);
     const lines = nodes.filter((n) => n.type === "line");
     if (nodes.findIndex((n) => n.id === FLOWCHART_TOTAL_ID) < 0) return { nodes, changed: false };
 
-    const totalX = snapGrid(Math.max(MARGIN, (w - TOTAL_W) / 2), 24);
-    const totalY = snapGrid(MARGIN, 24);
+    const totalX = snapGrid(Math.max(m, (w - totalW) / 2), 24);
+    const totalY = snapGrid(m, 24);
 
-    const startY = snapGrid(totalY + TOTAL_H + GAP_Y, 24);
+    const startY = snapGrid(totalY + totalH + gapY, 24);
 
     const nLines = lines.length;
-    const rowW = nLines > 0 ? nLines * LINE_W + (nLines - 1) * GAP_X : 0;
-    const startX = snapGrid(Math.max(MARGIN, (w - rowW) / 2), 24);
+    const slotW = lineW + gapX;
+    const innerW = Math.max(slotW, w - 2 * m);
+    const maxFit = nLines === 0 ? 1 : Math.max(1, Math.floor(innerW / slotW));
+    const cols =
+        nLines === 0
+            ? 1
+            : nLines >= MIN_LINE_GRID_COLS_WHEN_MULTIPLE
+              ? Math.min(nLines, Math.max(maxFit, MIN_LINE_GRID_COLS_WHEN_MULTIPLE))
+              : 1;
+    const lineRowPitch = LINE_NODE_BOUNDS_H * s + gapY;
 
     const posById = new Map<string, { x: number; y: number }>();
     lines.forEach((n, i) => {
-        posById.set(n.id, { x: startX + i * (LINE_W + GAP_X), y: startY });
+        const r = Math.floor(i / cols);
+        const c = i % cols;
+        const firstInRow = r * cols;
+        const nodesThisRow = Math.min(cols, nLines - firstInRow);
+        const rowWidth = nodesThisRow * lineW + (nodesThisRow - 1) * gapX;
+        const startXRow = snapGrid(Math.max(m, (w - rowWidth) / 2), 24);
+        posById.set(n.id, {
+            x: startXRow + c * (lineW + gapX),
+            y: startY + r * lineRowPitch,
+        });
     });
     posById.set(FLOWCHART_TOTAL_ID, { x: totalX, y: totalY });
 

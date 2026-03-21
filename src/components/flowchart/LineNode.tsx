@@ -3,11 +3,10 @@
 import { memo, useRef, useCallback, useState, useEffect, useMemo } from "react";
 import { Handle, Position, NodeProps, Node } from "@xyflow/react";
 import { Trash2, ChevronUp, ChevronDown } from "lucide-react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { AppSettings, type CardSize } from "@/components/SettingsModal";
-import { EMOJI_OPTIONS } from "@/lib/constants";
+import type { CardSize } from "@/components/SettingsModal";
+import { EMOJI_OPTIONS, coerceStoredEmojiToDisplay } from "@/lib/constants";
 import { useFlowchartNodeEnv, type LineNodePersistedData } from "./FlowchartNodeEnvContext";
-import type { LedgerMode } from "@/lib/flowchartLedger";
+import { flowchartCardVisualScale, type LedgerMode } from "@/lib/flowchartLedger";
 import { StepKeypad, type StepKeypadColumn } from "@/components/StepKeypad";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 
@@ -32,25 +31,9 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
     const isLightMode = env.isLightMode;
     const isAchieved = data.target !== undefined && data.target > 0 && data.count >= data.target;
     const accentColor = env.accentColor;
+    const appSettings = env.appSettings;
 
-    const [appSettings] = useLocalStorage<AppSettings>("flowchart-app-settings", {
-        cardSize: "L",
-        edgeThickness: "M",
-        showProjectName: false,
-        projectName: "",
-        projectNameSize: "M",
-        projectNameColor: "#a855f7",
-        accentColor: "#a855f7",
-        orbIntensity: 50,
-        dotIntensity: 50,
-        showStep5: true,
-        showStep10: true,
-        showStepFree: false,
-        stepFreeValue: 1,
-    });
-
-    const scaleMap: Record<string, number> = { S: 0.7, M: 0.85, L: 1.0, XL: 1.2 };
-    const scale = scaleMap[appSettings.cardSize] || 1.0;
+    const scale = flowchartCardVisualScale(appSettings.cardSize);
 
     const [isEditingEmoji, setIsEditingEmoji] = useState(false);
     const [isEditingCount, setIsEditingCount] = useState(false);
@@ -284,16 +267,21 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                 >
                     <div className="flex items-center gap-2 min-w-0">
                         <div className="relative shrink-0">
-                            <span
-                                className="text-xl px-1 hover:bg-black/5 dark:hover:bg-white/10 rounded transition-colors cursor-pointer"
-                                style={{ filter: isLightMode ? "none" : "drop-shadow(0 0 8px rgba(255,255,255,0.2))" }}
+                            <button
+                                type="button"
+                                className="p-1 rounded hover:bg-black/5 dark:hover:bg-white/10 transition-colors cursor-pointer"
+                                style={{
+                                    color: accentColor,
+                                    filter: isLightMode ? "none" : "drop-shadow(0 0 8px rgba(255,255,255,0.2))",
+                                }}
                                 onClick={() => setIsEditingEmoji(!isEditingEmoji)}
+                                aria-label="絵文字を変更"
                             >
-                                {data.emoji}
-                            </span>
+                                <span className="text-xl leading-none block">{coerceStoredEmojiToDisplay(data.emoji)}</span>
+                            </button>
                             {isEditingEmoji && (
                                 <div
-                                    className="absolute top-full left-0 mt-1 p-2 rounded-xl border grid grid-cols-6 gap-1 z-50 w-48 shadow-xl"
+                                    className="absolute top-full left-0 mt-1 p-2 rounded-xl border grid grid-cols-6 gap-1 z-50 w-52 max-h-48 overflow-y-auto shadow-xl"
                                     style={{
                                         background: isLightMode ? "rgba(255,255,255,0.95)" : "rgba(15,8,35,0.95)",
                                         borderColor: isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
@@ -308,7 +296,8 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                                                 env.onUpdateLineConfig(id, { emoji: e });
                                                 setIsEditingEmoji(false);
                                             }}
-                                            className="w-6 h-6 rounded hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center text-sm transition-colors"
+                                            className="w-7 h-7 rounded hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center transition-colors text-base"
+                                            style={{ color: accentColor }}
                                         >
                                             {e}
                                         </button>

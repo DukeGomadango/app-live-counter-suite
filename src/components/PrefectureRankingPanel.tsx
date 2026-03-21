@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ListOrdered } from "lucide-react";
 import { useEffect } from "react";
+import { coerceStoredEmojiToDisplay } from "@/lib/constants";
 import type { CounterItem } from "@/lib/templates";
 
 interface PrefectureRankingPanelProps {
@@ -96,7 +97,9 @@ export default function PrefectureRankingPanel({
                     >
                       <td className={`py-2 pl-2 ${textMuted}`}>{rank + 1}</td>
                       <td className={`py-2 ${textPrimary}`}>
-                        <span className="mr-1.5 opacity-80">{item.emoji}</span>
+                        <span className="mr-1.5 opacity-80" style={{ color: item.color }}>
+                          {coerceStoredEmojiToDisplay(item.emoji)}
+                        </span>
                         {item.label}
                       </td>
                       <td className={`py-2 text-right font-medium ${textPrimary}`}>{item.count}</td>

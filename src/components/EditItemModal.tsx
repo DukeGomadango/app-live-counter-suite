@@ -2,8 +2,8 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check } from "lucide-react";
-import { useState, useCallback } from "react";
-import { EMOJI_OPTIONS, COLOR_OPTIONS } from "@/lib/constants";
+import { useState, useCallback, useEffect } from "react";
+import { COLOR_OPTIONS, EMOJI_OPTIONS, coerceStoredEmojiToDisplay } from "@/lib/constants";
 
 interface EditItemModalProps {
     id: string;
@@ -27,10 +27,18 @@ export default function EditItemModal({
     onClose,
 }: EditItemModalProps) {
     const [label, setLabel] = useState(initialLabel);
-    const [emoji, setEmoji] = useState(initialEmoji);
+    const [emoji, setEmoji] = useState(() => coerceStoredEmojiToDisplay(initialEmoji));
     const [color, setColor] = useState(initialColor);
     const [target, setTarget] = useState(initialTarget);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+    useEffect(() => {
+        setLabel(initialLabel);
+        setEmoji(coerceStoredEmojiToDisplay(initialEmoji));
+        setColor(initialColor);
+        setTarget(initialTarget);
+        setShowEmojiPicker(false);
+    }, [id, initialLabel, initialEmoji, initialColor, initialTarget]);
 
     const handleSave = useCallback(() => {
         if (label.trim()) {
@@ -102,7 +110,7 @@ export default function EditItemModal({
                                     boxShadow: `0 0 20px ${color}20`,
                                 }}
                             >
-                                <span className="text-2xl">{emoji}</span>
+                                <span className="text-4xl leading-none">{emoji}</span>
                                 <span className={`text-[10px] font-medium ${textSecondary} truncate max-w-[70px]`}>
                                     {label || "..."}
                                 </span>
@@ -124,17 +132,18 @@ export default function EditItemModal({
                             />
                         </div>
 
-                        {/* Emoji */}
+                        {/* 絵文字 */}
                         <div>
                             <label className={`block text-xs font-semibold ${textSecondary} uppercase tracking-wider mb-1.5`}>
                                 絵文字
                             </label>
                             <div className="relative">
                                 <button
+                                    type="button"
                                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                                    className={`w-full ${inputBg} border ${inputBorder} rounded-xl px-3 py-2.5 text-left text-lg flex items-center gap-2 ${bgSubtleHover} transition-colors`}
+                                    className={`w-full ${inputBg} border ${inputBorder} rounded-xl px-3 py-2.5 text-left flex items-center gap-2 ${bgSubtleHover} transition-colors`}
                                 >
-                                    <span>{emoji}</span>
+                                    <span className="text-2xl shrink-0 leading-none">{emoji}</span>
                                     <span className={`text-xs ${textMuted}`}>クリックして変更</span>
                                 </button>
                                 {showEmojiPicker && (
@@ -151,8 +160,12 @@ export default function EditItemModal({
                                         {EMOJI_OPTIONS.map((e) => (
                                             <button
                                                 key={e}
-                                                onClick={() => { setEmoji(e); setShowEmojiPicker(false); }}
-                                                className={`w-full aspect-square rounded ${bgSubtleHover} flex items-center justify-center text-sm ${emoji === e ? "ring-2 ring-purple-500 bg-purple-500/20" : ""}`}
+                                                type="button"
+                                                onClick={() => {
+                                                    setEmoji(e);
+                                                    setShowEmojiPicker(false);
+                                                }}
+                                                className={`w-full aspect-square rounded ${bgSubtleHover} flex items-center justify-center text-lg ${emoji === e ? "ring-2 ring-purple-500 bg-purple-500/20" : ""}`}
                                             >
                                                 {e}
                                             </button>

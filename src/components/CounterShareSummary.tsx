@@ -1,5 +1,6 @@
 "use client";
 
+import { coerceStoredEmojiToDisplay } from "@/lib/constants";
 import type { CounterItem } from "@/lib/templates";
 
 interface CounterShareSummaryProps {
@@ -56,7 +57,9 @@ export default function CounterShareSummary({
                         className="flex items-center justify-between gap-3 py-1.5 px-2 rounded-lg"
                         style={{ background: cardBg }}
                     >
-                        <span className="text-lg">{item.emoji}</span>
+                        <span className="text-lg shrink-0 w-8 text-center" style={{ color: item.color }}>
+                            {coerceStoredEmojiToDisplay(item.emoji)}
+                        </span>
                         <span className={`flex-1 text-sm truncate ${textPrimary}`}>
                             {item.label}
                         </span>

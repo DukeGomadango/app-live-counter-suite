@@ -8,6 +8,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { CardSize } from "@/components/SettingsModal";
 import { StepKeypad, type StepKeypadColumn } from "@/components/StepKeypad";
+import { coerceStoredEmojiToDisplay } from "@/lib/constants";
 
 const ARROW_BTN_SIZE_CLASS: Record<CardSize, string> = {
     S: "w-5 h-4 sm:w-6 sm:h-5",
@@ -419,15 +420,16 @@ export default function CounterPanel({
                     }}
                 />
 
-                {/* Emoji（PC 正方形内では一段小さく） */}
+                {/* 絵文字（PC 正方形内では一段小さく） */}
                 <span
                     className={
                         isDesktop
-                            ? "relative z-10 shrink-0 drop-shadow-lg text-lg sm:text-xl leading-none"
-                            : "relative z-10 drop-shadow-lg text-xl sm:text-2xl lg:text-3xl"
+                            ? "relative z-10 shrink-0 text-xl sm:text-2xl drop-shadow-lg leading-none"
+                            : "relative z-10 text-2xl sm:text-3xl drop-shadow-lg leading-none"
                     }
+                    style={{ color }}
                 >
-                    {emoji}
+                    {coerceStoredEmojiToDisplay(emoji)}
                 </span>
 
                 {/* Count block: 上段は △▽+数字、下段はステップキーパッド（全幅）。PC は flex-1 で正方形内に収める */}

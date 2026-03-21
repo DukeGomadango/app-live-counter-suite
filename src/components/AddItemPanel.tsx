@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { EMOJI_OPTIONS } from "@/lib/constants";
+import { DEFAULT_ITEM_EMOJI, EMOJI_OPTIONS } from "@/lib/constants";
 
 interface AddItemPanelProps {
     isLightMode: boolean;
@@ -16,7 +16,7 @@ interface AddItemPanelProps {
 export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onCollapse }: AddItemPanelProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [label, setLabel] = useState("");
-    const [emoji, setEmoji] = useState("⭐");
+    const [emoji, setEmoji] = useState(DEFAULT_ITEM_EMOJI);
     const [isHovered, setIsHovered] = useState(false);
 
     // Add variables for mobile detection and modal state
@@ -38,7 +38,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
         if (label.trim()) {
             onAddItem(label.trim(), emoji);
             setLabel("");
-            setEmoji(EMOJI_OPTIONS[0] ?? "");
+            setEmoji(DEFAULT_ITEM_EMOJI);
             setIsEditing(false);
             setIsHovered(false);
             setIsModalOpen(false);
@@ -104,8 +104,9 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                         {EMOJI_OPTIONS.map((e) => (
                             <button
                                 key={e}
+                                type="button"
                                 onClick={() => setEmoji(e)}
-                                className={`w-10 h-10 sm:w-11 sm:h-11 text-2xl rounded-xl flex items-center justify-center transition-all ${emoji === e
+                                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-xl transition-all ${emoji === e
                                     ? "bg-purple-500/30 border border-purple-500/50 scale-110 shadow-lg"
                                     : `${isLightMode ? "hover:bg-black/5 bg-black/5" : "hover:bg-white/10 bg-white/5"}`
                                     }`}
@@ -192,8 +193,9 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                         {EMOJI_OPTIONS.map((e) => (
                             <button
                                 key={e}
+                                type="button"
                                 onClick={() => setEmoji(e)}
-                                className={`w-6 h-6 rounded-md flex items-center justify-center text-sm transition-all ${emoji === e
+                                className={`w-7 h-7 rounded-md flex items-center justify-center text-sm transition-all ${emoji === e
                                     ? "bg-purple-500/30 border border-purple-500/50 scale-110"
                                     : `${isLightMode ? "hover:bg-black/5" : "hover:bg-white/10"}`
                                     }`}

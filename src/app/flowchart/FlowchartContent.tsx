@@ -14,6 +14,7 @@ import {
     BackgroundVariant,
     MarkerType,
 } from "@xyflow/react";
+import { FlowchartFitViewPanel } from "@/components/flowchart/FlowchartFitViewPanel";
 import "@xyflow/react/dist/style.css";
 import ModeSelector from "@/components/ModeSelector";
 import LineNode from "@/components/flowchart/LineNode";
@@ -32,6 +33,7 @@ import {
     ledgerTotalsSignature,
     layoutFlowchartNodes,
     migrateLegacyFlowchart,
+    flowchartTranslateExtent,
 } from "@/lib/flowchartLedger";
 import type { LedgerTotalPersistedData } from "@/lib/flowchartLedger";
 
@@ -173,12 +175,17 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane: _is
 
     useLayoutEffect(() => {
         if (viewport.w <= 0 || viewport.h <= 0) return;
-        const r = layoutFlowchartNodes(nodes, viewport.w, viewport.h);
+        const r = layoutFlowchartNodes(nodes, viewport.w, viewport.h, { cardSize: appSettings.cardSize });
         if (!r.changed) return;
         setNodes(r.nodes);
-    }, [nodes, viewport.w, viewport.h, setNodes]);
+    }, [nodes, viewport.w, viewport.h, appSettings.cardSize, setNodes]);
 
     const ledgerSig = useMemo(() => ledgerTotalsSignature(nodes), [nodes]);
+
+    const translateExtent = useMemo(
+        () => flowchartTranslateExtent(nodes, appSettings.cardSize),
+        [nodes, appSettings.cardSize, viewport.w]
+    );
 
     useEffect(() => {
         setNodes((nds) => {
@@ -399,6 +406,7 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane: _is
         () => ({
             isLightMode,
             accentColor,
+            appSettings,
             globalTarget,
             onIncrement: handleIncrement,
             onDecrement: handleDecrement,
@@ -411,6 +419,7 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane: _is
         [
             isLightMode,
             accentColor,
+            appSettings,
             globalTarget,
             handleIncrement,
             handleDecrement,
@@ -661,7 +670,12 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane: _is
             </div>
 
             <FlowchartNodeEnvProvider value={flowchartNodeEnv}>
-                <main ref={flowWrapRef} className="flex-1 w-full h-full min-h-[320px]">
+                <main
+                    ref={flowWrapRef}
+                    className="flex-1 w-full h-full min-h-[320px]"
+                    style={{ overscrollBehavior: "contain" }}
+                >
+                    {/* touch-manipulation: ダブルタップ拡大を抑えつつパンしやすくする。パンが効かない端末では className を touch-none に戻す */}
                     <ReactFlow
                         nodes={nodes}
                         edges={styledEdges}
@@ -674,9 +688,15 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane: _is
                         elementsSelectable={true}
                         snapToGrid={true}
                         snapGrid={[24, 24]}
+                        minZoom={1}
+                        maxZoom={1}
+                        zoomOnScroll={false}
+                        zoomOnPinch={false}
+                        zoomOnDoubleClick={false}
+                        translateExtent={translateExtent}
                         fitView
-                        fitViewOptions={{ padding: 0.2, maxZoom: 1 }}
-                        className="touch-none bg-transparent"
+                        fitViewOptions={{ padding: 0.2, minZoom: 1, maxZoom: 1 }}
+                        className="touch-manipulation bg-transparent"
                         colorMode={isLightMode ? "light" : "dark"}
                     >
                         <Background
@@ -686,6 +706,7 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane: _is
                             color={isLightMode ? `${accentColor}40` : `${accentColor}40`}
                             style={{ opacity: appSettings.dotIntensity !== undefined ? appSettings.dotIntensity / 100 : 0.5 }}
                         />
+                        <FlowchartFitViewPanel isLightMode={isLightMode} accentColor={accentColor} />
                         <Controls
                             className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg shadow-xl"
                             showInteractive={false}
