@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronUp, ChevronDown, Trash2, Pencil } from "lucide-react";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, type CSSProperties } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -322,6 +322,10 @@ export default function CounterPanel({
     const targetReached = target > 0 && count >= target;
   const canAchieveTarget = target > 0 && count < target && !!onRequestAchieveTarget;
 
+    /** ドラッグ中のみ none（スクロールで並べ替えが途切れない）。それ以外は pan-y でカード上からも縦スクロールできる。 */
+    const sortableTouchAction: CSSProperties["touchAction"] =
+        isOverlay ? undefined : isDragging ? "none" : "pan-y";
+
     // Arrow button styles
     const arrowBg = isLightMode ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)";
     const arrowHoverBg = isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.18)";
@@ -335,7 +339,7 @@ export default function CounterPanel({
                 transition: isOverlay ? undefined : transition,
                 zIndex: isDragging ? 50 : 0,
                 opacity: isDragging ? 0.5 : 1,
-                touchAction: "none", // スマホのスクロールによるドラッグの中断を防止
+                touchAction: sortableTouchAction,
             }}
             {...(isOverlay ? {} : attributes)}
             {...(isOverlay ? {} : listeners)}
