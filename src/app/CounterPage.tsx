@@ -569,7 +569,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   const splitLightBg = "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)";
   return (
     <div
-      className="h-full w-full flex flex-col relative z-10"
+      className="h-full min-h-0 w-full flex flex-col relative z-10"
       style={{ "--accent-color": appSettings.accentColor } as React.CSSProperties}
     >
       {/* 画像共有用：スケールダウンしてビューポートに収め、背景オーブ＋余白付きで toPng */}
@@ -800,7 +800,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
         hideModeSelector={isSplitMode}
       />
 
-      <main className="flex-1 overflow-auto scroll-touch" style={{ paddingTop: "56px" }}>
+      <main className="flex-1 min-h-0 overflow-auto scroll-touch" style={{ paddingTop: "56px" }}>
         <div className="min-h-full flex flex-col items-center justify-center py-4 px-3 sm:px-4">
           {/* Project Name (not h1 to keep single h1 for SEO) */}
           {!isSplitMode && appSettings.showProjectName && appSettings.projectName && (

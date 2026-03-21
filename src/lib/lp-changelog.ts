@@ -14,6 +14,14 @@ export type ChangelogEntry = {
 
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-03-21",
+    importance: "minor",
+    title: "カウンター：スマホで項目をドラッグしたとき上部バーが消える不具合を修正",
+    items: [
+      "縦スクロールをメイン領域内に閉じるようレイアウトを調整し、項目を下方向にドラッグして並べ替えるときに上部バーが画面外に流れないようにしました",
+    ],
+  },
+  {
     date: "2026-03-17",
     importance: "minor",
     title: "サイトのファビコンを新デザインに変更",
