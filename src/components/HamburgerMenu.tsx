@@ -202,11 +202,13 @@ export default function HamburgerMenu({
     // FlowChart nodes grouped by operation for targets
     const groupedFlowchartNodes = useMemo(() => {
         if (viewMode !== "flowchart" || !flowchartNodes) return {} as Record<string, FlowchartNodeForMenu[]>;
-        const counterNodes = flowchartNodes.filter(n => n.type === "counter" && !n.data?.isGhost);
-        const grouped: Record<string, FlowchartNodeForMenu[]> = { "+": [], "-": [], "*": [], "/": [] };
-        counterNodes.forEach(n => {
-            const op = String(n.data?.operation);
-            if (grouped[op]) grouped[op].push(n);
+        const lineNodes = flowchartNodes.filter((n) => (n.type === "line" || n.type === "counter") && !n.data?.isGhost);
+        const grouped: Record<string, FlowchartNodeForMenu[]> = { add: [], subtract: [] };
+        lineNodes.forEach((n) => {
+            const d = n.data as { mode?: string; operation?: string } | undefined;
+            const mode: "add" | "subtract" =
+                d?.mode === "subtract" || d?.operation === "-" || d?.operation === "/" ? "subtract" : "add";
+            grouped[mode]!.push(n);
         });
         return grouped;
     }, [viewMode, flowchartNodes]);
@@ -841,7 +843,7 @@ export default function HamburgerMenu({
                                                     </div>
                                                 </div>
                                                 <p className={`text-[10px] ${textMuted} pl-1`}>
-                                                    総合計ノードに進捗バーが表示されます。
+                                                    入力した目標値と総合計を比較し、合計ノードに進捗バーが表示されます。
                                                 </p>
                                             </div>
 
@@ -851,18 +853,19 @@ export default function HamburgerMenu({
                                                     <h3 className={`text-xs font-bold ${textMuted} uppercase tracking-wider pl-1`}>
                                                         個別ノードの目標設定
                                                     </h3>
-                                                    {["+", "-", "*", "/"].map((op) => {
-                                                        const nodes = groupedFlowchartNodes[op];
+                                                    {(["add", "subtract"] as const).map((modeKey) => {
+                                                        const nodes = groupedFlowchartNodes[modeKey];
                                                         if (!nodes || nodes.length === 0) return null;
 
                                                         return (
-                                                            <div key={op} className="space-y-2">
+                                                            <div key={modeKey} className="space-y-2">
                                                                 <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block backdrop-blur-md border ${isLightMode ? "bg-black/5 border-black/10 text-gray-600" : "bg-white/5 border-white/10 text-white/50"}`}>
-                                                                    演算子: <span className="text-purple-500 font-mono text-xs">{op}</span>
+                                                                    {modeKey === "add" ? "加算" : "減算"}
                                                                 </div>
                                                                 <div className="space-y-1.5 pl-1">
                                                                     {nodes.map((node) => {
-                                                                        const data = node.data as { emoji?: string; label?: string; color?: string; value?: number; target?: number; count?: number };
+                                                                        const data = node.data as { emoji?: string; label?: string; color?: string; value?: number; step?: number; target?: number; count?: number };
+                                                                        const step = data.step ?? data.value;
                                                                         return (
                                                                             <div key={node.id} className={`flex items-center gap-2 p-2 rounded-xl ${bgSubtle} border ${borderSubtle}`}>
                                                                                 <span className="text-base w-6 text-center">{data.emoji}</span>
@@ -871,7 +874,7 @@ export default function HamburgerMenu({
                                                                                 </span>
                                                                                 <div className="flex items-center gap-1">
                                                                                     <span className="text-xs font-mono tabular-nums" style={{ color: data.color }}>
-                                                                                        {data.value}
+                                                                                        {step}
                                                                                     </span>
                                                                                     <span className={`text-xs ${textMuted}`}>/</span>
                                                                                     <input

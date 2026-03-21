@@ -26,13 +26,13 @@ export interface AppSettings {
     accentColor: string;
     orbIntensity: number; // 0-100
     dotIntensity?: number; // 0-100
-    /** ±5 ボタンをカードに表示（カウンターのみ） */
+    /** ±5 ボタンを行カードに表示（カウンター・フローチャート） */
     showStep5?: boolean;
-    /** ±10 ボタンをカードに表示（カウンターのみ） */
+    /** ±10 ボタンを行カードに表示（カウンター・フローチャート） */
     showStep10?: boolean;
-    /** ±自由記述ボタンをカードに表示（カウンターのみ） */
+    /** ±自由記述ボタンを行カードに表示（カウンター・フローチャート） */
     showStepFree?: boolean;
-    /** ±自由記述で加減算する値（設定で指定、カウンターのみ） */
+    /** ±自由記述で加減算する値（カウンター・フローチャート） */
     stepFreeValue?: number;
     /** カード上に編集・削除ボタンを表示する（カウンターのみ） */
     showCardEditDelete?: boolean;
@@ -183,8 +183,8 @@ export default function SettingsModal({
                             </div>
                         </div>
 
-                        {/* === Step buttons (Counter only) === */}
-                        {mode === "counter" && (
+                        {/* === Step buttons (Counter + Flowchart line cards) === */}
+                        {(mode === "counter" || mode === "flowchart") && (
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2 mb-2">
                                     <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>
@@ -199,6 +199,7 @@ export default function SettingsModal({
                                     <div key={key} className="flex items-center justify-between">
                                         <span className={`text-sm ${textPrimary}`}>{label}</span>
                                         <button
+                                            type="button"
                                             onClick={onChange}
                                             className="relative w-11 h-6 rounded-full transition-colors duration-200"
                                             style={{
@@ -228,46 +229,50 @@ export default function SettingsModal({
                                         />
                                     </div>
                                 )}
-                                <div className="space-y-2 pt-1 border-t mt-3 pt-3" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }}>
-                                    <div className="flex items-center justify-between">
-                                        <span className={`text-sm ${textPrimary}`}>カードに編集・削除ボタンを表示</span>
-                                        <button
-                                            onClick={() => setSettings((s) => ({ ...s, showCardEditDelete: !(s.showCardEditDelete ?? true) }))}
-                                            className="relative w-11 h-6 rounded-full transition-colors duration-200"
-                                            style={{
-                                                background: (settings.showCardEditDelete ?? true) ? `${accentColor}60` : isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.15)",
-                                            }}
-                                        >
-                                            <motion.div
-                                                className="absolute top-0.5 w-5 h-5 rounded-full shadow-md"
-                                                animate={{ left: (settings.showCardEditDelete ?? true) ? "22px" : "2px" }}
-                                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                {mode === "counter" && (
+                                    <div className="space-y-2 pt-1 border-t mt-3 pt-3" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }}>
+                                        <div className="flex items-center justify-between">
+                                            <span className={`text-sm ${textPrimary}`}>カードに編集・削除ボタンを表示</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSettings((s) => ({ ...s, showCardEditDelete: !(s.showCardEditDelete ?? true) }))}
+                                                className="relative w-11 h-6 rounded-full transition-colors duration-200"
                                                 style={{
-                                                    background: (settings.showCardEditDelete ?? true) ? accentColor : isLightMode ? "white" : "rgba(255,255,255,0.6)",
+                                                    background: (settings.showCardEditDelete ?? true) ? `${accentColor}60` : isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.15)",
                                                 }}
-                                            />
-                                        </button>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <span className={`text-sm ${textPrimary}`}>カードに「目標へ」ボタンを表示</span>
-                                        <button
-                                            onClick={() => setSettings((s) => ({ ...s, showAchieveTargetButtonOnCard: !(s.showAchieveTargetButtonOnCard ?? true) }))}
-                                            className="relative w-11 h-6 rounded-full transition-colors duration-200"
-                                            style={{
-                                                background: (settings.showAchieveTargetButtonOnCard ?? true) ? `${accentColor}60` : isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.15)",
-                                            }}
-                                        >
-                                            <motion.div
-                                                className="absolute top-0.5 w-5 h-5 rounded-full shadow-md"
-                                                animate={{ left: (settings.showAchieveTargetButtonOnCard ?? true) ? "22px" : "2px" }}
-                                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                            >
+                                                <motion.div
+                                                    className="absolute top-0.5 w-5 h-5 rounded-full shadow-md"
+                                                    animate={{ left: (settings.showCardEditDelete ?? true) ? "22px" : "2px" }}
+                                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                                    style={{
+                                                        background: (settings.showCardEditDelete ?? true) ? accentColor : isLightMode ? "white" : "rgba(255,255,255,0.6)",
+                                                    }}
+                                                />
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center justify-between">
+                                            <span className={`text-sm ${textPrimary}`}>カードに「目標へ」ボタンを表示</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => setSettings((s) => ({ ...s, showAchieveTargetButtonOnCard: !(s.showAchieveTargetButtonOnCard ?? true) }))}
+                                                className="relative w-11 h-6 rounded-full transition-colors duration-200"
                                                 style={{
-                                                    background: (settings.showAchieveTargetButtonOnCard ?? true) ? accentColor : isLightMode ? "white" : "rgba(255,255,255,0.6)",
+                                                    background: (settings.showAchieveTargetButtonOnCard ?? true) ? `${accentColor}60` : isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.15)",
                                                 }}
-                                            />
-                                        </button>
+                                            >
+                                                <motion.div
+                                                    className="absolute top-0.5 w-5 h-5 rounded-full shadow-md"
+                                                    animate={{ left: (settings.showAchieveTargetButtonOnCard ?? true) ? "22px" : "2px" }}
+                                                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                                                    style={{
+                                                        background: (settings.showAchieveTargetButtonOnCard ?? true) ? accentColor : isLightMode ? "white" : "rgba(255,255,255,0.6)",
+                                                    }}
+                                                />
+                                            </button>
+                                        </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         )}
 

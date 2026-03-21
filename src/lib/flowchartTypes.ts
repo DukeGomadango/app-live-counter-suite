@@ -8,16 +8,26 @@ export type FlowchartNodeForMenu = {
   type?: string;
   position?: { x: number; y: number };
   selected?: boolean;
+  draggable?: boolean;
   data?: {
     isGhost?: boolean;
     operation?: string;
+    mode?: "add" | "subtract";
     emoji?: string;
     label?: string;
     color?: string;
     value?: number;
+    step?: number;
     target?: number;
     count?: number;
     isLightMode?: boolean;
+    /** 合計ノード（フローチャート台帳） */
+    addTotal?: number;
+    subTotalSigned?: number;
+    grandTotal?: number;
+    labelAdd?: string;
+    labelSub?: string;
+    labelGrand?: string;
   };
 };
 
