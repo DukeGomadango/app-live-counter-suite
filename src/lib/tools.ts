@@ -28,7 +28,7 @@ export interface ToolDef {
   lpSpan: "large" | "medium" | "small";
 }
 
-/** ツール: カウンター, フローチャート, パネル, 電卓, 時計, スプリット */
+/** ツール: カウンター, チャート, パネル, 電卓, 時計, スプリット */
 /** ゲーム: ガチャ, ルーレット, スロット */
 export const TOOLS: ToolDef[] = [
   {
@@ -50,8 +50,8 @@ export const TOOLS: ToolDef[] = [
   {
     id: "flowchart",
     path: "/flowchart",
-    labelEn: "FlowChart",
-    labelJa: "フローチャート",
+    labelEn: "Chart",
+    labelJa: "チャート",
     description: "ノード式で数値演算。分岐・確率・集計を視覚的に整理し、リアルタイムで計算。",
     descriptionNarrowBreakAfter: "数値演算。",
     icon: Network,
@@ -116,7 +116,7 @@ export const TOOLS: ToolDef[] = [
     path: "/split",
     labelEn: "Split",
     labelJa: "スプリットビュー",
-    description: "カウンター・フローチャート・ガチャなどを1画面で切り替え。",
+    description: "カウンター・チャート・ガチャなどを1画面で切り替え。",
     descriptionNarrowBreakAfter: "1画面で",
     icon: LayoutGrid,
     colorClass: "text-emerald-400",

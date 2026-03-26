@@ -6,7 +6,7 @@
 export const SITE_CONFIG = {
   name: "だんごツール",
   description:
-    "配信者・クリエイター向けWebツールキット。完全無料で使える人数カウンターや、リアルタイム計算フローチャートなど、日々の活動を便利にする「だんごツール」を提供します。",
+    "配信者・クリエイター向けWebツールキット。完全無料で使える人数カウンターや、リアルタイム計算チャートなど、日々の活動を便利にする「だんごツール」を提供します。",
   url: "https://dango-tool.vercel.app",
   ogImage: "https://dango-tool.vercel.app/ogp.png",
   screenshotLight: "https://dango-tool.vercel.app/screenshot-light.png",

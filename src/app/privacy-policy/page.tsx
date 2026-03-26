@@ -91,17 +91,28 @@ export default function PrivacyPolicyPage() {
           </p>
         </section>
 
-        <section className="mt-5 space-y-2">
+        <section id="operator-info" className="mt-5 space-y-2">
           <h2 className="text-lg font-bold text-white">9. 運営者情報</h2>
           <p className="text-sm text-white/75">
             運営者名: Dukegomadango（ごまだんご伯爵）
+          </p>
+          <p className="text-sm text-white/75">
+            Xアカウント:{" "}
+            <a
+              href="https://x.com/dukegomadango"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-purple-300 underline underline-offset-2 hover:text-purple-200"
+            >
+              https://x.com/dukegomadango
+            </a>
           </p>
         </section>
 
         <section className="mt-5 space-y-2">
           <h2 className="text-lg font-bold text-white">10. お問い合わせ</h2>
           <p className="text-sm text-white/75">
-            本ポリシーに関するお問い合わせは、運営者Xアカウント（@Dukegomadango）への連絡により受け付けます。
+            本ポリシーに関するお問い合わせは、Xアカウント（https://x.com/dukegomadango）への連絡により受け付けます。
           </p>
         </section>
 

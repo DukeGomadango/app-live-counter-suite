@@ -1,8 +1,8 @@
 import { Metadata } from "next";
 import { SITE_CONFIG } from "@/lib/site";
 
-const title = "フローチャート・数値計算マップ | だんごツール";
-const description = "リアルタイムで数値演算ができる直感的なノード式フローチャート・マインドマップ作成ツール。イベントの分岐、確率計算、アイテム集計などを視覚的に整理し、自動計算します。";
+const title = "チャート・数値計算マップ | だんごツール";
+const description = "リアルタイムで数値演算ができる直感的なノード式チャート。項目の加減算を視覚的に整理し、加算合計・減算合計・総合計を自動集計します。";
 const url = `${SITE_CONFIG.url}/flowchart`;
 
 export const metadata: Metadata = {
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     },
     keywords: [
         "だんごツール",
-        "フローチャート",
+        "チャート",
         "マインドマップ",
         "数値計算",
         "ノード演算",

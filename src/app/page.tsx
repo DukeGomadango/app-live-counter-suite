@@ -4,7 +4,7 @@ import LandingPage from "./LandingPage";
 export const metadata: Metadata = {
   title: "だんごツール | 無料のWebツールキット",
   description:
-    "IRIAMやYouTube配信で役立つ登録不要・完全無料のWebツールキット「だんごツール」。人数カウンター、フローチャート、ガチャシミュレーターなど。スマホやPCで簡単に利用できます。",
+    "IRIAMやYouTube配信で役立つ登録不要・完全無料のWebツールキット「だんごツール」。人数カウンター、チャート、ガチャシミュレーターなど。スマホやPCで簡単に利用できます。",
   alternates: { canonical: "/" },
   keywords: [
     "だんごツール",

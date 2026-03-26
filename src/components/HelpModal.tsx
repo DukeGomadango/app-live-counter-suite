@@ -91,11 +91,11 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
                         title: "ツール",
                         items: [
                             "人数カウンター: 入室カウント・項目集計を複数同時に。テンプレートや目標値で配信をサポート",
-                            "フローチャート: 項目の加減と変動幅から加算合計・減算合計・総合計を自動集計",
+                            "チャート: 項目の加減と変動幅から加算合計・減算合計・総合計を自動集計",
                             "パネル: 画像に覆いをかけてタップで開け。AI読み取り防止・目標達成で覆い解除",
                             "電卓: 四則演算・分数・確率の簡易計算",
                             "時計: 現在時刻・ストップウォッチ・タイマー。デジタルとアナログ表示に対応",
-                            "スプリットビュー: カウンター・フローチャート・ガチャなどを1画面で切り替え",
+                            "スプリットビュー: カウンター・チャート・ガチャなどを1画面で切り替え",
                         ]
                     },
                     {
@@ -205,7 +205,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
         }
         if (path.includes("flowchart")) {
             return {
-                title: "FlowChart モード",
+                title: "Chart モード",
                 icon: <GitMerge className="text-blue-400" size={24} />,
                 description: "項目カードのタップ回数と変動幅から、加算合計・減算合計・総合計を自動で集計するモードです。",
                 sections: [
@@ -238,14 +238,14 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
             return {
                 title: "Split モード",
                 icon: <LayoutGrid className="text-green-400" size={24} />,
-                description: "画面を左右に分割し、複数の機能（カウンターやフローチャート・パネルなど）を同時に利用できます。",
+                description: "画面を左右に分割し、複数の機能（カウンターやチャート・パネルなど）を同時に利用できます。",
                 sections: [
                     {
                         title: "基本操作",
                         items: [
                             "左右のペイン上部にあるドロップダウンから表示したい機能を選択できます",
                             "「Counter」を選べば左右両方で異なるカウンターを使用できます",
-                            "「FlowChart」を選んで加減算の集計ビューと他機能を同時に使えます",
+                            "「Chart」を選んで加減算の集計ビューと他機能を同時に使えます",
                             "「Panel」を選んで左右でパネルを表示できます",
                             "現在の画面構成は自動で保存され、次回も同じ状態で開きます"
                         ]

@@ -7,7 +7,7 @@ const CounterPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
   () => import("@/app/CounterPage"),
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
-const FlowChartPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
+const ChartPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
   () => import("@/app/flowchart/FlowchartContent"),
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
@@ -46,7 +46,7 @@ export type ModuleType = "counter" | "flowchart" | "gacha" | "roulette" | "slot"
 
 const MODULE_OPTIONS: { value: ModuleType; label: string }[] = [
     { value: "counter", label: "Counter" },
-    { value: "flowchart", label: "FlowChart" },
+    { value: "flowchart", label: "Chart" },
     { value: "gacha", label: "Gacha" },
     { value: "roulette", label: "Roulette" },
     { value: "slot", label: "Slot" },
@@ -97,7 +97,7 @@ export default function SplitPage() {
     const renderModule = (type: ModuleType, isRight: boolean = false) => {
         switch (type) {
             case "counter": return <CounterPage isSplitMode={true} isRightPane={isRight} />;
-            case "flowchart": return <FlowChartPage isSplitMode={true} isRightPane={isRight} />;
+            case "flowchart": return <ChartPage isSplitMode={true} isRightPane={isRight} />;
             case "gacha": return <GachaPage isSplitMode={true} isRightPane={isRight} />;
             case "roulette": return <RoulettePage isSplitMode={true} isRightPane={isRight} />;
             case "slot": return <SlotPage isSplitMode={true} isRightPane={isRight} />;

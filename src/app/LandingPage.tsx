@@ -31,9 +31,9 @@ const USE_CASES: UseCase[] = [
   },
   {
     title: "参加型企画の集計に",
-    body: "フローチャートで加算・減算を視覚的にまとめられます。",
+    body: "チャートで加算・減算を視覚的にまとめられます。",
     toolPath: "/flowchart",
-    toolLabel: "フローチャート",
+    toolLabel: "チャート",
   },
   {
     title: "演出企画の盛り上げに",
@@ -216,7 +216,7 @@ export default function LandingPage() {
                   <p className="text-2xl font-black text-purple-400 tracking-wide">1,248</p>
                 </div>
                 <div className="rounded-xl p-3" style={{ background: "linear-gradient(135deg, #60a5fa30, transparent)" }}>
-                  <p className={`text-xs ${effectiveLight ? "text-neutral-600" : "text-white/70"}`}>フローチャート</p>
+                  <p className={`text-xs ${effectiveLight ? "text-neutral-600" : "text-white/70"}`}>チャート</p>
                   <p className="text-sm font-bold text-blue-300">+300 / -120</p>
                 </div>
                 <div className="rounded-xl p-3" style={{ background: "linear-gradient(135deg, #facc1530, transparent)" }}>
@@ -465,24 +465,6 @@ export default function LandingPage() {
           <h2 className={`text-sm font-bold uppercase tracking-wider mb-3 ${effectiveLight ? "text-neutral-500" : "text-white/50"}`}>
             サポート情報
           </h2>
-          <div
-            className={`rounded-xl px-3 py-2 text-xs sm:text-sm flex flex-wrap items-center gap-x-3 gap-y-1 ${
-              effectiveLight ? "bg-black/5 text-neutral-700" : "bg-white/8 text-white/75"
-            }`}
-          >
-            <Link href="/terms" className={`underline underline-offset-2 ${effectiveLight ? "hover:text-neutral-900" : "hover:text-white"}`}>
-              利用規約
-            </Link>
-            <span className={effectiveLight ? "text-neutral-400" : "text-white/40"} aria-hidden>
-              /
-            </span>
-            <Link
-              href="/privacy-policy"
-              className={`underline underline-offset-2 ${effectiveLight ? "hover:text-neutral-900" : "hover:text-white"}`}
-            >
-              プライバシーポリシー
-            </Link>
-          </div>
         </div>
 
         {/* FAQ: 一段で「よくある質問」のみ表示→開くとカテゴリ→二段でカテゴリ開くと Q/A */}
@@ -726,6 +708,42 @@ export default function LandingPage() {
             </div>
           </motion.div>
         </section>
+
+        <footer className="w-full max-w-5xl mx-auto mt-12 md:mt-16 pb-4 text-center">
+          <div
+            className={`h-px w-full mb-5 bg-gradient-to-r ${effectiveLight ? "from-transparent via-black/15 to-transparent" : "from-transparent via-white/20 to-transparent"}`}
+            aria-hidden
+          />
+          <div className="text-xs sm:text-sm flex flex-wrap justify-center items-center gap-x-2 gap-y-1">
+            <Link
+              href="/terms"
+              className={`underline-offset-2 transition-colors ${effectiveLight ? "text-neutral-500 hover:text-neutral-800" : "text-white/45 hover:text-white/80"}`}
+            >
+              利用規約
+            </Link>
+            <span className={effectiveLight ? "text-neutral-300" : "text-white/25"} aria-hidden>
+              |
+            </span>
+            <Link
+              href="/privacy-policy"
+              className={`underline-offset-2 transition-colors ${effectiveLight ? "text-neutral-500 hover:text-neutral-800" : "text-white/45 hover:text-white/80"}`}
+            >
+              プライバシーポリシー
+            </Link>
+            <span className={effectiveLight ? "text-neutral-300" : "text-white/25"} aria-hidden>
+              |
+            </span>
+            <Link
+              href="https://x.com/dukegomadango"
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`underline-offset-2 transition-colors ${effectiveLight ? "text-neutral-500 hover:text-neutral-800" : "text-white/45 hover:text-white/80"}`}
+            >
+              運営者情報
+            </Link>
+          </div>
+          <p className={`mt-3 text-[11px] sm:text-xs ${effectiveLight ? "text-neutral-400" : "text-white/35"}`}>© 2026 だんごツール</p>
+        </footer>
       </main>
     </div>
   );
