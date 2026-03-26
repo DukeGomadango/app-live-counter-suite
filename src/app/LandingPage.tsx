@@ -465,6 +465,24 @@ export default function LandingPage() {
           <h2 className={`text-sm font-bold uppercase tracking-wider mb-3 ${effectiveLight ? "text-neutral-500" : "text-white/50"}`}>
             サポート情報
           </h2>
+          <div
+            className={`rounded-xl px-3 py-2 text-xs sm:text-sm flex flex-wrap items-center gap-x-3 gap-y-1 ${
+              effectiveLight ? "bg-black/5 text-neutral-700" : "bg-white/8 text-white/75"
+            }`}
+          >
+            <Link href="/terms" className={`underline underline-offset-2 ${effectiveLight ? "hover:text-neutral-900" : "hover:text-white"}`}>
+              利用規約
+            </Link>
+            <span className={effectiveLight ? "text-neutral-400" : "text-white/40"} aria-hidden>
+              /
+            </span>
+            <Link
+              href="/privacy-policy"
+              className={`underline underline-offset-2 ${effectiveLight ? "hover:text-neutral-900" : "hover:text-white"}`}
+            >
+              プライバシーポリシー
+            </Link>
+          </div>
         </div>
 
         {/* FAQ: 一段で「よくある質問」のみ表示→開くとカテゴリ→二段でカテゴリ開くと Q/A */}
