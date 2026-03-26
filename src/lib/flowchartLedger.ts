@@ -3,6 +3,10 @@ import { coerceStoredEmojiToDisplay } from "@/lib/constants";
 
 export const FLOWCHART_TOTAL_ID = "total";
 
+/** React Flow のズーム範囲（fitView で初期表示に戻すときも同じ min/max を使う） */
+export const FLOWCHART_ZOOM_MIN = 0.45;
+export const FLOWCHART_ZOOM_MAX = 2;
+
 export type LedgerMode = "add" | "subtract";
 
 /** React Flow の line ノード data（永続化用） */
@@ -153,11 +157,21 @@ const GAP_Y = 24;
 /** 項目カード同士の横方向の隙間 */
 const GAP_X = 24;
 
+/** この幅以下をスマホ相当とみなし、項目グリッドの最低列数を 3 にする（`layoutFlowchartNodes` の viewportW と同期） */
+const FLOWCHART_MOBILE_LAYOUT_MAX_W = 768;
+
 /**
- * 項目が 2 個以上のときのグリッド列数の下限。
+ * 項目が 2 個以上のときのグリッド列数の下限（PC）。
  * 狭い幅で 1 列にしか収まらない場合でもこの列数を目安にし、行がビューポートより横に長くなった分はパンで見る。
  */
-const MIN_LINE_GRID_COLS_WHEN_MULTIPLE = 2;
+const MIN_LINE_GRID_COLS_DESKTOP = 2;
+
+/** スマホ幅での同上下限（三列を目安に並べる） */
+const MIN_LINE_GRID_COLS_MOBILE = 3;
+
+function minLineGridColsForViewport(viewportW: number): number {
+    return viewportW <= FLOWCHART_MOBILE_LAYOUT_MAX_W ? MIN_LINE_GRID_COLS_MOBILE : MIN_LINE_GRID_COLS_DESKTOP;
+}
 
 /** 行ノードの推定高さ（キーパッド・進捗込み。パン境界・折り返し行の縦ピッチに使用） */
 const LINE_NODE_BOUNDS_H = 400;
@@ -238,7 +252,9 @@ function layoutHorizontalMargin(viewportW: number): number {
 }
 
 /**
- * 合計を上中央、項目をその下にグリッド配置（収まる列数と最低列数の大きい方で折り返し）・各行は中央揃え。
+ * 合計を「先頭行の項目ブロックの中央」の上に置き、その下にグリッド配置（収まる列数と最低列数の大きい方で折り返し）・各行は中央揃え。
+ * 項目がないときだけ合計をビューポート中央に置く。
+ * 狭いビュー（幅 768px 以下）では最低三列、それ以外では最低二列を目安にする。
  * 位置が変わったときのみ changed
  */
 export function layoutFlowchartNodes(
@@ -259,22 +275,30 @@ export function layoutFlowchartNodes(
     const lines = nodes.filter((n) => n.type === "line");
     if (nodes.findIndex((n) => n.id === FLOWCHART_TOTAL_ID) < 0) return { nodes, changed: false };
 
-    const totalX = snapGrid(Math.max(m, (w - totalW) / 2), 24);
     const totalY = snapGrid(m, 24);
-
-    const startY = snapGrid(totalY + totalH + gapY, 24);
 
     const nLines = lines.length;
     const slotW = lineW + gapX;
     const innerW = Math.max(slotW, w - 2 * m);
     const maxFit = nLines === 0 ? 1 : Math.max(1, Math.floor(innerW / slotW));
+    const minCols = minLineGridColsForViewport(viewportW);
     const cols =
-        nLines === 0
-            ? 1
-            : nLines >= MIN_LINE_GRID_COLS_WHEN_MULTIPLE
-              ? Math.min(nLines, Math.max(maxFit, MIN_LINE_GRID_COLS_WHEN_MULTIPLE))
-              : 1;
+        nLines === 0 ? 1 : nLines >= 2 ? Math.min(nLines, Math.max(maxFit, minCols)) : 1;
     const lineRowPitch = LINE_NODE_BOUNDS_H * s + gapY;
+
+    /** 先頭行（合計の横位置の基準） */
+    let totalX: number;
+    if (nLines === 0) {
+        totalX = snapGrid(Math.max(m, (w - totalW) / 2), 24);
+    } else {
+        const nodesFirstRow = Math.min(cols, nLines);
+        const rowWidth = nodesFirstRow * lineW + (nodesFirstRow - 1) * gapX;
+        const startXRow = snapGrid(Math.max(m, (w - rowWidth) / 2), 24);
+        const rowCenterX = startXRow + rowWidth / 2;
+        totalX = snapGrid(Math.max(m, rowCenterX - totalW / 2), 24);
+    }
+
+    const startY = snapGrid(totalY + totalH + gapY, 24);
 
     const posById = new Map<string, { x: number; y: number }>();
     lines.forEach((n, i) => {

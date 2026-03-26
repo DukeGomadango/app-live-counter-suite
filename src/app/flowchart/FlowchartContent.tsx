@@ -29,6 +29,8 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import type { LineNodePersistedData } from "@/lib/flowchartLedger";
 import {
     FLOWCHART_TOTAL_ID,
+    FLOWCHART_ZOOM_MAX,
+    FLOWCHART_ZOOM_MIN,
     computeLedgerTotals,
     ledgerTotalsSignature,
     layoutFlowchartNodes,
@@ -60,6 +62,9 @@ const INITIAL_NODES: Node[] = [
 ];
 
 const INITIAL_EDGES: Edge[] = [];
+
+/** PC でホイール／トラックパッドによるズーム。誤操作が気になる場合は false に変更 */
+const FLOWCHART_ZOOM_ON_SCROLL = true;
 
 export default function FlowchartContent({ isSplitMode = false, isRightPane: _isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
     const [appSettings, setAppSettings] = useLocalStorage<AppSettings>("flowchart-app-settings", {
@@ -688,14 +693,14 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane: _is
                         elementsSelectable={true}
                         snapToGrid={true}
                         snapGrid={[24, 24]}
-                        minZoom={1}
-                        maxZoom={1}
-                        zoomOnScroll={false}
-                        zoomOnPinch={false}
+                        minZoom={FLOWCHART_ZOOM_MIN}
+                        maxZoom={FLOWCHART_ZOOM_MAX}
+                        zoomOnScroll={FLOWCHART_ZOOM_ON_SCROLL}
+                        zoomOnPinch
                         zoomOnDoubleClick={false}
                         translateExtent={translateExtent}
                         fitView
-                        fitViewOptions={{ padding: 0.2, minZoom: 1, maxZoom: 1 }}
+                        fitViewOptions={{ padding: 0.2, minZoom: FLOWCHART_ZOOM_MIN, maxZoom: FLOWCHART_ZOOM_MAX }}
                         className="touch-manipulation bg-transparent"
                         colorMode={isLightMode ? "light" : "dark"}
                     >
@@ -706,7 +711,12 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane: _is
                             color={isLightMode ? `${accentColor}40` : `${accentColor}40`}
                             style={{ opacity: appSettings.dotIntensity !== undefined ? appSettings.dotIntensity / 100 : 0.5 }}
                         />
-                        <FlowchartFitViewPanel isLightMode={isLightMode} accentColor={accentColor} />
+                        <FlowchartFitViewPanel
+                            isLightMode={isLightMode}
+                            accentColor={accentColor}
+                            minZoom={FLOWCHART_ZOOM_MIN}
+                            maxZoom={FLOWCHART_ZOOM_MAX}
+                        />
                         <Controls
                             className="bg-white/5 border border-white/10 backdrop-blur-md rounded-lg shadow-xl"
                             showInteractive={false}

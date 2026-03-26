@@ -6,23 +6,25 @@ import { Maximize2 } from "lucide-react";
 type Props = {
     isLightMode: boolean;
     accentColor: string;
+    minZoom: number;
+    maxZoom: number;
 };
 
 /** ReactFlow の子としてのみマウントすること（useReactFlow 必須） */
-export function FlowchartFitViewPanel({ isLightMode, accentColor }: Props) {
+export function FlowchartFitViewPanel({ isLightMode, accentColor, minZoom, maxZoom }: Props) {
     const { fitView } = useReactFlow();
 
     return (
         <Panel position="top-left" className="!mt-12 !ml-2 pointer-events-auto z-[5]">
             <button
                 type="button"
-                aria-label="全体表示"
-                title="全体表示"
+                aria-label="表示を初期化（全体表示）"
+                title="表示を初期化（全体表示）"
                 onClick={() =>
                     fitView({
                         padding: 0.2,
-                        minZoom: 1,
-                        maxZoom: 1,
+                        minZoom,
+                        maxZoom,
                         duration: 200,
                     })
                 }
