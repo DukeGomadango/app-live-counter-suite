@@ -22,6 +22,10 @@ export interface ToolDef {
   accentHex: string;
   /** ホーム・LP のセクション分け用 */
   category: ToolCategory;
+  /** LPのBento表示における優先度（1が最優先） */
+  lpPriority: 1 | 2 | 3 | 4;
+  /** LPのBento表示での推奨幅 */
+  lpSpan: "large" | "medium" | "small";
 }
 
 /** ツール: カウンター, フローチャート, パネル, 電卓, 時計, スプリット */
@@ -40,6 +44,8 @@ export const TOOLS: ToolDef[] = [
     activeBorder: "border-purple-500/40",
     accentHex: "#a855f7",
     category: "tools",
+    lpPriority: 1,
+    lpSpan: "large",
   },
   {
     id: "flowchart",
@@ -54,6 +60,8 @@ export const TOOLS: ToolDef[] = [
     activeBorder: "border-blue-500/40",
     accentHex: "#60a5fa",
     category: "tools",
+    lpPriority: 2,
+    lpSpan: "medium",
   },
   {
     id: "panel",
@@ -68,6 +76,8 @@ export const TOOLS: ToolDef[] = [
     activeBorder: "border-violet-500/40",
     accentHex: "#8b5cf6",
     category: "tools",
+    lpPriority: 4,
+    lpSpan: "small",
   },
   {
     id: "calculator",
@@ -82,6 +92,8 @@ export const TOOLS: ToolDef[] = [
     activeBorder: "border-cyan-500/40",
     accentHex: "#22d3ee",
     category: "tools",
+    lpPriority: 4,
+    lpSpan: "small",
   },
   {
     id: "clock",
@@ -96,6 +108,8 @@ export const TOOLS: ToolDef[] = [
     activeBorder: "border-orange-500/40",
     accentHex: "#f97316",
     category: "tools",
+    lpPriority: 4,
+    lpSpan: "small",
   },
   {
     id: "split",
@@ -110,6 +124,8 @@ export const TOOLS: ToolDef[] = [
     activeBorder: "border-emerald-500/40",
     accentHex: "#34d399",
     category: "tools",
+    lpPriority: 4,
+    lpSpan: "small",
   },
   {
     id: "gacha",
@@ -124,6 +140,8 @@ export const TOOLS: ToolDef[] = [
     activeBorder: "border-yellow-500/40",
     accentHex: "#facc15",
     category: "games",
+    lpPriority: 1,
+    lpSpan: "large",
   },
   {
     id: "roulette",
@@ -138,6 +156,8 @@ export const TOOLS: ToolDef[] = [
     activeBorder: "border-amber-500/40",
     accentHex: "#fbbf24",
     category: "games",
+    lpPriority: 3,
+    lpSpan: "medium",
   },
   {
     id: "slot",
@@ -152,6 +172,8 @@ export const TOOLS: ToolDef[] = [
     activeBorder: "border-teal-500/40",
     accentHex: "#14b8a6",
     category: "games",
+    lpPriority: 3,
+    lpSpan: "medium",
   },
 ];
 
