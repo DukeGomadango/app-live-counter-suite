@@ -332,3 +332,11 @@ export function ledgerTotalsSignature(nodes: Node[]): string {
     const t = computeLedgerTotals(nodes);
     return `${t.addTotal}|${t.subTotalSigned}|${t.grandTotal}`;
 }
+
+/** `ledgerTotalsSignature` の結果から総合計だけを取り出す（ノード同期前に増減演出へ使う） */
+export function grandTotalFromLedgerSignature(sig: string): number {
+    const parts = sig.split("|");
+    if (parts.length < 3) return 0;
+    const n = Number(parts[2]);
+    return Number.isFinite(n) ? n : 0;
+}

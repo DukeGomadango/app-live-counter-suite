@@ -36,8 +36,10 @@ export interface AppSettings {
     stepFreeValue?: number;
     /** カード上に編集・削除ボタンを表示する（カウンターのみ） */
     showCardEditDelete?: boolean;
-  /** カード上に目標達成ボタンを表示する（カウンターのみ） */
+    /** カード上に目標達成ボタンを表示する（カウンターのみ） */
   showAchieveTargetButtonOnCard?: boolean;
+  /** フローチャート：総合計が増減したときの短い視覚演出の強さ */
+  flowchartFxIntensity?: "off" | "subtle" | "normal";
 }
 
 interface SettingsModalProps {
@@ -336,6 +338,55 @@ export default function SettingsModal({
                         </div>
 
                         {/* === Edge Thickness (Flowchart Only) === */}
+                        {mode === "flowchart" && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Sparkles size={14} className={textSecondary} />
+                                    <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>
+                                        総合計の増減演出
+                                    </label>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 mb-6">
+                                    {(
+                                        [
+                                            { value: "off" as const, label: "オフ", desc: "演出なし" },
+                                            { value: "subtle" as const, label: "控えめ", desc: "短く弱め" },
+                                            { value: "normal" as const, label: "標準", desc: "既定" },
+                                        ] as const
+                                    ).map((opt) => {
+                                        const active = (settings.flowchartFxIntensity ?? "normal") === opt.value;
+                                        return (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                onClick={() => setSettings((s) => ({ ...s, flowchartFxIntensity: opt.value }))}
+                                                className={`py-3 rounded-xl text-center transition-all duration-200 border ${
+                                                    active ? "shadow-lg" : `${bgSubtle} ${inputBorder} ${bgSubtleHover}`
+                                                }`}
+                                                style={
+                                                    active
+                                                        ? {
+                                                              background: `${accentColor}20`,
+                                                              borderColor: `${accentColor}50`,
+                                                              boxShadow: `0 0 12px ${accentColor}20`,
+                                                          }
+                                                        : undefined
+                                                }
+                                            >
+                                                <div
+                                                    className={`text-lg font-bold ${active ? "" : textPrimary}`}
+                                                    style={active ? { color: accentColor } : undefined}
+                                                >
+                                                    {opt.label}
+                                                </div>
+                                                <div className={`text-[10px] mt-0.5 ${textMuted}`}>{opt.desc}</div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
                         {mode === "flowchart" && (
                             <div>
                                 <div className="flex items-center gap-2 mb-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useLayoutEffect, useRef } from "react";
+import { useState, useCallback, useMemo, useEffect, useLayoutEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import {
     ReactFlow,
     Controls,
@@ -32,11 +32,13 @@ import {
     FLOWCHART_ZOOM_MAX,
     FLOWCHART_ZOOM_MIN,
     computeLedgerTotals,
+    grandTotalFromLedgerSignature,
     ledgerTotalsSignature,
     layoutFlowchartNodes,
     migrateLegacyFlowchart,
     flowchartTranslateExtent,
 } from "@/lib/flowchartLedger";
+import { FlowchartTotalPulseProvider, useFlowchartTotalPulse, type FlowchartTotalPulseKind } from "@/components/flowchart/FlowchartTotalPulseContext";
 import type { LedgerTotalPersistedData } from "@/lib/flowchartLedger";
 
 const nodeTypes = {
@@ -66,22 +68,82 @@ const INITIAL_EDGES: Edge[] = [];
 /** PC でホイール／トラックパッドによるズーム。誤操作が気になる場合は false に変更 */
 const FLOWCHART_ZOOM_ON_SCROLL = true;
 
-export default function FlowchartContent({ isSplitMode = false, isRightPane: _isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
-    const [appSettings, setAppSettings] = useLocalStorage<AppSettings>("flowchart-app-settings", {
-        cardSize: "L" as const,
-        edgeThickness: "M",
-        showProjectName: false,
-        projectName: "",
-        projectNameSize: "M" as const,
-        projectNameColor: "#a855f7",
-        accentColor: "#a855f7",
-        orbIntensity: 50,
-        dotIntensity: 50,
-        showStep5: true,
-        showStep10: true,
-        showStepFree: false,
-        stepFreeValue: 1,
-    });
+const FLOWCHART_APP_SETTINGS_DEFAULT: AppSettings = {
+    cardSize: "L" as const,
+    edgeThickness: "M",
+    showProjectName: false,
+    projectName: "",
+    projectNameSize: "M" as const,
+    projectNameColor: "#a855f7",
+    accentColor: "#a855f7",
+    orbIntensity: 50,
+    dotIntensity: 50,
+    showStep5: true,
+    showStep10: true,
+    showStepFree: false,
+    stepFreeValue: 1,
+    flowchartFxIntensity: "normal",
+};
+
+function FlowchartLedgerPulseSync({ ledgerSig }: { ledgerSig: string }) {
+    const { bump } = useFlowchartTotalPulse();
+    const prevGrandRef = useRef<number | null>(null);
+    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingKindRef = useRef<FlowchartTotalPulseKind | null>(null);
+
+    useEffect(() => {
+        const grand = grandTotalFromLedgerSignature(ledgerSig);
+        if (prevGrandRef.current === null) {
+            prevGrandRef.current = grand;
+            return;
+        }
+        const prev = prevGrandRef.current;
+        if (grand === prev) return;
+        const delta = grand - prev;
+        prevGrandRef.current = grand;
+        if (delta === 0) return;
+
+        pendingKindRef.current = delta > 0 ? "up" : "down";
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+            debounceTimerRef.current = null;
+            const kind = pendingKindRef.current;
+            pendingKindRef.current = null;
+            if (kind) bump(kind);
+        }, 48);
+
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+                debounceTimerRef.current = null;
+            }
+        };
+    }, [ledgerSig, bump]);
+
+    return null;
+}
+
+export default function FlowchartContent({ isSplitMode = false, isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
+    const [appSettings, setAppSettings] = useLocalStorage<AppSettings>("flowchart-app-settings", FLOWCHART_APP_SETTINGS_DEFAULT);
+    const intensity = appSettings.flowchartFxIntensity ?? "normal";
+    return (
+        <FlowchartTotalPulseProvider intensityMode={intensity}>
+            <FlowchartContentInner isSplitMode={isSplitMode} isRightPane={isRightPane} appSettings={appSettings} setAppSettings={setAppSettings} />
+        </FlowchartTotalPulseProvider>
+    );
+}
+
+function FlowchartContentInner({
+    isSplitMode = false,
+    isRightPane: _isRightPane = false,
+    appSettings,
+    setAppSettings,
+}: {
+    isSplitMode?: boolean;
+    isRightPane?: boolean;
+    appSettings: AppSettings;
+    setAppSettings: Dispatch<SetStateAction<AppSettings>>;
+}) {
 
     const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
 
@@ -550,6 +612,7 @@ export default function FlowchartContent({ isSplitMode = false, isRightPane: _is
             className={`h-full w-full flex flex-col overflow-hidden relative z-10 ${isLightMode ? "bg-[#f8f9fa]" : "bg-[#0a051e]"}`}
             style={{ "--accent-color": accentColor } as React.CSSProperties}
         >
+            <FlowchartLedgerPulseSync ledgerSig={ledgerSig} />
             <HamburgerMenu
                 isOpen={isMenuOpen}
                 onToggle={() => setIsMenuOpen(!isMenuOpen)}

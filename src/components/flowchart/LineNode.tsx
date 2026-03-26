@@ -212,7 +212,7 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
 
     const arrowBg = isLightMode ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)";
     const arrowHoverBg = isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.18)";
-    const arrowColor = isLightMode ? "text-gray-500" : "text-white/60";
+    const arrowColor = isLightMode ? "text-gray-600" : "text-white/70";
 
     const panelBg = isLightMode
         ? "linear-gradient(135deg, rgba(255,255,255,0.7) 0%, rgba(240,245,255,0.5) 100%)"
@@ -343,14 +343,14 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                             onClick={() => env.onUpdateLineConfig(id, { step: data.step + 1 })}
                             className={`w-5 h-4 flex items-center justify-center rounded ${isLightMode ? "bg-black/5 hover:bg-black/10" : "bg-white/5 hover:bg-white/10"} transition-colors`}
                         >
-                            <ChevronUp size={10} className={isLightMode ? "text-gray-600" : "text-white/80"} />
+                            <ChevronUp size={10} className={isLightMode ? "text-gray-700" : "text-white/90"} />
                         </button>
                         <button
                             type="button"
                             onClick={() => env.onUpdateLineConfig(id, { step: Math.max(0, data.step - 1) })}
                             className={`w-5 h-4 flex items-center justify-center rounded ${isLightMode ? "bg-black/5 hover:bg-black/10" : "bg-white/5 hover:bg-white/10"} transition-colors`}
                         >
-                            <ChevronDown size={10} className={isLightMode ? "text-gray-600" : "text-white/80"} />
+                            <ChevronDown size={10} className={isLightMode ? "text-gray-700" : "text-white/90"} />
                         </button>
                     </div>
                 </div>
@@ -397,7 +397,7 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                                     e.currentTarget.style.background = arrowBg;
                                 }}
                             >
-                                <ChevronUp size={16} className={isLightMode ? "text-gray-600" : "text-white/80"} />
+                                <ChevronUp size={16} className={isLightMode ? "text-gray-700" : "text-white/90"} />
                             </button>
                             <button
                                 type="button"
@@ -421,7 +421,7 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                                     e.currentTarget.style.background = arrowBg;
                                 }}
                             >
-                                <ChevronDown size={16} className={isLightMode ? "text-gray-600" : "text-white/80"} />
+                                <ChevronDown size={16} className={isLightMode ? "text-gray-700" : "text-white/90"} />
                             </button>
                         </div>
 
@@ -504,8 +504,8 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                                         ? "#16a34a"
                                         : "#4ade80"
                                     : isLightMode
-                                      ? "rgba(0,0,0,0.5)"
-                                      : "rgba(255,255,255,0.5)",
+                                      ? "rgba(0,0,0,0.58)"
+                                      : "rgba(255,255,255,0.58)",
                             }}
                         >
                             <span>{isAchieved ? "✨ CLEAR!" : "進捗"}</span>
@@ -525,7 +525,7 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                                     boxShadow: isAchieved ? `0 0 10px rgba(74,222,128,0.8)` : `0 0 10px ${accentColor}`,
                                 }}
                             >
-                                <div className="absolute inset-0 opacity-50 bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.3)_50%,transparent_75%,transparent_100%)] bg-[length:10px_10px] animate-[shine_1s_linear_infinite]" />
+                                <div className="absolute inset-0 opacity-50 motion-reduce:animate-none bg-[linear-gradient(45deg,transparent_25%,rgba(255,255,255,0.3)_50%,transparent_75%,transparent_100%)] bg-[length:10px_10px] animate-[shine_1s_linear_infinite]" />
                             </div>
                         </div>
                     </div>
