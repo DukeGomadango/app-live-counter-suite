@@ -525,15 +525,30 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   const totalSlots = items.length + 1;
 
   // Compute responsive columns for max-width/centering calculations.
-  // Grid itself uses CSS auto-fit/minmax; vertical scroll is fine.
+  // Pick the most balanced rows/cols (closest to square) within width constraints.
   // Account for page horizontal padding: px-3 / sm:px-4
   const gridCols = useMemo(() => {
     const paddingX = windowWidth >= 640 ? 32 : 24;
     const availableW = Math.max(0, windowWidth - paddingX);
     const denom = effectiveColMaxPx + gridGapPx;
     const colsByWidth = denom > 0 ? Math.floor((availableW + gridGapPx) / denom) : 1;
-    return Math.max(1, colsByWidth || 1);
-  }, [windowWidth, effectiveColMaxPx, gridGapPx]);
+    const maxCols = Math.max(1, Math.min(colsByWidth || 1, totalSlots || 1));
+
+    let bestCols = 1;
+    let bestScore = Number.POSITIVE_INFINITY;
+    for (let cols = 1; cols <= maxCols; cols += 1) {
+      const rows = Math.ceil(totalSlots / cols);
+      const emptySlots = rows * cols - totalSlots;
+      const shapeDiff = Math.abs(rows - cols);
+      // Prefer near-square layouts first, then fewer empty slots.
+      const score = shapeDiff * 100 + emptySlots;
+      if (score < bestScore) {
+        bestScore = score;
+        bestCols = cols;
+      }
+    }
+    return bestCols;
+  }, [windowWidth, effectiveColMaxPx, gridGapPx, totalSlots]);
 
   const effectiveCols = Math.min(gridCols, totalSlots || 1);
   const gridMaxWidth = effectiveCols * effectiveColMaxPx + (effectiveCols - 1) * gridGapPx;
@@ -701,7 +716,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
               <div
                 className="grid items-stretch gap-2 sm:gap-2.5 w-full"
                 style={{
-                  gridTemplateColumns: `repeat(auto-fit, minmax(${captureColMaxPx}px, ${captureColMaxPx}px))`,
+                  gridTemplateColumns: `repeat(${effectiveCols}, minmax(${captureColMaxPx}px, ${captureColMaxPx}px))`,
                   maxWidth: `${captureGridMaxWidth}px`,
                   width: `${captureGridMaxWidth}px`,
                   padding: 0,
@@ -980,7 +995,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
               <div
                 className="grid items-stretch gap-2 sm:gap-2.5 w-full"
                 style={{
-                  gridTemplateColumns: `repeat(auto-fit, minmax(${effectiveColMaxPx}px, ${effectiveColMaxPx}px))`,
+                  gridTemplateColumns: `repeat(${effectiveCols}, minmax(${effectiveColMaxPx}px, ${effectiveColMaxPx}px))`,
                   maxWidth: `${gridMaxWidth}px`,
                   padding: 0,
                   margin: 0,
