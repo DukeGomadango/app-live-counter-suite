@@ -3,6 +3,7 @@
 import type { GachaResult, GachaPool, RarityTier, OrganizedResult } from "@/lib/gacha";
 import { organizeResults } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 interface GachaShareSummaryProps {
     results: GachaResult[];
@@ -47,8 +48,9 @@ export default function GachaShareSummary({
                             {pool.conceptName}
                         </div>
                     )}
-                    <div className={`text-lg font-bold ${textPrimary}`}>
-                        {trimmedPlayerName ? `🎰 ${trimmedPlayerName} のガチャ結果` : "🎰 ガチャ結果"}
+                    <div className={`text-lg font-bold ${textPrimary} inline-flex items-center gap-1`}>
+                        <EmojiGlyph emoji="🎰" size={18} />
+                        <span>{trimmedPlayerName ? `${trimmedPlayerName} のガチャ結果` : "ガチャ結果"}</span>
                     </div>
                     <div className={`text-xs ${textMuted}`}>
                         （{totalPulls.toLocaleString()}連）

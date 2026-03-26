@@ -5,6 +5,7 @@ import { Plus, X } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { DEFAULT_ITEM_EMOJI, EMOJI_OPTIONS } from "@/lib/constants";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 interface AddItemPanelProps {
     isLightMode: boolean;
@@ -111,7 +112,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                                     : `${isLightMode ? "hover:bg-black/5 bg-black/5" : "hover:bg-white/10 bg-white/5"}`
                                     }`}
                             >
-                                {e}
+                                <EmojiGlyph emoji={e} size={24} />
                             </button>
                         ))}
                     </div>
@@ -200,7 +201,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                                     : `${isLightMode ? "hover:bg-black/5" : "hover:bg-white/10"}`
                                     }`}
                             >
-                                {e}
+                                <EmojiGlyph emoji={e} size={16} />
                             </button>
                         ))}
                     </div>

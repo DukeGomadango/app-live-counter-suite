@@ -19,6 +19,7 @@ import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import GachaShareSummary from "@/components/gacha/GachaShareSummary";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 interface GachaResultDisplayProps {
     results: GachaResult[];
@@ -229,7 +230,10 @@ export default function GachaResultDisplay({
                                 border: `1px solid ${accentColor}55`,
                             }}
                         >
-                            🎰 もう一度引く
+                            <span className="inline-flex items-center gap-1">
+                                <EmojiGlyph emoji="🎰" size={14} />
+                                もう一度引く
+                            </span>
                         </button>
                     )}
                     <button

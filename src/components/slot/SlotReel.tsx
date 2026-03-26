@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import type { SlotSymbol } from "@/lib/slot";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 /** 減速カーブ（始めは回転速度と同じ→終盤でじりじり止まる）。cubic-bezier の t=0 での傾きで duration を決め、ストップ初速を SPIN_SPEED に揃える */
 const SPIN_EASE = [0.1, 0.78, 0.62, 0.98] as const;
@@ -124,7 +125,7 @@ export default function SlotReel({
       className={`flex items-center justify-center shrink-0 font-bold text-xl ${isLightMode ? "text-gray-900" : "text-white"}`}
       style={{ height: CELL_HEIGHT }}
     >
-      {s.label}
+      <EmojiGlyph emoji={s.label} size={26} />
     </div>
   ));
 

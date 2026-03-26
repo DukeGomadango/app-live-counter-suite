@@ -6,6 +6,7 @@ import { Calculator } from "lucide-react";
 import { useFlowchartNodeEnv } from "./FlowchartNodeEnvContext";
 import { useFlowchartTotalPulseOptional } from "./FlowchartTotalPulseContext";
 import { flowchartCardVisualScale, type LedgerTotalPersistedData } from "@/lib/flowchartLedger";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 export type TotalNodeData = LedgerTotalPersistedData;
 export type TotalNodeType = Node<TotalNodeData, "total">;
@@ -208,7 +209,11 @@ function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
                                       : "rgba(255,255,255,0.58)",
                             }}
                         >
-                            <span>{isTargetAchieved ? "✨ 総合目標達成！ ✨" : "進捗（総合計）"}</span>
+                            <span className="inline-flex items-center gap-1">
+                                {isTargetAchieved && <EmojiGlyph emoji="✨" size={14} />}
+                                {isTargetAchieved ? "総合目標達成！" : "進捗（総合計）"}
+                                {isTargetAchieved && <EmojiGlyph emoji="✨" size={14} />}
+                            </span>
                             <span>{target.toLocaleString()}</span>
                         </div>
                         <div

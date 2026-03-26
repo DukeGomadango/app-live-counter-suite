@@ -6,6 +6,7 @@ import { Sparkles, Zap, SkipForward } from "lucide-react";
 import type { GachaPool, GachaResult, RarityTier } from "@/lib/gacha";
 import { sortResultsForPresentation, containsHighestRarity, organizeResults } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 interface GachaRollAnimationProps {
     pool: GachaPool;
@@ -560,8 +561,9 @@ export default function GachaRollAnimation({
         return (
             <div className="flex flex-col h-full p-4 relative overflow-hidden">
                 <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-bold ${textLight ? "text-gray-700" : "text-white/90"}`}>
-                        🎲 {results!.length.toLocaleString()}連の結果
+                    <span className={`text-xs font-bold ${textLight ? "text-gray-700" : "text-white/90"} inline-flex items-center gap-1`}>
+                        <EmojiGlyph emoji="🎲" size={12} />
+                        {results!.length.toLocaleString()}連の結果
                     </span>
                     <button
                         onClick={handleSkip}
@@ -778,7 +780,10 @@ export default function GachaRollAnimation({
                     transition={{ type: "spring", stiffness: 200 }}
                     className={`text-2xl sm:text-3xl font-black ${textLight ? "text-gray-900" : "text-white/95"}`}
                 >
-                    🎉 {results.length.toLocaleString()}連の結果
+                    <span className="inline-flex items-center gap-1">
+                        <EmojiGlyph emoji="🎉" size={24} />
+                        {results.length.toLocaleString()}連の結果
+                    </span>
                 </motion.div>
 
                 {/* レア度別サマリ */}

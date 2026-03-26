@@ -38,6 +38,7 @@ import { GripVertical } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 import GachaFileRegisterModal from "@/components/gacha/GachaFileRegisterModal";
 
 interface GachaSetupProps {
@@ -766,10 +767,10 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                         <span className="text-[10px] font-bold uppercase tracking-wider">設定サマリ</span>
                     </div>
                     <div className="text-[11px] space-y-1">
-                        <p>📦 品目: {pool.items.length}種類</p>
-                        <p>🎲 1回: {pool.pullCount}連</p>
+                        <p className="inline-flex items-center gap-1"><EmojiGlyph emoji="📦" size={12} /> 品目: {pool.items.length}種類</p>
+                        <p className="inline-flex items-center gap-1"><EmojiGlyph emoji="🎲" size={12} /> 1回: {pool.pullCount}連</p>
                         {pool.pityEnabled && (
-                            <p>🛡️ 天井: {pool.pityThreshold}回で {pool.rarities.find(r => r.id === pool.pityGuaranteedRarityId)?.name || "?"} 確定</p>
+                            <p className="inline-flex items-center gap-1"><EmojiGlyph emoji="🛡️" size={12} /> 天井: {pool.pityThreshold}回で {pool.rarities.find(r => r.id === pool.pityGuaranteedRarityId)?.name || "?"} 確定</p>
                         )}
                     </div>
                 </div>

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Check } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { COLOR_OPTIONS, EMOJI_OPTIONS, coerceStoredEmojiToDisplay } from "@/lib/constants";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 interface EditItemModalProps {
     id: string;
@@ -110,7 +111,7 @@ export default function EditItemModal({
                                     boxShadow: `0 0 20px ${color}20`,
                                 }}
                             >
-                                <span className="text-4xl leading-none">{emoji}</span>
+                                <EmojiGlyph emoji={emoji} size={36} />
                                 <span className={`text-[10px] font-medium ${textSecondary} truncate max-w-[70px]`}>
                                     {label || "..."}
                                 </span>
@@ -143,7 +144,7 @@ export default function EditItemModal({
                                     onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                                     className={`w-full ${inputBg} border ${inputBorder} rounded-xl px-3 py-2.5 text-left flex items-center gap-2 ${bgSubtleHover} transition-colors`}
                                 >
-                                    <span className="text-2xl shrink-0 leading-none">{emoji}</span>
+                                    <EmojiGlyph emoji={emoji} size={24} />
                                     <span className={`text-xs ${textMuted}`}>クリックして変更</span>
                                 </button>
                                 {showEmojiPicker && (
@@ -167,7 +168,7 @@ export default function EditItemModal({
                                                 }}
                                                 className={`w-full aspect-square rounded ${bgSubtleHover} flex items-center justify-center text-lg ${emoji === e ? "ring-2 ring-purple-500 bg-purple-500/20" : ""}`}
                                             >
-                                                {e}
+                                                <EmojiGlyph emoji={e} size={18} />
                                             </button>
                                         ))}
                                     </motion.div>

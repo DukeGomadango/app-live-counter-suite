@@ -23,6 +23,7 @@ import { TEMPLATES, type Template, type CounterItem } from "@/lib/templates";
 import { COLOR_OPTIONS, DEFAULT_ITEM_EMOJI, EMOJI_OPTIONS, coerceStoredEmojiToDisplay } from "@/lib/constants";
 import ModeSelector from "@/components/ModeSelector";
 import type { SavedFlowChart, FlowchartNodeForMenu } from "@/lib/flowchartTypes";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 export type { SavedFlowChart } from "@/lib/flowchartTypes";
 
@@ -441,7 +442,7 @@ export default function HamburgerMenu({
                                                             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                                                             className={`w-9 h-9 rounded-xl ${bgSubtle} border ${borderSubtle} flex items-center justify-center text-lg ${bgSubtleHover} transition-colors`}
                                                         >
-                                                            {newEmoji}
+                                                            <EmojiGlyph emoji={newEmoji} size={20} />
                                                         </button>
                                                         {showEmojiPicker && (
                                                             <div
@@ -461,7 +462,7 @@ export default function HamburgerMenu({
                                                                         }}
                                                                         className={`w-7 h-7 rounded ${bgSubtleHover} flex items-center justify-center text-sm`}
                                                                     >
-                                                                        {e}
+                                                                        <EmojiGlyph emoji={e} size={14} />
                                                                     </button>
                                                                 ))}
                                                             </div>
@@ -504,7 +505,7 @@ export default function HamburgerMenu({
                                                                             onClick={() => setShowEditEmojiPicker(!showEditEmojiPicker)}
                                                                             className={`w-8 h-8 rounded-lg ${bgSubtle} flex items-center justify-center text-base ${bgSubtleHover} transition-colors`}
                                                                         >
-                                                                            {editEmoji}
+                                                                            <EmojiGlyph emoji={editEmoji} size={16} />
                                                                         </button>
                                                                         {showEditEmojiPicker && (
                                                                             <div
@@ -524,7 +525,7 @@ export default function HamburgerMenu({
                                                                                         }}
                                                                                         className={`w-7 h-7 rounded ${bgSubtleHover} flex items-center justify-center text-sm`}
                                                                                     >
-                                                                                        {e}
+                                                                                        <EmojiGlyph emoji={e} size={14} />
                                                                                     </button>
                                                                                 ))}
                                                                             </div>
@@ -590,7 +591,7 @@ export default function HamburgerMenu({
                                                         ) : (
                                                             <>
                                                                 <span className="text-base w-7 text-center shrink-0" style={{ color: item.color }}>
-                                                                    {coerceStoredEmojiToDisplay(item.emoji)}
+                                                                    <EmojiGlyph emoji={coerceStoredEmojiToDisplay(item.emoji)} size={16} />
                                                                 </span>
                                                                 <span className={`flex-1 text-sm ${isLightMode ? "text-gray-700" : "text-white/80"}`}>
                                                                     {item.label}
@@ -684,7 +685,7 @@ export default function HamburgerMenu({
                                                             className={`flex items-center gap-2 p-2 rounded-xl ${bgSubtle} border ${borderSubtle}`}
                                                         >
                                                             <span className="text-sm w-6 text-center shrink-0" style={{ color: item.color }}>
-                                                                {coerceStoredEmojiToDisplay(item.emoji)}
+                                                                <EmojiGlyph emoji={coerceStoredEmojiToDisplay(item.emoji)} size={14} />
                                                             </span>
                                                             <span className={`flex-1 text-sm ${isLightMode ? "text-gray-700" : "text-white/80"} truncate`}>
                                                                 {item.label}
@@ -786,8 +787,13 @@ export default function HamburgerMenu({
                                                                 className="flex-1 text-left"
                                                             >
                                                                 <div className={`text-sm font-medium ${textPrimary}`}>{t.name}</div>
-                                                                <div className={`text-xs ${textMuted} mt-0.5`}>
-                                                                    {t.items.length}項目 · {t.items.slice(0, 6).map((i) => coerceStoredEmojiToDisplay(i.emoji)).join(" ")}
+                                                                <div className={`text-xs ${textMuted} mt-0.5 inline-flex items-center gap-1`}>
+                                                                    <span>{t.items.length}項目 ·</span>
+                                                                    <span className="inline-flex items-center gap-0.5">
+                                                                        {t.items.slice(0, 6).map((i) => (
+                                                                            <EmojiGlyph key={i.id} emoji={coerceStoredEmojiToDisplay(i.emoji)} size={12} />
+                                                                        ))}
+                                                                    </span>
                                                                 </div>
                                                             </button>
                                                             <button
@@ -882,7 +888,7 @@ export default function HamburgerMenu({
                                                                         const step = data.step ?? data.value;
                                                                         return (
                                                                             <div key={node.id} className={`flex items-center gap-2 p-2 rounded-xl ${bgSubtle} border ${borderSubtle}`}>
-                                                                                <span className="text-sm w-6 text-center shrink-0">{coerceStoredEmojiToDisplay(data.emoji)}</span>
+                                                                                <span className="text-sm w-6 text-center shrink-0 inline-flex items-center justify-center"><EmojiGlyph emoji={coerceStoredEmojiToDisplay(data.emoji)} size={14} /></span>
                                                                                 <span className={`flex-1 text-sm ${isLightMode ? "text-gray-700" : "text-white/80"} truncate`}>
                                                                                     {data.label}
                                                                                 </span>

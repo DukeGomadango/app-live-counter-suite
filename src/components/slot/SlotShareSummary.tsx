@@ -1,6 +1,7 @@
 "use client";
 
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 interface SlotShareSummaryProps {
   /** プレイヤー名（省略可） */
@@ -45,8 +46,8 @@ export default function SlotShareSummary({
         <div className={`text-xl font-bold ${textPrimary} flex justify-center gap-2 flex-wrap`}>
           {reelLabels.length > 0 ? (
             reelLabels.map((label, i) => (
-              <span key={i} className="tabular-nums">
-                {label}
+              <span key={i} className="tabular-nums inline-flex items-center justify-center">
+                <EmojiGlyph emoji={label} size={22} />
               </span>
             ))
           ) : (

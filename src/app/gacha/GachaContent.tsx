@@ -17,6 +17,7 @@ import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefault
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ShareReplyToField from "@/components/ShareReplyToField";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 type MobileTab = "setup" | "gacha" | "results" | "players" | "items";
 type SidebarTab = "setup" | "players" | "items" | "presets";
@@ -63,7 +64,10 @@ function GachaSettingsPanel({
             >
                 {/* ヘッダー */}
                 <div className="flex items-center justify-between px-4 py-3 border-b shrink-0" style={{ borderColor: glassBorder }}>
-                    <span className={`text-sm font-bold ${textPrimary}`}>⚙️ ガチャ設定</span>
+                    <span className={`text-sm font-bold ${textPrimary} inline-flex items-center gap-1`}>
+                        <EmojiGlyph emoji="⚙️" size={14} />
+                        ガチャ設定
+                    </span>
                     <button onClick={onClose} className={`p-1 rounded-lg ${isLightMode ? "hover:bg-gray-100" : "hover:bg-white/10"}`}>
                         <X size={16} className={textSecondary} />
                     </button>

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trash2 } from "lucide-react";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 import {
   type CustomPart,
   type CustomPartShape,
@@ -331,14 +332,14 @@ export default function CustomShapeEditorModal({
               onClick={() => loadPreset(CUSTOM_PRESET_HEART)}
               className="px-2 py-1 rounded text-xs border border-pink-500/40 bg-pink-500/10 text-pink-400"
             >
-              ♡
+              <EmojiGlyph emoji="♡" size={14} />
             </button>
             <button
               type="button"
               onClick={() => loadPreset(CUSTOM_PRESET_STAR)}
               className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400"
             >
-              ☆
+              <EmojiGlyph emoji="☆" size={14} />
             </button>
             <button
               type="button"

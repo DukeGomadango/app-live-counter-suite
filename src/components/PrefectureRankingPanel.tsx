@@ -5,6 +5,7 @@ import { X, ListOrdered } from "lucide-react";
 import { useEffect } from "react";
 import { coerceStoredEmojiToDisplay } from "@/lib/constants";
 import type { CounterItem } from "@/lib/templates";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 interface PrefectureRankingPanelProps {
   isOpen: boolean;
@@ -97,8 +98,8 @@ export default function PrefectureRankingPanel({
                     >
                       <td className={`py-2 pl-2 ${textMuted}`}>{rank + 1}</td>
                       <td className={`py-2 ${textPrimary}`}>
-                        <span className="mr-1.5 opacity-80" style={{ color: item.color }}>
-                          {coerceStoredEmojiToDisplay(item.emoji)}
+                        <span className="mr-1.5 opacity-80 inline-flex items-center" style={{ color: item.color }}>
+                          <EmojiGlyph emoji={coerceStoredEmojiToDisplay(item.emoji)} size={14} />
                         </span>
                         {item.label}
                       </td>

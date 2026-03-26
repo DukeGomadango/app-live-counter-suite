@@ -2,6 +2,7 @@
 
 import { coerceStoredEmojiToDisplay } from "@/lib/constants";
 import type { CounterItem } from "@/lib/templates";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 interface CounterShareSummaryProps {
     items: CounterItem[];
@@ -57,8 +58,8 @@ export default function CounterShareSummary({
                         className="flex items-center justify-between gap-3 py-1.5 px-2 rounded-lg"
                         style={{ background: cardBg }}
                     >
-                        <span className="text-lg shrink-0 w-8 text-center" style={{ color: item.color }}>
-                            {coerceStoredEmojiToDisplay(item.emoji)}
+                        <span className="text-lg shrink-0 w-8 text-center inline-flex items-center justify-center" style={{ color: item.color }}>
+                            <EmojiGlyph emoji={coerceStoredEmojiToDisplay(item.emoji)} size={18} />
                         </span>
                         <span className={`flex-1 text-sm truncate ${textPrimary}`}>
                             {item.label}

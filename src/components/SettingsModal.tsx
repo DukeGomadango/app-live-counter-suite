@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, Type, Palette, Maximize, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 export type CardSize = "S" | "M" | "L" | "XL";
 export type EdgeThickness = "S" | "M" | "L";
@@ -142,7 +143,8 @@ export default function SettingsModal({
                         style={{ borderBottom: `1px solid ${borderColor}` }}
                     >
                         <h2 className={`text-base font-bold ${textPrimary} flex items-center gap-2`}>
-                            ⚙️ 設定
+                            <EmojiGlyph emoji="⚙️" size={16} />
+                            設定
                         </h2>
                         <button
                             onClick={onClose}

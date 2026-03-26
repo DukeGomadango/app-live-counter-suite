@@ -9,6 +9,7 @@ import { useFlowchartNodeEnv, type LineNodePersistedData } from "./FlowchartNode
 import { flowchartCardVisualScale, type LedgerMode } from "@/lib/flowchartLedger";
 import { StepKeypad, type StepKeypadColumn } from "@/components/StepKeypad";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 function sanitizeUnsignedCountInput(raw: string): string {
     return raw.replace(/[^0-9]/g, "");
@@ -277,7 +278,7 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                                 onClick={() => setIsEditingEmoji(!isEditingEmoji)}
                                 aria-label="絵文字を変更"
                             >
-                                <span className="text-xl leading-none block">{coerceStoredEmojiToDisplay(data.emoji)}</span>
+                                <EmojiGlyph emoji={coerceStoredEmojiToDisplay(data.emoji)} size={22} />
                             </button>
                             {isEditingEmoji && (
                                 <div
@@ -299,7 +300,7 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                                             className="w-7 h-7 rounded hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center transition-colors text-base"
                                             style={{ color: accentColor }}
                                         >
-                                            {e}
+                                            <EmojiGlyph emoji={e} size={18} />
                                         </button>
                                     ))}
                                 </div>
@@ -508,7 +509,10 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                                       : "rgba(255,255,255,0.58)",
                             }}
                         >
-                            <span>{isAchieved ? "✨ CLEAR!" : "進捗"}</span>
+                            <span className="inline-flex items-center gap-1">
+                                {isAchieved && <EmojiGlyph emoji="✨" size={14} />}
+                                {isAchieved ? "CLEAR!" : "進捗"}
+                            </span>
                             <span>{data.target.toLocaleString()}</span>
                         </div>
                         <div

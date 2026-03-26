@@ -9,6 +9,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import type { CardSize } from "@/components/SettingsModal";
 import { StepKeypad, type StepKeypadColumn } from "@/components/StepKeypad";
 import { coerceStoredEmojiToDisplay } from "@/lib/constants";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 const ARROW_BTN_SIZE_CLASS: Record<CardSize, string> = {
     S: "w-5 h-4 sm:w-6 sm:h-5",
@@ -429,7 +430,7 @@ export default function CounterPanel({
                     }
                     style={{ color }}
                 >
-                    {coerceStoredEmojiToDisplay(emoji)}
+                    <EmojiGlyph emoji={coerceStoredEmojiToDisplay(emoji)} size={isDesktop ? 28 : 34} />
                 </span>
 
                 {/* Count block: 上段は △▽+数字、下段はステップキーパッド（全幅）。PC は flex-1 で正方形内に収める */}
@@ -564,7 +565,10 @@ export default function CounterPanel({
                                 className="text-[10px] font-bold tracking-wider"
                                 style={{ color }}
                             >
-                                ✓ 達成
+                                <span className="inline-flex items-center gap-1">
+                                    <EmojiGlyph emoji="✓" size={11} />
+                                    達成
+                                </span>
                             </span>
                         )}
                         {canAchieveTarget && (
