@@ -244,8 +244,8 @@ describe("GET /u/", () => {
     expect(r.status).toBe(404);
   });
 
-  it("400 for path traversal", async () => {
-    const r = await SELF.fetch(request("/u/uploads/../secret"));
+  it("400 when object key contains .. (fetch の URL 正規化で /../ は解決されるため、キー文字列に .. を含むパスで検証)", async () => {
+    const r = await SELF.fetch(request("/u/prefix..suffix"));
     expect(r.status).toBe(400);
   });
 });

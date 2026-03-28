@@ -31,7 +31,7 @@ Vitest の `test.projects` 分割は、テスト規模がさらに増えた段�
 
 - **単体・コンポーネント**: `src/lib` のロジック、`HelpModal` の一部、JsonLd、サイト設定、チャート台帳、`TOOLS` と `e2e/smoke-paths.ts`・`src/app/*/page.tsx` の整合（`routes-contract.test.ts`）。
 - **E2E**: 主要 URL の表示・HTTP ステータス（`e2e/smoke.spec.ts`）。**axe** は現状ツール画面に未整理の指摘が多いため、ゲートは法務ページのみ（`e2e/a11y-legal.spec.ts` の `/privacy-policy`・`/terms`）。クリティカル操作の薄いシナリオは `e2e/critical.spec.ts`。
-- **Worker**: CORS、`/api/events`、`/api/stats` 系、`/upload`、`/u/:key`、レガシー `/message`・`/random`（`my-worker/test/index.spec.ts`）。テスト用設定は [my-worker/wrangler.vitest.jsonc](../my-worker/wrangler.vitest.jsonc)（**remote D1/R2 を使わない**）。本番デプロイは従来どおり [my-worker/wrangler.jsonc](../my-worker/wrangler.jsonc)。
+- **Worker**: CORS、`/api/events`、`/api/stats` 系、`/upload`、`/u/:key`、レガシー `/message`・`/random`（`my-worker/test/index.spec.ts`）。テスト用設定は [my-worker/wrangler.vitest.jsonc](../my-worker/wrangler.vitest.jsonc)（**remote D1/R2 を使わない**）。D1 は [my-worker/migrations/](../my-worker/migrations/) を [vitest.config.mts](../my-worker/vitest.config.mts) の `readD1Migrations` と [test/apply-migrations.ts](../my-worker/test/apply-migrations.ts) の `applyD1Migrations` でテスト前に適用する。本番デプロイは従来どおり [my-worker/wrangler.jsonc](../my-worker/wrangler.jsonc)。
 
 ## ローカルでの注意（Worker）
 
