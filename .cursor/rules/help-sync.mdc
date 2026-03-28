@@ -9,7 +9,7 @@ alwaysApply: true
 
 ## 対象
 
-- ヘルプの実体: [src/components/HelpModal.tsx](src/components/HelpModal.tsx) の `getContent()` 内の、各パス（トップ / counter / flowchart / split / calculator / gacha / roulette）向けの説明文。
+- ヘルプの実体: [src/components/HelpModal.tsx](src/components/HelpModal.tsx) の `getContent()` 内の、各パス向けの説明文（トップ、`/counter`・`/flowchart`（チャート）・`/panel`・`/split`・`/calculator`・`/clock`・`/gacha`・`/roulette`・`/slot` ほか、split 内の `activeModule` に応じた分岐）。
 - 「関連する」例: 新機能の追加・設定項目の変更・操作手順の変更・用語の統一・機能の削除など、ユーザー向けの挙動やUIが変わる変更。
 
 ## 手順
@@ -22,3 +22,4 @@ alwaysApply: true
 
 - 文言は「〜できます」で統一し、実際の画面・用語（タブ名・ボタン名・設定項目名）と一致させる。
 - 変更後、該当ルートでヘルプを開き、表示が正しいか確認する。
+- ルーティング・`TOOLS`・デプロイ設定の骨格の説明は [docs-sync.mdc](docs-sync.mdc) の [docs/concept-and-architecture.md](docs/concept-and-architecture.md) が担当。ヘルプと矛盾させない。

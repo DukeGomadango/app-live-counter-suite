@@ -14,18 +14,22 @@ PowerShell で実行（`YOUR_GITHUB_EMAIL` を実際のメールに置き換え�
 
 ```powershell
 git config --global user.email "YOUR_GITHUB_EMAIL"
-git config --global user.name "furuyaryuunosuke-link-i"
+git config --global user.name "GitHub に表示したい名前"
 ```
 
 表示名を変えたい場合は `user.name` を好みの名前にしてください。
 
 ## 3. このリポジトリだけに設定する場合
 
+リポジトリのルート（`.git` があるディレクトリ）に移してから実行する。
+
 ```powershell
-cd "c:\Users\ryuunosuke-furuya\Documents\dango-tools\app-live-counter-suite"
+cd "c:\Users\furup\Documents\人数カウントアプリ"
 git config user.email "YOUR_GITHUB_EMAIL"
-git config user.name "furuyaryuunosuke-link-i"
+git config user.name "GitHub に表示したい名前"
 ```
+
+フォルダパスは環境に合わせて変える。
 
 ## 4. 設定の確認
 

@@ -29,3 +29,4 @@ alwaysApply: true
 
 - 実装にないことを書かない。文言は実際の挙動・用語と一致させる。
 - 複数の小さな変更は 1 エントリにまとめてよい（同じ日付・同じ importance で title と items をまとめる）。
+- 新ツール・新ルート・デプロイまわりの変更で `LP_CHANGELOG` を書いた場合、[docs-sync.mdc](docs-sync.mdc) に従い [docs/concept-and-architecture.md](docs/concept-and-architecture.md) の図・表も同じ作業で揃える（ユーザー向け履歴と開発者向けドキュメントの食い違いを防ぐ）。

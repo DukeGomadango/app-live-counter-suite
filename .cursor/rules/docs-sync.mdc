@@ -1,0 +1,41 @@
+---
+description: アーキテクチャやデプロイに関わる実装変更時は docs を同じ作業で更新する
+alwaysApply: true
+---
+
+# docs との同期ルール
+
+実装を変更し、**`docs/` の記述と食い違う範囲が出た場合は、その変更と同じタイミングで `docs` を更新する**。
+
+## 対象ドキュメント
+
+- [docs/concept-and-architecture.md](docs/concept-and-architecture.md): コンセプト、ルーティング図、`TOOLS` / `SplitModuleType` / ディレクトリ、Worker・解析、**セキュリティヘッダや CSP の所在**（`vercel.json` 等）、主要依存の言及。
+- [docs/git-config-for-vercel.md](docs/git-config-for-vercel.md): Vercel のコミット作者メール手順。手順・例のパスが現実とずれたとき。
+
+## 「関連する」変更の例
+
+- [next.config.ts](next.config.ts)（`output`、将来 `headers` / `redirects` を追加・削除する場合など）
+- [vercel.json](vercel.json)（`headers` / `redirects` / `rewrites`、CSP の `connect-src`）
+- `src/app/` のルート追加・削除、誤記 URL 用ページ（例: `gatcha`）
+- [src/lib/tools.ts](src/lib/tools.ts) の `TOOLS`（一覧・カテゴリ・パス・表示名）
+- [src/context/SplitModuleContext.tsx](src/context/SplitModuleContext.tsx) の `SplitModuleType`
+- [my-worker/](my-worker/) の CORS・公開 URL（フロントの CSP と整合）
+- ドキュメント内にバージョンや「〜を next.config で付与」と明記してある内容が実装と一致しなくなったとき
+
+## 手順
+
+1. 上記のいずれかに手を入れたら、[docs/concept-and-architecture.md](docs/concept-and-architecture.md) の該当セクション（表・図・箇条書き）を開く。
+2. ソース（ファイルパス・型・設定ファイル名）を実装と一致させる。図（Mermaid）のラベルは `tools.ts` の `labelJa` / `path` と矛盾させない。
+3. [docs/git-config-for-vercel.md](docs/git-config-for-vercel.md) は、手順や `cd` 例が別マシン用の古いパスのままになっているなど、追随が必要なときだけ直す。
+4. **実装にないことを docs に書かない**。実装にあるのに説明が必要なら追記する。
+
+## 他ルールとの分担
+
+- ユーザー向け画面の説明の正: [src/components/HelpModal.tsx](src/components/HelpModal.tsx)（[help-sync.mdc](help-sync.mdc)）。
+- LP の更新履歴: [src/lib/lp-changelog.ts](src/lib/lp-changelog.ts)（[changelog-sync.mdc](changelog-sync.mdc)）。
+- 本ルールは **開発者向けアーキテクチャ・デプロイ周り**の単一ソースとして `docs/` を保つ。
+
+## 注意
+
+- ルート名・ファイル名は実コードと一字一句揃える。
+- CSP やリダイレクトを `next.config` に戻すなど構成を変えたら、`vercel.json` との役割分担の記述もあわせて直す。
