@@ -1,49 +1,11 @@
 /**
- * フローチャートの保存・メニュー表示用の最小型。
- * HamburgerMenu で @xyflow/react を import せずに済むようにする。
- * FlowchartContent の Node/Edge は構造的に代入可能。
+ * @deprecated 新規コードは `@/lib/chartTypes` を import してください。
  */
-export type FlowchartNodeForMenu = {
-  id: string;
-  type?: string;
-  position?: { x: number; y: number };
-  selected?: boolean;
-  draggable?: boolean;
-  data?: {
-    isGhost?: boolean;
-    operation?: string;
-    mode?: "add" | "subtract";
-    emoji?: string;
-    label?: string;
-    color?: string;
-    value?: number;
-    step?: number;
-    target?: number;
-    count?: number;
-    isLightMode?: boolean;
-    /** 合計ノード（フローチャート台帳） */
-    addTotal?: number;
-    subTotalSigned?: number;
-    grandTotal?: number;
-    labelAdd?: string;
-    labelSub?: string;
-    labelGrand?: string;
-  };
-};
-
-export type FlowchartEdgeForMenu = {
-  id: string;
-  source?: string;
-  sourceHandle?: string | null;
-  target?: string;
-  targetHandle?: string | null;
-};
-
-export type SavedFlowChart = {
-  id: string;
-  name: string;
-  notes?: string;
-  nodes: FlowchartNodeForMenu[];
-  edges: FlowchartEdgeForMenu[];
-  updatedAt: number;
-};
+export type {
+    ChartNodeForMenu,
+    ChartNodeForMenu as FlowchartNodeForMenu,
+    ChartEdgeForMenu,
+    ChartEdgeForMenu as FlowchartEdgeForMenu,
+    SavedChart,
+    SavedChart as SavedFlowChart,
+} from "./chartTypes";

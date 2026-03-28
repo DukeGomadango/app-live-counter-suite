@@ -141,8 +141,8 @@ body.light-mode .glass-panel .panel-link:hover {
   background: rgba(168, 85, 247, 0.35);
 }
 
-/* フローチャート総合計の増減フィードバック（TotalNode のオーバーレイ） */
-@keyframes flowchart-total-glow-up {
+/* Chart 総合計の増減フィードバック（TotalNode のオーバーレイ） */
+@keyframes chart-total-glow-up {
   0% {
     opacity: 0;
     box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent;
@@ -150,8 +150,8 @@ body.light-mode .glass-panel .panel-link:hover {
   45% {
     opacity: 1;
     box-shadow:
-      inset 0 0 32px 3px color-mix(in srgb, var(--flowchart-pulse-accent, #a855f7) 55%, transparent),
-      0 0 28px color-mix(in srgb, var(--flowchart-pulse-accent, #a855f7) 32%, transparent);
+      inset 0 0 32px 3px color-mix(in srgb, var(--chart-pulse-accent, #a855f7) 55%, transparent),
+      0 0 28px color-mix(in srgb, var(--chart-pulse-accent, #a855f7) 32%, transparent);
   }
   100% {
     opacity: 0;
@@ -159,7 +159,7 @@ body.light-mode .glass-panel .panel-link:hover {
   }
 }
 
-@keyframes flowchart-total-glow-up-subtle {
+@keyframes chart-total-glow-up-subtle {
   0% {
     opacity: 0;
     box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent;
@@ -167,8 +167,8 @@ body.light-mode .glass-panel .panel-link:hover {
   45% {
     opacity: 0.75;
     box-shadow:
-      inset 0 0 22px 2px color-mix(in srgb, var(--flowchart-pulse-accent, #a855f7) 40%, transparent),
-      0 0 18px color-mix(in srgb, var(--flowchart-pulse-accent, #a855f7) 22%, transparent);
+      inset 0 0 22px 2px color-mix(in srgb, var(--chart-pulse-accent, #a855f7) 40%, transparent),
+      0 0 18px color-mix(in srgb, var(--chart-pulse-accent, #a855f7) 22%, transparent);
   }
   100% {
     opacity: 0;
@@ -176,7 +176,7 @@ body.light-mode .glass-panel .panel-link:hover {
   }
 }
 
-@keyframes flowchart-total-glow-down {
+@keyframes chart-total-glow-down {
   0% {
     opacity: 0;
     box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent;
@@ -193,7 +193,7 @@ body.light-mode .glass-panel .panel-link:hover {
   }
 }
 
-@keyframes flowchart-total-glow-down-subtle {
+@keyframes chart-total-glow-down-subtle {
   0% {
     opacity: 0;
     box-shadow: inset 0 0 0 0 transparent, 0 0 0 0 transparent;
@@ -210,27 +210,27 @@ body.light-mode .glass-panel .panel-link:hover {
   }
 }
 
-.flowchart-total-pulse-overlay--up {
-  animation: flowchart-total-glow-up 380ms ease-out forwards;
+.chart-total-pulse-overlay--up {
+  animation: chart-total-glow-up 380ms ease-out forwards;
 }
 
-.flowchart-total-pulse-overlay--up-subtle {
-  animation: flowchart-total-glow-up-subtle 300ms ease-out forwards;
+.chart-total-pulse-overlay--up-subtle {
+  animation: chart-total-glow-up-subtle 300ms ease-out forwards;
 }
 
-.flowchart-total-pulse-overlay--down {
-  animation: flowchart-total-glow-down 220ms ease-out forwards;
+.chart-total-pulse-overlay--down {
+  animation: chart-total-glow-down 220ms ease-out forwards;
 }
 
-.flowchart-total-pulse-overlay--down-subtle {
-  animation: flowchart-total-glow-down-subtle 170ms ease-out forwards;
+.chart-total-pulse-overlay--down-subtle {
+  animation: chart-total-glow-down-subtle 170ms ease-out forwards;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .flowchart-total-pulse-overlay--up,
-  .flowchart-total-pulse-overlay--up-subtle,
-  .flowchart-total-pulse-overlay--down,
-  .flowchart-total-pulse-overlay--down-subtle {
+  .chart-total-pulse-overlay--up,
+  .chart-total-pulse-overlay--up-subtle,
+  .chart-total-pulse-overlay--down,
+  .chart-total-pulse-overlay--down-subtle {
     animation: none !important;
     opacity: 0 !important;
     box-shadow: none !important;

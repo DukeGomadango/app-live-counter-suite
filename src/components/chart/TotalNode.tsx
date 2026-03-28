@@ -1,11 +1,16 @@
 "use client";
 
-import { memo, useState, useEffect } from "react";
-import { Handle, Position, NodeProps, Node } from "@xyflow/react";
+import { memo, useState, useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { Handle, Position, NodeProps, Node, useUpdateNodeInternals } from "@xyflow/react";
 import { Calculator } from "lucide-react";
-import { useFlowchartNodeEnv } from "./FlowchartNodeEnvContext";
-import { useFlowchartTotalPulseOptional } from "./FlowchartTotalPulseContext";
-import { flowchartCardVisualScale, type LedgerTotalPersistedData } from "@/lib/flowchartLedger";
+import { useChartNodeEnv } from "./ChartNodeEnvContext";
+import { useChartTotalPulseOptional } from "./ChartTotalPulseContext";
+import {
+    chartEffectiveCardScale,
+    chartTotalNodeRfOuterSize,
+    CHART_TOTAL_INNER_W_PX,
+    type LedgerTotalPersistedData,
+} from "@/lib/chartLedger";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 export type TotalNodeData = LedgerTotalPersistedData;
@@ -20,7 +25,8 @@ const DEFAULTS: Record<LabelKey, string> = {
 };
 
 function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
-    const env = useFlowchartNodeEnv();
+    const updateNodeInternals = useUpdateNodeInternals();
+    const env = useChartNodeEnv();
     const isLightMode = env.isLightMode;
     const target = env.globalTarget;
     const grand = data.grandTotal ?? 0;
@@ -32,31 +38,67 @@ function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
     const appSettings = env.appSettings;
     const accentColor = env.accentColor;
 
-    const pulseCtx = useFlowchartTotalPulseOptional();
+    const pulseCtx = useChartTotalPulseOptional();
     const pulse = pulseCtx?.pulse ?? { token: 0, kind: null as "up" | "down" | null };
     const fx = appSettings.flowchartFxIntensity ?? "normal";
     const [pulsePhase, setPulsePhase] = useState<"up" | "down" | null>(null);
 
     useEffect(() => {
         if (!pulseCtx || fx === "off" || !pulse.kind) return;
-        setPulsePhase(pulse.kind);
-        const ms = pulse.kind === "up" ? (fx === "subtle" ? 320 : 400) : fx === "subtle" ? 180 : 230;
+        const kind = pulse.kind;
+        const ms = kind === "up" ? (fx === "subtle" ? 320 : 400) : fx === "subtle" ? 180 : 230;
+        const id = requestAnimationFrame(() => {
+            setPulsePhase(kind);
+        });
         const t = window.setTimeout(() => setPulsePhase(null), ms);
-        return () => clearTimeout(t);
+        return () => {
+            cancelAnimationFrame(id);
+            clearTimeout(t);
+        };
     }, [pulse.token, pulse.kind, pulseCtx, fx]);
 
     const pulseOverlayClass =
         pulsePhase === "up"
             ? fx === "subtle"
-                ? "flowchart-total-pulse-overlay--up-subtle"
-                : "flowchart-total-pulse-overlay--up"
+                ? "chart-total-pulse-overlay--up-subtle"
+                : "chart-total-pulse-overlay--up"
             : pulsePhase === "down"
               ? fx === "subtle"
-                  ? "flowchart-total-pulse-overlay--down-subtle"
-                  : "flowchart-total-pulse-overlay--down"
+                  ? "chart-total-pulse-overlay--down-subtle"
+                  : "chart-total-pulse-overlay--down"
               : "";
 
-    const scale = flowchartCardVisualScale(appSettings.cardSize);
+    const scale = chartEffectiveCardScale(appSettings.cardSize, appSettings.cardScale);
+    const rfOuter = chartTotalNodeRfOuterSize(appSettings.cardSize, appSettings.cardScale);
+
+    const innerRef = useRef<HTMLDivElement>(null);
+    /** 外枠座標で、スケール後のカード下端の Y（ハンドルをここに置くとカードと線がつながって見える） */
+    const [targetHandleTopPx, setTargetHandleTopPx] = useState<number | null>(null);
+
+    const measureTargetHandleTop = useCallback(() => {
+        const el = innerRef.current;
+        if (!el) return;
+        const visualH = el.offsetHeight * scale;
+        setTargetHandleTopPx(Math.min(rfOuter.height, Math.max(0, visualH)));
+    }, [scale, rfOuter.height]);
+
+    useLayoutEffect(() => {
+        const el = innerRef.current;
+        if (!el) return;
+        measureTargetHandleTop();
+        const ro = new ResizeObserver(() => measureTargetHandleTop());
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [measureTargetHandleTop]);
+
+    useLayoutEffect(() => {
+        if (targetHandleTopPx == null) return;
+        updateNodeInternals(id);
+    }, [id, targetHandleTopPx, updateNodeInternals, rfOuter.width, rfOuter.height, scale]);
+
+    const progressPercent = target > 0 ? Math.min(100, Math.round((grand / target) * 100)) : 0;
+
+    const handleTop = targetHandleTopPx ?? rfOuter.height;
 
     const startEdit = (key: LabelKey) => {
         const cur = (data[key] as string | undefined) || DEFAULTS[key];
@@ -99,39 +141,52 @@ function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
 
     return (
         <div
-            className={`relative group flex flex-col items-center justify-center p-6 rounded-3xl border-4 transition-all duration-300 min-w-[280px] max-w-[360px] ${
-                isTargetAchieved
-                    ? "ring-4 ring-yellow-500/50 dark:ring-yellow-400/50 motion-reduce:animate-none animate-[pulse_2s_ease-in-out_infinite]"
-                    : ""
-            } ${selected ? "scale-[1.02] z-10" : "hover:scale-[1.01]"}`}
+            className={`relative group ${selected ? "z-10" : ""}`}
             style={{
-                ["--flowchart-pulse-accent" as string]: accentColor,
-                transform: `scale(${scale})`,
-                transformOrigin: "center center",
-                background: isLightMode ? "rgba(255,255,255,0.95)" : "rgba(10,10,10,0.95)",
-                borderColor: isTargetAchieved
-                    ? isLightMode
-                        ? "#eab308"
-                        : "#facc15"
-                    : selected
-                      ? "#a855f7"
-                      : isLightMode
-                        ? "rgba(0,0,0,0.1)"
-                        : "rgba(255,255,255,0.1)",
-                boxShadow: isTargetAchieved
-                    ? isLightMode
-                        ? "0 0 40px rgba(234,179,8,0.4), inset 0 0 20px rgba(234,179,8,0.1)"
-                        : "0 0 40px rgba(250,204,21,0.3), inset 0 0 20px rgba(250,204,21,0.2)"
-                    : selected
-                      ? isLightMode
-                          ? "0 0 30px rgba(0,0,0,0.15)"
-                          : "0 0 30px rgba(255,255,255,0.1)"
-                      : isLightMode
-                        ? "0 10px 30px rgba(0,0,0,0.1)"
-                        : "0 10px 30px rgba(0,0,0,0.5)",
-                backdropFilter: "blur(16px)",
+                width: rfOuter.width,
+                height: rfOuter.height,
+                position: "relative",
             }}
         >
+            <div
+                ref={innerRef}
+                className={`relative group flex flex-col items-center justify-center p-6 rounded-3xl border-4 transition-all duration-300 ${
+                    isTargetAchieved
+                        ? "ring-4 ring-yellow-500/50 dark:ring-yellow-400/50 motion-reduce:animate-none animate-[pulse_2s_ease-in-out_infinite]"
+                        : ""
+                }`}
+                style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: CHART_TOTAL_INNER_W_PX,
+                    ["--chart-pulse-accent" as string]: accentColor,
+                    transform: `scale(${scale})`,
+                    transformOrigin: "top left",
+                    background: isLightMode ? "rgba(255,255,255,0.95)" : "rgba(10,10,10,0.95)",
+                    borderColor: isTargetAchieved
+                        ? isLightMode
+                            ? "#eab308"
+                            : "#facc15"
+                        : selected
+                          ? "#a855f7"
+                          : isLightMode
+                            ? "rgba(0,0,0,0.1)"
+                            : "rgba(255,255,255,0.1)",
+                    boxShadow: isTargetAchieved
+                        ? isLightMode
+                            ? "0 0 40px rgba(234,179,8,0.4), inset 0 0 20px rgba(234,179,8,0.1)"
+                            : "0 0 40px rgba(250,204,21,0.3), inset 0 0 20px rgba(250,204,21,0.2)"
+                        : selected
+                          ? isLightMode
+                              ? "0 0 30px rgba(0,0,0,0.15)"
+                              : "0 0 30px rgba(255,255,255,0.1)"
+                          : isLightMode
+                            ? "0 10px 30px rgba(0,0,0,0.1)"
+                            : "0 10px 30px rgba(0,0,0,0.5)",
+                    backdropFilter: "blur(16px)",
+                }}
+            >
             {pulseOverlayClass ? (
                 <div
                     key={pulse.token}
@@ -139,16 +194,6 @@ function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
                     aria-hidden
                 />
             ) : null}
-            {/* 項目→合計の矢印はすべて target-bottom のみ（上下左右に見える接続点は出さない） */}
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-1/2 flex z-10">
-                <Handle
-                    type="target"
-                    position={Position.Bottom}
-                    id="target-bottom"
-                    className="!w-4 !h-4 !border-2 !relative !transform-none !left-auto !bottom-auto"
-                    style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }}
-                />
-            </div>
 
             <div className="flex flex-col items-stretch justify-center w-full gap-3">
                 <div className="flex items-center gap-2 justify-center mb-1">
@@ -198,7 +243,7 @@ function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
                 {target > 0 && (
                     <div className="w-full mt-1 space-y-2">
                         <div
-                            className="flex justify-between items-end text-xs font-bold"
+                            className="flex justify-between items-end text-xs font-bold gap-2"
                             style={{
                                 color: isTargetAchieved
                                     ? isLightMode
@@ -209,12 +254,19 @@ function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
                                       : "rgba(255,255,255,0.58)",
                             }}
                         >
-                            <span className="inline-flex items-center gap-1">
+                            <span className="inline-flex items-center gap-1 min-w-0">
                                 {isTargetAchieved && <EmojiGlyph emoji="✨" size={14} />}
                                 {isTargetAchieved ? "総合目標達成！" : "進捗（総合計）"}
                                 {isTargetAchieved && <EmojiGlyph emoji="✨" size={14} />}
                             </span>
-                            <span>{target.toLocaleString()}</span>
+                            <span className="shrink-0 tabular-nums font-black" title={`総合計 ${grand.toLocaleString()} / 目標 ${target.toLocaleString()}`}>
+                                {progressPercent}%
+                            </span>
+                        </div>
+                        <div
+                            className={`text-[10px] font-medium ${isLightMode ? "text-gray-500" : "text-white/45"}`}
+                        >
+                            目標 {target.toLocaleString()} ・ 現在の総合計 {grand.toLocaleString()}
                         </div>
                         <div
                             className="w-full h-3 rounded-full overflow-hidden"
@@ -223,7 +275,7 @@ function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
                             <div
                                 className="h-full rounded-full transition-all duration-500 ease-out relative"
                                 style={{
-                                    width: `${Math.min(100, (grand / target) * 100)}%`,
+                                    width: `${progressPercent}%`,
                                     background: isTargetAchieved
                                         ? "linear-gradient(90deg, #f59e0b, #fcd34d, #f59e0b)"
                                         : "#a855f7",
@@ -239,6 +291,20 @@ function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
                         </div>
                     </div>
                 )}
+            </div>
+            </div>
+            {/* 外枠はレイアウト用に TOTAL_H より高い余白を持ち得るため、ハンドルは「スケール後のカード下端」に合わせる（bottom:0 だとカードから浮いて見える） */}
+            <div
+                className="pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 translate-y-1/2"
+                style={{ top: handleTop }}
+            >
+                <Handle
+                    type="target"
+                    position={Position.Bottom}
+                    id="target-bottom"
+                    className="pointer-events-auto !w-4 !h-4 !border-2 !relative !transform-none !left-auto !bottom-auto"
+                    style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }}
+                />
             </div>
         </div>
     );

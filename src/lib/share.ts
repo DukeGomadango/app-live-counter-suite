@@ -12,7 +12,7 @@ export function getToolIdFromPath(path: string, activeModule?: string | null): s
   if (p.includes("panel") || m === "panel") return "panel";
   if (p.includes("slot") || m === "slot") return "slot";
   if (p.includes("counter") || m === "counter") return "counter";
-  if (p.includes("flowchart") || m === "flowchart") return "flowchart";
+  if (p.includes("flowchart") || m === "chart" || m === "flowchart") return "chart";
   if (p.includes("roulette") || m === "roulette") return "roulette";
   if (p.includes("clock") || m === "clock") return "clock";
   if (p.includes("calculator") || m === "calculator") return "calculator";
@@ -23,7 +23,12 @@ export function getToolIdFromPath(path: string, activeModule?: string | null): s
 export function getShareReplyTo(toolId: string): string | null {
   if (typeof localStorage === "undefined" || !toolId) return null;
   const v = localStorage.getItem(SHARE_REPLY_TO_PREFIX + toolId);
-  return v && v.trim() ? v.trim() : null;
+  if (v && v.trim()) return v.trim();
+  if (toolId === "chart") {
+    const legacy = localStorage.getItem(SHARE_REPLY_TO_PREFIX + "flowchart");
+    return legacy && legacy.trim() ? legacy.trim() : null;
+  }
+  return null;
 }
 
 const replyToListeners = new Set<() => void>();

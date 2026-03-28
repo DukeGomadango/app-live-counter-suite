@@ -11,7 +11,7 @@ type Props = {
 };
 
 /** ReactFlow の子としてのみマウントすること（useReactFlow 必須） */
-export function FlowchartFitViewPanel({ isLightMode, accentColor, minZoom, maxZoom }: Props) {
+export function ChartFitViewPanel({ isLightMode, accentColor, minZoom, maxZoom }: Props) {
     const { fitView } = useReactFlow();
 
     return (

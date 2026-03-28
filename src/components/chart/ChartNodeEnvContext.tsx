@@ -2,15 +2,15 @@
 
 import { createContext, useContext, type ReactNode } from "react";
 import type { AppSettings } from "@/components/SettingsModal";
-import type { LineNodePersistedData, LedgerTotalPersistedData } from "@/lib/flowchartLedger";
+import type { LineNodePersistedData, LedgerTotalPersistedData } from "@/lib/chartLedger";
 
 /** localStorage / React Flow の node.data に保存するフィールドのみ（関数は含めない） */
 export type { LineNodePersistedData };
 
-export type FlowchartNodeEnv = {
+export type ChartNodeEnv = {
     isLightMode: boolean;
     accentColor: string;
-    /** FlowchartContent の state（カードサイズ等を全ノードで即時反映するため LS とは別に渡す） */
+    /** ChartContent の state（カードサイズ等を全ノードで即時反映するため LS とは別に渡す） */
     appSettings: AppSettings;
     globalTarget: number;
     onIncrement: (id: string) => void;
@@ -24,16 +24,16 @@ export type FlowchartNodeEnv = {
     onUpdateSummaryLabels: (id: string, updates: Partial<Pick<LedgerTotalPersistedData, "labelAdd" | "labelSub" | "labelGrand">>) => void;
 };
 
-const FlowchartNodeEnvContext = createContext<FlowchartNodeEnv | null>(null);
+const ChartNodeEnvContext = createContext<ChartNodeEnv | null>(null);
 
-export function FlowchartNodeEnvProvider({ value, children }: { value: FlowchartNodeEnv; children: ReactNode }) {
-    return <FlowchartNodeEnvContext.Provider value={value}>{children}</FlowchartNodeEnvContext.Provider>;
+export function ChartNodeEnvProvider({ value, children }: { value: ChartNodeEnv; children: ReactNode }) {
+    return <ChartNodeEnvContext.Provider value={value}>{children}</ChartNodeEnvContext.Provider>;
 }
 
-export function useFlowchartNodeEnv(): FlowchartNodeEnv {
-    const v = useContext(FlowchartNodeEnvContext);
+export function useChartNodeEnv(): ChartNodeEnv {
+    const v = useContext(ChartNodeEnvContext);
     if (!v) {
-        throw new Error("useFlowchartNodeEnv must be used within FlowchartNodeEnvProvider");
+        throw new Error("useChartNodeEnv must be used within ChartNodeEnvProvider");
     }
     return v;
 }

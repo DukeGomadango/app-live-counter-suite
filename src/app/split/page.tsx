@@ -7,8 +7,9 @@ const CounterPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
   () => import("@/app/CounterPage"),
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
+/** Chart は `/flowchart` と同じ page エントリ経由（単一のマウント経路に揃える） */
 const ChartPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
-  () => import("@/app/flowchart/FlowchartContent"),
+  () => import("@/app/flowchart/page"),
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
 const GachaPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
@@ -42,11 +43,11 @@ import ModeSelector from "@/components/ModeSelector";
 import { useSplitModule } from "@/context/SplitModuleContext";
 import { ChevronDown, LayoutGrid, PanelLeft, PanelRight } from "lucide-react";
 
-export type ModuleType = "counter" | "flowchart" | "gacha" | "roulette" | "slot" | "calculator" | "clock" | "panel";
+export type ModuleType = "counter" | "chart" | "gacha" | "roulette" | "slot" | "calculator" | "clock" | "panel";
 
 const MODULE_OPTIONS: { value: ModuleType; label: string }[] = [
     { value: "counter", label: "Counter" },
-    { value: "flowchart", label: "Chart" },
+    { value: "chart", label: "Chart" },
     { value: "gacha", label: "Gacha" },
     { value: "roulette", label: "Roulette" },
     { value: "slot", label: "Slot" },
@@ -57,6 +58,7 @@ const MODULE_OPTIONS: { value: ModuleType; label: string }[] = [
 
 export default function SplitPage() {
     const [isLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
+    /** 分割画面のヘッダー付近に出すプロジェクト名など。Chart 本体の永続設定は各ペイン内の flowchart-app-settings。 */
     const [appSettings] = useLocalStorage<AppSettings>(
         "counter-app-settings",
         {
@@ -71,13 +73,19 @@ export default function SplitPage() {
     const [mobileActivePane, setMobileActivePane] = useState<"left" | "right">("left");
 
     const [leftModule, setLeftModule] = useLocalStorage<ModuleType>("split-pane-left", "counter");
-    const [rightModule, setRightModule] = useLocalStorage<ModuleType>("split-pane-right", "flowchart");
+    const [rightModule, setRightModule] = useLocalStorage<ModuleType>("split-pane-right", "chart");
     const { setActiveModule } = useSplitModule();
 
     useEffect(() => {
         const id = setTimeout(() => setMounted(true), 0);
         return () => clearTimeout(id);
     }, []);
+
+    /** localStorage 読み込み後も含め、旧値 `flowchart` を `chart` に正規化 */
+    useEffect(() => {
+        if ((leftModule as string) === "flowchart") setLeftModule("chart");
+        if ((rightModule as string) === "flowchart") setRightModule("chart");
+    }, [leftModule, rightModule, setLeftModule, setRightModule]);
     useEffect(() => {
         const check = () => setIsMobileView(typeof window !== "undefined" && window.innerWidth < 768);
         check();
@@ -97,7 +105,7 @@ export default function SplitPage() {
     const renderModule = (type: ModuleType, isRight: boolean = false) => {
         switch (type) {
             case "counter": return <CounterPage isSplitMode={true} isRightPane={isRight} />;
-            case "flowchart": return <ChartPage isSplitMode={true} isRightPane={isRight} />;
+            case "chart": return <ChartPage isSplitMode={true} isRightPane={isRight} />;
             case "gacha": return <GachaPage isSplitMode={true} isRightPane={isRight} />;
             case "roulette": return <RoulettePage isSplitMode={true} isRightPane={isRight} />;
             case "slot": return <SlotPage isSplitMode={true} isRightPane={isRight} />;

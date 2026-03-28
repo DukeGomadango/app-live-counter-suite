@@ -1,12 +1,18 @@
 "use client";
 
-import { memo, useRef, useCallback, useState, useEffect, useMemo } from "react";
-import { Handle, Position, NodeProps, Node } from "@xyflow/react";
+import { memo, useRef, useCallback, useState, useEffect, useMemo, useLayoutEffect } from "react";
+import { Handle, Position, NodeProps, Node, useUpdateNodeInternals } from "@xyflow/react";
 import { Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import type { CardSize } from "@/components/SettingsModal";
 import { EMOJI_OPTIONS, coerceStoredEmojiToDisplay } from "@/lib/constants";
-import { useFlowchartNodeEnv, type LineNodePersistedData } from "./FlowchartNodeEnvContext";
-import { flowchartCardVisualScale, type LedgerMode } from "@/lib/flowchartLedger";
+import { useChartNodeEnv, type LineNodePersistedData } from "./ChartNodeEnvContext";
+import {
+    chartEffectiveCardScale,
+    chartLineNodeRfOuterSize,
+    CHART_LAYOUT_BREAKPOINT_PX,
+    CHART_LINE_INNER_W_PX,
+    type LedgerMode,
+} from "@/lib/chartLedger";
 import { StepKeypad, type StepKeypadColumn } from "@/components/StepKeypad";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
@@ -28,19 +34,25 @@ function modeStyles(mode: LedgerMode, isLightMode: boolean) {
 }
 
 function LineNode({ id, data }: NodeProps<LineNodeType>) {
-    const env = useFlowchartNodeEnv();
+    const updateNodeInternals = useUpdateNodeInternals();
+    const env = useChartNodeEnv();
     const isLightMode = env.isLightMode;
     const isAchieved = data.target !== undefined && data.target > 0 && data.count >= data.target;
     const accentColor = env.accentColor;
     const appSettings = env.appSettings;
 
-    const scale = flowchartCardVisualScale(appSettings.cardSize);
+    const scale = chartEffectiveCardScale(appSettings.cardSize, appSettings.cardScale);
+    const rfOuter = chartLineNodeRfOuterSize(appSettings.cardSize, appSettings.cardScale);
+
+    useLayoutEffect(() => {
+        updateNodeInternals(id);
+    }, [id, updateNodeInternals, rfOuter.width, rfOuter.height, scale]);
 
     const [isEditingEmoji, setIsEditingEmoji] = useState(false);
     const [isEditingCount, setIsEditingCount] = useState(false);
     const [editCountValue, setEditCountValue] = useState("");
 
-    const isDesktop = useMediaQuery("(min-width: 768px)");
+    const isDesktop = useMediaQuery(`(min-width: ${CHART_LAYOUT_BREAKPOINT_PX}px)`);
     const cardSize = (appSettings.cardSize ?? "L") as CardSize;
     const effectiveCardSizeForKeypad: CardSize = isDesktop && (cardSize === "S" || cardSize === "M") ? "L" : cardSize;
 
@@ -225,31 +237,33 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
 
     return (
         <div
-            className={`rounded-2xl border w-[220px] transition-all relative group ${isAchieved ? "ring-2 ring-green-500/30 dark:ring-green-400/30" : ""}`}
+            className="relative group transition-all"
             style={{
-                transform: `scale(${scale})`,
-                transformOrigin: "center center",
-                background: panelBg,
-                backdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
-                WebkitBackdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
-                borderColor: isAchieved ? (isLightMode ? "#22c55e" : "#4ade80") : panelBorder,
-                boxShadow: isAchieved
-                    ? isLightMode
-                        ? `0 0 20px rgba(34,197,94,0.3)`
-                        : `0 0 20px rgba(74,222,128,0.2)`
-                    : panelShadow,
+                width: rfOuter.width,
+                height: rfOuter.height,
+                position: "relative",
             }}
         >
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10">
-                <Handle
-                    type="source"
-                    position={Position.Top}
-                    id="source-top"
-                    className="!w-3 !h-3 !border-2 !relative !transform-none !left-auto !top-auto"
-                    style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }}
-                />
-            </div>
-
+            <div
+                className={`rounded-2xl border transition-all relative ${isAchieved ? "ring-2 ring-green-500/30 dark:ring-green-400/30" : ""}`}
+                style={{
+                    position: "absolute",
+                    left: 0,
+                    top: 0,
+                    width: CHART_LINE_INNER_W_PX,
+                    transform: `scale(${scale})`,
+                    transformOrigin: "top left",
+                    background: panelBg,
+                    backdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
+                    WebkitBackdropFilter: isLightMode ? "blur(24px) saturate(1.2)" : "blur(16px)",
+                    borderColor: isAchieved ? (isLightMode ? "#22c55e" : "#4ade80") : panelBorder,
+                    boxShadow: isAchieved
+                        ? isLightMode
+                            ? `0 0 20px rgba(34,197,94,0.3)`
+                            : `0 0 20px rgba(74,222,128,0.2)`
+                        : panelShadow,
+                }}
+            >
             <div className="absolute -top-3 -right-3 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity flex gap-1 z-10">
                 <button
                     type="button"
@@ -534,6 +548,17 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                         </div>
                     </div>
                 )}
+            </div>
+            </div>
+            {/* transform: scale 内に置かない（React Flow の接続点がズレるため）。外枠の上辺中央＝視覚上のカード上辺中央 */}
+            <div className="pointer-events-none absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1/2">
+                <Handle
+                    type="source"
+                    position={Position.Top}
+                    id="source-top"
+                    className="pointer-events-auto !w-3 !h-3 !border-2 !relative !transform-none !left-auto !top-auto"
+                    style={{ background: isLightMode ? "#fff" : "#1a103c", borderColor: accentColor }}
+                />
             </div>
         </div>
     );

@@ -41,12 +41,16 @@ export interface AppSettings {
   showAchieveTargetButtonOnCard?: boolean;
   /** フローチャート：総合計が増減したときの短い視覚演出の強さ */
   flowchartFxIntensity?: "off" | "subtle" | "normal";
+  /** フローチャート：接続線の流れアニメ。未指定＝自動（狭い画面ではオフ） */
+  flowchartEdgeAnimated?: boolean;
+  /** フローチャート：キャンバス背景。未指定＝ドット（従来どおり） */
+  flowchartGridBackground?: "dots" | "lines" | "none";
 }
 
 interface SettingsModalProps {
     settings: AppSettings;
     isLightMode: boolean;
-    mode?: "counter" | "flowchart";
+    mode?: "counter" | "chart";
     onSave: (settings: AppSettings) => void;
     onClose: () => void;
 }
@@ -188,7 +192,7 @@ export default function SettingsModal({
                         </div>
 
                         {/* === Step buttons (Counter + Flowchart line cards) === */}
-                        {(mode === "counter" || mode === "flowchart") && (
+                        {(mode === "counter" || mode === "chart") && (
                             <div className="space-y-3">
                                 <div className="flex items-center gap-2 mb-2">
                                     <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>
@@ -340,7 +344,7 @@ export default function SettingsModal({
                         </div>
 
                         {/* === Edge Thickness (Flowchart Only) === */}
-                        {mode === "flowchart" && (
+                        {mode === "chart" && (
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
                                     <Sparkles size={14} className={textSecondary} />
@@ -389,7 +393,135 @@ export default function SettingsModal({
                             </div>
                         )}
 
-                        {mode === "flowchart" && (
+                        {mode === "chart" && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Sparkles size={14} className={textSecondary} />
+                                    <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>
+                                        接続線の流れアニメーション
+                                    </label>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 mb-6">
+                                    {(
+                                        [
+                                            {
+                                                value: "auto" as const,
+                                                label: "自動",
+                                                desc: "狭い画面ではオフ",
+                                            },
+                                            { value: "on" as const, label: "オン", desc: "常に表示" },
+                                            { value: "off" as const, label: "オフ", desc: "常に非表示" },
+                                        ] as const
+                                    ).map((opt) => {
+                                        const cur =
+                                            settings.flowchartEdgeAnimated === true
+                                                ? "on"
+                                                : settings.flowchartEdgeAnimated === false
+                                                  ? "off"
+                                                  : "auto";
+                                        const active = cur === opt.value;
+                                        return (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                onClick={() =>
+                                                    setSettings((s) => ({
+                                                        ...s,
+                                                        flowchartEdgeAnimated:
+                                                            opt.value === "auto"
+                                                                ? undefined
+                                                                : opt.value === "on"
+                                                                  ? true
+                                                                  : false,
+                                                    }))
+                                                }
+                                                className={`py-3 rounded-xl text-center transition-all duration-200 border ${
+                                                    active ? "shadow-lg" : `${bgSubtle} ${inputBorder} ${bgSubtleHover}`
+                                                }`}
+                                                style={
+                                                    active
+                                                        ? {
+                                                              background: `${accentColor}20`,
+                                                              borderColor: `${accentColor}50`,
+                                                              boxShadow: `0 0 12px ${accentColor}20`,
+                                                          }
+                                                        : undefined
+                                                }
+                                            >
+                                                <div
+                                                    className={`text-lg font-bold ${active ? "" : textPrimary}`}
+                                                    style={active ? { color: accentColor } : undefined}
+                                                >
+                                                    {opt.label}
+                                                </div>
+                                                <div className={`text-[10px] mt-0.5 ${textMuted}`}>{opt.desc}</div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <p className={`text-[10px] ${textMuted} -mt-4 mb-6`}>
+                                    OS で動きを減らす設定にしているときは、自動的にオフになります
+                                </p>
+                            </div>
+                        )}
+
+                        {mode === "chart" && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Sparkles size={14} className={textSecondary} />
+                                    <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>
+                                        キャンバス背景
+                                    </label>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 mb-6">
+                                    {(
+                                        [
+                                            { value: "dots" as const, label: "ドット", desc: "従来どおり" },
+                                            { value: "lines" as const, label: "線", desc: "やや軽量" },
+                                            { value: "none" as const, label: "なし", desc: "非表示" },
+                                        ] as const
+                                    ).map((opt) => {
+                                        const cur = settings.flowchartGridBackground ?? "dots";
+                                        const active = cur === opt.value;
+                                        return (
+                                            <button
+                                                key={opt.value}
+                                                type="button"
+                                                onClick={() =>
+                                                    setSettings((s) => ({
+                                                        ...s,
+                                                        flowchartGridBackground:
+                                                            opt.value === "dots" ? undefined : opt.value,
+                                                    }))
+                                                }
+                                                className={`py-3 rounded-xl text-center transition-all duration-200 border ${
+                                                    active ? "shadow-lg" : `${bgSubtle} ${inputBorder} ${bgSubtleHover}`
+                                                }`}
+                                                style={
+                                                    active
+                                                        ? {
+                                                              background: `${accentColor}20`,
+                                                              borderColor: `${accentColor}50`,
+                                                              boxShadow: `0 0 12px ${accentColor}20`,
+                                                          }
+                                                        : undefined
+                                                }
+                                            >
+                                                <div
+                                                    className={`text-lg font-bold ${active ? "" : textPrimary}`}
+                                                    style={active ? { color: accentColor } : undefined}
+                                                >
+                                                    {opt.label}
+                                                </div>
+                                                <div className={`text-[10px] mt-0.5 ${textMuted}`}>{opt.desc}</div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {mode === "chart" && (
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
                                     <Sparkles size={14} className={textSecondary} />
@@ -431,12 +563,12 @@ export default function SettingsModal({
                         )}
 
                         {/* === Background Dots Intensity (Flowchart Only) === */}
-                        {mode === "flowchart" && (
+                        {mode === "chart" && (settings.flowchartGridBackground ?? "dots") !== "none" && (
                             <div>
                                 <div className="flex items-center gap-2 mb-3">
                                     <Sparkles size={14} className={textSecondary} />
                                     <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>
-                                        背景ドットの濃さ
+                                        背景グリッドの濃さ
                                     </label>
                                     <span
                                         className={`ml-auto text-xs font-mono tabular-nums ${textMuted}`}

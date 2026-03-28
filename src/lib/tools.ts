@@ -48,7 +48,7 @@ export const TOOLS: ToolDef[] = [
     lpSpan: "large",
   },
   {
-    id: "flowchart",
+    id: "chart",
     path: "/flowchart",
     labelEn: "Chart",
     labelJa: "チャート",
