@@ -1105,6 +1105,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
         if (!editingItem) return null;
         return (
           <EditItemModal
+            key={editingItem.id}
             id={editingItem.id}
             label={editingItem.label}
             emoji={editingItem.emoji}

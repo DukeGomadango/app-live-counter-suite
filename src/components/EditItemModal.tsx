@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check } from "lucide-react";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { COLOR_OPTIONS, EMOJI_OPTIONS, coerceStoredEmojiToDisplay } from "@/lib/constants";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
@@ -32,14 +32,6 @@ export default function EditItemModal({
     const [color, setColor] = useState(initialColor);
     const [target, setTarget] = useState(initialTarget);
     const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-
-    useEffect(() => {
-        setLabel(initialLabel);
-        setEmoji(coerceStoredEmojiToDisplay(initialEmoji));
-        setColor(initialColor);
-        setTarget(initialTarget);
-        setShowEmojiPicker(false);
-    }, [id, initialLabel, initialEmoji, initialColor, initialTarget]);
 
     const handleSave = useCallback(() => {
         if (label.trim()) {
