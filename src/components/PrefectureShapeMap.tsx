@@ -293,7 +293,6 @@ export default function PrefectureShapeMap({
   const labelShadow = `0 0 16px ${hexWithAlpha(accentColor, 0.55)}, 0 0 4px ${hexWithAlpha(accentColor, 0.4)}`;
 
   const popoverPos = openPrefectureIndex != null ? numberPositions.find((p) => p.index === openPrefectureIndex) : null;
-  const openItem = openPrefectureIndex != null && openPrefectureIndex >= 0 && openPrefectureIndex < items.length ? items[openPrefectureIndex] : undefined;
 
   return (
     <div
