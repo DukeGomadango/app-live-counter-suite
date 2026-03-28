@@ -8,8 +8,13 @@
     "dev:webpack": "next dev --webpack",
     "build": "next build",
     "start": "next start",
+    "start:static": "serve out -l 3000",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "npm run test:unit",
+    "test:unit": "vitest run",
+    "test:unit:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:worker": "npm run test --prefix my-worker -- run"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -26,6 +31,8 @@
     "recharts": "^3.7.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.0",
+    "@playwright/test": "^1.52.0",
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
@@ -35,11 +42,13 @@
     "@typescript-eslint/eslint-plugin": "^8.56.0",
     "@typescript-eslint/parser": "^8.56.0",
     "@vitejs/plugin-react": "^5.1.4",
+    "@vitest/coverage-v8": "^4.1.2",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "jsdom": "^28.1.0",
     "puppeteer": "^24.0.0",
+    "serve": "^14.2.4",
     "tailwindcss": "^4",
     "typescript": "5.9.3",
     "vitest": "^4.0.18"

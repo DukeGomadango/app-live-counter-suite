@@ -177,6 +177,9 @@ export const TOOLS: ToolDef[] = [
   },
 ];
 
+/** E2E スモーク等で使用（`TOOLS` の `path` と常に同順） */
+export const TOOL_PATHS: string[] = TOOLS.map((t) => t.path);
+
 export const TOOLS_BY_CATEGORY: Record<ToolCategory, ToolDef[]> = {
   tools: TOOLS.filter((t) => t.category === "tools"),
   games: TOOLS.filter((t) => t.category === "games"),

@@ -1,0 +1,23 @@
+/**
+ * Vitest / CI 用: remote バインディングなし（ローカル Miniflare のみ）。
+ * 本番デプロイは wrangler.jsonc を使用。
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "my-worker",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-02-19",
+	"compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+	"r2_buckets": [
+		{ "binding": "BUCKET", "bucket_name": "vitest-bucket" },
+		{ "binding": "gacha_prize_files", "bucket_name": "vitest-bucket-alt" }
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "vitest-analytics",
+			"database_id": "00000000-0000-0000-0000-000000000001",
+			"migrations_dir": "migrations"
+		}
+	]
+}
