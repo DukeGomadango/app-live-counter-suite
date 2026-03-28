@@ -22,7 +22,7 @@ Vitest の `test.projects` 分割は、テスト規模がさらに増えた段�
 | `lint` | `npm run lint` |
 | `audit` | `npm audit --audit-level=high` |
 | `unit` | `npm run test:unit:coverage` |
-| `e2e` | `npx playwright install chromium --with-deps` のあと `npm run test:e2e`（`playwright.config.ts` の `webServer` が `build` + `start`） |
+| `e2e` | `npx playwright install chromium --with-deps` のあと `npm run test:e2e`（`webServer` は `build` + `start:static`＝`node scripts/serve-out.mjs` で `out/` を配信） |
 | `worker` | `my-worker` で `npm ci` と `npx vitest run` |
 
 `e2e` が失敗したとき、`test-results/` と `playwright-report/` を artifact `playwright-output` としてアップロードします（7 日保持）。

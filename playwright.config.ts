@@ -13,7 +13,7 @@ export default defineConfig({
     video: "retain-on-failure",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
-  // output: "export" のため next start は使えない。ビルド成果物 out を serve する。
+  // output: "export" のため next start は使えない。ビルド成果物 out を scripts/serve-out.mjs で配信する（拡張子なし URL → *.html）。
   webServer: {
     command: "npm run build && npm run start:static",
     url: "http://127.0.0.1:3000",
