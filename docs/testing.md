@@ -9,7 +9,8 @@
 | `npm test` / `npm run test:unit` | Vitest（`src/**/*.{test,spec}.{ts,tsx}`） |
 | `npm run test:unit:coverage` | 上記 + `@vitest/coverage-v8`。閾値は `vitest.config.ts` の `coverage.thresholds` |
 | `npm run test:e2e` | Playwright（`e2e/`）。初回は `npx playwright install chromium` が必要な場合あり |
-| `npm run test:worker` | `my-worker` で `vitest run` |
+| `npm run start:static` | `npm run build` 後の `out/` を [scripts/serve-out.mjs](../scripts/serve-out.mjs) で配信（E2E の `webServer` と同じ。手動確認用） |
+| `npm run test:worker` | ルートから `my-worker` に `vitest run` を委譲（`npm run test --prefix my-worker -- run`） |
 
 Vitest の `test.projects` 分割は、テスト規模がさらに増えた段階で検討する。
 

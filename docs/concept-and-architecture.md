@@ -68,6 +68,8 @@ flowchart TB
   roulette["/roulette"]
   slot["/slot"]
   admin["/admin"]
+  privacy["/privacy-policy"]
+  terms["/terms"]
   root --> counter
   root --> flowchart_route
   root --> panel
@@ -77,10 +79,14 @@ flowchart TB
   root --> gacha
   root --> roulette
   root --> slot
+  root --> admin
+  root --> privacy
+  root --> terms
   gatcha --> gacha
 ```
 
 - **リダイレクト**: `/gatcha` → `/gacha`（[src/app/gatcha/page.tsx](../src/app/gatcha/page.tsx)。Vercel では [vercel.json](../vercel.json) の `redirects` も併用し `/gatcha/:path*` もサーバ側で寄せる）
+- **法務**: `/privacy-policy`・`/terms` は [src/app/privacy-policy/page.tsx](../src/app/privacy-policy/page.tsx) 等の静的ページ（LP フッター等からリンク）。
 - **管理画面** `/admin`: 利用状況などの内部向け。`AnalyticsSender` では計測対象外。
 
 ---
@@ -160,7 +166,7 @@ flowchart TB
 | `src/context/` | React コンテキスト（スプリット） |
 | `public/` | 静的アセット、PWA manifest、音声など |
 | `my-worker/` | Cloudflare Worker（景品ファイルの R2 アップロード・`/u` プロキシ、任意の利用状況 API など。詳細は `my-worker/src/index.ts`） |
-| `scripts/` | OGP キャプチャ等のメンテ用スクリプト |
+| `scripts/` | [scripts/capture-ogp.mjs](../scripts/capture-ogp.mjs)（OGP 画像生成）、[scripts/serve-out.mjs](../scripts/serve-out.mjs)（`output: "export"` の `out/` を Playwright E2E 用に配信。詳細は [docs/testing.md](./testing.md)） |
 
 ---
 
@@ -174,7 +180,7 @@ flowchart TB
 
 ### 5.2 Cloudflare Worker（`my-worker/`）
 
-- **目的**: ガチャ向けに **画像・音声を R2 にアップロード**し **GET /u/:key** でプロキシするほか、設定されている場合は **利用状況の記録・集計 API**（`POST /api/events`、`GET /api/stats` など）を提供する。
+- **目的**: ガチャ向けに **画像・音声を R2 にアップロード**（`POST /upload`）し **GET /u/:key** でプロキシするほか、設定されている場合は **利用状況の記録・集計**（`POST /api/events`、`GET /api/stats`、管理者向けの visitors 系など。実装の一覧は `my-worker/src/index.ts`）を提供する。
 - **CORS**: 本番ドメイン・ローカルホストを許可（`my-worker/src/index.ts` の `ALLOWED_ORIGINS`）。
 - **フロントからの接続**: 本番の CSP は `vercel.json` の `Content-Security-Policy` において `connect-src` に Worker の URL（例: `https://my-worker.gacha-upload.workers.dev`）が含まれる。Worker 側の許可オリジンは `my-worker/src/index.ts` の `ALLOWED_ORIGINS`。
 
@@ -208,9 +214,9 @@ sequenceDiagram
 
 ## 7. 開発者向けメモ
 
-- **品質ゲート・テスト**: [docs/testing.md](./testing.md)（CI ジョブ、`npm run test:*`、Worker 用 `wrangler.vitest.jsonc` と本番 `wrangler.jsonc` の役割）。
+- **品質ゲート・テスト**: [docs/testing.md](./testing.md)（CI ジョブ、`npm run test:*`、Worker 用 `wrangler.vitest.jsonc` と本番 `wrangler.jsonc` の役割、D1 は Vitest セットアップで `migrations/` を適用）。
 - **ツール追加時**: `src/lib/tools.ts` の `TOOLS` に 1 件追加し、必要なら `HelpModal.tsx`・`SplitModuleType`・sitemap 連携を追随（`.cursor/rules` のヘルプ・更新履歴・**docs 同期**ルール参照）。あわせて `e2e/smoke-paths.ts` の `E2E_MIRROR_TOOL_PATHS` を `TOOLS` の `path` と一致させる（`routes-contract.test.ts` が検証）。
-- **OGP 画像**: `public/ogp.png`。再生成は `npm run ogp:capture`（`scripts/capture-ogp.mjs`）。
+- **OGP 画像**: `public/ogp.png`。再生成は `npm run ogp:capture`（`scripts/capture-ogp.mjs`）。E2E の静的配信は `npm run start:static`（`scripts/serve-out.mjs`）。
 - **既存の運用ドキュメント**: `docs/git-config-for-vercel.md`（Vercel 向け Git 設定）。
 
 ---
