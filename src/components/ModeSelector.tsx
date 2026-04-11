@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Home } from "lucide-react";
+import { ChevronDown, CloudUpload, Home } from "lucide-react";
 import { TOOLS, TOOLS_BY_CATEGORY } from "@/lib/tools";
 
 interface ModeSelectorProps {
@@ -23,8 +23,19 @@ const TOP_ENTRY = {
 
 type ModeEntry = typeof TOP_ENTRY & { id: string; path: string; label: string };
 
+const SYNC_ENTRY: ModeEntry = {
+    id: "sync",
+    path: "/sync",
+    label: "Sync",
+    icon: CloudUpload,
+    color: "text-emerald-400",
+    activeBg: "bg-emerald-500/20",
+    activeBorder: "border-emerald-500/40",
+};
+
 const ALL_MODES: ModeEntry[] = [
     TOP_ENTRY,
+    SYNC_ENTRY,
     ...TOOLS.map((t) => ({
         id: t.id,
         path: t.path,
@@ -113,6 +124,17 @@ export default function ModeSelector({ isLightMode = false }: ModeSelectorProps)
                                     <TOP_ENTRY.icon size={16} className={currentMode.id === TOP_ENTRY.id ? TOP_ENTRY.color : isLightMode ? "text-gray-400" : "text-white/40"} />
                                     {TOP_ENTRY.label}
                                     {currentMode.id === TOP_ENTRY.id && (
+                                        <motion.div layoutId="active-indicator" className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "currentColor" }} />
+                                    )}
+                                </Link>
+                                <Link
+                                    href={SYNC_ENTRY.path}
+                                    onClick={() => setIsOpen(false)}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${currentMode.id === SYNC_ENTRY.id ? `${SYNC_ENTRY.activeBg} ${SYNC_ENTRY.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                >
+                                    <SYNC_ENTRY.icon size={16} className={currentMode.id === SYNC_ENTRY.id ? SYNC_ENTRY.color : isLightMode ? "text-gray-400" : "text-white/40"} />
+                                    データ連携
+                                    {currentMode.id === SYNC_ENTRY.id && (
                                         <motion.div layoutId="active-indicator" className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "currentColor" }} />
                                     )}
                                 </Link>

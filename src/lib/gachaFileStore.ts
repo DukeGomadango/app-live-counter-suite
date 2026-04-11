@@ -81,3 +81,106 @@ export async function getGachaFile(localUrl: string): Promise<Blob | null> {
         };
     });
 }
+
+function blobToBase64(blob: Blob): Promise<string> {
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => {
+            const s = r.result as string;
+            const i = s.indexOf(",");
+            resolve(i >= 0 ? s.slice(i + 1) : s);
+        };
+        r.onerror = () => reject(r.error);
+        r.readAsDataURL(blob);
+    });
+}
+
+function base64ToBlob(b64: string): Blob {
+    const bin = atob(b64);
+    const u8 = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+    return new Blob([u8], { type: "application/octet-stream" });
+}
+
+/** ストア内のすべてのキー（poolId-itemId-kind 形式） */
+export async function listAllGachaFileKeys(): Promise<string[]> {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const req = tx.objectStore(STORE_NAME).getAllKeys();
+        req.onsuccess = () => {
+            db.close();
+            resolve((req.result as IDBValidKey[]).map((k) => String(k)));
+        };
+        req.onerror = () => {
+            db.close();
+            reject(req.error);
+        };
+    });
+}
+
+/** 同期用: キー → base64（データ URL のペイロード部） */
+export async function exportAllGachaFilesAsBase64Records(): Promise<Record<string, string>> {
+    const db = await openDb();
+    const blobs = await new Promise<Map<string, Blob>>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readonly");
+        const m = new Map<string, Blob>();
+        const req = tx.objectStore(STORE_NAME).openCursor();
+        req.onsuccess = () => {
+            const c = req.result;
+            if (c) {
+                if (c.value instanceof Blob) m.set(String(c.key), c.value);
+                c.continue();
+            }
+        };
+        tx.oncomplete = () => {
+            db.close();
+            resolve(m);
+        };
+        tx.onerror = () => {
+            db.close();
+            reject(tx.error);
+        };
+    });
+    const out: Record<string, string> = {};
+    for (const [k, blob] of blobs) {
+        out[k] = await blobToBase64(blob);
+    }
+    return out;
+}
+
+/** 同期用: base64 を Blob として書き込み */
+export async function importGachaFilesFromBase64Records(record: Record<string, string>): Promise<void> {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        const store = tx.objectStore(STORE_NAME);
+        for (const [key, b64] of Object.entries(record)) {
+            store.put(base64ToBlob(b64), key);
+        }
+        tx.oncomplete = () => {
+            db.close();
+            resolve();
+        };
+        tx.onerror = () => {
+            db.close();
+            reject(tx.error);
+        };
+    });
+}
+
+export async function clearAllGachaFiles(): Promise<void> {
+    const db = await openDb();
+    await new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_NAME, "readwrite");
+        tx.objectStore(STORE_NAME).clear();
+        tx.oncomplete = () => {
+            db.close();
+            resolve();
+        };
+        tx.onerror = () => {
+            db.close();
+            reject(tx.error);
+        };
+    });
+}

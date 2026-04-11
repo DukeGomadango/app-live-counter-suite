@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Users, GitMerge, LayoutGrid, Sparkles, Calculator, Home, CircleDot, Clock, PanelTopOpen, Dices } from "lucide-react";
+import { X, Users, GitMerge, LayoutGrid, Sparkles, Calculator, Home, CircleDot, Clock, PanelTopOpen, Dices, CloudUpload } from "lucide-react";
 import { useEffect } from "react";
 import ShareReplyToField from "@/components/ShareReplyToField";
 import { getToolIdFromPath } from "@/lib/share";
@@ -39,6 +39,46 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
         const path = currentPath || "/";
         const showClockHelp = path.includes("clock") || (path.includes("split") && activeModule === "clock");
         const showPanelHelp = path.includes("panel") || (path.includes("split") && activeModule === "panel");
+        if (path.includes("/sync")) {
+            return {
+                title: "データ連携",
+                icon: <CloudUpload className="text-emerald-400" size={24} />,
+                description:
+                    "ブラウザに保存されているツールの設定を、JSON ファイル・Google ドライブ・QR コード・NFC でバックアップしたり、別の端末へ取り込んだりできます。",
+                sections: [
+                    {
+                        title: "範囲の選び方",
+                        items: [
+                            "プリセットで「おすすめ」「最小（カウンターのみ）」「すべて（画像・音声含む）」を選べます",
+                            "「詳細」からツール単位でチェックを変えられます",
+                            "ガチャの画像・音声は IndexedDB にあるため、別トグルで含めるか決められます",
+                        ],
+                    },
+                    {
+                        title: "取り込み",
+                        items: [
+                            "「バンドルに含まれるキーだけ上書き」では、バックアップに含まれるデータだけが置き換わり、ほかのツールのデータはそのままです",
+                            "「今チェックしている範囲を先にクリア」では、取り込み前に選択中のツールのデータを消してからバックアップを適用します（確認が出ます）",
+                            "項目同士を足し合わせるマージはしません",
+                        ],
+                    },
+                    {
+                        title: "Google ドライブ",
+                        items: [
+                            "マイドライブのファイルを選ぶ画面は出ません。アプリ専用領域（appDataFolder）に自動で 1 本のファイルを読み書きします",
+                            "利用には Google Cloud での OAuth クライアント ID の設定と、サイト側の環境変数 NEXT_PUBLIC_GOOGLE_CLIENT_ID が必要です",
+                        ],
+                    },
+                    {
+                        title: "QR・NFC",
+                        items: [
+                            "QR・NFC はデータ量に上限があるため、範囲を絞るか、JSON ファイルや Google を使ってください",
+                            "NFC は対応ブラウザ（主に Android の Chrome）でのみ利用できます",
+                        ],
+                    },
+                ],
+            };
+        }
         if (showClockHelp) {
             return {
                 title: "Clock モード",

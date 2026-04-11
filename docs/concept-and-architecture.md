@@ -70,6 +70,7 @@ flowchart TB
   admin["/admin"]
   privacy["/privacy-policy"]
   terms["/terms"]
+  sync["/sync（データ連携）"]
   root --> counter
   root --> flowchart_route
   root --> panel
@@ -82,12 +83,14 @@ flowchart TB
   root --> admin
   root --> privacy
   root --> terms
+  root --> sync
   gatcha --> gacha
 ```
 
 - **リダイレクト**: `/gatcha` → `/gacha`（[src/app/gatcha/page.tsx](../src/app/gatcha/page.tsx)。Vercel では [vercel.json](../vercel.json) の `redirects` も併用し `/gatcha/:path*` もサーバ側で寄せる）
 - **法務**: `/privacy-policy`・`/terms` は [src/app/privacy-policy/page.tsx](../src/app/privacy-policy/page.tsx) 等の静的ページ（LP フッター等からリンク）。
 - **管理画面** `/admin`: 利用状況などの内部向け。`AnalyticsSender` では計測対象外。
+- **データ連携** `/sync`: ツール設定のバックアップ・復元（JSON ファイル、任意の Google ドライブ appDataFolder、QR、NFC）。実装は `src/lib/dataSync/`・`src/app/sync/`・`src/lib/googleDriveSync.ts`。公開用環境変数 `NEXT_PUBLIC_GOOGLE_CLIENT_ID`（`.env.example` 参照）。
 
 ---
 
@@ -182,7 +185,7 @@ flowchart TB
 
 - **目的**: ガチャ向けに **画像・音声を R2 にアップロード**（`POST /upload`）し **GET /u/:key** でプロキシするほか、設定されている場合は **利用状況の記録・集計**（`POST /api/events`、`GET /api/stats`、管理者向けの visitors 系など。実装の一覧は `my-worker/src/index.ts`）を提供する。
 - **CORS**: 本番ドメイン・ローカルホストを許可（`my-worker/src/index.ts` の `ALLOWED_ORIGINS`）。
-- **フロントからの接続**: 本番の CSP は `vercel.json` の `Content-Security-Policy` において `connect-src` に Worker の URL（例: `https://my-worker.gacha-upload.workers.dev`）が含まれる。Worker 側の許可オリジンは `my-worker/src/index.ts` の `ALLOWED_ORIGINS`。
+- **フロントからの接続**: 本番の CSP は `vercel.json` の `Content-Security-Policy` において `connect-src` に Worker の URL（例: `https://my-worker.gacha-upload.workers.dev`）に加え、データ連携用に `https://www.googleapis.com`・`https://oauth2.googleapis.com`・`https://accounts.google.com` が含まれる。`script-src` に `https://accounts.google.com`・`https://apis.google.com`、`frame-src` に `https://accounts.google.com`（Google Identity Services 用）。Worker 側の許可オリジンは `my-worker/src/index.ts` の `ALLOWED_ORIGINS`。
 
 ```mermaid
 sequenceDiagram

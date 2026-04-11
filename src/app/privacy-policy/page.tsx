@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   },
 };
 
-const LAST_UPDATED = "2026-03-26";
+const LAST_UPDATED = "2026-03-28";
 
 export default function PrivacyPolicyPage() {
   return (
@@ -60,6 +60,11 @@ export default function PrivacyPolicyPage() {
             <li>送信先: 運営者が指定する分析用エンドポイント（NEXT_PUBLIC_ANALYTICS_ENDPOINT）</li>
             <li>送信される情報: 匿名ID、閲覧パス、ツールID、イベント種別（page_view / session_start）</li>
             <li>利用目的: 利用傾向の分析、不正利用対策、機能改善</li>
+            <li>
+              データ連携（任意）: 利用者が Google アカウントで認可した場合、ブラウザから Google の OAuth 2.0 および Google Drive
+              API を利用し、本サービス専用のアプリケーションデータ領域（appDataFolder）に設定のバックアップファイルを保存できます。当該データは利用者の Google
+              アカウント側に保存され、運営者のサーバーには保存されません。取り扱いは Google のポリシーに従います。
+            </li>
           </ul>
         </section>
 

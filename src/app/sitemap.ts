@@ -17,6 +17,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return [
     { url: baseUrl, lastModified, changeFrequency: "weekly", priority: 1.0 },
+    { url: `${baseUrl}/sync`, lastModified, changeFrequency: "monthly", priority: 0.4 },
     ...toolEntries,
   ];
 }

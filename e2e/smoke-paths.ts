@@ -14,7 +14,7 @@ export const E2E_MIRROR_TOOL_PATHS = [
   "/slot",
 ] as const;
 
-export const E2E_STATIC_EXTRA_PATHS = ["/", "/privacy-policy", "/terms", "/gatcha", "/admin"] as const;
+export const E2E_STATIC_EXTRA_PATHS = ["/", "/sync", "/privacy-policy", "/terms", "/gatcha", "/admin"] as const;
 
 export function allSmokePaths(): string[] {
   return [...new Set<string>([...E2E_STATIC_EXTRA_PATHS, ...E2E_MIRROR_TOOL_PATHS])];

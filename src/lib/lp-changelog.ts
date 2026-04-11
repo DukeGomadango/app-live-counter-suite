@@ -15,6 +15,17 @@ export type ChangelogEntry = {
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-03-28",
+    importance: "major",
+    title: "端末間で設定をバックアップできる「データ連携」",
+    items: [
+      "トップの「データを連携」から、Google ドライブ・QR・NFC・JSON ファイルでツールの設定を書き出し・取り込みできます（/sync）",
+      "人数カウンター・チャート・ガチャなど、ツールごとに同期する範囲を選べます。ガチャの画像・音声はオプションで含められます",
+      "取り込みは上書きのみです。範囲だけ上書きするか、チェックした範囲をいったん消してから適用するかを選べます",
+      "Google 連携はマイドライブを開かず、アプリ専用の保存領域に 1 ファイル保存します（NEXT_PUBLIC_GOOGLE_CLIENT_ID の設定が必要です）",
+    ],
+  },
+  {
+    date: "2026-03-28",
     importance: "normal",
     title: "品質のための自動テストと CI を拡充",
     items: [

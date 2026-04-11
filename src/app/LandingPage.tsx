@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Sun, Moon, LayoutGrid, List, ChevronDown, ChevronRight, Check } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
+import DataLinkModal from "@/components/DataLinkModal";
 import PwaInstallChip from "@/components/PwaInstallChip";
 import { TOOLS_BY_CATEGORY } from "@/lib/tools";
 import { SITE_CONFIG } from "@/lib/site";
@@ -70,6 +71,7 @@ export default function LandingPage() {
   const [faqQuestionOpenKey, setFaqQuestionOpenKey] = useState<string | null>(null);
   const [changelogOpen, setChangelogOpen] = useState(false);
   const [showHeaderCta, setShowHeaderCta] = useState(false);
+  const [dataLinkOpen, setDataLinkOpen] = useState(false);
 
   useEffect(() => {
     const id = requestAnimationFrame(() => setMounted(true));
@@ -206,6 +208,15 @@ export default function LandingPage() {
                 >
                   ツールを見る
                 </Link>
+                <button
+                  type="button"
+                  onClick={() => setDataLinkOpen(true)}
+                  className={`inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${
+                    effectiveLight ? "bg-black/8 hover:bg-black/12 text-neutral-800" : "bg-white/10 hover:bg-white/15 text-white"
+                  }`}
+                >
+                  データを連携
+                </button>
               </div>
             </div>
             <div className="rounded-2xl p-3 sm:p-4 bg-transparent">
@@ -745,6 +756,7 @@ export default function LandingPage() {
           <p className={`mt-3 text-[11px] sm:text-xs ${effectiveLight ? "text-neutral-400" : "text-white/35"}`}>© 2026 だんごツール</p>
         </footer>
       </main>
+      <DataLinkModal isOpen={dataLinkOpen} onClose={() => setDataLinkOpen(false)} isLightMode={effectiveLight} />
     </div>
   );
 }
