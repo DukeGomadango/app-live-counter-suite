@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Plus,
@@ -36,7 +36,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+
 import ConfirmDialog from "@/components/ConfirmDialog";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
 import GachaFileRegisterModal from "@/components/gacha/GachaFileRegisterModal";
@@ -94,20 +94,12 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
-    const defaultWeightForRarity = (rarityId: string) => {
-        const r = pool.rarities.find(r => r.id === rarityId);
-        return r?.defaultWeight != null ? String(r.defaultWeight) : "1";
-    };
-    const [newItemProb, setNewItemProb] = useState(() => defaultWeightForRarity(pool.rarities[0]?.id || ""));
+    const [newItemProb, setNewItemProb] = useState("1");
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editName, setEditName] = useState("");
     const [pendingDelete, setPendingDelete] = useState<{ type: "rarity"; id: string } | { type: "item"; id: string } | null>(null);
     const [pullCountInput, setPullCountInput] = useState<string | null>(null);
     const [pityThresholdInput, setPityThresholdInput] = useState<string | null>(null);
-    const [hideNormalizeMessage, setHideNormalizeMessage] = useLocalStorage<boolean>("gacha-hide-prob-normalize-message", false);
-    const [normalizeMessage, setNormalizeMessage] = useState<string | null>(null);
-    const [normalizeDontShowAgain, setNormalizeDontShowAgain] = useState(false);
-    const normalizeDontShowAgainRef = useRef(false);
     const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
     const [bulkProbInput, setBulkProbInput] = useState("");
     type ItemSortMode = "custom" | "rarity-asc" | "rarity-desc" | "weight-asc" | "weight-desc" | "name-asc" | "name-desc";
@@ -212,31 +204,11 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         });
     };
 
-    // 一番上の weight を「100 - 2番目以降の合計」にし、2番目以降の合計が100超なら按分して合計100に
-    const normalizeFirstWeight = (items: GachaItem[]): GachaItem[] => {
-        if (items.length === 0) return items;
-        const rest = items.slice(1).reduce((s, i) => s + Math.max(0, i.weight), 0);
-        const firstWeight = 100 - rest;
-        let newItems = items.map((it, i) => (i === 0 ? { ...it, weight: Math.max(0, firstWeight) } : { ...it }));
-        if (rest > 100) {
-            const scale = 100 / rest;
-            newItems = newItems.map((it, i) =>
-                i === 0 ? { ...it, weight: 0 } : { ...it, weight: Math.max(0, it.weight) * scale }
-            );
-        }
-        return newItems;
-    };
-
-    const NORMALIZE_MSG = "2番目以降の合計が100%を超えたため、按分し先頭を0%にしました";
-
-    const applyProbabilityEdit = (itemIndex: number, newPercent: number) => {
+    const applyProbabilityEdit = (itemIndex: number, newWeight: number) => {
         if (itemIndex < 0 || itemIndex >= pool.items.length) return;
-        const p = newPercent >= 0 ? newPercent : 0;
-        const items = pool.items.map((it, i) => (i === itemIndex ? { ...it, weight: p } : { ...it }));
-        const nextItems = normalizeFirstWeight(items);
-        onPoolChange({ ...pool, items: nextItems });
-        const didScale = nextItems.length > 1 && (nextItems[0]?.weight === 0);
-        if (didScale && !hideNormalizeMessage) setNormalizeMessage(NORMALIZE_MSG);
+        const w = newWeight >= 0 ? newWeight : 0;
+        const items = pool.items.map((it, i) => (i === itemIndex ? { ...it, weight: w } : { ...it }));
+        onPoolChange({ ...pool, items });
     };
 
     // -- 品目操作 --
@@ -250,25 +222,19 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
             rarityId: newItemRarityId,
             weight: w,
         };
-        const nextItems = normalizeFirstWeight([...pool.items, newItem]);
-        onPoolChange({ ...pool, items: nextItems });
+        onPoolChange({ ...pool, items: [...pool.items, newItem] });
         setNewItemName("");
-        setNewItemProb(defaultWeightForRarity(newItemRarityId));
-        const didScale = nextItems.length > 1 && (nextItems[0]?.weight === 0);
-        if (didScale && !hideNormalizeMessage) setNormalizeMessage(NORMALIZE_MSG);
+        setNewItemProb("1");
     };
 
-    const applyBulkProbability = (percent: number) => {
-        const p = percent >= 0 ? percent : 0;
+    const applyBulkProbability = (weight: number) => {
+        const w = weight >= 0 ? weight : 0;
         const selectedSet = new Set(selectedItemIds);
-        const items = pool.items.map((it, i) =>
-            i > 0 && selectedSet.has(it.id) ? { ...it, weight: p } : { ...it }
+        const items = pool.items.map(it =>
+            selectedSet.has(it.id) ? { ...it, weight: w } : { ...it }
         );
-        const nextItems = normalizeFirstWeight(items);
-        onPoolChange({ ...pool, items: nextItems });
+        onPoolChange({ ...pool, items });
         setSelectedItemIds(new Set());
-        const didScale = nextItems.length > 1 && (nextItems[0]?.weight === 0);
-        if (didScale && !hideNormalizeMessage) setNormalizeMessage(NORMALIZE_MSG);
     };
 
     const toggleItemSelected = (id: string) => {
@@ -307,25 +273,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         setSelectedItemIds(new Set());
     };
 
-    const closeNormalizeMessage = () => {
-        if (normalizeDontShowAgain) setHideNormalizeMessage(true);
-        setNormalizeMessage(null);
-        setNormalizeDontShowAgain(false);
-    };
-
-    useEffect(() => {
-        normalizeDontShowAgainRef.current = normalizeDontShowAgain;
-    }, [normalizeDontShowAgain]);
-
-    useEffect(() => {
-        if (!normalizeMessage) return;
-        const t = setTimeout(() => {
-            if (normalizeDontShowAgainRef.current) setHideNormalizeMessage(true);
-            setNormalizeMessage(null);
-            setNormalizeDontShowAgain(false);
-        }, 5000);
-        return () => clearTimeout(t);
-    }, [normalizeMessage, setHideNormalizeMessage]);
 
     const removeItem = (id: string) => {
         onPoolChange({ ...pool, items: pool.items.filter(item => item.id !== id) });
@@ -528,33 +475,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                     </div>
                                 )}
 
-                                {/* 按分発生時のメッセージ */}
-                                {mounted && normalizeMessage && (
-                                    <div
-                                        className={`flex flex-col gap-2 mb-2 px-3 py-2 rounded-lg text-xs ${textLight ? "bg-amber-50 text-amber-900 border border-amber-200" : "bg-amber-500/15 text-amber-200 border border-amber-500/30"}`}
-                                        role="alert"
-                                    >
-                                        <p>{normalizeMessage}</p>
-                                        <div className="flex items-center justify-between gap-2">
-                                            <label className="flex items-center gap-1.5 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={normalizeDontShowAgain}
-                                                    onChange={e => setNormalizeDontShowAgain(e.target.checked)}
-                                                    className="rounded"
-                                                />
-                                                <span>今後表示しない</span>
-                                            </label>
-                                            <button
-                                                type="button"
-                                                onClick={closeNormalizeMessage}
-                                                className={`px-2 py-1 rounded ${textLight ? "bg-amber-200/80 text-amber-900 hover:bg-amber-200" : "bg-amber-500/30 text-amber-100 hover:bg-amber-500/50"}`}
-                                            >
-                                                閉じる
-                                            </button>
-                                        </div>
-                                    </div>
-                                )}
+
 
                                 {/* 一括確率設定バー（1件以上選択時） */}
                                 {mounted && selectedItemIds.size >= 1 && (
@@ -565,11 +486,10 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                             inputMode="decimal"
                                             value={bulkProbInput}
                                             onChange={e => setBulkProbInput(e.target.value)}
-                                            placeholder="%"
+                                            placeholder="重み"
                                             className={`w-14 px-2 py-1 rounded text-right tabular-nums ${textPrimary} ${placeholderCls} outline-none`}
                                             style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                         />
-                                        <span className={textMuted}>%</span>
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -620,13 +540,12 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         <SortableContext items={(mounted ? pool.items : []).map(i => i.id)} strategy={verticalListSortingStrategy}>
                                             {(mounted ? pool.items : []).map((item, index) => {
                                                 const pt = probabilities.get(item.id) || 0;
-                                                const isFirst = index === 0;
                                                 return (
                                                     <SortableItem
                                                         key={item.id}
                                                         item={item}
                                                         itemIndex={index}
-                                                        isFirstItem={isFirst}
+                                                        isFirstItem={false}
                                                         pool={pool}
                                                         isLightMode={textLight}
                                                         editingItemId={editingItemId}
@@ -664,9 +583,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         <select
                                             value={mounted ? newItemRarityId : ""}
                                             onChange={e => {
-                                                const newRarId = e.target.value;
-                                                setNewItemRarityId(newRarId);
-                                                setNewItemProb(defaultWeightForRarity(newRarId));
+                                                setNewItemRarityId(e.target.value);
                                             }}
                                             className={`px-2 py-1.5 rounded-lg text-xs ${textPrimary} outline-none cursor-pointer`}
                                             style={{
@@ -689,7 +606,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                 inputMode="decimal"
                                                 value={newItemProb}
                                                 onChange={e => setNewItemProb(e.target.value)}
-                                                placeholder="確率"
+                                            placeholder="重み"
                                                 className={`w-20 px-2 py-1.5 rounded-lg text-xs ${textPrimary} ${placeholderCls} outline-none`}
                                                 style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                             />
@@ -881,7 +798,7 @@ function SortableItem({
     const isEditing = editingItemId === item.id;
     const rarity = pool.rarities.find(r => r.id === item.rarityId);
     const [probInput, setProbInput] = useState<string | null>(null);
-    const probDisplay = probInput !== null ? probInput : formatProb(prob);
+    const probDisplay = probInput !== null ? probInput : String(item.weight);
     const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
 
     const isPartOfDraggingSelection = draggingSelectionIds?.has(item.id) ?? false;
@@ -998,35 +915,28 @@ function SortableItem({
                 </span>
             )}
 
-            {/* 確率(%)：並びの一番上だけ編集不可（残り%）、2番目以降は入力可。表示は1列に統一 */}
-            {isFirstItem ? (
-                <span
-                    className={`w-16 text-[10px] px-1.5 py-0.5 text-right tabular-nums select-none cursor-default ${textMuted}`}
-                    title="並びの一番上は残り%のため編集できません（ドラッグで並べ替え可）"
-                    aria-label="残り%（編集不可）"
-                >
+            {/* 重み入力 + レア度内確率表示 */}
+            <span className="flex items-center gap-0.5 shrink-0">
+                <input
+                    type="text"
+                    inputMode="decimal"
+                    value={probDisplay}
+                    onFocus={() => setProbInput(String(item.weight))}
+                    onChange={e => setProbInput(e.target.value)}
+                    onBlur={() => {
+                        const s = probInput !== null ? probInput.trim() : String(item.weight);
+                        const n = parseFloat(s);
+                        if (!Number.isNaN(n) && n >= 0) onProbabilityBlur(itemIndex, n);
+                        setProbInput(null);
+                    }}
+                    className={`w-14 text-[10px] px-1.5 py-0.5 rounded text-right ${textPrimary} outline-none`}
+                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                    title="レア度内での重み"
+                />
+                <span className={`text-[10px] w-12 text-right tabular-nums ${textMuted}`} title={`レア度内 ${formatProb(prob)}%`}>
                     {formatProb(prob)}%
                 </span>
-            ) : (
-                <span className="flex items-center gap-0.5 shrink-0">
-                    <input
-                        type="text"
-                        inputMode="decimal"
-                        value={probDisplay}
-                        onFocus={() => setProbInput(formatProb(prob))}
-                        onChange={e => setProbInput(e.target.value)}
-                        onBlur={() => {
-                            const s = probInput !== null ? probInput.trim() : formatProb(prob);
-                            const n = parseFloat(s);
-                            if (!Number.isNaN(n) && n >= 0) onProbabilityBlur(itemIndex, n);
-                            setProbInput(null);
-                        }}
-                        className={`w-14 text-[10px] px-1.5 py-0.5 rounded text-right ${textPrimary} outline-none`}
-                        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                    />
-                    <span className={`text-[10px] ${textMuted}`}>%</span>
-                </span>
-            )}
+            </span>
 
             {/* 添付（画像・音声）：1ボタンでモーダルを開き、モーダル内でファイル or URL を登録 */}
             <button

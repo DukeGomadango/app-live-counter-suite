@@ -281,40 +281,88 @@ export function createDefaultPlayer(name: string): Player {
 
 // ========== 確率計算 ==========
 
+/** レア度内での品目確率を返す（各品目の weight / そのレア度の全品目 weight 合計 * 100）*/
 export function calculateProbabilities(items: GachaItem[]): Map<string, number> {
-    const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
     const probabilities = new Map<string, number>();
-    if (totalWeight === 0) return probabilities;
+    if (items.length === 0) return probabilities;
+
+    // レア度ごとに集計
+    const rarityWeightSums = new Map<string, number>();
     for (const item of items) {
-        probabilities.set(item.id, (item.weight / totalWeight) * 100);
+        rarityWeightSums.set(item.rarityId, (rarityWeightSums.get(item.rarityId) || 0) + item.weight);
+    }
+
+    for (const item of items) {
+        const totalInRarity = rarityWeightSums.get(item.rarityId) || 0;
+        if (totalInRarity === 0) continue;
+        probabilities.set(item.id, (item.weight / totalInRarity) * 100);
     }
     return probabilities;
 }
 
+/** レア度の排出確率を返す（defaultWeight ベース。品目が存在するレア度のみ） */
 export function getRarityProbabilities(items: GachaItem[], rarities: RarityTier[]): Map<string, number> {
-    const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
-    const rarityWeights = new Map<string, number>();
-    if (totalWeight === 0) return rarityWeights;
-    for (const item of items) {
-        rarityWeights.set(item.rarityId, (rarityWeights.get(item.rarityId) || 0) + item.weight);
-    }
     const result = new Map<string, number>();
+    if (rarities.length === 0) return result;
+
+    // 品目があるレア度だけ対象
+    const raritiesWithItems = new Set<string>();
+    for (const item of items) raritiesWithItems.add(item.rarityId);
+
+    let totalWeight = 0;
     for (const r of rarities) {
-        const w = rarityWeights.get(r.id) || 0;
-        result.set(r.id, (w / totalWeight) * 100);
+        if (!raritiesWithItems.has(r.id)) continue;
+        totalWeight += (r.defaultWeight ?? 1);
+    }
+    if (totalWeight === 0) return result;
+
+    for (const r of rarities) {
+        if (!raritiesWithItems.has(r.id)) {
+            result.set(r.id, 0);
+            continue;
+        }
+        result.set(r.id, ((r.defaultWeight ?? 1) / totalWeight) * 100);
     }
     return result;
 }
 
-// ========== ガチャ抽選 ==========
-
-function pickOne(items: GachaItem[], totalWeight: number): GachaItem {
-    let rand = Math.random() * totalWeight;
+/** 品目のグローバル排出確率を返す（= レア度確率 × レア度内確率） */
+export function getGlobalProbabilities(items: GachaItem[], rarities: RarityTier[]): Map<string, number> {
+    const rarityProbs = getRarityProbabilities(items, rarities);
+    const withinRarity = calculateProbabilities(items);
+    const result = new Map<string, number>();
     for (const item of items) {
+        const rp = rarityProbs.get(item.rarityId) || 0;
+        const wp = withinRarity.get(item.id) || 0;
+        result.set(item.id, (rp / 100) * (wp / 100) * 100);
+    }
+    return result;
+}
+
+// ========== ガチャ抽選（2段階方式: レア度→品目） ==========
+
+/** レア度を抽選 */
+function pickRarity(rarities: RarityTier[], raritiesWithItems: Set<string>): RarityTier {
+    const candidates = rarities.filter(r => raritiesWithItems.has(r.id));
+    const totalWeight = candidates.reduce((sum, r) => sum + (r.defaultWeight ?? 1), 0);
+    let rand = Math.random() * totalWeight;
+    for (const r of candidates) {
+        rand -= (r.defaultWeight ?? 1);
+        if (rand <= 0) return r;
+    }
+    return candidates[candidates.length - 1]!;
+}
+
+/** レア度内での品目を抽選 */
+function pickItemInRarity(items: GachaItem[], rarityId: string): GachaItem {
+    const candidates = items.filter(it => it.rarityId === rarityId);
+    const totalWeight = candidates.reduce((sum, it) => sum + it.weight, 0);
+    let rand = Math.random() * totalWeight;
+    for (const item of candidates) {
         rand -= item.weight;
         if (rand <= 0) return item;
     }
-    return items[items.length - 1]!; // fallback
+    return candidates[candidates.length - 1]!;
 }
 
 export function performGachaPull(
@@ -324,11 +372,14 @@ export function performGachaPull(
 ): { results: GachaResult[]; updatedPlayer: Player; pityTriggered: boolean } {
     if (pool.items.length === 0) return { results: [], updatedPlayer: player, pityTriggered: false };
 
-    const totalWeight = pool.items.reduce((sum, item) => sum + item.weight, 0);
-    if (totalWeight === 0) return { results: [], updatedPlayer: player, pityTriggered: false };
+    // 品目があるレア度を列挙
+    const raritiesWithItems = new Set<string>();
+    for (const item of pool.items) raritiesWithItems.add(item.rarityId);
+
+    if (raritiesWithItems.size === 0) return { results: [], updatedPlayer: player, pityTriggered: false };
 
     // 最高レア度を決定
-    const highestRarity = [...pool.rarities].sort((a, b) => b.sortOrder - a.sortOrder)[0];
+    const highestRarity = [...pool.rarities].filter(r => raritiesWithItems.has(r.id)).sort((a, b) => b.sortOrder - a.sortOrder)[0];
 
     // 天井確定レア度のアイテム
     const pityRarityItems = pool.items.filter(item => item.rarityId === pool.pityGuaranteedRarityId);
@@ -347,11 +398,13 @@ export function performGachaPull(
         // 天井チェック
         if (pool.pityEnabled && pityCounter >= pool.pityThreshold && pityRarityItems.length > 0) {
             // 天井到達: 確定レア度からランダム
-            picked = pityRarityItems[Math.floor(Math.random() * pityRarityItems.length)]!;
+            picked = pickItemInRarity(pool.items, pool.pityGuaranteedRarityId);
             pityCounter = 0;
             pityTriggered = true;
         } else {
-            picked = pickOne(pool.items, totalWeight);
+            // 2段階抽選: レア度 → 品目
+            const rarity = pickRarity(pool.rarities, raritiesWithItems);
+            picked = pickItemInRarity(pool.items, rarity.id);
             // 最高レアが出たらピティカウントリセット
             if (picked.rarityId === highestRarity?.id) {
                 pityCounter = 0;
