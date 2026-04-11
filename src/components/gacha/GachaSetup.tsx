@@ -435,6 +435,16 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                             className="overflow-hidden"
                         >
                             <div className="px-4 pb-4 flex flex-col gap-2">
+                                {/* カラムヘッダー（レア度） */}
+                                {mounted && pool.rarities.length > 0 && (
+                                    <div className={`flex items-center gap-2 px-2 pb-1 text-[10px] font-medium ${textSecondary} select-none`}>
+                                        <div className="w-6 text-center shrink-0">色</div>
+                                        <div className="flex-1 px-1">レア度名</div>
+                                        <div className="w-8 text-center shrink-0" title="優先順（小さい数字ほど高く表示されます）">優先順</div>
+                                        <div className="w-16 text-center shrink-0" title="出現確率（全体での割合）">出現確率</div>
+                                        {pool.rarities.length > 1 && <div className="w-6 text-center shrink-0">削除</div>}
+                                    </div>
+                                )}
                                 {(mounted ? pool.rarities : [])
                                     .slice()
                                     .sort((a, b) => a.sortOrder - b.sortOrder)
@@ -610,6 +620,18 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
                                 {/* 品目リスト（編集可能）。ハイドレーション一致のため mounted まで空で描画 */}
                                 <div className="flex flex-col gap-1.5 mb-3 max-h-64 overflow-y-auto scroll-touch pr-1">
+                                    {/* カラムヘッダー（アイテム） */}
+                                    {mounted && pool.items.length > 0 && (
+                                        <div className={`flex items-center gap-1.5 px-2 pb-1 text-[10px] font-medium ${textSecondary} select-none`}>
+                                            <div className="w-5 text-center shrink-0" title="ドラッグ＆ドロップで並び替え">⇅</div>
+                                            <div className="w-2.5 text-center shrink-0" title="一括操作用のチェックボックス">✓</div>
+                                            <div className="w-16 text-center shrink-0 opacity-80">レア度</div>
+                                            <div className="flex-1 px-1.5 opacity-80">アイテム名</div>
+                                            <div className="w-[124px] text-center shrink-0 opacity-80">レア度内(%) / 全体(%)</div>
+                                            <div className="w-[20px] text-center shrink-0" title="画像・音声">📎</div>
+                                            <div className="w-[36px] text-center shrink-0 hidden sm:block opacity-80">操作</div>
+                                        </div>
+                                    )}
                                     <DndContext
                                         sensors={sensors}
                                         collisionDetection={closestCenter}
