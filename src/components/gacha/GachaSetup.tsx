@@ -100,6 +100,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const [pendingDelete, setPendingDelete] = useState<{ type: "rarity"; id: string } | { type: "item"; id: string } | null>(null);
     const [pullCountInput, setPullCountInput] = useState<string | null>(null);
     const [pityThresholdInput, setPityThresholdInput] = useState<string | null>(null);
+    const [rarityProbInputs, setRarityProbInputs] = useState<Record<string, string>>({});
     const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
     const [bulkProbInput, setBulkProbInput] = useState("");
     type ItemSortMode = "custom" | "rarity-asc" | "rarity-desc" | "weight-asc" | "weight-desc" | "name-asc" | "name-desc";
@@ -525,16 +526,27 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                 <input
                                                     type="text"
                                                     inputMode="decimal"
-                                                    value={rarity.defaultWeight != null ? formatProb(rarity.defaultWeight) : ""}
+                                                    value={rarityProbInputs[rarity.id] !== undefined ? rarityProbInputs[rarity.id] : (rarity.defaultWeight != null ? formatProb(rarity.defaultWeight) : "")}
+                                                    onFocus={() => {
+                                                        setRarityProbInputs(prev => ({ ...prev, [rarity.id]: String(rarity.defaultWeight ?? 0) }));
+                                                    }}
                                                     onChange={e => {
-                                                        const val = e.target.value;
-                                                        if (val === "") {
-                                                            updateRarity(rarity.id, { defaultWeight: 0 });
-                                                        } else {
+                                                        setRarityProbInputs(prev => ({ ...prev, [rarity.id]: e.target.value }));
+                                                    }}
+                                                    onBlur={() => {
+                                                        const val = rarityProbInputs[rarity.id];
+                                                        if (val !== undefined) {
                                                             const n = parseFloat(val);
-                                                            if (!Number.isNaN(n) && n >= 0) {
+                                                            if (val === "") {
+                                                                updateRarity(rarity.id, { defaultWeight: 0 });
+                                                            } else if (!Number.isNaN(n) && n >= 0) {
                                                                 updateRarity(rarity.id, { defaultWeight: n });
                                                             }
+                                                            setRarityProbInputs(prev => {
+                                                                const next = { ...prev };
+                                                                delete next[rarity.id];
+                                                                return next;
+                                                            });
                                                         }
                                                     }}
                                                     placeholder="0"
@@ -886,12 +898,17 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 }
 
 // 極小確率は指数表記、それ以外は桁数に応じて toFixed
+// 極小確率は指数表記、それ以外は不要な0を除去して整形
 function formatProb(prob: number): string {
-    if (prob >= 0.01) return prob.toFixed(2);
-    if (prob >= 0.0001) return prob.toFixed(4);
-    if (prob >= 1e-6) return prob.toFixed(6);
-    if (prob > 0) return prob.toExponential(2);
-    return "0";
+    if (prob === 0) return "0";
+    let s: string;
+    if (prob >= 0.01) s = prob.toFixed(2);
+    else if (prob >= 0.0001) s = prob.toFixed(4);
+    else if (prob >= 1e-6) s = prob.toFixed(6);
+    else s = prob.toExponential(2);
+    
+    // 末尾の0と小数点を削除（例: 4.00 -> 4, 4.10 -> 4.1）
+    return s.replace(/\.?0+$/, "").replace(/(\.\d*?)0+$/, "$1");
 }
 
 // DnD用の子コンポーネント
@@ -942,7 +959,7 @@ function SortableItem({
     const isEditing = editingItemId === item.id;
     const rarity = pool.rarities.find(r => r.id === item.rarityId);
     const [probInput, setProbInput] = useState<string | null>(null);
-    const probDisplay = probInput !== null ? probInput : String(item.weight);
+    const probDisplay = probInput !== null ? probInput : formatProb(item.weight);
     const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
 
     const isPartOfDraggingSelection = draggingSelectionIds?.has(item.id) ?? false;
@@ -1066,7 +1083,7 @@ function SortableItem({
                         type="text"
                         inputMode="decimal"
                         value={probDisplay}
-                        onFocus={() => setProbInput(String(item.weight))}
+                        onFocus={() => setProbInput(formatProb(item.weight))}
                         onChange={e => setProbInput(e.target.value)}
                         onBlur={() => {
                             const s = probInput !== null ? probInput.trim() : String(item.weight);
