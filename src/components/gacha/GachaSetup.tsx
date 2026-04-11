@@ -176,11 +176,43 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     };
 
     // -- レア度操作 --
+    const normalizeRarityTiers = (rarities: RarityTier[], targetId?: string, targetP?: number): RarityTier[] => {
+        if (rarities.length === 0) return rarities;
+        let workingRarities = rarities.map(r => ({ ...r, defaultWeight: r.defaultWeight ?? 0 }));
+
+        if (targetId && targetP !== undefined) {
+            const p = Math.max(0, Math.min(100, targetP));
+            const others = workingRarities.filter(it => it.id !== targetId);
+            if (others.length === 0) {
+                return workingRarities.map(it => it.id === targetId ? { ...it, defaultWeight: 100 } : it);
+            }
+            const rest = 100 - p;
+            const otherSum = others.reduce((s, it) => s + (it.defaultWeight ?? 0), 0);
+            return workingRarities.map(it => {
+                if (it.id === targetId) return { ...it, defaultWeight: p };
+                if (otherSum === 0) return { ...it, defaultWeight: rest / others.length };
+                return { ...it, defaultWeight: ((it.defaultWeight ?? 0) / otherSum) * rest };
+            });
+        } else {
+            const sum = workingRarities.reduce((s, it) => s + (it.defaultWeight ?? 0), 0);
+            if (sum === 0) {
+                return workingRarities.map(it => ({ ...it, defaultWeight: 100 / workingRarities.length }));
+            }
+            return workingRarities.map(it => ({ ...it, defaultWeight: ((it.defaultWeight ?? 0) / sum) * 100 }));
+        }
+    };
+
     const updateRarity = (id: string, updates: Partial<RarityTier>) => {
-        onPoolChange({
-            ...pool,
-            rarities: pool.rarities.map(r => r.id === id ? { ...r, ...updates } : r),
-        });
+        if (updates.defaultWeight !== undefined) {
+            const temp = pool.rarities.map(r => r.id === id ? { ...r, ...updates } : r);
+            const nextRarities = normalizeRarityTiers(temp, id, updates.defaultWeight);
+            onPoolChange({ ...pool, rarities: nextRarities });
+        } else {
+            onPoolChange({
+                ...pool,
+                rarities: pool.rarities.map(r => r.id === id ? { ...r, ...updates } : r),
+            });
+        }
     };
 
     const addRarity = () => {
@@ -192,15 +224,18 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
             glowColor: "rgba(139,92,246,0.4)",
             bgColor: "rgba(139,92,246,0.1)",
             sortOrder: maxOrder + 1,
+            defaultWeight: 0,
         };
-        onPoolChange({ ...pool, rarities: [...pool.rarities, newRarity] });
+        const nextRarities = normalizeRarityTiers([...pool.rarities, newRarity]);
+        onPoolChange({ ...pool, rarities: nextRarities });
     };
 
     const removeRarity = (id: string) => {
         if (pool.rarities.length <= 1) return;
+        const nextRarities = normalizeRarityTiers(pool.rarities.filter(r => r.id !== id));
         onPoolChange({
             ...pool,
-            rarities: pool.rarities.filter(r => r.id !== id),
+            rarities: nextRarities,
             items: pool.items.filter(item => item.rarityId !== id),
         });
     };
@@ -439,15 +474,15 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                             />
                                             <span className={`text-[10px] w-8 text-center ${textMuted}`}>#{rarity.sortOrder}</span>
                                             {/* デフォルト出現比率 */}
-                                            <span className="flex items-center gap-0.5 shrink-0">
+                                            <span className="flex items-center gap-0.5 shrink-0 bg-black/5 px-1 py-0.5 rounded">
                                                 <input
                                                     type="text"
                                                     inputMode="decimal"
-                                                    value={rarity.defaultWeight != null ? String(rarity.defaultWeight) : ""}
+                                                    value={rarity.defaultWeight != null ? formatProb(rarity.defaultWeight) : ""}
                                                     onChange={e => {
                                                         const val = e.target.value;
                                                         if (val === "") {
-                                                            updateRarity(rarity.id, { defaultWeight: undefined } as Partial<RarityTier>);
+                                                            updateRarity(rarity.id, { defaultWeight: 0 });
                                                         } else {
                                                             const n = parseFloat(val);
                                                             if (!Number.isNaN(n) && n >= 0) {
@@ -455,12 +490,12 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                             }
                                                         }
                                                     }}
-                                                    placeholder="1"
-                                                    className={`w-12 text-[10px] px-1 py-0.5 rounded text-right tabular-nums ${textPrimary} ${placeholderCls} outline-none`}
+                                                    placeholder="0"
+                                                    className={`w-12 text-[10px] px-1 py-0.5 rounded text-right tabular-nums ${textPrimary} ${placeholderCls} outline-none cursor-text focus:ring-1 focus:ring-purple-400`}
                                                     style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                                                    title="新規品目追加時のデフォルトの出やすさ比率"
+                                                    title="レア度の出現確率。変更すると他のレア度が自動調整されます"
                                                 />
-                                                <span className={`text-[9px] ${textMuted}`} title="出やすさ（比率ポイント）">pt</span>
+                                                <span className={`text-[10px] ${textMuted}`} title="出現確率(%)">%</span>
                                             </span>
                                             {(mounted ? pool.rarities : []).length > 1 && (
                                                 <button
