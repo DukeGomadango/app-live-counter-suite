@@ -179,26 +179,43 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const normalizeRarityTiers = (rarities: RarityTier[], targetId?: string, targetP?: number): RarityTier[] => {
         if (rarities.length === 0) return rarities;
         let workingRarities = rarities.map(r => ({ ...r, defaultWeight: r.defaultWeight ?? 0 }));
+        workingRarities.sort((a, b) => a.sortOrder - b.sortOrder);
 
         if (targetId && targetP !== undefined) {
             const p = Math.max(0, Math.min(100, targetP));
             const others = workingRarities.filter(it => it.id !== targetId);
             if (others.length === 0) {
-                return workingRarities.map(it => it.id === targetId ? { ...it, defaultWeight: 100 } : it);
+                return rarities.map(it => it.id === targetId ? { ...it, defaultWeight: 100 } : it);
             }
-            const rest = 100 - p;
-            const otherSum = others.reduce((s, it) => s + (it.defaultWeight ?? 0), 0);
-            return workingRarities.map(it => {
+            
+            let diff = (100 - p) - others.reduce((s, it) => s + it.defaultWeight, 0);
+            for (let i = 0; i < others.length; i++) {
+                if (diff === 0) break;
+                const other = others[i];
+                if (!other) continue;
+                let newW = other.defaultWeight + diff;
+                if (newW < 0) { diff = newW; newW = 0; }
+                else if (newW > 100) { diff = newW - 100; newW = 100; }
+                else { diff = 0; newW = Math.round(newW * 1000) / 1000; }
+                other.defaultWeight = newW;
+            }
+            return rarities.map(it => {
                 if (it.id === targetId) return { ...it, defaultWeight: p };
-                if (otherSum === 0) return { ...it, defaultWeight: rest / others.length };
-                return { ...it, defaultWeight: ((it.defaultWeight ?? 0) / otherSum) * rest };
+                return others.find(o => o.id === it.id) || it;
             });
         } else {
-            const sum = workingRarities.reduce((s, it) => s + (it.defaultWeight ?? 0), 0);
-            if (sum === 0) {
-                return workingRarities.map(it => ({ ...it, defaultWeight: 100 / workingRarities.length }));
+            let diff = 100 - workingRarities.reduce((s, it) => s + it.defaultWeight, 0);
+            for (let i = 0; i < workingRarities.length; i++) {
+                if (diff === 0) break;
+                const wr = workingRarities[i];
+                if (!wr) continue;
+                let newW = wr.defaultWeight + diff;
+                if (newW < 0) { diff = newW; newW = 0; }
+                else if (newW > 100) { diff = newW - 100; newW = 100; }
+                else { diff = 0; newW = Math.round(newW * 1000) / 1000; }
+                wr.defaultWeight = newW;
             }
-            return workingRarities.map(it => ({ ...it, defaultWeight: ((it.defaultWeight ?? 0) / sum) * 100 }));
+            return rarities.map(it => workingRarities.find(o => o.id === it.id) || it);
         }
     };
 
@@ -244,31 +261,43 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         const rarityItems = items.filter(it => it.rarityId === rarityId);
         if (rarityItems.length === 0) return items;
 
+        const nextRarityItems = [...rarityItems];
+
         if (targetId && targetP !== undefined) {
             const p = Math.max(0, Math.min(100, targetP));
-            const others = rarityItems.filter(it => it.id !== targetId);
+            const others = nextRarityItems.filter(it => it.id !== targetId);
             if (others.length === 0) {
                 return items.map(it => it.id === targetId ? { ...it, weight: 100 } : it);
             }
-            const rest = 100 - p;
-            const otherSum = others.reduce((s, it) => s + it.weight, 0);
+            
+            let diff = (100 - p) - others.reduce((s, it) => s + it.weight, 0);
+            for (let i = 0; i < others.length; i++) {
+                if (diff === 0) break;
+                const other = others[i];
+                if (!other) continue;
+                let newW = other.weight + diff;
+                if (newW < 0) { diff = newW; newW = 0; }
+                else if (newW > 100) { diff = newW - 100; newW = 100; }
+                else { diff = 0; newW = Math.round(newW * 1000) / 1000; }
+                other.weight = newW;
+            }
             return items.map(it => {
                 if (it.id === targetId) return { ...it, weight: p };
-                if (it.rarityId === rarityId) {
-                    if (otherSum === 0) return { ...it, weight: rest / others.length };
-                    else return { ...it, weight: (it.weight / otherSum) * rest };
-                }
-                return it;
+                return others.find(o => o.id === it.id) || it;
             });
         } else {
-            const sum = rarityItems.reduce((s, it) => s + it.weight, 0);
-            return items.map(it => {
-                if (it.rarityId === rarityId) {
-                    if (sum === 0) return { ...it, weight: 100 / rarityItems.length };
-                    else return { ...it, weight: (it.weight / sum) * 100 };
-                }
-                return it;
-            });
+            let diff = 100 - nextRarityItems.reduce((s, it) => s + it.weight, 0);
+            for (let i = 0; i < nextRarityItems.length; i++) {
+                if (diff === 0) break;
+                const nr = nextRarityItems[i];
+                if (!nr) continue;
+                let newW = nr.weight + diff;
+                if (newW < 0) { diff = newW; newW = 0; }
+                else if (newW > 100) { diff = newW - 100; newW = 100; }
+                else { diff = 0; newW = Math.round(newW * 1000) / 1000; }
+                nr.weight = newW;
+            }
+            return items.map(it => nextRarityItems.find(o => o.id === it.id) || it);
         }
     };
 
