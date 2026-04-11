@@ -387,9 +387,18 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     };
 
     const updateItem = (id: string, updates: Partial<GachaItem>) => {
+        const targetItem = pool.items.find(i => i.id === id);
+        let nextItems = pool.items.map(item => item.id === id ? { ...item, ...updates } : item);
+        
+        // レア度が変更された場合、移動元と移動先の両方のレア度をノーマライズする
+        if (updates.rarityId && targetItem && updates.rarityId !== targetItem.rarityId) {
+            nextItems = normalizeRarityWeights(nextItems, targetItem.rarityId); // 元のレア度
+            nextItems = normalizeRarityWeights(nextItems, updates.rarityId);    // 新しいレア度
+        }
+
         onPoolChange({
             ...pool,
-            items: pool.items.map(item => item.id === id ? { ...item, ...updates } : item),
+            items: nextItems,
         });
     };
 
@@ -512,7 +521,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                 style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                             />
                                             <span className={`text-[10px] w-8 text-center ${textMuted}`}>#{rarity.sortOrder}</span>
-                                            {/* デフォルト出現比率 */}
                                             <span className="flex items-center gap-0.5 shrink-0 bg-black/5 px-1 py-0.5 rounded">
                                                 <input
                                                     type="text"
@@ -1051,7 +1059,6 @@ function SortableItem({
                 </span>
             )}
 
-            {/* 比率入力 + レア度内確率表示 */}
             {/* パーセント入力 + レア度内確率・全体確率表示 */}
             <span className="flex items-center gap-1 shrink-0 bg-black/5 px-2 py-0.5 rounded text-[10px]">
                 <span className="flex items-center" title="【レア度内の確率】変更すると他のアイテムが自動で調整されます">
