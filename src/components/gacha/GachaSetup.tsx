@@ -16,7 +16,7 @@ import {
     Upload,
     } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
-import { generateId, calculateProbabilities, getRarityProbabilities } from "@/lib/gacha";
+import { generateId, calculateProbabilities, getRarityProbabilities, getGlobalProbabilities } from "@/lib/gacha";
 import {
     DndContext,
     closestCenter,
@@ -127,6 +127,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
     const probabilities = calculateProbabilities(pool.items);
     const rarityProbs = getRarityProbabilities(pool.items, pool.rarities);
+    const globalProbs = getGlobalProbabilities(pool.items, pool.rarities);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -204,35 +205,73 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         });
     };
 
+    const normalizeRarityWeights = (items: GachaItem[], rarityId: string, targetId?: string, targetP?: number): GachaItem[] => {
+        const rarityItems = items.filter(it => it.rarityId === rarityId);
+        if (rarityItems.length === 0) return items;
+
+        if (targetId && targetP !== undefined) {
+            const p = Math.max(0, Math.min(100, targetP));
+            const others = rarityItems.filter(it => it.id !== targetId);
+            if (others.length === 0) {
+                return items.map(it => it.id === targetId ? { ...it, weight: 100 } : it);
+            }
+            const rest = 100 - p;
+            const otherSum = others.reduce((s, it) => s + it.weight, 0);
+            return items.map(it => {
+                if (it.id === targetId) return { ...it, weight: p };
+                if (it.rarityId === rarityId) {
+                    if (otherSum === 0) return { ...it, weight: rest / others.length };
+                    else return { ...it, weight: (it.weight / otherSum) * rest };
+                }
+                return it;
+            });
+        } else {
+            const sum = rarityItems.reduce((s, it) => s + it.weight, 0);
+            return items.map(it => {
+                if (it.rarityId === rarityId) {
+                    if (sum === 0) return { ...it, weight: 100 / rarityItems.length };
+                    else return { ...it, weight: (it.weight / sum) * 100 };
+                }
+                return it;
+            });
+        }
+    };
+
     const applyProbabilityEdit = (itemIndex: number, newWeight: number) => {
         if (itemIndex < 0 || itemIndex >= pool.items.length) return;
-        const w = newWeight >= 0 ? newWeight : 0;
-        const items = pool.items.map((it, i) => (i === itemIndex ? { ...it, weight: w } : { ...it }));
-        onPoolChange({ ...pool, items });
+        const targetItem = pool.items[itemIndex];
+        if (!targetItem) return;
+        const nextItems = normalizeRarityWeights(pool.items, targetItem.rarityId, targetItem.id, newWeight);
+        onPoolChange({ ...pool, items: nextItems });
     };
 
     // -- 品目操作 --
     const addItem = () => {
         if (!newItemName.trim() || !newItemRarityId) return;
         const prob = parseFloat(newItemProb);
-        const w = Number.isNaN(prob) || prob < 0 ? 1 : prob;
+        const w = Number.isNaN(prob) || prob < 0 ? 0 : Math.min(100, prob);
         const newItem: GachaItem = {
             id: generateId(),
             name: newItemName.trim(),
             rarityId: newItemRarityId,
             weight: w,
         };
-        onPoolChange({ ...pool, items: [...pool.items, newItem] });
+        const nextItems = normalizeRarityWeights([...pool.items, newItem], newItemRarityId, newItem.id, w);
+        onPoolChange({ ...pool, items: nextItems });
         setNewItemName("");
-        setNewItemProb("1");
+        setNewItemProb("100");
     };
 
     const applyBulkProbability = (weight: number) => {
         const w = weight >= 0 ? weight : 0;
         const selectedSet = new Set(selectedItemIds);
-        const items = pool.items.map(it =>
+        let items = pool.items.map(it =>
             selectedSet.has(it.id) ? { ...it, weight: w } : { ...it }
         );
+        const affectedRarities = new Set(pool.items.filter(it => selectedSet.has(it.id)).map(it => it.rarityId));
+        affectedRarities.forEach(rid => {
+            items = normalizeRarityWeights(items, rid);
+        });
         onPoolChange({ ...pool, items });
         setSelectedItemIds(new Set());
     };
@@ -275,7 +314,12 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
 
     const removeItem = (id: string) => {
-        onPoolChange({ ...pool, items: pool.items.filter(item => item.id !== id) });
+        const itemToRemove = pool.items.find(it => it.id === id);
+        let items = pool.items.filter(item => item.id !== id);
+        if (itemToRemove) {
+            items = normalizeRarityWeights(items, itemToRemove.rarityId);
+        }
+        onPoolChange({ ...pool, items });
     };
 
     const updateItem = (id: string, updates: Partial<GachaItem>) => {
@@ -394,7 +438,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                 style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                             />
                                             <span className={`text-[10px] w-8 text-center ${textMuted}`}>#{rarity.sortOrder}</span>
-                                            {/* デフォルト確率 */}
+                                            {/* デフォルト出現比率 */}
                                             <span className="flex items-center gap-0.5 shrink-0">
                                                 <input
                                                     type="text"
@@ -414,9 +458,9 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                     placeholder="1"
                                                     className={`w-12 text-[10px] px-1 py-0.5 rounded text-right tabular-nums ${textPrimary} ${placeholderCls} outline-none`}
                                                     style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                                                    title="新規品目追加時のデフォルト確率(%)"
+                                                    title="新規品目追加時のデフォルトの出やすさ比率"
                                                 />
-                                                <span className={`text-[9px] ${textMuted}`}>%</span>
+                                                <span className={`text-[9px] ${textMuted}`} title="出やすさ（比率ポイント）">pt</span>
                                             </span>
                                             {(mounted ? pool.rarities : []).length > 1 && (
                                                 <button
@@ -486,10 +530,11 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                             inputMode="decimal"
                                             value={bulkProbInput}
                                             onChange={e => setBulkProbInput(e.target.value)}
-                                            placeholder="重み"
-                                            className={`w-14 px-2 py-1 rounded text-right tabular-nums ${textPrimary} ${placeholderCls} outline-none`}
+                                            placeholder="レア度内確率"
+                                            className={`w-24 px-2 py-1 rounded text-right tabular-nums ${textPrimary} ${placeholderCls} outline-none`}
                                             style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                         />
+                                        <span className={`text-[10px] ${textMuted}`}>%</span>
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -540,6 +585,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         <SortableContext items={(mounted ? pool.items : []).map(i => i.id)} strategy={verticalListSortingStrategy}>
                                             {(mounted ? pool.items : []).map((item, index) => {
                                                 const pt = probabilities.get(item.id) || 0;
+                                                const gPt = globalProbs.get(item.id) || 0;
                                                 return (
                                                     <SortableItem
                                                         key={item.id}
@@ -557,6 +603,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         onProbabilityBlur={applyProbabilityEdit}
                                                         onRequestRemoveItem={(id) => setPendingDelete({ type: "item", id })}
                                                         prob={pt}
+                                                        globalProb={gPt}
                                                         isSelected={selectedItemIds.has(item.id)}
                                                         onToggleSelect={toggleItemSelected}
                                                         draggingSelectionIds={draggingSelectionIds}
@@ -606,9 +653,10 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                 inputMode="decimal"
                                                 value={newItemProb}
                                                 onChange={e => setNewItemProb(e.target.value)}
-                                            placeholder="重み"
-                                                className={`w-20 px-2 py-1.5 rounded-lg text-xs ${textPrimary} ${placeholderCls} outline-none`}
+                                                placeholder="レア度内確率"
+                                                className={`w-24 px-2 py-1.5 rounded-lg text-xs ${textPrimary} ${placeholderCls} outline-none`}
                                                 style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                                                title="追加するアイテムのレア度内での確率"
                                             />
                                             <span className={textMuted}>%</span>
                                         </span>
@@ -768,6 +816,7 @@ interface SortableItemProps {
     onProbabilityBlur: (itemIndex: number, percent: number) => void;
     onRequestRemoveItem: (id: string) => void;
     prob: number;
+    globalProb: number;
     isSelected: boolean;
     onToggleSelect: (id: string) => void;
     draggingSelectionIds: Set<string> | null;
@@ -789,6 +838,7 @@ function SortableItem({
     onProbabilityBlur,
     onRequestRemoveItem,
     prob,
+    globalProb,
     isSelected,
     onToggleSelect,
     draggingSelectionIds,
@@ -915,26 +965,29 @@ function SortableItem({
                 </span>
             )}
 
-            {/* 重み入力 + レア度内確率表示 */}
-            <span className="flex items-center gap-0.5 shrink-0">
-                <input
-                    type="text"
-                    inputMode="decimal"
-                    value={probDisplay}
-                    onFocus={() => setProbInput(String(item.weight))}
-                    onChange={e => setProbInput(e.target.value)}
-                    onBlur={() => {
-                        const s = probInput !== null ? probInput.trim() : String(item.weight);
-                        const n = parseFloat(s);
-                        if (!Number.isNaN(n) && n >= 0) onProbabilityBlur(itemIndex, n);
-                        setProbInput(null);
-                    }}
-                    className={`w-14 text-[10px] px-1.5 py-0.5 rounded text-right ${textPrimary} outline-none`}
-                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                    title="レア度内での重み"
-                />
-                <span className={`text-[10px] w-12 text-right tabular-nums ${textMuted}`} title={`レア度内 ${formatProb(prob)}%`}>
-                    {formatProb(prob)}%
+            {/* 比率入力 + レア度内確率表示 */}
+            {/* パーセント入力 + レア度内確率・全体確率表示 */}
+            <span className="flex items-center gap-1 shrink-0 bg-black/5 px-2 py-0.5 rounded text-[10px]">
+                <span className="flex items-center" title="【レア度内の確率】変更すると他のアイテムが自動で調整されます">
+                    <input
+                        type="text"
+                        inputMode="decimal"
+                        value={probDisplay}
+                        onFocus={() => setProbInput(String(item.weight))}
+                        onChange={e => setProbInput(e.target.value)}
+                        onBlur={() => {
+                            const s = probInput !== null ? probInput.trim() : String(item.weight);
+                            const n = parseFloat(s);
+                            if (!Number.isNaN(n) && n >= 0) onProbabilityBlur(itemIndex, n);
+                            setProbInput(null);
+                        }}
+                        className={`w-14 px-1 py-0.5 rounded text-right tabular-nums ${textPrimary} outline-none cursor-text font-semibold focus:ring-1 focus:ring-purple-400`}
+                        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                    />
+                    <span className={`ml-0.5 ${textMuted}`}>%</span>
+                </span>
+                <span className={`w-16 text-right tabular-nums ${textMuted} border-l pl-2`} title="全体の確率（読み取り専用）" style={{ borderColor: inputBorder}}>
+                    {formatProb(globalProb)}%
                 </span>
             </span>
 
