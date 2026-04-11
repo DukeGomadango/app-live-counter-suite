@@ -492,6 +492,12 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         );
     }, [setPlayers]);
 
+    const renamePlayer = useCallback((id: string, newName: string) => {
+        setPlayers(prev =>
+            (prev || []).map(p => p.id === id ? { ...p, name: newName } : p)
+        );
+    }, [setPlayers]);
+
     // ガチャ実行
     const handleRoll = useCallback(() => {
         if (pool.items.length === 0) return;
@@ -746,6 +752,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                             onAddPlayer={addPlayer}
                                             onRemovePlayer={removePlayer}
                                             onResetPlayer={resetPlayer}
+                                            onRenamePlayer={renamePlayer}
                                             onResetAllPlayers={resetAllPlayers}
                                             onViewPlayerHistory={setPlayerHistoryViewId}
                                             pool={pool}
@@ -988,6 +995,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                                         onAddPlayer={addPlayer}
                                                         onRemovePlayer={removePlayer}
                                                         onResetPlayer={resetPlayer}
+                                                        onRenamePlayer={renamePlayer}
                                                         onResetAllPlayers={resetAllPlayers}
                                                         onViewPlayerHistory={setPlayerHistoryViewId}
                                                         pool={pool}
@@ -1081,6 +1089,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                         onAddPlayer={addPlayer}
                                         onRemovePlayer={removePlayer}
                                         onResetPlayer={resetPlayer}
+                                        onRenamePlayer={renamePlayer}
                                         onResetAllPlayers={resetAllPlayers}
                                         onViewPlayerHistory={setPlayerHistoryViewId}
                                         pool={pool}

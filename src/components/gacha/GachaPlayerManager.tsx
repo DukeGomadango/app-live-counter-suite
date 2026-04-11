@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { UserPlus, Trash2, RotateCcw, ChevronRight, User, Link, FileArchive } from "lucide-react";
+import { UserPlus, Trash2, RotateCcw, ChevronRight, User, Link, FileArchive, Pencil, Check } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
 import { getPlayerItemAttachments, buildPlayerAttachmentsZip } from "@/lib/gachaZip";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
@@ -17,6 +17,7 @@ interface GachaPlayerManagerProps {
     onAddPlayer: (name: string) => void;
     onRemovePlayer: (id: string) => void;
     onResetPlayer: (id: string) => void;
+    onRenamePlayer?: (id: string, newName: string) => void;
     onResetAllPlayers?: () => void;
     onViewPlayerHistory?: (playerId: string) => void;
     pool: GachaPool;
@@ -33,6 +34,7 @@ export default function GachaPlayerManager({
     onAddPlayer,
     onRemovePlayer,
     onResetPlayer,
+    onRenamePlayer,
     onResetAllPlayers,
     onViewPlayerHistory,
     pool,
@@ -49,6 +51,9 @@ export default function GachaPlayerManager({
     const [zipLoadingPlayerId, setZipLoadingPlayerId] = useState<string | null>(null);
     const [playerToZip, setPlayerToZip] = useState<Player | null>(null);
     const [showBulkResetConfirm, setShowBulkResetConfirm] = useState(false);
+    const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
+    const [editPlayerName, setEditPlayerName] = useState("");
+    const editInputRef = useRef<HTMLInputElement>(null);
 
     const handleDownloadZip = useCallback(
         async (player: Player) => {
@@ -114,6 +119,21 @@ export default function GachaPlayerManager({
 
     const handleRequestDelete = (id: string) => setPlayerToDelete(id);
     const handleRequestReset = (id: string) => setPlayerToReset(id);
+
+    const startEditingPlayer = (player: Player) => {
+        setEditingPlayerId(player.id);
+        setEditPlayerName(player.name);
+        // 次フレームでinputにフォーカス
+        setTimeout(() => editInputRef.current?.focus(), 0);
+    };
+
+    const finishEditingPlayer = () => {
+        if (editingPlayerId && editPlayerName.trim() && onRenamePlayer) {
+            onRenamePlayer(editingPlayerId, editPlayerName.trim());
+        }
+        setEditingPlayerId(null);
+        setEditPlayerName("");
+    };
 
     return (
         <div className="flex flex-col gap-3 pr-1 pb-4">
@@ -221,7 +241,40 @@ export default function GachaPlayerManager({
 
                                     {/* プレイヤー情報 */}
                                     <div className="flex-1 min-w-0">
-                                        <p className={`text-sm font-medium truncate ${textPrimary}`}>{player.name}</p>
+                                        {editingPlayerId === player.id ? (
+                                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                                                <input
+                                                    ref={editInputRef}
+                                                    type="text"
+                                                    value={editPlayerName}
+                                                    onChange={e => setEditPlayerName(e.target.value)}
+                                                    onBlur={finishEditingPlayer}
+                                                    onKeyDown={e => { if (e.key === "Enter") finishEditingPlayer(); if (e.key === "Escape") { setEditingPlayerId(null); setEditPlayerName(""); } }}
+                                                    className={`text-sm font-medium px-1.5 py-0.5 rounded flex-1 min-w-0 outline-none focus:ring-2 focus:ring-purple-500/30 ${textPrimary}`}
+                                                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                                                />
+                                                <button
+                                                    onClick={e => { e.stopPropagation(); finishEditingPlayer(); }}
+                                                    className="p-0.5 rounded hover:bg-green-500/20 text-green-500 transition-colors shrink-0"
+                                                    title="確定"
+                                                >
+                                                    <Check size={12} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-1 group/name">
+                                                <p className={`text-sm font-medium truncate ${textPrimary}`}>{player.name}</p>
+                                                {onRenamePlayer && (
+                                                    <button
+                                                        onClick={e => { e.stopPropagation(); startEditingPlayer(player); }}
+                                                        className={`p-0.5 rounded opacity-0 group-hover/name:opacity-100 transition-opacity shrink-0 ${isLightMode ? "text-gray-500 hover:bg-gray-100" : "text-white/40 hover:bg-white/10"}`}
+                                                        title="名前を変更"
+                                                    >
+                                                        <Pencil size={10} />
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
                                         <p className={`text-[10px] ${textMuted}`}>
                                             {player.totalPulls.toLocaleString()}連
                                             {pool.pityEnabled && ` • 天井: ${player.pityCounter}/${pool.pityThreshold}`}

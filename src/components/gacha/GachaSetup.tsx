@@ -94,7 +94,11 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
-    const [newItemProb, setNewItemProb] = useState("1");
+    const defaultWeightForRarity = (rarityId: string) => {
+        const r = pool.rarities.find(r => r.id === rarityId);
+        return r?.defaultWeight != null ? String(r.defaultWeight) : "1";
+    };
+    const [newItemProb, setNewItemProb] = useState(() => defaultWeightForRarity(pool.rarities[0]?.id || ""));
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editName, setEditName] = useState("");
     const [pendingDelete, setPendingDelete] = useState<{ type: "rarity"; id: string } | { type: "item"; id: string } | null>(null);
@@ -249,7 +253,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         const nextItems = normalizeFirstWeight([...pool.items, newItem]);
         onPoolChange({ ...pool, items: nextItems });
         setNewItemName("");
-        setNewItemProb("1");
+        setNewItemProb(defaultWeightForRarity(newItemRarityId));
         const didScale = nextItems.length > 1 && (nextItems[0]?.weight === 0);
         if (didScale && !hideNormalizeMessage) setNormalizeMessage(NORMALIZE_MSG);
     };
@@ -443,6 +447,30 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                 style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
                                             />
                                             <span className={`text-[10px] w-8 text-center ${textMuted}`}>#{rarity.sortOrder}</span>
+                                            {/* デフォルト確率 */}
+                                            <span className="flex items-center gap-0.5 shrink-0">
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={rarity.defaultWeight != null ? String(rarity.defaultWeight) : ""}
+                                                    onChange={e => {
+                                                        const val = e.target.value;
+                                                        if (val === "") {
+                                                            updateRarity(rarity.id, { defaultWeight: undefined } as Partial<RarityTier>);
+                                                        } else {
+                                                            const n = parseFloat(val);
+                                                            if (!Number.isNaN(n) && n >= 0) {
+                                                                updateRarity(rarity.id, { defaultWeight: n });
+                                                            }
+                                                        }
+                                                    }}
+                                                    placeholder="1"
+                                                    className={`w-12 text-[10px] px-1 py-0.5 rounded text-right tabular-nums ${textPrimary} ${placeholderCls} outline-none`}
+                                                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                                                    title="新規品目追加時のデフォルト確率(%)"
+                                                />
+                                                <span className={`text-[9px] ${textMuted}`}>%</span>
+                                            </span>
                                             {(mounted ? pool.rarities : []).length > 1 && (
                                                 <button
                                                     onClick={() => setPendingDelete({ type: "rarity", id: rarity.id })}
@@ -635,7 +663,11 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         />
                                         <select
                                             value={mounted ? newItemRarityId : ""}
-                                            onChange={e => setNewItemRarityId(e.target.value)}
+                                            onChange={e => {
+                                                const newRarId = e.target.value;
+                                                setNewItemRarityId(newRarId);
+                                                setNewItemProb(defaultWeightForRarity(newRarId));
+                                            }}
                                             className={`px-2 py-1.5 rounded-lg text-xs ${textPrimary} outline-none cursor-pointer`}
                                             style={{
                                                 background: inputBg,

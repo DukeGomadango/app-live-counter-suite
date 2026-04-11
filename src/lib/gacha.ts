@@ -10,6 +10,8 @@ export interface RarityTier {
     glowColor: string;   // 発光エフェクト色
     bgColor: string;     // 背景色
     sortOrder: number;   // 低い = 低レア
+    /** 新規品目追加時のデフォルト確率（%）。未設定時は1とみなす */
+    defaultWeight?: number;
 }
 
 export interface GachaItem {
@@ -134,12 +136,12 @@ export type FilterMode = "all" | string; // "all" or rarityId
 // ========== デフォルトレア度 ==========
 
 export const DEFAULT_RARITIES: RarityTier[] = [
-    { id: "c", name: "C", color: "#9ca3af", glowColor: "rgba(156,163,175,0.3)", bgColor: "rgba(156,163,175,0.1)", sortOrder: 1 },
-    { id: "uc", name: "UC", color: "#22c55e", glowColor: "rgba(34,197,94,0.3)", bgColor: "rgba(34,197,94,0.1)", sortOrder: 2 },
-    { id: "r", name: "R", color: "#3b82f6", glowColor: "rgba(59,130,246,0.3)", bgColor: "rgba(59,130,246,0.1)", sortOrder: 3 },
-    { id: "sr", name: "SR", color: "#a855f7", glowColor: "rgba(168,85,247,0.4)", bgColor: "rgba(168,85,247,0.15)", sortOrder: 4 },
-    { id: "ssr", name: "SSR", color: "#f59e0b", glowColor: "rgba(245,158,11,0.5)", bgColor: "rgba(245,158,11,0.15)", sortOrder: 5 },
-    { id: "ur", name: "UR", color: "#ef4444", glowColor: "rgba(239,68,68,0.6)", bgColor: "rgba(239,68,68,0.2)", sortOrder: 6 },
+    { id: "c", name: "C", color: "#9ca3af", glowColor: "rgba(156,163,175,0.3)", bgColor: "rgba(156,163,175,0.1)", sortOrder: 1, defaultWeight: 40 },
+    { id: "uc", name: "UC", color: "#22c55e", glowColor: "rgba(34,197,94,0.3)", bgColor: "rgba(34,197,94,0.1)", sortOrder: 2, defaultWeight: 25 },
+    { id: "r", name: "R", color: "#3b82f6", glowColor: "rgba(59,130,246,0.3)", bgColor: "rgba(59,130,246,0.1)", sortOrder: 3, defaultWeight: 15 },
+    { id: "sr", name: "SR", color: "#a855f7", glowColor: "rgba(168,85,247,0.4)", bgColor: "rgba(168,85,247,0.15)", sortOrder: 4, defaultWeight: 10 },
+    { id: "ssr", name: "SSR", color: "#f59e0b", glowColor: "rgba(245,158,11,0.5)", bgColor: "rgba(245,158,11,0.15)", sortOrder: 5, defaultWeight: 3 },
+    { id: "ur", name: "UR", color: "#ef4444", glowColor: "rgba(239,68,68,0.6)", bgColor: "rgba(239,68,68,0.2)", sortOrder: 6, defaultWeight: 1 },
 ];
 
 // ========== デフォルトプール ==========
