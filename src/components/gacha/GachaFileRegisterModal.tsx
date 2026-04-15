@@ -7,7 +7,50 @@ import type { GachaItem } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { putGachaFile } from "@/lib/gachaFileStore";
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_AUDIO_BYTES = 5 * 1024 * 1024; // 5MB (音声などの制限)
+const MAX_IMAGE_DIMENSION = 1024; // ガチャ画像は長辺1024pxに自動圧縮
+
+/** 画像をリサイズ・JPEG圧縮してFileオブジェクトとして返す */
+async function compressImage(file: File): Promise<File> {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            URL.revokeObjectURL(url);
+            let w = img.width;
+            let h = img.height;
+            if (w > MAX_IMAGE_DIMENSION || h > MAX_IMAGE_DIMENSION) {
+                const scale = MAX_IMAGE_DIMENSION / Math.max(w, h);
+                w = Math.floor(w * scale);
+                h = Math.floor(h * scale);
+            }
+            const canvas = document.createElement("canvas");
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext("2d");
+            if (!ctx) return reject(new Error("Canvas ctx error"));
+            ctx.drawImage(img, 0, 0, w, h);
+
+            const isPng = file.type === "image/png";
+            const mimeType = isPng ? "image/png" : "image/jpeg";
+            const quality = isPng ? undefined : 0.85;
+
+            canvas.toBlob((blob) => {
+                if (!blob) return reject(new Error("Blob creation failed"));
+                // 拡張子を揃える（.jpeg 等）
+                const ext = isPng ? "png" : "jpg";
+                const newName = file.name.replace(/\.[^/.]+$/, "") + `_compressed.${ext}`;
+                const newFile = new File([blob], newName, { type: mimeType });
+                resolve(newFile);
+            }, mimeType, quality);
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error("Image load error"));
+        };
+        img.src = url;
+    });
+}
 
 interface GachaFileRegisterModalProps {
     poolId: string;
@@ -38,6 +81,7 @@ export default function GachaFileRegisterModal({
     const [urlInput, setUrlInput] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const [processing, setProcessing] = useState(false); // 画像圧縮中フラグ
     const inputRef = useRef<HTMLInputElement>(null);
 
     const accept = kind === "image" ? "image/*" : "audio/*";
@@ -71,22 +115,40 @@ export default function GachaFileRegisterModal({
     }, [previewUrl]);
 
     const validateAndSetFile = useCallback(
-        (f: File | null) => {
+        async (f: File | null) => {
+            if (processing) return;
             clearFile();
             if (!f) return;
-            if (f.size > MAX_FILE_BYTES) {
-                setError("5MB以下にしてください");
-                return;
-            }
-            setError(null);
-            setFile(f);
-            if (kind === "image" && f.type.startsWith("image/")) {
-                setPreviewUrl(URL.createObjectURL(f));
-            } else {
+
+            if (kind === "audio") {
+                if (f.size > MAX_AUDIO_BYTES) {
+                    setError("音声ファイルは5MB以下にしてください");
+                    return;
+                }
+                setError(null);
+                setFile(f);
                 setPreviewUrl(null);
+            } else {
+                // 画像の場合は自動圧縮を試みる
+                if (!f.type.startsWith("image/")) {
+                    setError("画像ファイルを選択してください");
+                    return;
+                }
+                try {
+                    setProcessing(true);
+                    setError(null);
+                    const compressed = await compressImage(f);
+                    setFile(compressed);
+                    setPreviewUrl(URL.createObjectURL(compressed));
+                } catch (err) {
+                    console.warn("Failed to compress image:", err);
+                    setError("画像の処理に失敗しました");
+                } finally {
+                    setProcessing(false);
+                }
             }
         },
-        [kind, clearFile]
+        [kind, clearFile, processing]
     );
 
     const handleFileChange = useCallback(
@@ -239,20 +301,27 @@ export default function GachaFileRegisterModal({
                         aria-hidden
                     />
                     <div
-                        onClick={() => inputRef.current?.click()}
-                        onDrop={handleDrop}
+                        onClick={() => { if (!processing) inputRef.current?.click(); }}
+                        onDrop={processing ? undefined : handleDrop}
                         onDragOver={handleDragOver}
-                        className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors min-h-[100px] ${isLightMode ? "border-gray-300 hover:border-purple-400 hover:bg-purple-50/50" : "border-white/20 hover:border-purple-400/60 hover:bg-white/5"}`}
+                        className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors min-h-[100px] ${processing ? "opacity-50 pointer-events-none" : isLightMode ? "border-gray-300 hover:border-purple-400 hover:bg-purple-50/50" : "border-white/20 hover:border-purple-400/60 hover:bg-white/5"}`}
                     >
-                        {previewUrl && kind === "image" ? (
+                        {processing ? (
+                            <>
+                                <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-1" />
+                                <span className={`text-[10px] ${textMuted}`}>画像を最適化しています…</span>
+                            </>
+                        ) : previewUrl && kind === "image" ? (
                             // eslint-disable-next-line @next/next/no-img-element -- プレビュー用データURLのため img を使用
                             <img src={previewUrl} alt="登録画像のプレビュー" className="max-h-20 max-w-full object-contain rounded" />
                         ) : (
                             <Upload size={24} className={isLightMode ? "text-gray-400" : "text-white/50"} />
                         )}
-                        <span className={`text-[10px] ${textMuted}`}>
-                            {file ? file.name : "クリックまたはドロップでファイル選択（5MB以下）"}
-                        </span>
+                        {!processing && (
+                            <span className={`text-[10px] ${textMuted}`}>
+                                {file ? file.name : (kind === "image" ? "クリックまたはドロップで画像を選択（自動最適化）" : "クリックまたはドロップで音声を選択（5MB以下）")}
+                            </span>
+                        )}
                     </div>
                     <input
                         type="url"
@@ -272,7 +341,7 @@ export default function GachaFileRegisterModal({
                         <button
                             type="button"
                             onClick={handleRegister}
-                            disabled={saving || (!file && !urlInput.trim())}
+                            disabled={saving || processing || (!file && !urlInput.trim())}
                             className="px-3 py-2 rounded-lg text-xs font-medium bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 disabled:pointer-events-none"
                         >
                             {saving ? "登録中…" : "登録"}
