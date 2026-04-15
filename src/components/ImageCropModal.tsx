@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 export interface CropResult {
   dataUrl: string;
   aspectRatio: number;
+  /** トリミング結果の Blob（IndexedDB 保存用） */
+  blob?: Blob;
 }
 
 interface ImageCropModalProps {
@@ -178,6 +180,8 @@ export default function ImageCropModal({
     dragStartRef.current = null;
   }, []);
 
+  const MAX_DIMENSION = 4096;
+
   const handleApply = useCallback(() => {
     if (!imageDataUrl || !imageSize) return;
     const crop = cropRect && cropRect.w >= 1 && cropRect.h >= 1
@@ -188,9 +192,19 @@ export default function ImageCropModal({
       onConfirm({ dataUrl: imageDataUrl, aspectRatio: imageSize.w / imageSize.h });
       return;
     }
+
+    // 出力サイズ（4096px 超ならリサイズ）
+    let outW = Math.floor(crop.w);
+    let outH = Math.floor(crop.h);
+    if (outW > MAX_DIMENSION || outH > MAX_DIMENSION) {
+      const scale = MAX_DIMENSION / Math.max(outW, outH);
+      outW = Math.floor(outW * scale);
+      outH = Math.floor(outH * scale);
+    }
+
     const canvas = document.createElement("canvas");
-    canvas.width = Math.floor(crop.w);
-    canvas.height = Math.floor(crop.h);
+    canvas.width = outW;
+    canvas.height = outH;
     const ctx = canvas.getContext("2d");
     if (!ctx) {
       onConfirm({ dataUrl: imageDataUrl, aspectRatio: imageSize.w / imageSize.h });
@@ -199,10 +213,23 @@ export default function ImageCropModal({
     ctx.drawImage(
       imgEl,
       crop.x, crop.y, crop.w, crop.h,
-      0, 0, canvas.width, canvas.height
+      0, 0, outW, outH
     );
-    const dataUrl = canvas.toDataURL("image/png");
-    onConfirm({ dataUrl, aspectRatio: crop.w / crop.h });
+
+    // PNG 透過画像は PNG 維持、それ以外は JPEG で圧縮
+    const isPng = imageDataUrl.startsWith("data:image/png");
+    const mimeType = isPng ? "image/png" : "image/jpeg";
+    const quality = isPng ? undefined : 0.85;
+
+    // Blob を生成して返す（IndexedDB 保存用）
+    canvas.toBlob(
+      (blob) => {
+        const dataUrl = canvas.toDataURL(mimeType, quality);
+        onConfirm({ dataUrl, aspectRatio: crop.w / crop.h, blob: blob ?? undefined });
+      },
+      mimeType,
+      quality
+    );
   }, [imageDataUrl, imageSize, cropRect, onConfirm]);
 
   const hasValidCrop = cropRect && cropRect.w >= 1 && cropRect.h >= 1 && naturalWidth > 0 && naturalHeight > 0;

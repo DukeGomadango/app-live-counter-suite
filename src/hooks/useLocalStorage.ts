@@ -55,20 +55,32 @@ export function useLocalStorage<T>(key: string, initialValue: T): [T, (value: T 
 
     const setValue = useCallback(
         (value: T | ((prev: T) => T)) => {
-            try {
-                setStoredValue((prev) => {
-                    const valueToStore = value instanceof Function ? value(prev) : value;
-                    const prevString = JSON.stringify(prev);
-                    const newString = JSON.stringify(valueToStore);
+            // state 更新と localStorage 書き込みを分離することで、
+            // QuotaExceededError が投げられても React state は正常に更新される。
+            setStoredValue((prev) => {
+                const valueToStore = value instanceof Function ? value(prev) : value;
+                const newString = JSON.stringify(valueToStore);
 
+                // localStorage 書き込み (非同期的に分離)
+                try {
+                    const prevString = JSON.stringify(prev);
                     if (prevString !== newString) {
                         window.localStorage.setItem(key, newString);
                     }
-                    return valueToStore;
-                });
-            } catch (error) {
-                console.warn(`Error setting localStorage key "${key}":`, error);
-            }
+                } catch (error) {
+                    console.warn(`Error setting localStorage key "${key}":`, error);
+                    // QuotaExceededError をキャッチしてUIに通知
+                    if (typeof window !== "undefined") {
+                        window.dispatchEvent(
+                            new CustomEvent("storage-quota-exceeded", {
+                                detail: { key, error },
+                            })
+                        );
+                    }
+                }
+
+                return valueToStore;
+            });
         },
         [key]
     );

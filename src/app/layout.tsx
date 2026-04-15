@@ -5,6 +5,7 @@ import JsonLd from "@/components/JsonLd";
 import HelpButton from "@/components/HelpButton";
 import AnalyticsSender from "@/components/AnalyticsSender";
 import { SplitModuleProvider } from "@/context/SplitModuleContext";
+import { ToastProvider } from "@/components/Toast";
 import { SITE_CONFIG } from "@/lib/site";
 
 const montserrat = Montserrat({
@@ -78,6 +79,7 @@ export default function RootLayout({
       <body className={`${montserrat.variable} antialiased`}>
         <JsonLd />
         <SplitModuleProvider>
+          <ToastProvider>
           <AnalyticsSender />
           <div className="h-screen overflow-y-auto scroll-touch">
             {children}
@@ -88,6 +90,7 @@ export default function RootLayout({
             ごまだんご伯爵
           </span>
         </footer>
+          </ToastProvider>
         </SplitModuleProvider>
       </body>
     </html>

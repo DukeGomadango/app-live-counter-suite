@@ -9,6 +9,14 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import ImageCropModal from "@/components/ImageCropModal";
 import { toPng } from "html-to-image";
 import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
+import { useToast } from "@/components/Toast";
+import {
+  saveImage,
+  resolveImageUrl,
+  deleteImage,
+  isIdbKey,
+  dataUrlToBlob,
+} from "../lib/panelImageStore";
 import {
   type PanelState,
   type PanelOverlay,
@@ -63,8 +71,13 @@ export default function PanelContent({
   isSplitMode?: boolean;
   isRightPane?: boolean;
 } = {}) {
+  const { showToast } = useToast();
   const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("panel-light-mode", false);
   const [panelState, setPanelState] = useLocalStorage<PanelState>("panel-state", defaultPanelState);
+  /** IndexedDB から解決した背景画像の表示用 URL（ObjectURL or data: URL） */
+  const [resolvedBgUrl, setResolvedBgUrl] = useState<string | null>(null);
+  /** IndexedDB から解決した覆い画像の表示用 URL。キー = overlay.id */
+  const [resolvedOverlayUrls, setResolvedOverlayUrls] = useState<Record<string, string>>({});
   const [savedPanels, setSavedPanels] = useLocalStorage<SavedPanel[]>("panel-saved-list", []);
   const [savedCustomShapes, setSavedCustomShapes] = useLocalStorage<SavedCustomShape[]>("panel-custom-shapes", []);
   const [favoriteColors, setFavoriteColors] = useLocalStorage<string[]>("panel-favorite-colors", []);
@@ -161,6 +174,67 @@ export default function PanelContent({
     },
     [setPanelState]
   );
+
+  // ---------- IndexedDB → 表示用 URL 解決 ----------
+
+  // 背景画像の解決
+  useEffect(() => {
+    let cancelled = false;
+    const ref = imageDataUrl;
+    if (!ref) { setResolvedBgUrl(null); return; }
+    if (!isIdbKey(ref)) { setResolvedBgUrl(ref); return; }
+    resolveImageUrl(ref).then((url) => {
+      if (!cancelled) setResolvedBgUrl(url);
+    }).catch(() => {
+      if (!cancelled) setResolvedBgUrl(null);
+    });
+    return () => { cancelled = true; };
+  }, [imageDataUrl]);
+
+  // 覆い画像オーバーレイの解決
+  useEffect(() => {
+    let cancelled = false;
+    const imageOverlays = overlays.filter((o) => o.shape === "image" && o.imageDataUrl);
+    if (imageOverlays.length === 0) {
+      setResolvedOverlayUrls({});
+      return;
+    }
+    const resolveAll = async () => {
+      const entries: [string, string][] = [];
+      for (const o of imageOverlays) {
+        const ref = o.imageDataUrl!;
+        if (!isIdbKey(ref)) {
+          entries.push([o.id, ref]);
+        } else {
+          const url = await resolveImageUrl(ref);
+          if (url) entries.push([o.id, url]);
+        }
+      }
+      if (!cancelled) setResolvedOverlayUrls(Object.fromEntries(entries));
+    };
+    resolveAll().catch(() => {});
+    return () => { cancelled = true; };
+  }, [overlays]);
+
+  // ObjectURL のクリーンアップ
+  useEffect(() => {
+    return () => {
+      if (resolvedBgUrl?.startsWith("blob:")) URL.revokeObjectURL(resolvedBgUrl);
+      Object.values(resolvedOverlayUrls).forEach((u) => {
+        if (u.startsWith("blob:")) URL.revokeObjectURL(u);
+      });
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // storage-quota-exceeded イベントを監視してトースト通知
+  useEffect(() => {
+    const handler = () => {
+      showToast("ストレージの空き容量が不足しているため保存できませんでした。ブラウザの不要なデータを削除してください。", "error");
+    };
+    window.addEventListener("storage-quota-exceeded", handler);
+    return () => window.removeEventListener("storage-quota-exceeded", handler);
+  }, [showToast]);
 
   const setPartitionStrokes = useCallback(
     (updater: (prev: PartitionStroke[]) => PartitionStroke[]) => {
@@ -359,17 +433,38 @@ export default function PanelContent({
   );
 
   const handleCropConfirm = useCallback(
-    (result: { dataUrl: string; aspectRatio: number }) => {
-      setPanelState((s) => ({
-        ...s,
-        imageDataUrl: result.dataUrl,
-        imageAspectRatio: result.aspectRatio,
-        partitionStrokes: [],
-        panelEditStep: "lines" as PanelEditStep,
-      }));
+    async (result: { dataUrl: string; aspectRatio: number; blob?: Blob }) => {
+      try {
+        // 古い背景画像の IndexedDB エントリを削除
+        const oldRef = panelState.imageDataUrl;
+        if (oldRef) deleteImage(oldRef).catch(() => {});
+
+        // Blob があれば IndexedDB に保存、なければ Data URL から Blob を生成
+        const blob = result.blob ?? dataUrlToBlob(result.dataUrl);
+        const idbRef = await saveImage(blob);
+
+        setPanelState((s) => ({
+          ...s,
+          imageDataUrl: idbRef,
+          imageAspectRatio: result.aspectRatio,
+          partitionStrokes: [],
+          panelEditStep: "lines" as PanelEditStep,
+        }));
+      } catch (err) {
+        console.warn("Failed to save image to IndexedDB, falling back to data URL:", err);
+        showToast("画像の保存に失敗しました。ブラウザのストレージ容量を確認してください。", "error");
+        // フォールバック: Data URL を直接 state に入れる
+        setPanelState((s) => ({
+          ...s,
+          imageDataUrl: result.dataUrl,
+          imageAspectRatio: result.aspectRatio,
+          partitionStrokes: [],
+          panelEditStep: "lines" as PanelEditStep,
+        }));
+      }
       setPendingCropDataUrl(null);
     },
-    [setPanelState]
+    [setPanelState, panelState.imageDataUrl, showToast]
   );
 
   const handleImageUpload = useCallback(
@@ -380,10 +475,13 @@ export default function PanelContent({
       reader.onload = () => {
         setPendingCropDataUrl(reader.result as string);
       };
+      reader.onerror = () => {
+        showToast("画像ファイルの読み込みに失敗しました。", "error");
+      };
       reader.readAsDataURL(file);
       e.target.value = "";
     },
-    []
+    [showToast]
   );
 
   const handleImageDrop = useCallback(
@@ -395,9 +493,12 @@ export default function PanelContent({
       reader.onload = () => {
         setPendingCropDataUrl(reader.result as string);
       };
+      reader.onerror = () => {
+        showToast("画像ファイルの読み込みに失敗しました。", "error");
+      };
       reader.readAsDataURL(file);
     },
-    []
+    [showToast]
   );
 
   const handleOverlayTap = useCallback(
@@ -1347,21 +1448,35 @@ export default function PanelContent({
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={(e) => {
+          onChange={async (e) => {
             const file = e.target.files?.[0];
             if (!file?.type.startsWith("image/")) return;
-            const reader = new FileReader();
-            reader.onload = () => {
-              const dataUrl = reader.result as string;
-              const newOverlay = createImageOverlay(dataUrl, 42.5, 42.5);
+            e.target.value = "";
+            try {
+              // ファイルを直接 Blob として IndexedDB に保存
+              const idbRef = await saveImage(file);
+              const newOverlay = createImageOverlay(idbRef, 42.5, 42.5);
               setPanelState((s) => {
                 pushOverlayHistory(s.overlays);
                 return { ...s, overlays: [...s.overlays, newOverlay] };
               });
               setSelectedOverlayIdAndClearDraft(newOverlay.id);
-            };
-            reader.readAsDataURL(file);
-            e.target.value = "";
+            } catch (err) {
+              console.warn("Failed to save overlay image:", err);
+              showToast("覆い画像の保存に失敗しました。", "error");
+              // フォールバック: Data URL で直接保存
+              const reader = new FileReader();
+              reader.onload = () => {
+                const dataUrl = reader.result as string;
+                const newOverlay = createImageOverlay(dataUrl, 42.5, 42.5);
+                setPanelState((s) => {
+                  pushOverlayHistory(s.overlays);
+                  return { ...s, overlays: [...s.overlays, newOverlay] };
+                });
+                setSelectedOverlayIdAndClearDraft(newOverlay.id);
+              };
+              reader.readAsDataURL(file);
+            }
           }}
           aria-hidden
         />
@@ -1575,9 +1690,9 @@ export default function PanelContent({
               </div>
             ) : (
               <>
-                {/* eslint-disable-next-line @next/next/no-img-element -- Data URL from upload */}
+                {/* eslint-disable-next-line @next/next/no-img-element -- Image from IndexedDB or Data URL */}
                 <img
-                  src={imageDataUrl}
+                  src={resolvedBgUrl ?? imageDataUrl ?? undefined}
                   alt="パネル画像"
                   className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                 />
@@ -1841,8 +1956,8 @@ export default function PanelContent({
                     >
                       {isImage && overlay.imageDataUrl ? (
                         <>
-                          {/* eslint-disable-next-line @next/next/no-img-element -- overlay Data URL */}
-                          <img src={overlay.imageDataUrl} alt="" className="w-full h-full object-contain pointer-events-none" />
+                          {/* eslint-disable-next-line @next/next/no-img-element -- overlay image from IndexedDB or Data URL */}
+                          <img src={resolvedOverlayUrls[overlay.id] ?? overlay.imageDataUrl} alt="" className="w-full h-full object-contain pointer-events-none" />
                         </>
                       ) : null}
                       {isFree && (freePathD || freePoints) ? (
