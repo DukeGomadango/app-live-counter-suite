@@ -16,7 +16,7 @@ import {
     Upload,
     } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
-import { generateId, calculateProbabilities, getRarityProbabilities, getGlobalProbabilities } from "@/lib/gacha";
+import { generateId, getRarityProbabilities, getGlobalProbabilities } from "@/lib/gacha";
 import {
     DndContext,
     closestCenter,
@@ -126,7 +126,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         ? { background: "#fff", color: "#1f2937" }
         : { background: "rgba(30,27,75,0.95)", color: "#e2e8f0" };
 
-    const probabilities = calculateProbabilities(pool.items);
+
     const rarityProbs = getRarityProbabilities(pool.items, pool.rarities);
     const globalProbs = getGlobalProbabilities(pool.items, pool.rarities);
 
@@ -179,7 +179,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     // -- レア度操作 --
     const normalizeRarityTiers = (rarities: RarityTier[], targetId?: string, targetP?: number): RarityTier[] => {
         if (rarities.length === 0) return rarities;
-        let workingRarities = rarities.map(r => ({ ...r, defaultWeight: r.defaultWeight ?? 0 }));
+        const workingRarities = rarities.map(r => ({ ...r, defaultWeight: r.defaultWeight ?? 0 }));
         workingRarities.sort((a, b) => a.sortOrder - b.sortOrder);
 
         if (targetId && targetP !== undefined) {
@@ -690,7 +690,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                     >
                                         <SortableContext items={(mounted ? pool.items : []).map(i => i.id)} strategy={verticalListSortingStrategy}>
                                             {(mounted ? pool.items : []).map((item, index) => {
-                                                const pt = probabilities.get(item.id) || 0;
                                                 const gPt = globalProbs.get(item.id) || 0;
                                                 return (
                                                     <SortableItem
@@ -708,7 +707,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         updateItem={updateItem}
                                                         onProbabilityBlur={applyProbabilityEdit}
                                                         onRequestRemoveItem={(id) => setPendingDelete({ type: "item", id })}
-                                                        prob={pt}
                                                         globalProb={gPt}
                                                         isSelected={selectedItemIds.has(item.id)}
                                                         onToggleSelect={toggleItemSelected}
@@ -924,9 +922,8 @@ interface SortableItemProps {
     startEditing: (item: GachaItem) => void;
     finishEditing: () => void;
     updateItem: (id: string, updates: Partial<GachaItem>) => void;
-    onProbabilityBlur: (itemIndex: number, percent: number) => void;
+    onProbabilityBlur: (index: number, newWeight: number) => void;
     onRequestRemoveItem: (id: string) => void;
-    prob: number;
     globalProb: number;
     isSelected: boolean;
     onToggleSelect: (id: string) => void;
@@ -948,7 +945,6 @@ function SortableItem({
     updateItem,
     onProbabilityBlur,
     onRequestRemoveItem,
-    prob,
     globalProb,
     isSelected,
     onToggleSelect,

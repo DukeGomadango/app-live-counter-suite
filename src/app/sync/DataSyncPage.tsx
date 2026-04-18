@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Sun, Moon } from "lucide-react";
 import QRCode from "qrcode";
@@ -553,7 +554,7 @@ export default function DataSyncPage() {
               QR を生成
             </button>
             {qrNote && <p className="text-sm text-amber-300">{qrNote}</p>}
-            {qrDataUrl && <img src={qrDataUrl} alt="同期用 QR" className="mx-auto rounded-lg border border-white/10" />}
+            {qrDataUrl && <Image src={qrDataUrl} alt="同期用 QR" width={280} height={280} className="mx-auto rounded-lg border border-white/10" unoptimized />}
             <label className={`block w-full rounded-xl border border-dashed py-6 text-center text-sm cursor-pointer ${textSec}`}>
               <input type="file" accept="image/*" className="hidden" onChange={(e) => handleQrImageFile(e.target.files?.[0] ?? null)} />
               QR 画像をアップロードして読み取る
