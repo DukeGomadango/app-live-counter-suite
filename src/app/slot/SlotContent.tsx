@@ -459,6 +459,38 @@ export default function SlotContent({
     [templates, setSettings, setSymbolMaster, setReelStrips]
   );
 
+  const handleDeleteSlotTemplate = useCallback(
+    (templateId: string) => {
+      if (window.confirm("このテンプレートを削除しますか？")) {
+        setTemplates((prev) => prev.filter((t) => t.id !== templateId));
+      }
+    },
+    [setTemplates]
+  );
+
+  const handleOverwriteSlotTemplate = useCallback(
+    (templateId: string, templateName: string) => {
+      if (window.confirm(`現在の設定でテンプレート「${templateName}」を上書きしますか？`)) {
+        const reelStripIds = strips.map((strip) => strip.map((s) => s.id));
+        setTemplates((prev) =>
+          prev.map((t) => {
+            if (t.id === templateId) {
+              return {
+                ...t,
+                reelCount,
+                ceilingSpins: settings.ceilingSpins,
+                symbolMaster,
+                reelStrips: reelStripIds,
+              };
+            }
+            return t;
+          })
+        );
+      }
+    },
+    [strips, reelCount, settings.ceilingSpins, symbolMaster, setTemplates]
+  );
+
   const handleApplyNumbers17Preset = useCallback(() => {
     const { symbolMaster: master, reelStrips: strips } = getNumbers17Preset();
     setSymbolMaster(master);
@@ -1070,6 +1102,8 @@ export default function SlotContent({
                     templates={templates}
                     onSaveTemplate={handleSaveSlotTemplate}
                     onLoadTemplate={handleLoadSlotTemplate}
+                    onDeleteTemplate={handleDeleteSlotTemplate}
+                    onOverwriteTemplate={handleOverwriteSlotTemplate}
                     isLightMode={displayLight}
                     onApplyNumbers17Preset={handleApplyNumbers17Preset}
                     onApplyDefaultSymbolsPreset={handleApplyDefaultSymbolsPreset}
@@ -1235,6 +1269,8 @@ export default function SlotContent({
                           templates={templates}
                           onSaveTemplate={handleSaveSlotTemplate}
                           onLoadTemplate={handleLoadSlotTemplate}
+                          onDeleteTemplate={handleDeleteSlotTemplate}
+                          onOverwriteTemplate={handleOverwriteSlotTemplate}
                           isLightMode={displayLight}
                           onApplyNumbers17Preset={handleApplyNumbers17Preset}
                           onApplyDefaultSymbolsPreset={handleApplyDefaultSymbolsPreset}

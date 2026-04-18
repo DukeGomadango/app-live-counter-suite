@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import { Trash2, Download, Save } from "lucide-react";
 import {
   getSlotProbabilityTemplates,
   applyProbabilityTemplate,
@@ -21,6 +22,8 @@ interface SlotTemplatePanelProps {
   onApplyNumbers17Preset?: () => void;
   /** デフォルト図柄モード（7・BAR・スイカ…）に一括で戻す */
   onApplyDefaultSymbolsPreset?: () => void;
+  onDeleteTemplate?: (templateId: string) => void;
+  onOverwriteTemplate?: (templateId: string, templateName: string) => void;
 }
 
 export default function SlotTemplatePanel({
@@ -32,6 +35,8 @@ export default function SlotTemplatePanel({
   isLightMode,
   onApplyNumbers17Preset,
   onApplyDefaultSymbolsPreset,
+  onDeleteTemplate,
+  onOverwriteTemplate,
 }: SlotTemplatePanelProps) {
   const [templateName, setTemplateName] = useState("");
   const { glassBg, glassBorder } = useGlassStyle(isLightMode);
@@ -198,17 +203,46 @@ export default function SlotTemplatePanel({
                 <span className={`text-[10px] ${textSecondary} shrink-0`}>
                   {t.reelCount}リール・天井{t.ceilingSpins || "—"}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => onLoadTemplate(t.id)}
-                  className={`px-2 py-1 rounded text-xs ${
-                    isLightMode
-                      ? "bg-teal-100 text-teal-700 hover:bg-teal-200"
-                      : "bg-teal-500/20 text-teal-300 hover:bg-teal-500/30"
-                  }`}
-                >
-                  読み込み
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => onLoadTemplate(t.id)}
+                    className={`p-1.5 rounded text-teal-600 ${
+                      isLightMode
+                        ? "hover:bg-teal-100"
+                        : "hover:bg-teal-500/20 text-teal-300"
+                    }`}
+                    title="読み込み"
+                  >
+                    <Download size={16} />
+                  </button>
+                  {onOverwriteTemplate && (
+                    <button
+                      type="button"
+                      onClick={() => onOverwriteTemplate(t.id, t.name)}
+                      className={`p-1.5 rounded text-amber-600 ${
+                        isLightMode
+                          ? "hover:bg-amber-100"
+                          : "hover:bg-amber-500/20 text-amber-300"
+                      }`}
+                      title="現在の設定で上書き保存"
+                    >
+                      <Save size={16} />
+                    </button>
+                  )}
+                  {onDeleteTemplate && (
+                    <button
+                      type="button"
+                      onClick={() => onDeleteTemplate(t.id)}
+                      className={`p-1.5 rounded text-red-500 ${
+                        isLightMode ? "hover:bg-red-100" : "hover:bg-red-500/20"
+                      }`}
+                      title="削除"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
           </div>
