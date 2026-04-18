@@ -47,7 +47,8 @@ function LucideByName({ name, size }: { name: string; size: number }) {
 }
 
 function Badge({ text, size }: { text: string; size: number }) {
-  const fontSize = Math.max(7, Math.round(size * (text.length >= 2 ? 0.34 : 0.42)));
+  // viewBox は 100x100 なので、fontSize はプロパティの size ではなく 100 に対する相対値にする
+  const fontSize = text.length >= 2 ? 44 : 54;
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden>
       <circle cx="50" cy="50" r="45" fill="currentColor" opacity="0.15" />
@@ -176,6 +177,11 @@ function renderIconNode(emoji: string, size: number): ReactNode {
   if (emoji === "⚽" || emoji === "🏀" || emoji === "🎾" || emoji === "🎳") return <SportIcon kind={emoji} size={size} />;
   if (emoji === "🎈" || emoji === "🎀") return <PartyIcon kind={emoji} size={size} />;
   if (emoji === "♡" || emoji === "☆") return <Badge text={emoji === "♡" ? "H" : "S"} size={size} />;
+
+  // 数字スロット用シンボル（"1"〜"9"）は Badge でテキスト描画
+  if (/^[0-9]{1,2}$/.test(emoji)) {
+    return <Badge text={emoji} size={size} />;
+  }
 
   return <LucideByName name="Sparkles" size={size} />;
 }
