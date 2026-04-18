@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Save, FolderOpen, Trash2, FileStack } from "lucide-react";
+import { Save, Download, Trash2, FileStack } from "lucide-react";
 import type { GachaPool, GachaPoolPreset } from "@/lib/gacha";
 import { generateId, getSampleTemplates, clonePoolKeepingIds } from "@/lib/gacha";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
@@ -77,20 +77,35 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
                                 style={{ background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)" }}
                             >
                                 <span className={`text-xs flex-1 truncate ${textPrimary}`}>{pre.name}</span>
-                                <button
-                                    onClick={() => onPoolChange(clonePoolKeepingIds(pre.pool))}
-                                    className={`p-1.5 rounded text-[10px] transition-all ${isLightMode ? "text-blue-700 hover:bg-blue-50" : "text-blue-400 hover:bg-blue-500/20"}`}
-                                    title="読み込む"
-                                >
-                                    <FolderOpen size={12} />
-                                </button>
-                                <button
-                                    onClick={() => setPresets(prev => prev.filter(p => p.id !== pre.id))}
-                                    className="p-1.5 rounded hover:bg-red-500/20 text-red-400 transition-colors"
-                                    title="削除"
-                                >
-                                    <Trash2 size={12} />
-                                </button>
+                                <div className="flex items-center gap-0.5 shrink-0">
+                                    <button
+                                        onClick={() => onPoolChange(clonePoolKeepingIds(pre.pool))}
+                                        className={`p-1.5 rounded transition-all ${isLightMode ? "text-teal-700 hover:bg-teal-50" : "text-teal-400 hover:bg-teal-500/20"}`}
+                                        title="読み込み"
+                                    >
+                                        <Download size={14} />
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (!window.confirm(`現在の設定でプリセット「${pre.name}」を上書きしますか？`)) return;
+                                            setPresets(prev => prev.map(p => p.id === pre.id ? { ...p, pool: JSON.parse(JSON.stringify(pool)), savedAt: Date.now() } : p));
+                                        }}
+                                        className={`p-1.5 rounded transition-all ${isLightMode ? "text-amber-700 hover:bg-amber-50" : "text-amber-400 hover:bg-amber-500/20"}`}
+                                        title="現在の設定で上書き保存"
+                                    >
+                                        <Save size={14} />
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (!window.confirm(`プリセット「${pre.name}」を削除しますか？`)) return;
+                                            setPresets(prev => prev.filter(p => p.id !== pre.id));
+                                        }}
+                                        className={`p-1.5 rounded text-red-400 transition-colors ${isLightMode ? "hover:bg-red-50" : "hover:bg-red-500/20"}`}
+                                        title="削除"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
+                                </div>
                             </div>
                         ))
                     )}

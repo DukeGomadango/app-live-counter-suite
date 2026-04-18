@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, Pencil, Check, X, Save, FolderOpen, FileStack, Copy } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Save, Download, FileStack, Copy } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { MAX_SLOTS, ROULETTE_PALETTE_COLORS, type RouletteTemplate, type RouletteSettings } from "@/lib/roulette";
 import { Palette } from "lucide-react";
@@ -19,6 +19,8 @@ interface RouletteSetupProps {
     currentSettings?: RouletteSettings;
     onSaveTemplate?: (name: string) => void;
     onLoadTemplate?: (templateId: string) => void;
+    onOverwriteTemplate?: (templateId: string, templateName: string) => void;
+    onDeleteTemplate?: (templateId: string) => void;
     /** 表示するブロック: slots=スロット一覧のみ, templates=テンプレートのみ, all=両方（従来どおり） */
     section?: RouletteSetupSection;
     /** スロット番号（0-based）ごとの色上書き。未指定はデフォルト表示 */
@@ -27,7 +29,7 @@ interface RouletteSetupProps {
     onSlotColorChange?: (index: number, color: string | null) => void;
 }
 
-export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templates = [], sampleTemplates = [], currentSettings, onSaveTemplate, onLoadTemplate, section = "all", slotColorOverrides, onSlotColorChange }: RouletteSetupProps) {
+export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templates = [], sampleTemplates = [], currentSettings, onSaveTemplate, onLoadTemplate, onOverwriteTemplate, onDeleteTemplate, section = "all", slotColorOverrides, onSlotColorChange }: RouletteSetupProps) {
     const [newLabel, setNewLabel] = useState("");
     const [bulkCount, setBulkCount] = useState("13");
     const [bulkDeleteCount, setBulkDeleteCount] = useState("1");
@@ -180,18 +182,49 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
                         </button>
                     </div>
                     {templates.length > 0 && (
-                        <div className="flex items-center gap-1">
-                            <FolderOpen size={14} className={textSecondary} />
-                            <select
-                                value=""
-                                onChange={(e) => { const v = e.target.value; if (v) onLoadTemplate(v); e.target.value = ""; }}
-                                className={`flex-1 min-w-0 px-2 py-1 rounded text-sm border ${isLightMode ? "bg-white border-gray-200 text-gray-800" : "bg-white/10 border-white/20 text-white"}`}
-                            >
-                                <option value="">読み込み...</option>
+                        <div>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} block mb-1.5`}>保存済みテンプレート</span>
+                            <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
                                 {templates.map((t) => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                    <div
+                                        key={t.id}
+                                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm ${isLightMode ? "bg-black/5" : "bg-white/10"}`}
+                                    >
+                                        <span className={`flex-1 min-w-0 truncate ${textPrimary}`}>{t.name}</span>
+                                        <span className={`text-[10px] ${textSecondary} shrink-0`}>{t.slots.length}件</span>
+                                        <div className="flex items-center gap-0.5 shrink-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => onLoadTemplate(t.id)}
+                                                className={`p-1.5 rounded ${isLightMode ? "text-teal-700 hover:bg-teal-100" : "text-teal-300 hover:bg-teal-500/20"}`}
+                                                title="読み込み"
+                                            >
+                                                <Download size={16} />
+                                            </button>
+                                            {onOverwriteTemplate && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onOverwriteTemplate(t.id, t.name)}
+                                                    className={`p-1.5 rounded ${isLightMode ? "text-amber-700 hover:bg-amber-100" : "text-amber-300 hover:bg-amber-500/20"}`}
+                                                    title="現在の設定で上書き保存"
+                                                >
+                                                    <Save size={16} />
+                                                </button>
+                                            )}
+                                            {onDeleteTemplate && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onDeleteTemplate(t.id)}
+                                                    className={`p-1.5 rounded text-red-500 ${isLightMode ? "hover:bg-red-100" : "hover:bg-red-500/20"}`}
+                                                    title="削除"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
                                 ))}
-                            </select>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -471,18 +504,49 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
                         </button>
                     </div>
                     {templates.length > 0 && (
-                        <div className="flex items-center gap-1">
-                            <FolderOpen size={14} className={textSecondary} />
-                            <select
-                                value=""
-                                onChange={(e) => { const v = e.target.value; if (v) onLoadTemplate(v); e.target.value = ""; }}
-                                className={`flex-1 min-w-0 px-2 py-1 rounded text-sm border ${isLightMode ? "bg-white border-gray-200 text-gray-800" : "bg-white/10 border-white/20 text-white"}`}
-                            >
-                                <option value="">読み込み...</option>
+                        <div>
+                            <span className={`text-[10px] font-bold uppercase tracking-wider ${textSecondary} block mb-1.5`}>保存済みテンプレート</span>
+                            <div className="flex flex-col gap-1.5 max-h-64 overflow-y-auto">
                                 {templates.map((t) => (
-                                    <option key={t.id} value={t.id}>{t.name}</option>
+                                    <div
+                                        key={t.id}
+                                        className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm ${isLightMode ? "bg-black/5" : "bg-white/10"}`}
+                                    >
+                                        <span className={`flex-1 min-w-0 truncate ${textPrimary}`}>{t.name}</span>
+                                        <span className={`text-[10px] ${textSecondary} shrink-0`}>{t.slots.length}件</span>
+                                        <div className="flex items-center gap-0.5 shrink-0">
+                                            <button
+                                                type="button"
+                                                onClick={() => onLoadTemplate(t.id)}
+                                                className={`p-1.5 rounded ${isLightMode ? "text-teal-700 hover:bg-teal-100" : "text-teal-300 hover:bg-teal-500/20"}`}
+                                                title="読み込み"
+                                            >
+                                                <Download size={16} />
+                                            </button>
+                                            {onOverwriteTemplate && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onOverwriteTemplate(t.id, t.name)}
+                                                    className={`p-1.5 rounded ${isLightMode ? "text-amber-700 hover:bg-amber-100" : "text-amber-300 hover:bg-amber-500/20"}`}
+                                                    title="現在の設定で上書き保存"
+                                                >
+                                                    <Save size={16} />
+                                                </button>
+                                            )}
+                                            {onDeleteTemplate && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => onDeleteTemplate(t.id)}
+                                                    className={`p-1.5 rounded text-red-500 ${isLightMode ? "hover:bg-red-100" : "hover:bg-red-500/20"}`}
+                                                    title="削除"
+                                                >
+                                                    <Trash2 size={16} />
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
                                 ))}
-                            </select>
+                            </div>
                         </div>
                     )}
                 </div>

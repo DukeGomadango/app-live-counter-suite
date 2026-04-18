@@ -44,6 +44,7 @@ interface HamburgerMenuProps {
     onSaveCustomTemplate?: (name: string) => void;
     customTemplates?: Template[];
     onDeleteCustomTemplate?: (id: string) => void;
+    onOverwriteCustomTemplate?: (id: string) => void;
 
     savedCharts?: SavedChart[];
     onSaveChart?: (name: string) => void;
@@ -81,6 +82,7 @@ export default function HamburgerMenu({
     onSaveCustomTemplate,
     customTemplates = [],
     onDeleteCustomTemplate,
+    onOverwriteCustomTemplate,
     savedCharts = [],
     onSaveChart,
     onLoadChart,
@@ -216,6 +218,7 @@ export default function HamburgerMenu({
                         onSelectTemplate={onSelectTemplate}
                         onToggle={onToggle}
                         onDeleteCustomTemplate={onDeleteCustomTemplate}
+                        onOverwriteCustomTemplate={onOverwriteCustomTemplate}
                     />
                 )}
 

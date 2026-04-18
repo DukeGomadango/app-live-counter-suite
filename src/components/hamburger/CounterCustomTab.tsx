@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Save, Trash2 } from "lucide-react";
+import { Save, Trash2, Download } from "lucide-react";
 import type { Template } from "@/lib/templates";
 import { coerceStoredEmojiToDisplay } from "@/lib/constants";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
@@ -16,6 +16,7 @@ type Props = {
     onSelectTemplate?: (template: Template) => void;
     onToggle: () => void;
     onDeleteCustomTemplate?: (id: string) => void;
+    onOverwriteCustomTemplate?: (id: string) => void;
 };
 
 export function CounterCustomTab({
@@ -26,6 +27,7 @@ export function CounterCustomTab({
     onSelectTemplate,
     onToggle,
     onDeleteCustomTemplate,
+    onOverwriteCustomTemplate,
 }: Props) {
     const { textPrimary, textSecondary, textMuted, bgSubtle, borderSubtle, inputBg, inputBorder } = tokens;
     const [newTemplateName, setNewTemplateName] = useState("");
@@ -79,16 +81,10 @@ export function CounterCustomTab({
                     {customTemplates.map((t) => (
                         <div
                             key={t.id}
-                            className={`flex items-center justify-between p-3 rounded-xl ${bgSubtle} border ${borderSubtle}`}
+                            className={`flex items-center gap-2 p-3 rounded-xl ${bgSubtle} border ${borderSubtle}`}
                         >
-                            <button
-                                onClick={() => {
-                                    onSelectTemplate?.(t);
-                                    onToggle();
-                                }}
-                                className="flex-1 text-left"
-                            >
-                                <div className={`text-sm font-medium ${textPrimary}`}>{t.name}</div>
+                            <div className="flex-1 min-w-0">
+                                <div className={`text-sm font-medium truncate ${textPrimary}`}>{t.name}</div>
                                 <div className={`text-xs ${textMuted} mt-0.5 inline-flex items-center gap-1`}>
                                     <span>{t.items.length}項目 ·</span>
                                     <span className="inline-flex items-center gap-0.5">
@@ -97,13 +93,35 @@ export function CounterCustomTab({
                                         ))}
                                     </span>
                                 </div>
-                            </button>
-                            <button
-                                onClick={() => onDeleteCustomTemplate?.(t.id)}
-                                className="ml-2 w-7 h-7 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center hover:bg-red-500/20 transition-colors"
-                            >
-                                <Trash2 size={12} className="text-red-400/60" />
-                            </button>
+                            </div>
+                            <div className="flex items-center gap-0.5 shrink-0">
+                                <button
+                                    onClick={() => {
+                                        onSelectTemplate?.(t);
+                                        onToggle();
+                                    }}
+                                    className="p-1.5 rounded-lg text-teal-400 hover:bg-teal-500/20 transition-colors"
+                                    title="読み込み"
+                                >
+                                    <Download size={14} />
+                                </button>
+                                {onOverwriteCustomTemplate && (
+                                    <button
+                                        onClick={() => onOverwriteCustomTemplate(t.id)}
+                                        className="p-1.5 rounded-lg text-amber-400 hover:bg-amber-500/20 transition-colors"
+                                        title="現在の項目で上書き保存"
+                                    >
+                                        <Save size={14} />
+                                    </button>
+                                )}
+                                <button
+                                    onClick={() => onDeleteCustomTemplate?.(t.id)}
+                                    className="p-1.5 rounded-lg text-red-400/60 hover:bg-red-500/20 transition-colors"
+                                    title="削除"
+                                >
+                                    <Trash2 size={14} />
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>

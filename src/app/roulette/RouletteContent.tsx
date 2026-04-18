@@ -286,6 +286,24 @@ export default function RouletteContent({
         }
     };
 
+    const handleOverwriteTemplate = (templateId: string, templateName: string) => {
+        if (!window.confirm(`現在の設定でテンプレート「${templateName}」を上書きしますか？`)) return;
+        setTemplates((prev) =>
+            prev.map((t) =>
+                t.id === templateId
+                    ? { ...t, slots: [...slots], settings: { ...settings }, savedAt: Date.now() }
+                    : t
+            )
+        );
+    };
+
+    const handleDeleteTemplate = (templateId: string) => {
+        const t = templates.find((x) => x.id === templateId);
+        if (!t) return;
+        if (!window.confirm(`テンプレート「${t.name}」を削除しますか？`)) return;
+        setTemplates((prev) => prev.filter((x) => x.id !== templateId));
+    };
+
     const splitLightBg = "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)";
     return (
         <div className={`flex flex-col overflow-hidden relative z-10 min-w-0 pt-14 ${isSplitMode ? "h-full w-full" : "h-screen w-screen"}`}>
@@ -445,6 +463,8 @@ export default function RouletteContent({
                                         currentSettings={settings}
                                         onSaveTemplate={handleSaveTemplate}
                                         onLoadTemplate={handleLoadTemplate}
+                                        onOverwriteTemplate={handleOverwriteTemplate}
+                                        onDeleteTemplate={handleDeleteTemplate}
                                         section="templates"
                                     />
                                 )}
@@ -577,6 +597,8 @@ export default function RouletteContent({
                                             currentSettings={settings}
                                             onSaveTemplate={handleSaveTemplate}
                                             onLoadTemplate={handleLoadTemplate}
+                                            onOverwriteTemplate={handleOverwriteTemplate}
+                                            onDeleteTemplate={handleDeleteTemplate}
                                             section="templates"
                                         />
                                     )}
