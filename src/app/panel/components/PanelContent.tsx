@@ -65,6 +65,22 @@ const defaultPanelState: PanelState = {
 
 const TAP_WINDOW_MS = 200;
 
+function panelStateReferencesImageRef(state: PanelState, ref: string): boolean {
+  if (state.imageDataUrl === ref) return true;
+  return state.overlays.some((overlay) => overlay.shape === "image" && overlay.imageDataUrl === ref);
+}
+
+function collectIdbImageRefsFromPanelState(state: PanelState): string[] {
+  const refs = new Set<string>();
+  if (isIdbKey(state.imageDataUrl)) refs.add(state.imageDataUrl);
+  state.overlays.forEach((overlay) => {
+    if (overlay.shape === "image" && isIdbKey(overlay.imageDataUrl)) {
+      refs.add(overlay.imageDataUrl);
+    }
+  });
+  return [...refs];
+}
+
 export default function PanelContent({
   isSplitMode = false,
 }: {
@@ -437,7 +453,14 @@ export default function PanelContent({
       try {
         // 古い背景画像の IndexedDB エントリを削除
         const oldRef = panelState.imageDataUrl;
-        if (oldRef) deleteImage(oldRef).catch(() => {});
+        if (oldRef) {
+          const isReferencedBySavedPanels = savedPanels.some((saved) =>
+            panelStateReferencesImageRef(saved.state, oldRef)
+          );
+          if (!isReferencedBySavedPanels) {
+            deleteImage(oldRef).catch(() => {});
+          }
+        }
 
         // Blob があれば IndexedDB に保存、なければ Data URL から Blob を生成
         const blob = result.blob ?? dataUrlToBlob(result.dataUrl);
@@ -464,7 +487,7 @@ export default function PanelContent({
       }
       setPendingCropDataUrl(null);
     },
-    [setPanelState, panelState.imageDataUrl, showToast]
+    [setPanelState, panelState.imageDataUrl, savedPanels, showToast]
   );
 
   const handleImageUpload = useCallback(
@@ -1158,10 +1181,24 @@ export default function PanelContent({
 
   const handleDeleteSavedPanel = useCallback(() => {
     if (panelToDeleteId) {
-      setSavedPanels((prev) => prev.filter((p) => p.id !== panelToDeleteId));
+      const panelToDelete = savedPanels.find((p) => p.id === panelToDeleteId);
+      const nextSavedPanels = savedPanels.filter((p) => p.id !== panelToDeleteId);
+      setSavedPanels(nextSavedPanels);
+      if (panelToDelete) {
+        const refsToCheck = collectIdbImageRefsFromPanelState(panelToDelete.state);
+        refsToCheck.forEach((ref) => {
+          const usedByCurrentPanel = panelStateReferencesImageRef(panelState, ref);
+          const usedByAnySavedPanel = nextSavedPanels.some((saved) =>
+            panelStateReferencesImageRef(saved.state, ref)
+          );
+          if (!usedByCurrentPanel && !usedByAnySavedPanel) {
+            deleteImage(ref).catch(() => {});
+          }
+        });
+      }
       setPanelToDeleteId(null);
     }
-  }, [panelToDeleteId, setSavedPanels]);
+  }, [panelToDeleteId, panelState, savedPanels, setSavedPanels]);
 
   const handleRenameSavedPanel = useCallback(
     (saved: SavedPanel) => {
