@@ -11,6 +11,7 @@ import { toPng } from "html-to-image";
 import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
 import { useToast } from "@/components/Toast";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import ShareReplyToField from "@/components/ShareReplyToField";
 import {
   saveImage,
   resolveImageUrl,
@@ -1437,6 +1438,13 @@ export default function PanelContent({
                   <Share2 size={16} />
                   {isSharing ? "共有中…" : "画像を保存して X で共有"}
                 </button>
+
+                <div className="pt-2">
+                  <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
+                    <Share2 size={14} className="opacity-70" /> X共有の設定
+                  </h4>
+                  <ShareReplyToField toolId="panel" isLightMode={isLightMode} />
+                </div>
                 <div>
                   <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
                     <List size={14} /> 保存したパネル
