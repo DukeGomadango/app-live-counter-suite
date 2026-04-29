@@ -10,6 +10,7 @@ import ImageCropModal from "@/components/ImageCropModal";
 import { toPng } from "html-to-image";
 import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
 import { useToast } from "@/components/Toast";
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 import {
   saveImage,
   resolveImageUrl,
@@ -88,12 +89,15 @@ export default function PanelContent({
   isRightPane?: boolean;
 } = {}) {
   const { showToast } = useToast();
+  const isDesktop = useMediaQuery("(min-width: 768px)");
   const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("panel-light-mode", false);
   const [panelState, setPanelState] = useLocalStorage<PanelState>("panel-state", defaultPanelState);
   /** IndexedDB から解決した背景画像の表示用 URL（ObjectURL or data: URL） */
   const [resolvedBgUrl, setResolvedBgUrl] = useState<string | null>(null);
   /** IndexedDB から解決した覆い画像の表示用 URL。キー = overlay.id */
   const [resolvedOverlayUrls, setResolvedOverlayUrls] = useState<Record<string, string>>({});
+  /** 共有処理中フラグ */
+  const [isSharing, setIsSharing] = useState(false);
   const [savedPanels, setSavedPanels] = useLocalStorage<SavedPanel[]>("panel-saved-list", []);
   const [savedCustomShapes, setSavedCustomShapes] = useLocalStorage<SavedCustomShape[]>("panel-custom-shapes", []);
   const [favoriteColors, setFavoriteColors] = useLocalStorage<string[]>("panel-favorite-colors", []);
@@ -1250,24 +1254,51 @@ export default function PanelContent({
 
   const handleShare = useCallback(async () => {
     const el = captureRef.current;
-    if (!el) return;
+    if (!el || isSharing) return;
+
+    // すべての画像リソースが解決済みか確認
+    if (imageDataUrl && isIdbKey(imageDataUrl) && !resolvedBgUrl) {
+      showToast("画像を読み込み中です。しばらくしてからもう一度お試しください。", "error");
+      return;
+    }
+    const hasUnresolvedOverlay = overlays.some(
+      (o) => o.shape === "image" && o.imageDataUrl && isIdbKey(o.imageDataUrl) && !resolvedOverlayUrls[o.id]
+    );
+    if (hasUnresolvedOverlay) {
+      showToast("画像を読み込み中です。しばらくしてからもう一度お試しください。", "error");
+      return;
+    }
+
+    setIsSharing(true);
+    // ポップアップブロック回避: ユーザー操作の直後にツイートURLを生成しておく
+    const shareText = "パネル明け進捗";
+    const tweetUrl = generateShareUrl(shareText, { toolId: "panel" });
     try {
       const dataUrl = await toPng(el, {
         backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e",
         pixelRatio: 2,
+        skipFonts: true,
       });
       const filename = `panel-${getTimestampForFilename()}.png`;
-      const shared = await shareImageWithText(dataUrl, "", filename);
-      if (shared) return;
+
+      // PCでは共有シート（OS標準）を出さず、ダウンロード＋ツイートURLを開く
+      if (!isDesktop) {
+        const shared = await shareImageWithText(dataUrl, shareText, filename);
+        if (shared) return;
+      }
+
       const a = document.createElement("a");
       a.href = dataUrl;
       a.download = filename;
       a.click();
-      window.open(generateShareUrl("", { toolId: "panel" }), "_blank", "noopener,noreferrer");
+      window.open(tweetUrl, "_blank", "noopener,noreferrer");
     } catch (err) {
       console.warn("Panel image export failed:", err);
+      showToast("画像の書き出しに失敗しました。", "error");
+    } finally {
+      setIsSharing(false);
     }
-  }, [isLightMode]);
+  }, [isLightMode, isSharing, isDesktop, imageDataUrl, resolvedBgUrl, overlays, resolvedOverlayUrls, showToast]);
 
   const toggleFilter = useCallback(
     (filter: FilterType) => {
@@ -1344,7 +1375,8 @@ export default function PanelContent({
         <div className="flex items-center gap-2">
           <button
             onClick={handleShare}
-            className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
+            disabled={isSharing}
+            className={`p-1.5 rounded-lg transition-all shrink-0 ${isSharing ? "opacity-50 cursor-wait" : `${iconColor} ${iconHover}`}`}
             title="画像を保存して X で共有"
           >
             <Share2 size={16} />
@@ -1399,9 +1431,11 @@ export default function PanelContent({
                 </button>
                 <button
                   onClick={handleShare}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"
+                  disabled={isSharing}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 ${isSharing ? "opacity-50 cursor-wait" : ""}`}
                 >
-                  <Share2 size={16} /> 画像を保存して X で共有
+                  <Share2 size={16} />
+                  {isSharing ? "共有中…" : "画像を保存して X で共有"}
                 </button>
                 <div>
                   <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
@@ -1729,7 +1763,7 @@ export default function PanelContent({
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element -- Image from IndexedDB or Data URL */}
                 <img
-                  src={resolvedBgUrl ?? imageDataUrl ?? undefined}
+                  src={resolvedBgUrl ?? (imageDataUrl && !isIdbKey(imageDataUrl) ? imageDataUrl : undefined)}
                   alt="パネル画像"
                   className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                 />
@@ -1994,7 +2028,7 @@ export default function PanelContent({
                       {isImage && overlay.imageDataUrl ? (
                         <>
                           {/* eslint-disable-next-line @next/next/no-img-element -- overlay image from IndexedDB or Data URL */}
-                          <img src={resolvedOverlayUrls[overlay.id] ?? overlay.imageDataUrl} alt="" className="w-full h-full object-contain pointer-events-none" />
+                          <img src={resolvedOverlayUrls[overlay.id] ?? (overlay.imageDataUrl && !isIdbKey(overlay.imageDataUrl) ? overlay.imageDataUrl : undefined)} alt="" className="w-full h-full object-contain pointer-events-none" />
                         </>
                       ) : null}
                       {isFree && (freePathD || freePoints) ? (
