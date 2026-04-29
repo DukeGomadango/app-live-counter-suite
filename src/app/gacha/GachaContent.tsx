@@ -142,7 +142,10 @@ function GachaSettingsPanel({
 
                     {/* 演出ON/OFF */}
                     <div className="flex items-center justify-between">
-                        <span className={`text-xs ${textPrimary}`}>ガチャ演出</span>
+                        <div className="flex flex-col">
+                            <span className={`text-xs ${textPrimary}`}>ガチャ演出</span>
+                            <span className={`text-[9px] ${textSecondary}`}>オフで結果を即時表示</span>
+                        </div>
                         <div
                             onClick={() => onSettingsChange({ ...settings, enableAnimation: !settings.enableAnimation })}
                             className={`w-10 h-5 rounded-full transition-all relative cursor-pointer ${settings.enableAnimation ? "bg-purple-500" : isLightMode ? "bg-gray-300" : "bg-white/20"}`}
@@ -520,8 +523,18 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         const { results, updatedPlayer } = performGachaPull(pool, pool.pullCount, targetPlayer);
 
         setLatestResults(results);
-        setIsRolling(true);
-        setShowResults(false);
+
+        if (!gachaSettings.enableAnimation) {
+            // 演出完全オフ：結果を即時表示（GachaRollAnimation を経由しない）
+            queueMicrotask(() => {
+                setIsRolling(false);
+                setShowResults(true);
+                if (isMobile) setMobileTab("results");
+            });
+        } else {
+            setIsRolling(true);
+            setShowResults(false);
+        }
 
         // プレイヤー更新
         if (currentPlayer) {
@@ -535,7 +548,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             });
             setActivePlayerId(updatedPlayer.id);
         }
-    }, [pool, players, activePlayerId, setLatestResults, setPlayers, setActivePlayerId]);
+    }, [pool, players, activePlayerId, setLatestResults, setPlayers, setActivePlayerId, gachaSettings.enableAnimation, isMobile]);
 
     const handleAnimationComplete = useCallback(() => {
         // 状態更新をマイクロタスクで分離し、稀な固まりを軽減
