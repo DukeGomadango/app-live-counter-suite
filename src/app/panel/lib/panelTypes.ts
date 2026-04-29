@@ -65,6 +65,10 @@ export interface PanelOverlay {
   imageDataUrl?: string;
   /** 透明度 0〜100。未指定時は 100（完全不透明） */
   opacity?: number;
+  /** 文字サイズ（pt）。未指定時はデフォルト（14px 相当） */
+  fontSize?: number;
+  /** 「何を」（ラベル）の文字サイズ（pt）。未指定時はデフォルト（10px 相当） */
+  labelFontSize?: number;
   /** shape === "custom" のとき。複数パーツで1つの図形を構成。 */
   parts?: CustomPart[];
 }

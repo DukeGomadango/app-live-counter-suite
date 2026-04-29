@@ -303,6 +303,21 @@ export default function PanelEditSidebar({
                         placeholder="例: 景品、コメント"
                         className="flex-1 min-w-[7rem] px-2 py-1 rounded border text-sm"
                       />
+                      <div className="flex items-center gap-1 shrink-0">
+                        <span className="text-[10px] opacity-70">サイズ:</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={o.labelFontSize ?? 8}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10) || 1;
+                            setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, labelFontSize: val } : p)));
+                          }}
+                          className="w-12 px-1 py-0.5 rounded border text-[10px]"
+                        />
+                        <span className="text-[10px] opacity-70">pt</span>
+                      </div>
                     </div>
                     <div className="w-full flex flex-wrap items-center gap-2">
                       <span className="text-sm font-medium shrink-0">目標:</span>
@@ -359,6 +374,21 @@ export default function PanelEditSidebar({
                         className="flex-1 min-w-[120px] px-2 py-1 rounded border text-sm"
                       />
                     )}
+                    <div className="w-full flex items-center gap-2">
+                      <span className="text-sm font-medium shrink-0">文字サイズ:</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={200}
+                        value={o.fontSize ?? 10}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10) || 1;
+                          setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, fontSize: val } : p)));
+                        }}
+                        className="w-16 px-2 py-1 rounded border text-sm"
+                      />
+                      <span className="text-xs opacity-70 shrink-0">pt</span>
+                    </div>
                   </>
                 ) : null}
                 <div className="w-full flex flex-wrap items-center gap-2">

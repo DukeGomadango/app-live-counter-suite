@@ -2168,18 +2168,27 @@ export default function PanelContent({
                           })()}
                         >
                           {overlay.label ? (
-                            <span className={`text-[10px] font-medium truncate w-full text-center ${isLightMode ? "text-gray-800" : "text-white/90"}`}>
+                            <span
+                              className={`font-medium truncate w-full text-center ${isLightMode ? "text-gray-800" : "text-white/90"}`}
+                              style={{ fontSize: overlay.labelFontSize ? `${overlay.labelFontSize}pt` : "10px" }}
+                            >
                               {overlay.label}
                             </span>
                           ) : null}
-                          <span className={`text-sm font-bold tabular-nums ${isLightMode ? "text-gray-900" : "text-white"}`}>
+                          <span
+                            className={`font-bold tabular-nums ${isLightMode ? "text-gray-900" : "text-white"}`}
+                            style={{ fontSize: overlay.fontSize ? `${overlay.fontSize}pt` : undefined }}
+                          >
                             {overlay.targetType === "number" ? (
                               <>
                                 {overlay.count}
-                                {overlay.target > 0 && <span className="opacity-60">/{overlay.target}</span>}
+                                {overlay.target > 0 && <span className="opacity-60" style={{ fontSize: overlay.fontSize ? "0.7em" : undefined }}>/{overlay.target}</span>}
                               </>
                             ) : (
-                              <span className="text-xs font-medium px-1 truncate max-w-full block">
+                              <span
+                                className="font-medium px-1 truncate max-w-full block"
+                                style={{ fontSize: overlay.fontSize ? undefined : "0.75rem" }}
+                              >
                                 {overlay.targetText || "（テキスト）"}
                               </span>
                             )}
