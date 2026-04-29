@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImagePlus, Pencil, Hand, Layers, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, GripVertical, Edit3, Eye, EyeOff } from "lucide-react";
+import { ImagePlus, Pencil, Hand, Layers, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, GripVertical, Edit3, Eye, EyeOff, Shapes } from "lucide-react";
 import type { PanelState, PanelOverlay, PartitionStroke, FilterType, OverlayShape } from "../lib/panelTypes";
 import { DEFAULT_OVERLAY_COLOR } from "../lib/panelTypes";
 import { parseHexToRgb, rgbToHex, normalizeHex, rgbToHsl, hslToRgb } from "../lib/panelUtils";
@@ -126,43 +126,31 @@ export default function PanelEditSidebar({
         borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)",
       }}
     >
-      {/* タブ: 画像 | 線で切り分け | 覆い | 図形 */}
-      <div className="shrink-0 flex flex-wrap border-b p-1 gap-1" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }}>
-        <button
-          type="button"
-          onClick={() => setTab("image")}
-          className={`flex-1 min-w-0 px-2 py-2 rounded text-sm font-medium transition-colors ${tab === "image" ? (isLightMode ? "bg-sky-500/25 text-sky-700 ring-1 ring-sky-500/40" : "bg-sky-500/30 text-sky-200 ring-1 ring-sky-400/50") : "opacity-70 hover:opacity-100"}`}
-        >
-          画像
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("lines")}
-          className={`flex-1 min-w-0 px-2 py-2 rounded text-sm font-medium transition-colors ${tab === "lines" ? (isLightMode ? "bg-amber-500/25 text-amber-700 ring-1 ring-amber-500/40" : "bg-amber-500/30 text-amber-200 ring-1 ring-amber-400/50") : "opacity-70 hover:opacity-100"}`}
-        >
-          線で切り分け
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("overlay")}
-          className={`flex-1 min-w-0 px-2 py-2 rounded text-sm font-medium transition-colors ${tab === "overlay" ? (isLightMode ? "bg-violet-500/20 text-violet-700" : "bg-violet-500/25 text-violet-200") : "opacity-70 hover:opacity-100"}`}
-        >
-          覆い
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("layer")}
-          className={`flex-1 min-w-0 px-2 py-2 rounded text-sm font-medium transition-colors ${tab === "layer" ? (isLightMode ? "bg-indigo-500/20 text-indigo-700" : "bg-indigo-500/25 text-indigo-200") : "opacity-70 hover:opacity-100"}`}
-        >
-          レイヤー
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("shapes")}
-          className={`flex-1 min-w-0 px-2 py-2 rounded text-sm font-medium transition-colors ${tab === "shapes" ? (isLightMode ? "bg-violet-500/20 text-violet-700" : "bg-violet-500/25 text-violet-200") : "opacity-70 hover:opacity-100"}`}
-        >
-          図形
-        </button>
+      {/* タブナビゲーション: ガチャ風の縦並び */}
+      <div className="shrink-0 flex flex-col p-2 gap-1" style={{ borderBottom: `1px solid ${isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)"}` }}>
+        {([
+          { id: "image", icon: ImagePlus, label: "画像" },
+          { id: "lines", icon: Pencil, label: "線で切り分け" },
+          { id: "overlay", icon: Hand, label: "覆い" },
+          { id: "layer", icon: Layers, label: "レイヤー" },
+          { id: "shapes", icon: Shapes, label: "図形" },
+        ] as const).map((t) => {
+          const isActive = tab === t.id;
+          const Icon = t.icon;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setTab(t.id)}
+              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all ${isActive 
+                ? (isLightMode ? "bg-violet-500 text-white shadow-md shadow-violet-500/20" : "bg-violet-600 text-white shadow-lg shadow-violet-900/40") 
+                : (isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/5")}`}
+            >
+              <Icon size={16} />
+              <span>{t.label}</span>
+            </button>
+          );
+        })}
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-3 p-3 pb-10">
         {tab === "image" && (
