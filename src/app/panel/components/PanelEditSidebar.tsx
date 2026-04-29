@@ -601,7 +601,7 @@ export default function PanelEditSidebar({
                           if (idx <= 0) return prev;
                           const next = [...prev];
                           const [item] = next.splice(idx, 1);
-                          next.unshift(item);
+                          if (item) next.unshift(item);
                           return next;
                         });
                       }}
@@ -617,8 +617,8 @@ export default function PanelEditSidebar({
                           const idx = prev.findIndex((p) => p.id === o.id);
                           if (idx <= 0) return prev;
                           const next = [...prev];
-                          const item = next[idx];
-                          next[idx] = next[idx - 1];
+                          const item = next[idx]!;
+                          next[idx] = next[idx - 1]!;
                           next[idx - 1] = item;
                           return next;
                         });
@@ -635,8 +635,8 @@ export default function PanelEditSidebar({
                           const idx = prev.findIndex((p) => p.id === o.id);
                           if (idx === -1 || idx >= prev.length - 1) return prev;
                           const next = [...prev];
-                          const item = next[idx];
-                          next[idx] = next[idx + 1];
+                          const item = next[idx]!;
+                          next[idx] = next[idx + 1]!;
                           next[idx + 1] = item;
                           return next;
                         });
@@ -654,7 +654,7 @@ export default function PanelEditSidebar({
                           if (idx === -1 || idx >= prev.length - 1) return prev;
                           const next = [...prev];
                           const [item] = next.splice(idx, 1);
-                          next.push(item);
+                          if (item) next.push(item);
                           return next;
                         });
                       }}
@@ -733,10 +733,12 @@ export default function PanelEditSidebar({
                       
                       const next = [...prev];
                       const [moved] = next.splice(fromIdx, 1);
+                      if (!moved) return prev;
                       
-                      // toIdx は splice 後も変化しない位置（元の要素の位置）として利用する
-                      const insertIdx = prev.findIndex((p) => p.id === overlay.id);
-                      next.splice(insertIdx, 0, moved);
+                      const insertIdx = next.findIndex((p) => p.id === overlay.id);
+                      if (insertIdx !== -1) {
+                        next.splice(insertIdx, 0, moved);
+                      }
                       return next;
                     });
                     setDraggedOverlayId(null);
