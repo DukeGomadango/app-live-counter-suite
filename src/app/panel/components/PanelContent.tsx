@@ -1972,6 +1972,7 @@ export default function PanelContent({
                 >
                 {/* Overlays */}
                 {!isLineStep && overlays.map((overlay) => {
+                  if (overlay.hidden) return null;
                   const isFree = overlay.shape === "free";
                   const isImage = overlay.shape === "image";
                   const isCustom = overlay.shape === "custom" && overlay.parts && overlay.parts.length > 0;

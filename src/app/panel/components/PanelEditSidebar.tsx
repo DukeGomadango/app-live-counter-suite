@@ -1,13 +1,13 @@
 "use client";
 
-import { useRef } from "react";
-import { ImagePlus, Pencil, Hand } from "lucide-react";
+import { useRef, useState } from "react";
+import { ImagePlus, Pencil, Hand, Layers, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, GripVertical, Edit3, Eye, EyeOff } from "lucide-react";
 import type { PanelState, PanelOverlay, PartitionStroke, FilterType, OverlayShape } from "../lib/panelTypes";
 import { DEFAULT_OVERLAY_COLOR } from "../lib/panelTypes";
 import { parseHexToRgb, rgbToHex, normalizeHex, rgbToHsl, hslToRgb } from "../lib/panelUtils";
 import RotationDial from "./RotationDial";
 
-export type PanelSidebarTabId = "image" | "lines" | "overlay" | "shapes";
+export type PanelSidebarTabId = "image" | "lines" | "overlay" | "layer" | "shapes";
 
 export interface PanelEditSidebarProps {
   tab: PanelSidebarTabId;
@@ -109,6 +109,12 @@ export default function PanelEditSidebar({
   /** パレット上でドラッグ中か（リサイズ時の誤反応を防ぐ）。ドラッグ中は開始時の rect を使いレイアウト変化で色が飛ばないようにする */
   const colorPickerDraggingRef = useRef<"sl" | "h" | null>(null);
   const colorPickerRectRef = useRef<DOMRect | null>(null);
+
+  // レイヤー管理用のステート
+  const [draggedOverlayId, setDraggedOverlayId] = useState<string | null>(null);
+  const [dragOverOverlayId, setDragOverOverlayId] = useState<string | null>(null);
+  const [renamingOverlayId, setRenamingOverlayId] = useState<string | null>(null);
+  const [renameInput, setRenameInput] = useState<string>("");
   return (
     <div
       ref={editSidebarRef}
@@ -142,6 +148,13 @@ export default function PanelEditSidebar({
           className={`flex-1 min-w-0 px-2 py-2 rounded text-sm font-medium transition-colors ${tab === "overlay" ? (isLightMode ? "bg-violet-500/20 text-violet-700" : "bg-violet-500/25 text-violet-200") : "opacity-70 hover:opacity-100"}`}
         >
           覆い
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("layer")}
+          className={`flex-1 min-w-0 px-2 py-2 rounded text-sm font-medium transition-colors ${tab === "layer" ? (isLightMode ? "bg-indigo-500/20 text-indigo-700" : "bg-indigo-500/25 text-indigo-200") : "opacity-70 hover:opacity-100"}`}
+        >
+          レイヤー
         </button>
         <button
           type="button"
@@ -588,6 +601,82 @@ export default function PanelEditSidebar({
                     削除
                   </button>
                 </div>
+
+                <div className="w-full flex flex-col gap-1.5 mt-2 pt-2 border-t border-white/10">
+                  <span className="text-sm font-medium opacity-80">重なり順</span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => {
+                        pushOverlayHistory(overlays);
+                        setOverlays((prev) => {
+                          const idx = prev.findIndex((p) => p.id === o.id);
+                          if (idx <= 0) return prev;
+                          const next = [...prev];
+                          const [item] = next.splice(idx, 1);
+                          next.unshift(item);
+                          return next;
+                        });
+                      }}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded text-xs border border-slate-500/30 bg-slate-500/10 hover:bg-slate-500/20"
+                      title="最背面へ"
+                    >
+                      <ChevronsDown size={14} /> 最背面
+                    </button>
+                    <button
+                      onClick={() => {
+                        pushOverlayHistory(overlays);
+                        setOverlays((prev) => {
+                          const idx = prev.findIndex((p) => p.id === o.id);
+                          if (idx <= 0) return prev;
+                          const next = [...prev];
+                          const item = next[idx];
+                          next[idx] = next[idx - 1];
+                          next[idx - 1] = item;
+                          return next;
+                        });
+                      }}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded text-xs border border-slate-500/30 bg-slate-500/10 hover:bg-slate-500/20"
+                      title="一つ背面へ"
+                    >
+                      <ChevronDown size={14} /> 背面
+                    </button>
+                    <button
+                      onClick={() => {
+                        pushOverlayHistory(overlays);
+                        setOverlays((prev) => {
+                          const idx = prev.findIndex((p) => p.id === o.id);
+                          if (idx === -1 || idx >= prev.length - 1) return prev;
+                          const next = [...prev];
+                          const item = next[idx];
+                          next[idx] = next[idx + 1];
+                          next[idx + 1] = item;
+                          return next;
+                        });
+                      }}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded text-xs border border-slate-500/30 bg-slate-500/10 hover:bg-slate-500/20"
+                      title="一つ前面へ"
+                    >
+                      <ChevronUp size={14} /> 前面
+                    </button>
+                    <button
+                      onClick={() => {
+                        pushOverlayHistory(overlays);
+                        setOverlays((prev) => {
+                          const idx = prev.findIndex((p) => p.id === o.id);
+                          if (idx === -1 || idx >= prev.length - 1) return prev;
+                          const next = [...prev];
+                          const [item] = next.splice(idx, 1);
+                          next.push(item);
+                          return next;
+                        });
+                      }}
+                      className="flex items-center gap-1 px-2 py-1.5 rounded text-xs border border-slate-500/30 bg-slate-500/10 hover:bg-slate-500/20"
+                      title="最前面へ"
+                    >
+                      <ChevronsUp size={14} /> 最前面
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="text-sm opacity-70 py-4">
@@ -596,6 +685,176 @@ export default function PanelEditSidebar({
                 ここで編集できます
               </div>
             )}
+
+            {/* レイヤーリストへの導線（タブへ移動） */}
+            <div className="w-full flex flex-col gap-2 mt-2 pt-4 border-t" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }}>
+              <button
+                type="button"
+                onClick={() => setTab("layer")}
+                className="w-full flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border border-indigo-500/40 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+              >
+                <Layers size={14} /> レイヤー一覧・管理を開く
+              </button>
+            </div>
+          </>
+        )}
+
+        {tab === "layer" && (
+          <>
+            <div className="text-sm font-medium opacity-80 w-full flex items-center justify-between">
+              <span>レイヤー管理</span>
+              <span className="text-xs font-normal opacity-70">上から前面・D&Dで並び替え</span>
+            </div>
+            <div className="w-full flex flex-col gap-1 overflow-y-auto pr-1 pb-4">
+              {overlays.length === 0 ? (
+                <div className="text-sm opacity-50 py-4 text-center border border-dashed rounded-lg border-current">
+                  レイヤーはありません
+                </div>
+              ) : (
+                [...overlays].reverse().map((overlay) => {
+                  const isSelected = o?.id === overlay.id;
+                  const isRenaming = renamingOverlayId === overlay.id;
+                  const isDragOver = dragOverOverlayId === overlay.id;
+
+                  const handleDragStart = (e: React.DragEvent) => {
+                    setDraggedOverlayId(overlay.id);
+                    e.dataTransfer.effectAllowed = "move";
+                  };
+                  const handleDragOver = (e: React.DragEvent) => {
+                    e.preventDefault(); // ドロップを許可
+                    e.dataTransfer.dropEffect = "move";
+                    if (dragOverOverlayId !== overlay.id) {
+                      setDragOverOverlayId(overlay.id);
+                    }
+                  };
+                  const handleDragLeave = () => {
+                    if (dragOverOverlayId === overlay.id) {
+                      setDragOverOverlayId(null);
+                    }
+                  };
+                  const handleDrop = (e: React.DragEvent) => {
+                    e.preventDefault();
+                    setDragOverOverlayId(null);
+                    if (!draggedOverlayId || draggedOverlayId === overlay.id) return;
+
+                    pushOverlayHistory(overlays);
+                    setOverlays((prev) => {
+                      const fromIdx = prev.findIndex((p) => p.id === draggedOverlayId);
+                      const toIdx = prev.findIndex((p) => p.id === overlay.id);
+                      if (fromIdx === -1 || toIdx === -1) return prev;
+                      
+                      const next = [...prev];
+                      const [moved] = next.splice(fromIdx, 1);
+                      
+                      // toIdx は splice 後も変化しない位置（元の要素の位置）として利用する
+                      const insertIdx = prev.findIndex((p) => p.id === overlay.id);
+                      next.splice(insertIdx, 0, moved);
+                      return next;
+                    });
+                    setDraggedOverlayId(null);
+                  };
+                  const handleDragEnd = () => {
+                    setDraggedOverlayId(null);
+                    setDragOverOverlayId(null);
+                  };
+
+                  const defaultName = overlay.shape === "image" 
+                            ? "追加画像" 
+                            : overlay.label || overlay.targetText || (overlay.shape === "free" ? "自由図形" : overlay.shape === "custom" ? "カスタム図形" : overlay.shape === "rect" ? "四角" : overlay.shape === "circle" ? "丸" : overlay.shape === "triangle" ? "三角" : "図形");
+
+                  return (
+                    <div
+                      key={overlay.id}
+                      draggable
+                      onDragStart={handleDragStart}
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      onDragEnd={handleDragEnd}
+                      className={`group flex items-center gap-2 px-2 py-2 rounded text-sm transition-all border ${
+                        isDragOver
+                          ? "border-indigo-500 bg-indigo-500/10 shadow-inner"
+                          : isSelected
+                            ? (isLightMode ? "border-violet-500/30 bg-violet-500/10" : "border-violet-500/40 bg-violet-500/20")
+                            : "border-transparent hover:bg-black/5"
+                      } ${draggedOverlayId === overlay.id ? "opacity-30" : overlay.hidden ? "opacity-50 grayscale" : "opacity-100"}`}
+                      onClick={() => !isRenaming && setSelectedOverlayId(overlay.id)}
+                      style={{ touchAction: "none" }}
+                    >
+                      <div className="cursor-grab active:cursor-grabbing opacity-30 group-hover:opacity-100 shrink-0 touch-none">
+                        <GripVertical size={16} />
+                      </div>
+                      
+                      {overlay.shape === "image" ? (
+                        <ImagePlus size={14} className="opacity-70 shrink-0" />
+                      ) : (
+                        <div 
+                          className="w-3.5 h-3.5 rounded-sm border shrink-0" 
+                          style={{ background: overlay.color, borderColor: isLightMode ? "rgba(0,0,0,0.2)" : "rgba(255,255,255,0.3)" }} 
+                        />
+                      )}
+                      
+                      {isRenaming ? (
+                        <div className="flex-1 flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={renameInput}
+                            onChange={(e) => setRenameInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                pushOverlayHistory(overlays);
+                                setOverlays(prev => prev.map(p => p.id === overlay.id ? { ...p, layerName: renameInput } : p));
+                                setRenamingOverlayId(null);
+                              } else if (e.key === "Escape") {
+                                setRenamingOverlayId(null);
+                              }
+                            }}
+                            onBlur={() => {
+                              pushOverlayHistory(overlays);
+                              setOverlays(prev => prev.map(p => p.id === overlay.id ? { ...p, layerName: renameInput } : p));
+                              setRenamingOverlayId(null);
+                            }}
+                            className="flex-1 min-w-0 px-1 py-0.5 rounded border text-xs text-gray-800 bg-white"
+                            autoFocus
+                            onClick={e => e.stopPropagation()}
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex-1 truncate select-none flex items-center justify-between">
+                          <span className={overlay.hidden ? "line-through opacity-70" : ""}>{overlay.layerName || defaultName}</span>
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                pushOverlayHistory(overlays);
+                                setOverlays(prev => prev.map(p => p.id === overlay.id ? { ...p, hidden: !p.hidden } : p));
+                              }}
+                              className={`p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 shrink-0 ${overlay.hidden ? "opacity-100 text-gray-500" : "opacity-0 group-hover:opacity-100"}`}
+                              title={overlay.hidden ? "表示する" : "非表示にする"}
+                            >
+                              {overlay.hidden ? <EyeOff size={12} /> : <Eye size={12} />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setRenameInput(overlay.layerName || defaultName);
+                                setRenamingOverlayId(overlay.id);
+                              }}
+                              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 shrink-0"
+                              title="名前を変更"
+                            >
+                              <Edit3 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </>
         )}
 

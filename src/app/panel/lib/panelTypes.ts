@@ -59,6 +59,10 @@ export interface PanelOverlay {
   pathD?: string;
   color: string;
   label?: string;
+  /** レイヤー名（ユーザーが任意に変更可能） */
+  layerName?: string;
+  /** 表示・非表示フラグ（true で非表示） */
+  hidden?: boolean;
   /** 回転（度）。0 が無回転 */
   rotation?: number;
   /** shape === "image" のときの画像 Data URL */
