@@ -267,7 +267,7 @@ export default function GachaPlayerManager({
                                                 {onRenamePlayer && (
                                                     <button
                                                         onClick={e => { e.stopPropagation(); startEditingPlayer(player); }}
-                                                        className={`p-0.5 rounded opacity-0 group-hover/name:opacity-100 transition-opacity shrink-0 ${isLightMode ? "text-gray-500 hover:bg-gray-100" : "text-white/40 hover:bg-white/10"}`}
+                                                        className={`p-0.5 rounded opacity-40 hover:opacity-100 lg:opacity-0 lg:group-hover/name:opacity-100 transition-opacity shrink-0 ${isLightMode ? "text-gray-500 hover:bg-gray-100" : "text-white/40 hover:bg-white/10"}`}
                                                         title="名前を変更"
                                                     >
                                                         <Pencil size={10} />
