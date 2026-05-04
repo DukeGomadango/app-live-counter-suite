@@ -148,7 +148,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         setDraggingSelectionIds(null);
     };
 
-    const handleDragEnd = (event: DragEndEvent) => {
+    const handleItemDragEnd = (event: DragEndEvent) => {
         setActiveDragId(null);
         setDraggingSelectionIds(null);
         const { active, over } = event;
@@ -173,6 +173,25 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
             if (oldIndex >= 0 && newIndex >= 0) {
                 onPoolChange({ ...pool, items: arrayMove(pool.items, oldIndex, newIndex) });
             }
+        }
+    };
+
+    const handleRarityDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (!over || active.id === over.id) return;
+
+        const activeId = String(active.id);
+        const overId = String(over.id);
+
+        const sortedRarities = [...pool.rarities].sort((a, b) => a.sortOrder - b.sortOrder);
+        const oldIndex = sortedRarities.findIndex(r => r.id === activeId);
+        const newIndex = sortedRarities.findIndex(r => r.id === overId);
+
+        if (oldIndex >= 0 && newIndex >= 0) {
+            const moved = arrayMove(sortedRarities, oldIndex, newIndex);
+            // sortOrder を振り直す
+            const updated = moved.map((r, i) => ({ ...r, sortOrder: i + 1 }));
+            onPoolChange({ ...pool, rarities: updated });
         }
     };
 
@@ -484,89 +503,40 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         {pool.rarities.length > 1 && <div className="w-6 text-center shrink-0">削除</div>}
                                     </div>
                                 )}
-                                {(mounted ? pool.rarities : [])
-                                    .slice()
-                                    .sort((a, b) => a.sortOrder - b.sortOrder)
-                                    .map(rarity => (
-                                        <div
-                                            key={rarity.id}
-                                            className="flex items-center gap-2 p-2 rounded-lg min-h-11 flex-shrink-0"
-                                            style={{ background: textLight ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)" }}
-                                        >
-                                            <input
-                                                type="color"
-                                                value={rarity.color}
-                                                onChange={e => {
-                                                    const hex = e.target.value;
-                                                    const r = parseInt(hex.slice(1, 3), 16);
-                                                    const g = parseInt(hex.slice(3, 5), 16);
-                                                    const b = parseInt(hex.slice(5, 7), 16);
-                                                    updateRarity(rarity.id, {
-                                                        color: hex,
-                                                        glowColor: `rgba(${r},${g},${b},0.4)`,
-                                                        bgColor: `rgba(${r},${g},${b},0.1)`,
-                                                    });
-                                                }}
-                                                className="w-6 h-6 rounded cursor-pointer border-0 p-0"
-                                                style={{ background: "transparent" }}
-                                            />
-                                            <input
-                                                type="text"
-                                                value={rarity.name}
-                                                onChange={e => updateRarity(rarity.id, { name: e.target.value })}
-                                                autoComplete="off"
-                                                autoCorrect="off"
-                                                autoCapitalize="off"
-                                                spellCheck={false}
-                                                className={`flex-1 px-2 py-1 rounded text-xs font-bold ${textPrimary} outline-none`}
-                                                style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                                            />
-                                            <span className={`text-[10px] w-8 text-center ${textMuted}`}>#{rarity.sortOrder}</span>
-                                            <span className="flex items-center gap-0.5 shrink-0 bg-black/5 px-1 py-0.5 rounded">
-                                                <input
-                                                    type="text"
-                                                    inputMode="decimal"
-                                                    value={rarityProbInputs[rarity.id] !== undefined ? rarityProbInputs[rarity.id] : (rarity.defaultWeight != null ? formatProb(rarity.defaultWeight) : "")}
-                                                    onFocus={() => {
-                                                        setRarityProbInputs(prev => ({ ...prev, [rarity.id]: String(rarity.defaultWeight ?? 0) }));
-                                                    }}
-                                                    onChange={e => {
-                                                        setRarityProbInputs(prev => ({ ...prev, [rarity.id]: e.target.value }));
-                                                    }}
-                                                    onBlur={() => {
-                                                        const val = rarityProbInputs[rarity.id];
-                                                        if (val !== undefined) {
-                                                            const n = parseFloat(val);
-                                                            if (val === "") {
-                                                                updateRarity(rarity.id, { defaultWeight: 0 });
-                                                            } else if (!Number.isNaN(n) && n >= 0) {
-                                                                updateRarity(rarity.id, { defaultWeight: n });
-                                                            }
-                                                            setRarityProbInputs(prev => {
-                                                                const next = { ...prev };
-                                                                delete next[rarity.id];
-                                                                return next;
-                                                            });
-                                                        }
-                                                    }}
-                                                    placeholder="0"
-                                                    className={`w-12 text-[10px] px-1 py-0.5 rounded text-right tabular-nums ${textPrimary} ${placeholderCls} outline-none cursor-text focus:ring-1 focus:ring-purple-400`}
-                                                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                                                    title="レア度の出現確率。変更すると他のレア度が自動調整されます"
-                                                />
-                                                <span className={`text-[10px] ${textMuted}`} title="出現確率(%)">%</span>
-                                            </span>
-                                            {(mounted ? pool.rarities : []).length > 1 && (
-                                                <button
-                                                    onClick={() => setPendingDelete({ type: "rarity", id: rarity.id })}
-                                                    className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors shrink-0"
-                                                    aria-label="このレア度を削除"
-                                                >
-                                                    <Trash2 size={12} />
-                                                </button>
-                                            )}
+                                <DndContext
+                                    sensors={sensors}
+                                    collisionDetection={closestCenter}
+                                    onDragEnd={handleRarityDragEnd}
+                                >
+                                    <SortableContext
+                                        items={(mounted ? pool.rarities : []).sort((a, b) => a.sortOrder - b.sortOrder).map(r => r.id)}
+                                        strategy={verticalListSortingStrategy}
+                                    >
+                                        <div className="flex flex-col gap-2">
+                                            {(mounted ? pool.rarities : [])
+                                                .slice()
+                                                .sort((a, b) => a.sortOrder - b.sortOrder)
+                                                .map(rarity => (
+                                                    <SortableRarityItem
+                                                        key={rarity.id}
+                                                        rarity={rarity}
+                                                        isLightMode={isLightMode}
+                                                        textPrimary={textPrimary}
+                                                        textMuted={textMuted}
+                                                        inputBg={inputBg}
+                                                        inputBorder={inputBorder}
+                                                        placeholderCls={placeholderCls}
+                                                        rarityProbInputs={rarityProbInputs}
+                                                        updateRarity={updateRarity}
+                                                        setRarityProbInputs={setRarityProbInputs}
+                                                        setPendingDelete={setPendingDelete}
+                                                        isRemovable={pool.rarities.length > 1}
+                                                        formatProb={formatProb}
+                                                    />
+                                                ))}
                                         </div>
-                                    ))}
+                                    </SortableContext>
+                                </DndContext>
                                 <button
                                     onClick={addRarity}
                                     className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition-all ${textLight ? "bg-purple-100 text-purple-700 hover:bg-purple-200" : "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"}`}
@@ -685,7 +655,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         sensors={sensors}
                                         collisionDetection={closestCenter}
                                         onDragStart={handleDragStart}
-                                        onDragEnd={handleDragEnd}
+                                        onDragEnd={handleItemDragEnd}
                                         onDragCancel={handleDragCancel}
                                     >
                                         <SortableContext items={(mounted ? pool.items : []).map(i => i.id)} strategy={verticalListSortingStrategy}>
@@ -1144,6 +1114,131 @@ function SortableItem({
                     <Trash2 size={10} />
                 </button>
             </div>
+        </div>
+    );
+}
+
+interface SortableRarityItemProps {
+    rarity: RarityTier;
+    isLightMode: boolean;
+    textPrimary: string;
+    textMuted: string;
+    inputBg: string;
+    inputBorder: string;
+    placeholderCls: string;
+    rarityProbInputs: Record<string, string>;
+    updateRarity: (id: string, updates: Partial<RarityTier>) => void;
+    setRarityProbInputs: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+    setPendingDelete: (val: { type: "rarity"; id: string } | null) => void;
+    isRemovable: boolean;
+    formatProb: (prob: number) => string;
+}
+
+function SortableRarityItem({
+    rarity,
+    isLightMode,
+    textPrimary,
+    textMuted,
+    inputBg,
+    inputBorder,
+    placeholderCls,
+    rarityProbInputs,
+    updateRarity,
+    setRarityProbInputs,
+    setPendingDelete,
+    isRemovable,
+    formatProb,
+}: SortableRarityItemProps) {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: rarity.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 50 : 1,
+    };
+
+    return (
+        <div
+            ref={setNodeRef}
+            style={style}
+            className={`flex items-center gap-2 p-2 rounded-lg min-h-11 flex-shrink-0 transition-shadow ${isDragging ? "shadow-2xl scale-[1.02] bg-purple-500/10 ring-2 ring-purple-500/50" : ""}`}
+            style={{ ...style, background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)" }}
+        >
+            <div {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing hover:text-purple-400 text-gray-500/50 touch-none w-5 h-5 flex items-center justify-center shrink-0">
+                <GripVertical size={14} />
+            </div>
+            <input
+                type="color"
+                value={rarity.color}
+                onChange={e => {
+                    const hex = e.target.value;
+                    const r = parseInt(hex.slice(1, 3), 16);
+                    const g = parseInt(hex.slice(3, 5), 16);
+                    const b = parseInt(hex.slice(5, 7), 16);
+                    updateRarity(rarity.id, {
+                        color: hex,
+                        glowColor: `rgba(${r},${g},${b},0.4)`,
+                        bgColor: `rgba(${r},${g},${b},0.1)`,
+                    });
+                }}
+                className="w-6 h-6 rounded cursor-pointer border-0 p-0"
+                style={{ background: "transparent" }}
+            />
+            <input
+                type="text"
+                value={rarity.name}
+                onChange={e => updateRarity(rarity.id, { name: e.target.value })}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                className={`flex-1 px-2 py-1 rounded text-xs font-bold ${textPrimary} outline-none min-w-0`}
+                style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+            />
+            <span className={`text-[10px] w-8 text-center shrink-0 ${textMuted}`}>#{rarity.sortOrder}</span>
+            <span className="flex items-center gap-0.5 shrink-0 bg-black/5 px-1 py-0.5 rounded">
+                <input
+                    type="text"
+                    inputMode="decimal"
+                    value={rarityProbInputs[rarity.id] !== undefined ? rarityProbInputs[rarity.id] : (rarity.defaultWeight != null ? formatProb(rarity.defaultWeight) : "")}
+                    onFocus={() => {
+                        setRarityProbInputs(prev => ({ ...prev, [rarity.id]: String(rarity.defaultWeight ?? 0) }));
+                    }}
+                    onChange={e => {
+                        setRarityProbInputs(prev => ({ ...prev, [rarity.id]: e.target.value }));
+                    }}
+                    onBlur={() => {
+                        const val = rarityProbInputs[rarity.id];
+                        if (val !== undefined) {
+                            const n = parseFloat(val);
+                            if (val === "") {
+                                updateRarity(rarity.id, { defaultWeight: 0 });
+                            } else if (!Number.isNaN(n) && n >= 0) {
+                                updateRarity(rarity.id, { defaultWeight: n });
+                            }
+                            setRarityProbInputs(prev => {
+                                const next = { ...prev };
+                                delete next[rarity.id];
+                                return next;
+                            });
+                        }
+                    }}
+                    placeholder="0"
+                    className={`w-12 text-[10px] px-1 py-0.5 rounded text-right tabular-nums ${textPrimary} ${placeholderCls} outline-none cursor-text focus:ring-1 focus:ring-purple-400`}
+                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                    title="レア度の出現確率。変更すると他のレア度が自動調整されます"
+                />
+                <span className={`text-[10px] ${textMuted}`} title="出現確率(%)">%</span>
+            </span>
+            {isRemovable && (
+                <button
+                    onClick={() => setPendingDelete({ type: "rarity", id: rarity.id })}
+                    className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors shrink-0"
+                    aria-label="このレア度を削除"
+                >
+                    <Trash2 size={12} />
+                </button>
+            )}
         </div>
     );
 }
