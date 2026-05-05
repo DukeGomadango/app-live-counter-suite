@@ -19,10 +19,6 @@ export interface GachaItem {
     name: string;
     rarityId: string;
     weight: number; // 排出重み（確率 = weight / 全weightの合計）
-    /** 品目に紐づける画像のURL（プレイヤーリンク集・ZIPで使用） */
-    imageUrl?: string;
-    /** 品目に紐づける音声のURL（プレイヤーリンク集・ZIPで使用） */
-    audioUrl?: string;
     /** ファイル配布連携: file-share-app 側のキャンペーンアセット ID */
     linkedAssetId?: string;
 }
@@ -188,17 +184,12 @@ const _sampleRarities3: RarityTier[] = [
     { id: "sr", name: "SR", color: "#a855f7", glowColor: "rgba(168,85,247,0.4)", bgColor: "rgba(168,85,247,0.15)", sortOrder: 3 },
 ];
 
-/** 旧形式の link を imageUrl に移す（後方互換）。読み込み後に1回だけ呼ぶ */
+/** 旧形式の link を削除する（後方互換）。読み込み後に1回だけ呼ぶ */
 export function migratePoolItemsForLink(pool: GachaPool): GachaPool {
     type LegacyItem = GachaItem & { link?: string };
     let changed = false;
     const items = pool.items.map((item): GachaItem => {
         const it = item as LegacyItem;
-        if (it.link != null && it.link !== "" && !it.imageUrl) {
-            changed = true;
-            const { link, ...rest } = it;
-            return { ...rest, imageUrl: link };
-        }
         if ("link" in it && it.link !== undefined) {
             changed = true;
             const { link: _dropped, ...rest } = it;

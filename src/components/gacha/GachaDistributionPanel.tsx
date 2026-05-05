@@ -263,6 +263,18 @@ export default function GachaDistributionPanel({
                             {isCreating ? <FiLoader className="animate-spin" /> : <FiPlus />}
                             <span className="text-sm font-bold">新規作成</span>
                         </button>
+
+                        {pool.linkedCampaignId && (
+                            <a
+                                href={`${integrationConfig.apiBaseUrl}/campaigns/${pool.linkedCampaignId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`p-2 rounded-xl border-2 transition-all flex items-center gap-2 px-4 bg-purple-500/10 border-purple-500/20 text-purple-500 hover:bg-purple-500/20 shadow-sm`}
+                            >
+                                <FiExternalLink />
+                                <span className="text-sm font-bold">管理画面を開く</span>
+                            </a>
+                        )}
                     </div>
                 </div>
             </div>

@@ -37,12 +37,10 @@ export function isBundleANewerThanB(a: SyncBundle, b: SyncBundle): boolean {
 }
 
 export function buildScopeSnapshot(
-  enabledGroups: Set<SyncGroupId>,
-  includeGachaMedia: boolean
+  enabledGroups: Set<SyncGroupId>
 ): SyncScopeSnapshot {
   return {
     groups: [...enabledGroups].sort(),
-    includeGachaMedia,
   };
 }
 
@@ -62,7 +60,6 @@ export function parseSyncBundleJson(text: string): SyncBundle {
   if (!o.scope || typeof o.scope !== "object") throw new Error("scope がありません");
   const sc = o.scope as Record<string, unknown>;
   if (!Array.isArray(sc.groups)) throw new Error("scope.groups がありません");
-  if (typeof sc.includeGachaMedia !== "boolean") throw new Error("scope.includeGachaMedia がありません");
   if (typeof o.localStorage !== "object" || o.localStorage === null) {
     throw new Error("localStorage がありません");
   }
@@ -73,26 +70,13 @@ export function parseSyncBundleJson(text: string): SyncBundle {
     else if (typeof v === "string") localStorage[k] = v;
     else throw new Error(`localStorage の値が不正です: ${k}`);
   }
-  let gachaPrizeFilesBase64: Record<string, string> | undefined;
-  if (o.gachaPrizeFilesBase64 !== undefined) {
-    if (typeof o.gachaPrizeFilesBase64 !== "object" || o.gachaPrizeFilesBase64 === null) {
-      throw new Error("gachaPrizeFilesBase64 の形式が不正です");
-    }
-    gachaPrizeFilesBase64 = {};
-    for (const [k, v] of Object.entries(o.gachaPrizeFilesBase64 as Record<string, unknown>)) {
-      if (typeof v !== "string") throw new Error(`ガチャファイル ${k} が不正です`);
-      gachaPrizeFilesBase64[k] = v;
-    }
-  }
   return {
     schemaVersion: SYNC_SCHEMA_VERSION,
     exportedAt: o.exportedAt,
     scope: {
       groups: sc.groups as SyncGroupId[],
-      includeGachaMedia: sc.includeGachaMedia,
     },
     localStorage,
-    gachaPrizeFilesBase64,
   };
 }
 
@@ -102,11 +86,7 @@ export function serializeSyncBundle(bundle: SyncBundle): string {
 
 export async function buildSyncBundle(
   enabledGroups: Set<SyncGroupId>,
-  includeGachaMedia: boolean,
-  storage: Storage,
-  options?: {
-    exportGachaFiles?: () => Promise<Record<string, string>>;
-  }
+  storage: Storage
 ): Promise<SyncBundle> {
   const keys = getKeysForGroups(enabledGroups);
   const localStorage: Record<string, string | null> = {};
@@ -119,26 +99,13 @@ export async function buildSyncBundle(
     }
   }
 
-  let gachaPrizeFilesBase64: Record<string, string> | undefined;
-  if (includeGachaMedia && enabledGroups.has("gacha") && options?.exportGachaFiles) {
-    gachaPrizeFilesBase64 = await options.exportGachaFiles();
-  }
-
   const bundle: SyncBundle = {
     schemaVersion: SYNC_SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
-    scope: buildScopeSnapshot(enabledGroups, includeGachaMedia),
+    scope: buildScopeSnapshot(enabledGroups),
     localStorage,
-    ...(gachaPrizeFilesBase64 && Object.keys(gachaPrizeFilesBase64).length > 0
-      ? { gachaPrizeFilesBase64 }
-      : {}),
   };
   return bundle;
-}
-
-async function importGachaFromBase64(record: Record<string, string>): Promise<void> {
-  const { importGachaFilesFromBase64Records } = await import("@/lib/gachaFileStore");
-  await importGachaFilesFromBase64Records(record);
 }
 
 /**
@@ -149,7 +116,7 @@ export async function applySyncBundle(
   storage: Storage,
   options: {
     mode: ImportMode;
-    scopeForReplace: { enabledGroups: Set<SyncGroupId>; includeGachaMedia: boolean };
+    scopeForReplace: { enabledGroups: Set<SyncGroupId> };
   }
 ): Promise<void> {
   if (options.mode === "replace_scope") {
@@ -162,13 +129,6 @@ export async function applySyncBundle(
         /* ignore */
       }
     }
-    if (
-      options.scopeForReplace.enabledGroups.has("gacha") &&
-      options.scopeForReplace.includeGachaMedia
-    ) {
-      const { clearAllGachaFiles } = await import("@/lib/gachaFileStore");
-      await clearAllGachaFiles();
-    }
   }
 
   for (const [key, value] of Object.entries(bundle.localStorage)) {
@@ -179,9 +139,5 @@ export async function applySyncBundle(
     } catch {
       /* quota etc. */
     }
-  }
-
-  if (bundle.gachaPrizeFilesBase64 && Object.keys(bundle.gachaPrizeFilesBase64).length > 0) {
-    await importGachaFromBase64(bundle.gachaPrizeFilesBase64);
   }
 }

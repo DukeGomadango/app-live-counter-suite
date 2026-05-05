@@ -27,7 +27,6 @@ import {
   driveFindSyncFile,
   driveUploadSyncBody,
 } from "@/lib/googleDriveSync";
-import { exportAllGachaFilesAsBase64Records } from "@/lib/gachaFileStore";
 import type { SyncGroupId } from "@/lib/dataSync/storageKeys";
 import { SYNC_GROUPS } from "@/lib/dataSync/storageKeys";
 import { createAllGroupsOn, SyncScopeSection, type GroupEnabledMap } from "./SyncScopeSection";
@@ -67,7 +66,6 @@ export default function DataSyncPage() {
   const [tab, setTab] = useState<"file" | "google" | "qr" | "nfc">("file");
   const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
   const [groupEnabled, setGroupEnabled] = useState<GroupEnabledMap>(() => createAllGroupsOn());
-  const [includeGachaMedia, setIncludeGachaMedia] = useState(false);
   const [importMode, setImportMode] = useState<ImportMode>("partial");
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -115,13 +113,9 @@ export default function DataSyncPage() {
 
   const enabledGroups = useMemo(() => enabledSetFromMap(groupEnabled), [groupEnabled]);
 
-  const exportGachaFn = useCallback(async () => exportAllGachaFilesAsBase64Records(), []);
-
   const runExportBundle = useCallback(async () => {
-    return buildSyncBundle(enabledGroups, includeGachaMedia && groupEnabled.gacha, window.localStorage, {
-      exportGachaFiles: exportGachaFn,
-    });
-  }, [enabledGroups, includeGachaMedia, groupEnabled.gacha, exportGachaFn]);
+    return buildSyncBundle(enabledGroups, window.localStorage);
+  }, [enabledGroups]);
 
   const clearMessages = () => {
     setStatusMsg(null);
@@ -228,7 +222,6 @@ export default function DataSyncPage() {
         mode: importMode,
         scopeForReplace: {
           enabledGroups,
-          includeGachaMedia: includeGachaMedia && groupEnabled.gacha,
         },
       });
       setPendingImport(null);
@@ -451,8 +444,6 @@ export default function DataSyncPage() {
         <SyncScopeSection
           groupEnabled={groupEnabled}
           setGroupEnabled={setGroupEnabled}
-          includeGachaMedia={includeGachaMedia}
-          setIncludeGachaMedia={setIncludeGachaMedia}
           isLightMode={isLightMode}
         />
 
@@ -595,8 +586,6 @@ export default function DataSyncPage() {
               書き出し日時: {pendingImport.exportedAt}
               <br />
               含まれるツール: {labelForGroups(pendingImport.scope.groups)}
-              <br />
-              ガチャメディア: {pendingImport.scope.includeGachaMedia ? "含む" : "含まない"}
             </p>
             <div className="flex gap-2">
               <button

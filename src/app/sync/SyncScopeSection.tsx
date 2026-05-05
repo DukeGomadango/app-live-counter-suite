@@ -14,20 +14,12 @@ type PresetId = "recommended" | "minimal" | "full";
 export function SyncScopeSection({
   groupEnabled,
   setGroupEnabled,
-  includeGachaMedia,
-  setIncludeGachaMedia,
   isLightMode,
 }: {
   groupEnabled: GroupEnabledMap;
   setGroupEnabled: React.Dispatch<React.SetStateAction<GroupEnabledMap>>;
-  includeGachaMedia: boolean;
-  setIncludeGachaMedia: (v: boolean) => void;
   isLightMode: boolean;
 }) {
-  useEffect(() => {
-    if (!groupEnabled.gacha) setIncludeGachaMedia(false);
-  }, [groupEnabled.gacha, setIncludeGachaMedia]);
-
   const applyPreset = (preset: PresetId) => {
     if (preset === "minimal") {
       setGroupEnabled(() => {
@@ -35,16 +27,9 @@ export function SyncScopeSection({
         for (const id of ALL_SYNC_GROUP_IDS) m[id] = id === "counter";
         return m;
       });
-      setIncludeGachaMedia(false);
-      return;
-    }
-    if (preset === "recommended") {
-      setGroupEnabled(createAllGroupsOn());
-      setIncludeGachaMedia(false);
       return;
     }
     setGroupEnabled(createAllGroupsOn());
-    setIncludeGachaMedia(true);
   };
 
   const toggleGroup = (id: SyncGroupId) => {
@@ -62,22 +47,19 @@ export function SyncScopeSection({
     <section className={`rounded-2xl border p-4 ${cardBg}`}>
       <h2 className={`text-sm font-bold ${textPri}`}>書き出し・取り込みの範囲</h2>
       <p className={`mt-1 text-xs ${textSec}`}>
-        チェックしたツールの localStorage が対象です。ガチャの画像・音声は別トグルで IndexedDB も含められます。
+        チェックしたツールの設定データ（localStorage）が対象です。
       </p>
 
       <div className="mt-3 flex flex-wrap gap-2">
         <button type="button" className={`rounded-lg px-3 py-1.5 text-xs font-medium ${btnGhost}`} onClick={() => applyPreset("recommended")}>
-          おすすめ（設定のみ）
+          おすすめ（全設定）
         </button>
         <button type="button" className={`rounded-lg px-3 py-1.5 text-xs font-medium ${btnGhost}`} onClick={() => applyPreset("minimal")}>
           最小（カウンターのみ）
         </button>
-        <button type="button" className={`rounded-lg px-3 py-1.5 text-xs font-medium ${btnGhost}`} onClick={() => applyPreset("full")}>
-          すべて（画像・音声含む）
-        </button>
       </div>
 
-      <details className="mt-4">
+      <details className="mt-4" open>
         <summary className={`cursor-pointer text-xs font-semibold ${textPri}`}>詳細（ツールごと）</summary>
         <ul className="mt-2 space-y-2">
           {SYNC_GROUPS.map((g) => (
@@ -96,21 +78,6 @@ export function SyncScopeSection({
           ))}
         </ul>
       </details>
-
-      <div className="mt-4 flex items-start gap-2 border-t border-white/10 pt-3">
-        <input
-          id="sync-gacha-media"
-          type="checkbox"
-          checked={includeGachaMedia}
-          disabled={!groupEnabled.gacha}
-          onChange={(e) => setIncludeGachaMedia(e.target.checked)}
-          className="mt-1 rounded border-neutral-400"
-        />
-        <label htmlFor="sync-gacha-media" className={`text-sm ${groupEnabled.gacha ? textPri : textSec}`}>
-          ガチャの画像・音声（IndexedDB）を含める
-          <span className={`mt-0.5 block text-xs ${textSec}`}>容量が大きくなります。QR / NFC ではサイズ制限に注意してください。</span>
-        </label>
-      </div>
     </section>
   );
 }

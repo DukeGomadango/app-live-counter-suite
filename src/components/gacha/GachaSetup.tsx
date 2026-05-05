@@ -13,11 +13,9 @@ import {
     Palette,
     Pencil,
     Check,
-    Upload,
     } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier, IntegrationConfig } from "@/lib/gacha";
 import { generateId, getRarityProbabilities, getGlobalProbabilities } from "@/lib/gacha";
-import { fetchExternalAssets, type ExternalAsset } from "@/lib/gachaDistribution";
 import {
     DndContext,
     closestCenter,
@@ -40,7 +38,6 @@ import { useGlassStyle } from "@/hooks/useGlassStyle";
 
 import ConfirmDialog from "@/components/ConfirmDialog";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
-import GachaFileRegisterModal from "@/components/gacha/GachaFileRegisterModal";
 
 interface GachaSetupProps {
     pool: GachaPool;
@@ -110,28 +107,12 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [draggingSelectionIds, setDraggingSelectionIds] = useState<Set<string> | null>(null);
     const [mounted, setMounted] = useState(false);
-    const [externalAssets, setExternalAssets] = useState<ExternalAsset[]>([]);
 
     useEffect(() => {
         const id = setTimeout(() => setMounted(true), 0);
         return () => clearTimeout(id);
     }, []);
 
-    // 連携先のアセット一覧を取得
-    useEffect(() => {
-        if (pool.linkedCampaignId && integrationConfig?.integrationToken) {
-            void (async () => {
-                try {
-                    const assets = await fetchExternalAssets(pool.linkedCampaignId!, integrationConfig);
-                    setExternalAssets(assets);
-                } catch (e) {
-                    console.error("Failed to fetch external assets", e);
-                }
-            })();
-        } else {
-            setExternalAssets([]);
-        }
-    }, [pool.linkedCampaignId, integrationConfig]);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
@@ -666,7 +647,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                             <div className="w-16 text-center shrink-0 opacity-80">レア度</div>
                                             <div className="flex-1 px-1.5 opacity-80">アイテム名</div>
                                             <div className="w-[124px] text-center shrink-0 opacity-80">レア度内(%) / 全体(%)</div>
-                                            <div className="w-[20px] text-center shrink-0" title="画像・音声">📎</div>
                                             <div className="w-[36px] text-center shrink-0 hidden sm:block opacity-80">操作</div>
                                         </div>
                                     )}
@@ -701,7 +681,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         onToggleSelect={toggleItemSelected}
                                                         draggingSelectionIds={draggingSelectionIds}
                                                         activeDragId={activeDragId}
-                                                        externalAssets={externalAssets}
                                                     />
                                                 );
                                             })}
@@ -919,7 +898,6 @@ interface SortableItemProps {
     onToggleSelect: (id: string) => void;
     draggingSelectionIds: Set<string> | null;
     activeDragId: string | null;
-    externalAssets: ExternalAsset[];
 }
 
 function SortableItem({
@@ -941,7 +919,6 @@ function SortableItem({
     onToggleSelect,
     draggingSelectionIds,
     activeDragId,
-    externalAssets,
 }: SortableItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
     const isEditing = editingItemId === item.id;
@@ -1089,29 +1066,6 @@ function SortableItem({
                 </span>
             </span>
 
-            {/* 添付（画像・音声）：1ボタンでモーダルを開き、モーダル内でファイル or URL を登録 */}
-            <button
-                type="button"
-                onClick={e => { e.stopPropagation(); setAttachmentModalOpen(true); }}
-                className={`shrink-0 p-1 rounded transition-colors ${item.imageUrl || item.audioUrl ? "text-purple-400" : "text-gray-500/60 hover:text-purple-400"}`}
-                title="画像・音声を登録"
-                aria-label="画像・音声を登録"
-            >
-                <Upload size={12} />
-            </button>
-
-            {attachmentModalOpen && (
-                <GachaFileRegisterModal
-                    poolId={pool.id}
-                    item={item}
-                    isLightMode={isLightMode}
-                    onClose={() => setAttachmentModalOpen(false)}
-                    onUpdate={(updates) => {
-                        updateItem(item.id, updates);
-                    }}
-                    externalAssets={externalAssets}
-                />
-            )}
 
             {/* 操作ボタン（モバイルでは常表示、sm以上でホバー時表示） */}
             <div className="flex items-center gap-0.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
