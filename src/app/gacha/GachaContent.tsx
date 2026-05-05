@@ -18,7 +18,7 @@ import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ShareReplyToField from "@/components/ShareReplyToField";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
-import { fetchExternalCampaigns, createExternalCampaign, type ExternalCampaign, issueClaimForPlayer } from "@/lib/gachaDistribution";
+import { fetchExternalCampaigns, createExternalCampaign, type ExternalCampaign, issueClaimForPlayer, deleteExternalSlot } from "@/lib/gachaDistribution";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import GachaAssetMappingModal from "@/components/gacha/GachaAssetMappingModal";
 import GachaDistributionPanel from "@/components/gacha/GachaDistributionPanel";
@@ -531,11 +531,14 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     }, [setPlayers, setActivePlayerId, syncPlayerWithRemote]);
 
     const removePlayer = useCallback((id: string) => {
+        // 背景で同期（スロットの削除）
+        deleteExternalSlot(id, pool, integrationConfig);
+        
         setPlayers(prev => (prev || []).filter(p => p.id !== id));
         if (activePlayerId === id) {
             setActivePlayerId(null);
         }
-    }, [setPlayers, activePlayerId, setActivePlayerId]);
+    }, [setPlayers, activePlayerId, setActivePlayerId, pool, integrationConfig]);
 
     const resetPlayer = useCallback((id: string) => {
         setPlayers(prev =>

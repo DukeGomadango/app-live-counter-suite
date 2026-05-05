@@ -1183,7 +1183,6 @@ function SortableRarityItem({
     return (
         <div
             ref={setNodeRef}
-            style={style}
             className={`flex items-center gap-2 p-2 rounded-lg min-h-11 flex-shrink-0 transition-shadow ${isDragging ? "shadow-2xl scale-[1.02] bg-purple-500/10 ring-2 ring-purple-500/50" : ""}`}
             style={{ ...style, background: isLightMode ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)" }}
         >

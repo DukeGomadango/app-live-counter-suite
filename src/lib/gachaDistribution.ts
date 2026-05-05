@@ -236,25 +236,49 @@ export async function issueClaimForPlayer(
     // 冪等性キー: 同じプレイヤー×同じガチャプールなら同じURLを返す
     const externalTxId = `gacha-${pool.id}-player-${player.id}`;
 
-    // 当選アイテムから配布対象のアセットIDを抽出（重複排除）
-    // 1つでも紐付け設定がある場合は、設定されているアセットのみを配布するモードになる
+    // 当選アイテム（インベントリ）から配布対象のアセットIDを抽出（重複排除）
     const hasAnyMapping = pool.items.some(it => !!it.linkedAssetId);
-    const assetIds = hasAnyMapping 
-        ? Array.from(new Set(
-            player.results
-                .map(r => pool.items.find(it => it.id === r.itemId)?.linkedAssetId)
-                .filter((id): id is string => !!id)
-          ))
-        : undefined;
+    let assetIds: string[] | undefined = undefined;
+
+    if (hasAnyMapping) {
+        const ids = new Set<string>();
+        
+        // 1. 全所持品（inventory）から抽出
+        if (player.inventory) {
+            Object.keys(player.inventory).forEach(itemId => {
+                const item = pool.items.find(it => it.id === itemId);
+                if (item?.linkedAssetId) {
+                    ids.add(item.linkedAssetId);
+                }
+            });
+        }
+        
+        // 2. 直近の結果（results）からも抽出（念のため）
+        if (player.results && player.results.length > 0) {
+            player.results.forEach(r => {
+                const item = pool.items.find(it => it.id === r.itemId);
+                if (item?.linkedAssetId) {
+                    ids.add(item.linkedAssetId);
+                }
+            });
+        }
+
+        assetIds = Array.from(ids);
+    }
 
     try {
+        // デバッグ用: 何件のアセットを送ろうとしているかコンソールに出力
+        console.log(`[GachaSync] Sending ${assetIds?.length ?? "ALL"} assets for player ${player.name}`);
+
         const res = await fetch(
             `${config.apiBaseUrl}/api/v1/external/campaigns/${encodeURIComponent(campaignId)}/recipient-slots`,
             {
                 method: "POST",
                 headers: {
-                    ...authHeaders(config),
-                    "Idempotency-Key": externalTxId,
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${config.integrationToken}`,
+                    // 所持品が変わった時にキャッシュを無効化するため、IDのリストをキーに含める
+                    "Idempotency-Key": `idem-${externalTxId}-${assetIds?.length ?? 0}`,
                 },
                 body: JSON.stringify({
                     listener_display_name: player.name,
@@ -286,6 +310,34 @@ export async function issueClaimForPlayer(
             ok: false,
             error: e instanceof Error ? e.message : "通信エラーが発生しました",
         };
+    }
+}
+
+/**
+ * 外部配布システムから受取人スロットを削除する。
+ */
+export async function deleteExternalSlot(
+    playerId: string,
+    pool: GachaPool,
+    config: IntegrationConfig
+): Promise<boolean> {
+    const campaignId = pool.linkedCampaignId;
+    if (!campaignId || !config.integrationToken) return false;
+
+    const externalTxId = `gacha-${pool.id}-player-${playerId}`;
+
+    try {
+        const res = await fetch(
+            `${config.apiBaseUrl}/api/v1/external/campaigns/${encodeURIComponent(campaignId)}/recipient-slots?external_transaction_id=${encodeURIComponent(externalTxId)}`,
+            {
+                method: "DELETE",
+                headers: authHeaders(config),
+            }
+        );
+        return res.ok;
+    } catch (e) {
+        console.error("Failed to delete external slot:", e);
+        return false;
     }
 }
 

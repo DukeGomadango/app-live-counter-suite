@@ -184,7 +184,7 @@ export default function GachaFileRegisterModal({
         if (file) {
             setSaving(true);
             try {
-                const url = await putGachaFile(poolId, item.id, kind, file);
+                const url = await putGachaFile(poolId, item.id, kind as "image" | "audio", file);
                 onUpdate(kind === "image" ? { imageUrl: url } : { audioUrl: url });
                 setFile(null);
                 if (previewUrl) {
