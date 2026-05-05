@@ -242,3 +242,25 @@ export function findStrokeIndexAt(
   });
   return bestStrokeIdx;
 }
+import { isIdbKey } from "./panelImageStore";
+import type { PanelState } from "./panelTypes";
+
+/** PanelState 内で使用されている idb:// 形式の画像参照をすべて抽出する */
+export function collectIdbImageRefsFromPanelState(state: PanelState): string[] {
+  const refs = new Set<string>();
+  if (isIdbKey(state.backgroundImageUrl)) {
+    refs.add(state.backgroundImageUrl);
+  }
+  state.overlays.forEach((ov) => {
+    if (ov.shape === "image" && isIdbKey(ov.imageUrl)) {
+      refs.add(ov.imageUrl);
+    }
+  });
+  return Array.from(refs);
+}
+
+/** PanelState が指定された画像参照（idb://...）を使用しているかチェックする */
+export function panelStateReferencesImageRef(state: PanelState, ref: string): boolean {
+  if (state.backgroundImageUrl === ref) return true;
+  return state.overlays.some((ov) => ov.shape === "image" && ov.imageUrl === ref);
+}

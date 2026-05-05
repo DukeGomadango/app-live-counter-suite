@@ -164,6 +164,15 @@ export interface PanelState {
   panelEditStep?: PanelEditStep;
 }
 
+export const defaultPanelState: PanelState = {
+  imageDataUrl: null,
+  activeFilters: [],
+  filterIntensity: 50,
+  filterShowLabel: false,
+  overlays: [],
+  isEditMode: true,
+};
+
 export interface SavedPanel {
   id: string;
   name: string;

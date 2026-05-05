@@ -6,23 +6,13 @@ import { motion } from "framer-motion";
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  TouchSensor,
-  useSensor,
-  useSensors,
-  DragStartEvent,
-  DragEndEvent,
   DragOverlay,
   defaultDropAnimationSideEffects,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
-  sortableKeyboardCoordinates,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
-import { toPng } from "html-to-image";
 import { ImageDown, ListOrdered } from "lucide-react";
 import CounterPanel from "@/components/CounterPanel";
 import AddItemPanel from "@/components/AddItemPanel";
@@ -30,16 +20,19 @@ import HamburgerMenu from "@/components/HamburgerMenu";
 import PrefectureShapeMap from "@/components/PrefectureShapeMap";
 import PrefectureRankingPanel from "@/components/PrefectureRankingPanel";
 import EditItemModal from "@/components/EditItemModal";
-import SettingsModal, { type AppSettings, type CardSize } from "@/components/SettingsModal";
+import SettingsModal, { type CardSize } from "@/components/SettingsModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { TEMPLATES, createCounterItems, type CounterItem, type Template } from "@/lib/templates";
-import {
-  getPrefecturePosition,
-  minSpacingPercent,
-} from "@/lib/prefecture-blocks";
-import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
-import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
+import ModeSelector from "@/components/ModeSelector";
+import { TEMPLATES } from "@/lib/templates";
+
+// Hooks
+import { useCounterState } from "./counter/hooks/useCounterState";
+import { useCounterActions } from "./counter/hooks/useCounterActions";
+import { useCounterDrag } from "./counter/hooks/useCounterDrag";
+import { useCounterShare } from "./counter/hooks/useCounterShare";
+
+// Components
+import { CounterOrbsBackground } from "./counter/components/CounterOrbsBackground";
 
 function useWindowWidth() {
   const [width, setWidth] = useState(1024);
@@ -56,473 +49,56 @@ function useWindowWidth() {
 }
 
 export default function Home({ isSplitMode = false, isRightPane: _isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
-  const [items, setItems] = useLocalStorage<CounterItem[]>(
-    "counter-items",
-    createCounterItems(TEMPLATES[1] ?? TEMPLATES[0]!)
-  );
-  const [currentTemplateId, setCurrentTemplateId] = useLocalStorage<string>(
-    "counter-template",
-    "zodiac"
-  );
-  const [isMenuOpen, setIsMenuOpen] = useLocalStorage<boolean>(
-    "counter-menu-open",
-    false
-  );
-  const [isLightMode, setIsLightMode] = useLocalStorage<boolean>(
-    "counter-light-mode",
-    false
-  );
-  const [customTemplates, setCustomTemplates] = useLocalStorage<Template[]>(
-    "counter-custom-templates",
-    []
-  );
+  const state = useCounterState();
+  const actions = useCounterActions({
+    items: state.items,
+    setItems: state.setItems,
+    setCurrentTemplateId: state.setCurrentTemplateId,
+    setAppSettings: state.setAppSettings,
+    customTemplates: state.customTemplates,
+    setCustomTemplates: state.setCustomTemplates,
+    currentTemplateLayout: TEMPLATES.find(t => t.id === state.currentTemplateId)?.layout
+  });
+  const drag = useCounterDrag(state.items, state.setItems);
+  const share = useCounterShare(state.isLightMode, state.currentTemplateId);
+
   const [addPanelExpanded, setAddPanelExpanded] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPrefectureRankingOpen, setIsPrefectureRankingOpen] = useState(false);
-  const [showPrefectureCountLabels, setShowPrefectureCountLabels] = useLocalStorage<boolean>(
-    "counter-prefecture-show-labels",
-    true
-  );
-  const [showPrefectureNames, setShowPrefectureNames] = useLocalStorage<boolean>(
-    "counter-prefecture-show-names",
-    false
-  );
   const positionedContainerRef = useRef<HTMLDivElement>(null);
   const [positionedContainerSize, setPositionedContainerSize] = useState<{ w: number; h: number } | null>(null);
-  const [appSettings, setAppSettings] = useLocalStorage<AppSettings>(
-    "counter-app-settings",
-    {
-      cardSize: "L" as CardSize,
-      cardScale: 100,
-      showProjectName: false,
-      projectName: "",
-      projectNameSize: "M" as const,
-      projectNameColor: "#a855f7",
-      accentColor: "#a855f7",
-      orbIntensity: 50,
-      showStep5: true,
-      showStep10: true,
-      showStepFree: false,
-      stepFreeValue: 1,
-      showCardEditDelete: true,
-      showAchieveTargetButtonOnCard: true,
-    }
-  );
+  
   const windowWidth = useWindowWidth();
   const [winH, setWinH] = useState(800);
   useEffect(() => {
     const id = setTimeout(() => setWinH(window.innerHeight), 0);
     return () => clearTimeout(id);
   }, []);
-  const shareAreaRef = useRef<HTMLDivElement>(null);
-  const captureDimsRef = useRef<{ w: number; h: number } | null>(null);
-  const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
 
-  // dnd-kit sensors and state
-  const sensors = useSensors(
-    // PC用のマウスドラッグ設定（5pxの遊びを持たせる）
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-    // スマホ用の長押し設定（250px長押しでドラッグ開始、タップ時は5pxまでブレ許容）
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 250,
-        tolerance: 5,
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-  const [activeId, setActiveId] = useState<string | null>(null);
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as string);
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setItems((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        return arrayMove(items, oldIndex, newIndex);
-      });
-    }
-
-    setActiveId(null);
-  };
-
-  const activeItem = useMemo(
-    () => items.find((item) => item.id === activeId),
-    [activeId, items]
-  );
-
-
-  // Migrate old data without target field
-  useEffect(() => {
-    setItems((prev) =>
-      prev.map((item) => ({
-        ...item,
-        target: item.target ?? 0,
-      }))
-    );
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Migrate settings for new fields
-  useEffect(() => {
-    setAppSettings((prev) => {
-      const hadLegacy = "showStepButtons" in prev && prev.showStepButtons === true;
-      return {
-        ...prev,
-        projectNameSize: prev.projectNameSize ?? "M",
-        projectNameColor: prev.projectNameColor ?? prev.accentColor ?? "#a855f7",
-        orbIntensity: prev.orbIntensity ?? 50,
-        showStep5: prev.showStep5 ?? (hadLegacy || true),
-        showStep10: prev.showStep10 ?? (hadLegacy || true),
-        showStepFree: prev.showStepFree ?? hadLegacy ?? false,
-        stepFreeValue: prev.stepFreeValue ?? 1,
-        showCardEditDelete: prev.showCardEditDelete ?? true,
-        showAchieveTargetButtonOnCard: prev.showAchieveTargetButtonOnCard ?? true,
-      };
-    });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Apply accent color as CSS variable to body (for orbs, scrollbar, etc.)
-  useEffect(() => {
-    document.body.style.setProperty("--accent-color", appSettings.accentColor);
-  }, [appSettings.accentColor]);
-
-  // Apply orb opacity
-  useEffect(() => {
-    document.body.style.setProperty("--orb-opacity", String(appSettings.orbIntensity / 100));
-  }, [appSettings.orbIntensity]);
-
-  // Apply theme to body
-  useEffect(() => {
-    if (isLightMode) {
-      document.body.classList.add("light-mode");
-    } else {
-      document.body.classList.remove("light-mode");
-    }
-  }, [isLightMode]);
-
-  const totalCount = useMemo(
-    () => items.reduce((sum, item) => sum + item.count, 0),
-    [items]
-  );
-
-  const totalTarget = useMemo(
-    () => items.reduce((sum, item) => sum + item.target, 0),
-    [items]
-  );
-
-  const handleIncrement = useCallback(
-    (id: string) => {
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, count: item.count + 1 } : item
-        )
-      );
-    },
-    [setItems]
-  );
-
-  const handleIncrementByIndex = useCallback(
-    (index: number) => {
-      const item = items[index];
-      if (item) handleIncrement(item.id);
-    },
-    [items, handleIncrement]
-  );
-
-  const handleDecrement = useCallback(
-    (id: string) => {
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, count: item.count - 1 } : item
-        )
-      );
-    },
-    [setItems]
-  );
-
-  const handleDecrementByIndex = useCallback(
-    (index: number) => {
-      const item = items[index];
-      if (item) handleDecrement(item.id);
-    },
-    [items, handleDecrement]
-  );
-
-  const handleSetCount = useCallback(
-    (id: string, value: number) => {
-      const next =
-        typeof value === "number" && Number.isFinite(value)
-          ? Math.trunc(value)
-          : 0;
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, count: next } : item
-        )
-      );
-    },
-    [setItems]
-  );
-
-  const handleAdjustBy = useCallback(
-    (id: string, delta: number) => {
-      setItems((prev) =>
-        prev.map((item) => {
-          if (item.id !== id) return item;
-          const sum = item.count + delta;
-          const next =
-            typeof sum === "number" && Number.isFinite(sum)
-              ? Math.trunc(sum)
-              : item.count;
-          return { ...item, count: next };
-        })
-      );
-    },
-    [setItems]
-  );
-
-  const handleReset = useCallback(() => {
-    setItems((prev) => prev.map((item) => ({ ...item, count: 0 })));
-  }, [setItems]);
-
-  const [itemIdToAchieveTarget, setItemIdToAchieveTarget] = useState<string | null>(null);
-  const [allTargetsConfirmOpen, setAllTargetsConfirmOpen] = useState(false);
-
-  const handleRequestAchieveTarget = useCallback((id: string) => {
-    setItemIdToAchieveTarget(id);
-  }, []);
-
-  const handleConfirmAchieveTarget = useCallback(() => {
-    if (!itemIdToAchieveTarget) return;
-    setItems((prev) =>
-      prev.map((item) =>
-        item.id === itemIdToAchieveTarget && item.target > 0
-          ? { ...item, count: Math.max(item.count, item.target) }
-          : item
-      )
-    );
-    setItemIdToAchieveTarget(null);
-  }, [itemIdToAchieveTarget, setItems]);
-
-  const handleCancelAchieveTarget = useCallback(() => {
-    setItemIdToAchieveTarget(null);
-  }, []);
-
-  const handleRequestAchieveAllTargets = useCallback(() => {
-    setAllTargetsConfirmOpen(true);
-  }, []);
-
-  const handleConfirmAchieveAllTargets = useCallback(() => {
-    setItems((prev) =>
-      prev.map((item) =>
-        item.target > 0 ? { ...item, count: Math.max(item.count, item.target) } : item
-      )
-    );
-    setAllTargetsConfirmOpen(false);
-  }, [setItems]);
-
-  const handleCancelAchieveAllTargets = useCallback(() => {
-    setAllTargetsConfirmOpen(false);
-  }, []);
-
-  const handleShareAsImage = useCallback(() => {
-    captureDimsRef.current = { w: window.innerWidth, h: window.innerHeight };
-    setIsCapturingShareImage(true);
-  }, []);
-
-  // キャプチャ用の portal（高さ制限なしで全カードを描画）が表示されたあとに toPng
-  // 47都道府県の県形マップは SVG を非同期読み込みするため、キャプチャ遅延を長めにする
-  const captureDelayMs = currentTemplateId === "prefectures" ? 500 : 80;
-  useEffect(() => {
-    if (!isCapturingShareImage) return;
-    const id = setTimeout(async () => {
-      const el = shareAreaRef.current;
-      if (!el) {
-        setIsCapturingShareImage(false);
-        return;
-      }
-      try {
-        const backgroundColor = isLightMode ? "#f5f3ff" : "#0f0a1e";
-        const dataUrl = await toPng(el, { backgroundColor, pixelRatio: 3 });
-        const tweetText = `進捗状況\n\n${DEFAULT_SHARE_HASHTAG}`;
-        const filename = `counter-progress-${getTimestampForFilename()}.png`;
-        const shared = await shareImageWithText(dataUrl, tweetText, filename);
-        if (shared) return;
-        const a = document.createElement("a");
-        a.href = dataUrl;
-        a.download = filename;
-        a.click();
-        window.open(generateShareUrl(tweetText, { toolId: "counter" }), "_blank", "noopener,noreferrer");
-      } catch (err) {
-        console.warn("Image export failed:", err);
-      } finally {
-        setIsCapturingShareImage(false);
-      }
-    }, captureDelayMs);
-    return () => clearTimeout(id);
-  }, [isCapturingShareImage, isLightMode, captureDelayMs]);
-
-  const handleSelectTemplate = useCallback(
-    (template: Template) => {
-      setCurrentTemplateId(template.id);
-      setItems(createCounterItems(template));
-      // 47都道府県テンプレートはデフォルトでスケール50%、サイズS
-      if (template.id === "prefectures") {
-        setAppSettings((prev) => ({
-          ...prev,
-          cardSize: "S",
-          cardScale: 50,
-        }));
-      }
-    },
-    [setItems, setCurrentTemplateId, setAppSettings]
-  );
+  const totalCount = useMemo(() => state.items.reduce((sum, item) => sum + item.count, 0), [state.items]);
+  const totalTarget = useMemo(() => state.items.reduce((sum, item) => sum + item.target, 0), [state.items]);
 
   const currentTemplate = useMemo(
-    () => TEMPLATES.find((t) => t.id === currentTemplateId) ?? customTemplates.find((t) => t.id === currentTemplateId) ?? null,
-    [currentTemplateId, customTemplates]
+    () => TEMPLATES.find((t) => t.id === state.currentTemplateId) ?? state.customTemplates.find((t) => t.id === state.currentTemplateId) ?? null,
+    [state.currentTemplateId, state.customTemplates]
   );
-  const isPositionedLayout = Boolean(
-    currentTemplate?.layout === "positioned" && currentTemplate?.backgroundImage
-  );
+  const isPositionedLayout = Boolean(currentTemplate?.layout === "positioned" && currentTemplate?.backgroundImage);
 
-  // 地図レイアウトのコンテナ寸法（47都道府県の動的間隔用）
   useEffect(() => {
     if (!isPositionedLayout || !positionedContainerRef.current) return;
     const el = positionedContainerRef.current;
     const ro = new ResizeObserver(() => {
       const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) {
-        setPositionedContainerSize({ w: r.width, h: r.height });
-      }
+      if (r.width > 0 && r.height > 0) setPositionedContainerSize({ w: r.width, h: r.height });
     });
     ro.observe(el);
     const r = el.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0) {
-      setPositionedContainerSize({ w: r.width, h: r.height });
-    }
+    if (r.width > 0 && r.height > 0) setPositionedContainerSize({ w: r.width, h: r.height });
     return () => ro.disconnect();
   }, [isPositionedLayout]);
 
-  const handleAddItem = useCallback(
-    (label: string, emoji: string) => {
-      const colors = [
-        "#ef4444", "#f97316", "#eab308", "#22c55e",
-        "#06b6d4", "#3b82f6", "#8b5cf6", "#ec4899",
-      ];
-      const newItem: CounterItem = {
-        id: `custom-${Date.now()}`,
-        label,
-        emoji,
-        color: colors[Math.floor(Math.random() * colors.length)] ?? colors[0]!,
-        count: 0,
-        target: 0,
-        ...(currentTemplate?.layout === "positioned" ? { x: 50, y: 50 } : {}),
-      };
-      setItems((prev) => [...prev, newItem]);
-      setCurrentTemplateId("custom");
-    },
-    [setItems, setCurrentTemplateId, currentTemplate?.layout]
-  );
-
-  const handleEditItem = useCallback(
-    (id: string, label: string, emoji: string, target?: number, color?: string) => {
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === id
-            ? {
-              ...item,
-              label,
-              emoji,
-              ...(target !== undefined ? { target: Math.max(0, target) } : {}),
-              ...(color !== undefined ? { color } : {}),
-            }
-            : item
-        )
-      );
-    },
-    [setItems]
-  );
-
-  const _handleDeleteItem = useCallback(
-    (id: string) => {
-      setItems((prev) => prev.filter((item) => item.id !== id));
-    },
-    [setItems]
-  );
-
-  const handleSetTarget = useCallback(
-    (id: string, target: number) => {
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === id ? { ...item, target: Math.max(0, target) } : item
-        )
-      );
-    },
-    [setItems]
-  );
-
-  const handleSetAllTargets = useCallback(
-    (target: number) => {
-      setItems((prev) =>
-        prev.map((item) => ({ ...item, target: Math.max(0, target) }))
-      );
-    },
-    [setItems]
-  );
-
-  const handleSaveCustomTemplate = useCallback(
-    (name: string) => {
-      const newTemplate: Template = {
-        id: `custom-tpl-${Date.now()}`,
-        name,
-        description: `カスタムテンプレート (${items.length}項目)`,
-        items: items.map(({ count: _count, target: _target, ...rest }) => rest),
-      };
-      setCustomTemplates((prev) => [...prev, newTemplate]);
-    },
-    [items, setCustomTemplates]
-  );
-
-  const handleDeleteCustomTemplate = useCallback(
-    (id: string) => {
-      const t = customTemplates.find((x) => x.id === id);
-      if (!t) return;
-      if (!window.confirm(`テンプレート「${t.name}」を削除しますか？`)) return;
-      setCustomTemplates((prev) => prev.filter((t) => t.id !== id));
-    },
-    [customTemplates, setCustomTemplates]
-  );
-
-  const handleOverwriteCustomTemplate = useCallback(
-    (id: string) => {
-      const t = customTemplates.find((x) => x.id === id);
-      if (!t) return;
-      if (!window.confirm(`現在の項目でテンプレート「${t.name}」を上書きしますか？`)) return;
-      setCustomTemplates((prev) =>
-        prev.map((x) =>
-          x.id === id
-            ? { ...x, description: `カスタムテンプレート (${items.length}項目)`, items: items.map(({ count: _count, target: _target, ...rest }) => rest) }
-            : x
-        )
-      );
-    },
-    [items, customTemplates, setCustomTemplates]
-  );
-
-  // Card size multiplier based on settings
   const cardSizeMap: Record<CardSize, { mobile: number; tablet: number; desktop: number }> = {
     S: { mobile: 96, tablet: 136, desktop: 168 },
     M: { mobile: 112, tablet: 162, desktop: 205 },
@@ -530,36 +106,25 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
     XL: { mobile: 140, tablet: 200, desktop: 280 },
   };
 
-  // Responsive max width per column（表示用）
-  const sizeConfig = cardSizeMap[appSettings.cardSize] || cardSizeMap.L;
+  const sizeConfig = cardSizeMap[state.appSettings.cardSize] || cardSizeMap.L;
   const colMaxPx = windowWidth <= 480 ? sizeConfig.mobile : windowWidth <= 768 ? sizeConfig.tablet : sizeConfig.desktop;
-  const cardScale = (appSettings.cardScale ?? 100) / 100;
+  const cardScale = (state.appSettings.cardScale ?? 100) / 100;
   const effectiveColMaxPx = colMaxPx * cardScale;
-
-  // Grid gap (tailwind: gap-2 / sm:gap-2.5)
   const gridGapPx = windowWidth >= 640 ? 10 : 8;
+  const totalSlots = state.items.length + 1;
 
-  // Limit columns to actual item count to prevent empty columns (centering fix)
-  // Always count one extra slot for the add panel placeholder to prevent layout shift
-  const totalSlots = items.length + 1;
-
-  // Compute responsive columns for max-width/centering calculations.
-  // Pick the most balanced rows/cols (closest to square) within width constraints.
-  // Account for page horizontal padding: px-3 / sm:px-4
   const gridCols = useMemo(() => {
     const paddingX = windowWidth >= 640 ? 32 : 24;
     const availableW = Math.max(0, windowWidth - paddingX);
     const denom = effectiveColMaxPx + gridGapPx;
     const colsByWidth = denom > 0 ? Math.floor((availableW + gridGapPx) / denom) : 1;
     const maxCols = Math.max(1, Math.min(colsByWidth || 1, totalSlots || 1));
-
     let bestCols = 1;
     let bestScore = Number.POSITIVE_INFINITY;
     for (let cols = 1; cols <= maxCols; cols += 1) {
       const rows = Math.ceil(totalSlots / cols);
       const emptySlots = rows * cols - totalSlots;
       const shapeDiff = Math.abs(rows - cols);
-      // Prefer near-square layouts first, then fewer empty slots.
       const score = shapeDiff * 100 + emptySlots;
       if (score < bestScore) {
         bestScore = score;
@@ -572,616 +137,170 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   const effectiveCols = Math.min(gridCols, totalSlots || 1);
   const gridMaxWidth = effectiveCols * effectiveColMaxPx + (effectiveCols - 1) * gridGapPx;
 
-  // キャプチャ時はクリック直後の window サイズを使い、リサイズ直後の余白ずれを防ぐ
-  const captureW = isCapturingShareImage && captureDimsRef.current ? captureDimsRef.current.w : windowWidth;
-  const captureH = isCapturingShareImage && captureDimsRef.current ? captureDimsRef.current.h : winH;
+  // Capture variables
+  const captureW = share.captureDims ? share.captureDims.w : windowWidth;
+  const captureH = share.captureDims ? share.captureDims.h : winH;
   const captureColMaxPxBase = captureW <= 480 ? sizeConfig.mobile : captureW <= 768 ? sizeConfig.tablet : sizeConfig.desktop;
   const captureColMaxPx = captureColMaxPxBase * cardScale;
   const captureRows = Math.ceil(totalSlots / effectiveCols);
   const captureGap = 10;
   const captureGridMaxWidth = effectiveCols * captureColMaxPx + (effectiveCols - 1) * captureGap;
-  /** 768px 未満は縦長カード、以上は aspect-square に合わせて行高＝列幅 */
   const captureRowHeightPx = captureW >= 768 ? captureColMaxPx : captureColMaxPx + 52;
   const captureEstimatedGridHeight = captureRows * captureRowHeightPx + (captureRows - 1) * captureGap + 20;
-  const captureScale = Math.min(
-    captureW / captureGridMaxWidth,
-    captureH / captureEstimatedGridHeight,
-    1
-  );
+  const captureScale = Math.min(captureW / captureGridMaxWidth, captureH / captureEstimatedGridHeight, 1);
   const captureWidth = captureGridMaxWidth * captureScale;
   const captureHeight = captureEstimatedGridHeight * captureScale;
   const capturePadding = 32;
   const captureOuterWidth = captureWidth + capturePadding * 2;
   const captureOuterHeight = captureHeight + capturePadding * 2;
-
-  // 47都道府県のキャプチャ: スマホでは画面幅に合わせて小さく（幅広くなりすぎないように）
-  const capturePositionedSize =
-    captureW < 768 ? Math.min(640, Math.max(280, captureW - 64)) : 960;
+  const capturePositionedSize = captureW < 768 ? Math.min(640, Math.max(280, captureW - 64)) : 960;
   const capturePositionedOuter = capturePositionedSize + capturePadding * 2;
-
-  const captureBaseBg = isLightMode
-    ? "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)"
-    : "linear-gradient(135deg, #0a0118 0%, #1a0a2e 40%, #0d1b3e 70%, #0a0118 100%)";
-  const orbOpacity = (appSettings.orbIntensity ?? 50) / 100;
-  const accentHex = appSettings.accentColor;
-  const captureOrbBg = isLightMode
+  const captureBaseBg = state.isLightMode ? "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)" : "linear-gradient(135deg, #0a0118 0%, #1a0a2e 40%, #0d1b3e 70%, #0a0118 100%)";
+  const orbOpacity = (state.appSettings.orbIntensity ?? 50) / 100;
+  const accentHex = state.appSettings.accentColor;
+  const captureOrbBg = state.isLightMode
     ? `radial-gradient(ellipse at 15% 25%, ${accentHex}66 0%, transparent 50%), radial-gradient(ellipse at 75% 20%, rgba(59, 130, 246, 0.25) 0%, transparent 45%), radial-gradient(ellipse at 85% 75%, rgba(6, 182, 212, 0.3) 0%, transparent 50%), radial-gradient(ellipse at 30% 80%, ${accentHex}4D 0%, transparent 45%), radial-gradient(ellipse at 50% 50%, ${accentHex}40 0%, transparent 50%)`
     : `radial-gradient(ellipse at 20% 20%, ${accentHex}59 0%, transparent 50%), radial-gradient(ellipse at 80% 80%, rgba(6, 182, 212, 0.15) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, ${accentHex}33 0%, transparent 50%)`;
 
   const splitLightBg = "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)";
+
   return (
-    <div
-      className="h-full min-h-0 w-full flex flex-col relative z-10"
-      style={{ "--accent-color": appSettings.accentColor } as React.CSSProperties}
-    >
-      {/* 画像共有用：スケールダウンしてビューポートに収め、背景オーブ＋余白付きで toPng */}
-      {typeof document !== "undefined" &&
-        isCapturingShareImage &&
-        createPortal(
-          <div
-            ref={shareAreaRef}
-            style={{
-              position: "fixed",
-              left: 0,
-              top: 0,
-              width: `${isPositionedLayout ? capturePositionedOuter : captureOuterWidth}px`,
-              height: `${isPositionedLayout ? capturePositionedOuter : captureOuterHeight}px`,
-              overflow: "hidden",
-              zIndex: -1,
-              pointerEvents: "none",
-              background: captureBaseBg,
-            }}
-            aria-hidden
-          >
-            {/* 背景オーブ（body::before 相当） */}
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                zIndex: 0,
-                background: captureOrbBg,
-                opacity: orbOpacity,
-                pointerEvents: "none",
-              }}
-            />
-            {/* 余白付きコンテンツ領域 */}
-            <div
-              style={{
-                position: "absolute",
-                left: `${capturePadding}px`,
-                top: `${capturePadding}px`,
-                width: `${isPositionedLayout ? capturePositionedSize : captureWidth}px`,
-                height: `${isPositionedLayout ? capturePositionedSize : captureHeight}px`,
-                overflow: "hidden",
-                zIndex: 1,
-              }}
-            >
-              {currentTemplateId === "prefectures" ? (
-                <div
-                  className="relative w-full h-full flex items-center justify-center"
-                  style={{ width: capturePositionedSize, height: capturePositionedSize }}
-                >
-                  <div
-                    style={{
-                      width: Math.min(capturePositionedSize, 640),
-                      height: Math.min(capturePositionedSize, 640),
-                      flexShrink: 0,
-                    }}
-                  >
-                    <PrefectureShapeMap
-                      items={items}
-                      onIncrement={() => {}}
-                      onDecrement={undefined}
-                      isLightMode={isLightMode}
-                      accentColor={appSettings.accentColor}
-                      showCountLabels={showPrefectureCountLabels}
-                      showPrefectureNames={showPrefectureNames}
-                    />
-                  </div>
-                </div>
-              ) : isPositionedLayout && currentTemplate?.backgroundImage ? (
-                <div
-                  className="relative w-full h-full"
-                  style={{
-                    backgroundImage: `url(${currentTemplate.backgroundImage})`,
-                    backgroundSize: "contain",
-                    backgroundPosition: "center",
-                    backgroundRepeat: "no-repeat",
-                    color: isLightMode ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.2)",
-                  }}
-                >
-                  {items.map((item, _index) => {
-                    const pos = { x: item.x ?? 50, y: item.y ?? 50 };
-                    return (
-                    <div
-                      key={item.id}
-                      className="absolute"
-                      style={{
-                        left: `${pos.x}%`,
-                        top: `${pos.y}%`,
-                        width: captureColMaxPx,
-                        height: captureColMaxPx,
-                        transform: "translate(-50%, -50%)",
-                      }}
-                    >
-                      <CounterPanel
-                        id={item.id}
-                        label={item.label}
-                        emoji={item.emoji}
-                        color={item.color}
-                        count={item.count}
-                        target={item.target}
-                        onIncrement={() => {}}
-                        onDecrement={() => {}}
-                        onSetCount={undefined}
-                        onAdjustBy={undefined}
-                        showStep5={appSettings.showStep5 ?? true}
-                        showStep10={appSettings.showStep10 ?? true}
-                        showStepFree={appSettings.showStepFree ?? false}
-                        stepFreeValue={appSettings.stepFreeValue ?? 1}
-                        onDeleteItem={() => {}}
-                        onEditItem={() => {}}
-                        isLightMode={isLightMode}
-                        showEditDeleteOnCard={false}
-                        onRequestAchieveTarget={undefined}
-                        showAchieveTargetButton={false}
-                        cardSize={appSettings.cardSize}
-                      />
-                    </div>
-                    );
-                  })}
-                </div>
-              ) : (
-              <div
-                className="grid items-stretch gap-2 sm:gap-2.5 w-full"
-                style={{
-                  gridTemplateColumns: `repeat(${effectiveCols}, minmax(${captureColMaxPx}px, ${captureColMaxPx}px))`,
-                  maxWidth: `${captureGridMaxWidth}px`,
-                  width: `${captureGridMaxWidth}px`,
-                  padding: 0,
-                  margin: 0,
-                  transform: `scale(${captureScale})`,
-                  transformOrigin: "top left",
-                  justifyContent: "center",
-                }}
-              >
-              {items.map((item) => (
-                <div key={item.id} style={{ minHeight: 0 }}>
-                  <div style={{ width: captureColMaxPx, transformOrigin: "top left" }}>
-                    <CounterPanel
-                      id={item.id}
-                      label={item.label}
-                      emoji={item.emoji}
-                      color={item.color}
-                      count={item.count}
-                      target={item.target}
-                      onIncrement={() => {}}
-                      onDecrement={() => {}}
-                      onSetCount={undefined}
-                      onAdjustBy={undefined}
-                      showStep5={appSettings.showStep5 ?? true}
-                      showStep10={appSettings.showStep10 ?? true}
-                      showStepFree={appSettings.showStepFree ?? false}
-                      stepFreeValue={appSettings.stepFreeValue ?? 1}
-                      onDeleteItem={() => {}}
-                      onEditItem={() => {}}
-                      isLightMode={isLightMode}
-                      showEditDeleteOnCard={false}
-                      cardSize={appSettings.cardSize}
-                    />
-                  </div>
-                </div>
-              ))}
-              <div className="list-none rounded-2xl" style={{ touchAction: "none" }}>
-                <AddItemPanel
-                  isLightMode={isLightMode}
-                  onAddItem={() => {}}
-                  onExpand={() => {}}
-                  onCollapse={() => {}}
-                />
-              </div>
-            </div>
-              )}
-            </div>
-          </div>,
-          document.body
-        )}
-
-      {/* Split時ライト: body.light-mode 相当のベース背景（通常版と同じ見た目） */}
-      {isSplitMode && isLightMode && (
-        <div className="absolute inset-0 pointer-events-none z-0" style={{ background: splitLightBg }} />
-      )}
-      {/* Inline Background Orbs for Split mode (body::before is hidden behind split container) */}
-      {isSplitMode && (
-        <div className={`absolute inset-0 pointer-events-none overflow-hidden z-0 ${isLightMode ? 'mix-blend-multiply opacity-20' : 'opacity-80'}`}>
-          <motion.div
-            animate={{ x: [0, 60, -30, 0], y: [0, -60, 30, 0], scale: [1, 1.15, 0.85, 1] }}
-            transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-            className="absolute top-[10%] left-[10%] w-[30rem] h-[30rem] rounded-full blur-[100px]"
-            style={{ background: `radial-gradient(circle, ${appSettings.accentColor} 0%, transparent 70%)`, opacity: (appSettings.orbIntensity / 100) * (isLightMode ? 1.5 : 1) }}
-          />
-          <motion.div
-            animate={{ x: [0, -60, 30, 0], y: [0, 60, -30, 0], scale: [1, 0.85, 1.15, 1] }}
-            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-            className="absolute bottom-[10%] right-[10%] w-[35rem] h-[35rem] rounded-full blur-[120px]"
-            style={{ background: `radial-gradient(circle, ${appSettings.accentColor} 0%, transparent 60%)`, opacity: (appSettings.orbIntensity / 100) * 0.8 * (isLightMode ? 1.5 : 1) }}
-          />
-          <motion.div
-            animate={{ x: [0, 40, -50, 0], y: [0, 30, -60, 0], scale: [1, 1.1, 0.9, 1] }}
-            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-            className="absolute top-[50%] left-[30%] w-[25rem] h-[25rem] rounded-full blur-[80px]"
-            style={{ background: `radial-gradient(circle, ${appSettings.accentColor} 0%, transparent 60%)`, opacity: (appSettings.orbIntensity / 100) * 0.6 * (isLightMode ? 1.5 : 1) }}
-          />
-        </div>
-      )}
-      <HamburgerMenu
-        viewMode="counter"
-        isOpen={isMenuOpen}
-        onToggle={() => setIsMenuOpen((prev) => !prev)}
-        isLightMode={isLightMode}
-        onToggleTheme={() => setIsLightMode((prev) => !prev)}
-        totalCount={totalCount}
-        totalTarget={totalTarget}
-        onReset={handleReset}
-        items={items}
-        onSelectTemplate={handleSelectTemplate}
-        onAddItem={handleAddItem}
-        onEditItem={handleEditItem}
-        onDeleteItem={(id) => setItemToDelete(id)}
-        onSetTarget={handleSetTarget}
-        onSetAllTargets={handleSetAllTargets}
-        onRequestAchieveTarget={handleRequestAchieveTarget}
-        onRequestAchieveAllTargets={handleRequestAchieveAllTargets}
-        currentTemplateId={currentTemplateId}
-        onSaveCustomTemplate={handleSaveCustomTemplate}
-        customTemplates={customTemplates}
-        onDeleteCustomTemplate={handleDeleteCustomTemplate}
-        onOverwriteCustomTemplate={handleOverwriteCustomTemplate}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        accentColor={appSettings.accentColor}
-        hideThemeToggle={false}
-        hideModeSelector={isSplitMode}
-      />
-
-      <main className="flex-1 min-h-0 overflow-auto scroll-touch" style={{ paddingTop: "56px" }}>
-        <div className="min-h-full flex flex-col items-center justify-center py-4 px-3 sm:px-4">
-          {/* Project Name (not h1 to keep single h1 for SEO) */}
-          {!isSplitMode && appSettings.showProjectName && appSettings.projectName && (
-            <motion.div
-              drag
-              dragMomentum={false}
-              className="mb-4 text-center cursor-grab active:cursor-grabbing z-[60] relative pointer-events-auto"
-              style={{ maxWidth: `${gridMaxWidth}px`, width: "100%" }}
-            >
-              <div
-                role="presentation"
-                className={`${appSettings.projectNameSize === "S" ? "text-sm sm:text-base" :
-                  appSettings.projectNameSize === "L" ? "text-xl sm:text-2xl" :
-                    appSettings.projectNameSize === "XL" ? "text-4xl sm:text-5xl" :
-                      "text-lg sm:text-xl"
-                  } font-bold tracking-wide`}
-                style={{
-                  color: appSettings.projectNameColor || appSettings.accentColor,
-                  textShadow: `0 0 20px ${appSettings.projectNameColor || appSettings.accentColor}30`,
-                  writingMode: appSettings.projectNameOrientation === "vertical" ? "vertical-rl" : "horizontal-tb",
-                  margin: appSettings.projectNameOrientation === "vertical" ? "0 auto" : undefined,
-                }}
-              >
-                {appSettings.projectName}
-              </div>
-            </motion.div>
-          )}
-          {currentTemplateId === "prefectures" ? (
-            <>
-              <PrefectureShapeMap
-                items={items}
-                onIncrement={handleIncrementByIndex}
-                onDecrement={handleDecrementByIndex}
-                isLightMode={isLightMode}
-                accentColor={appSettings.accentColor}
-                showCountLabels={showPrefectureCountLabels}
-                showPrefectureNames={showPrefectureNames}
-              />
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-2 w-full" style={{ maxWidth: "min(95vw, 640px)" }}>
-                <label className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium cursor-pointer transition opacity-90 hover:opacity-100" style={{ border: `1px solid ${appSettings.accentColor}40`, color: appSettings.accentColor }}>
-                  <input
-                    type="checkbox"
-                    checked={showPrefectureNames}
-                    onChange={(e) => setShowPrefectureNames(e.target.checked)}
-                    className="rounded"
-                  />
-                  県名表示
-                </label>
-                <label className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium cursor-pointer transition opacity-90 hover:opacity-100" style={{ border: `1px solid ${appSettings.accentColor}40`, color: appSettings.accentColor }}>
-                  <input
-                    type="checkbox"
-                    checked={showPrefectureCountLabels}
-                    onChange={(e) => setShowPrefectureCountLabels(e.target.checked)}
-                    className="rounded"
-                  />
-                  件数表示
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setIsPrefectureRankingOpen(true)}
-                  className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium transition opacity-90 hover:opacity-100"
-                  style={{
-                    background: `${appSettings.accentColor}20`,
-                    color: appSettings.accentColor,
-                    border: `1px solid ${appSettings.accentColor}40`,
-                  }}
-                >
-                  <ListOrdered size={18} />
-                  一覧・ランキング
-                </button>
-              </div>
-              <PrefectureRankingPanel
-                isOpen={isPrefectureRankingOpen}
-                onClose={() => setIsPrefectureRankingOpen(false)}
-                items={items}
-                isLightMode={isLightMode}
-                onIncrement={handleIncrementByIndex}
-                onDecrement={handleDecrementByIndex}
-                accentColor={appSettings.accentColor}
-              />
-            </>
-          ) : isPositionedLayout && windowWidth >= 768 ? (
-            <>
-                <div
-                  ref={positionedContainerRef}
-                  className="relative flex-shrink-0"
-                  style={{
-                    width: windowWidth >= 960 ? 960 : "min(95vw, 960px)",
-                    maxWidth: "min(95vw, 960px)",
-                    aspectRatio: "1",
-                  }}
-                >
-                <div
-                  className="absolute inset-0 bg-contain bg-center bg-no-repeat"
-                  style={{
-                    backgroundImage: `url(${currentTemplate!.backgroundImage})`,
-                    color: isLightMode ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.2)",
-                  }}
-                  aria-hidden
-                />
-                {items.map((item, index) => {
-                  const isPrefectures = currentTemplateId === "prefectures";
-                  const fallbackSize = 960;
-                  const containerW = positionedContainerSize?.w ?? fallbackSize;
-                  const containerH = positionedContainerSize?.h ?? fallbackSize;
-                  const spacing = isPrefectures
-                    ? minSpacingPercent(effectiveColMaxPx, containerW, containerH, cardScale)
-                    : null;
-                  const pos =
-                    isPrefectures && spacing
-                      ? getPrefecturePosition(index, spacing.x, spacing.y)
-                      : { x: item.x ?? 50, y: item.y ?? 50 };
-                  return (
-                  <div
-                    key={item.id}
-                    className="absolute z-10"
-                    style={{
-                      left: `${pos.x}%`,
-                      top: `${pos.y}%`,
-                      width: effectiveColMaxPx,
-                      height: effectiveColMaxPx,
-                      transform: "translate(-50%, -50%)",
-                    }}
-                  >
-                    <CounterPanel
-                      id={item.id}
-                      label={item.label}
-                      emoji={item.emoji}
-                      color={item.color}
-                      count={item.count}
-                      target={item.target}
-                      onIncrement={handleIncrement}
-                      onDecrement={handleDecrement}
-                      onSetCount={handleSetCount}
-                      onAdjustBy={handleAdjustBy}
-                      showStep5={appSettings.showStep5 ?? true}
-                      showStep10={appSettings.showStep10 ?? true}
-                      showStepFree={appSettings.showStepFree ?? false}
-                      stepFreeValue={appSettings.stepFreeValue ?? 1}
-                      onDeleteItem={(id) => setItemToDelete(id)}
-                      onEditItem={(id) => setEditingItemId(id)}
-                      isLightMode={isLightMode}
-                      showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
-                      onRequestAchieveTarget={handleRequestAchieveTarget}
-                      showAchieveTargetButton={appSettings.showAchieveTargetButtonOnCard ?? true}
-                      cardSize={appSettings.cardSize}
-                    />
-                  </div>
-                  );
-                })}
-                </div>
-              <div className={`mt-4 list-none rounded-2xl ${addPanelExpanded ? "z-50 shadow-2xl" : ""}`} style={{ touchAction: "none", maxWidth: `${gridMaxWidth}px`, width: "100%" }}>
-                <AddItemPanel
-                  isLightMode={isLightMode}
-                  onAddItem={handleAddItem}
-                  onExpand={() => setAddPanelExpanded(true)}
-                  onCollapse={() => setAddPanelExpanded(false)}
-                />
-              </div>
-            </>
-          ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
-              <div
-                className="grid items-stretch gap-2 sm:gap-2.5 w-full"
-                style={{
-                  gridTemplateColumns: `repeat(${effectiveCols}, minmax(${effectiveColMaxPx}px, ${effectiveColMaxPx}px))`,
-                  maxWidth: `${gridMaxWidth}px`,
-                  padding: 0,
-                  margin: 0,
-                  justifyContent: "center",
-                }}
-              >
-                {items.map((item) => (
-                  <div key={item.id} style={{ minHeight: 0 }}>
-                    <div style={{ width: effectiveColMaxPx }}>
-                      <CounterPanel
-                        id={item.id}
-                        label={item.label}
-                        emoji={item.emoji}
-                        color={item.color}
-                        count={item.count}
-                        target={item.target}
-                        onIncrement={handleIncrement}
-                        onDecrement={handleDecrement}
-                        onSetCount={handleSetCount}
-                        onAdjustBy={handleAdjustBy}
-                        showStep5={appSettings.showStep5 ?? true}
-                        showStep10={appSettings.showStep10 ?? true}
-                        showStepFree={appSettings.showStepFree ?? false}
-                        stepFreeValue={appSettings.stepFreeValue ?? 1}
-                        onDeleteItem={(id) => setItemToDelete(id)}
-                        onEditItem={(id) => setEditingItemId(id)}
-                        isLightMode={isLightMode}
-                        showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
-                      onRequestAchieveTarget={handleRequestAchieveTarget}
-                      showAchieveTargetButton={appSettings.showAchieveTargetButtonOnCard ?? true}
-                        cardSize={appSettings.cardSize}
-                      />
-                    </div>
+    <div className="h-full min-h-0 w-full flex flex-col relative z-10" style={{ "--accent-color": state.appSettings.accentColor } as React.CSSProperties}>
+      {typeof document !== "undefined" && share.isCapturingShareImage && createPortal(
+        <div ref={share.shareAreaRef} style={{ position: "fixed", left: 0, top: 0, width: `${isPositionedLayout ? capturePositionedOuter : captureOuterWidth}px`, height: `${isPositionedLayout ? capturePositionedOuter : captureOuterHeight}px`, overflow: "hidden", zIndex: -1, pointerEvents: "none", background: captureBaseBg }} aria-hidden>
+          <div style={{ position: "absolute", inset: 0, zIndex: 0, background: captureOrbBg, opacity: orbOpacity, pointerEvents: "none" }} />
+          <div style={{ position: "absolute", left: `${capturePadding}px`, top: `${capturePadding}px`, width: `${isPositionedLayout ? capturePositionedSize : captureWidth}px`, height: `${isPositionedLayout ? capturePositionedSize : captureHeight}px`, overflow: "hidden", zIndex: 1 }}>
+            {state.currentTemplateId === "prefectures" ? (
+              <div className="relative w-full h-full flex items-center justify-center" style={{ width: capturePositionedSize, height: capturePositionedSize }}><div style={{ width: Math.min(capturePositionedSize, 640), height: Math.min(capturePositionedSize, 640), flexShrink: 0 }}><PrefectureShapeMap items={state.items} onIncrement={() => {}} onDecrement={undefined} isLightMode={state.isLightMode} accentColor={state.appSettings.accentColor} showCountLabels={state.showPrefectureCountLabels} showPrefectureNames={state.showPrefectureNames} /></div></div>
+            ) : isPositionedLayout && currentTemplate?.backgroundImage ? (
+              <div className="relative w-full h-full" style={{ backgroundImage: `url(${currentTemplate.backgroundImage})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat", color: state.isLightMode ? "rgba(0,0,0,0.25)" : "rgba(255,255,255,0.2)" }}>
+                {state.items.map((item) => (
+                  <div key={item.id} className="absolute" style={{ left: `${item.x ?? 50}%`, top: `${item.y ?? 50}%`, width: captureColMaxPx, height: captureColMaxPx, transform: "translate(-50%, -50%)" }}>
+                    <CounterPanel id={item.id} label={item.label} emoji={item.emoji} color={item.color} count={item.count} target={item.target} onIncrement={() => {}} onDecrement={() => {}} showStep5={state.appSettings.showStep5} showStep10={state.appSettings.showStep10} showStepFree={state.appSettings.showStepFree} stepFreeValue={state.appSettings.stepFreeValue} onDeleteItem={() => {}} onEditItem={() => {}} isLightMode={state.isLightMode} showEditDeleteOnCard={false} showAchieveTargetButton={false} cardSize={state.appSettings.cardSize} />
                   </div>
                 ))}
-                {/* Add Panel Slot */}
-                <div className={`list-none rounded-2xl ${addPanelExpanded ? "z-50 shadow-2xl" : ""}`} style={{ touchAction: "none" }}>
-                  <AddItemPanel
-                    isLightMode={isLightMode}
-                    onAddItem={handleAddItem}
-                    onExpand={() => setAddPanelExpanded(true)}
-                    onCollapse={() => setAddPanelExpanded(false)}
-                  />
-                </div>
               </div>
-            </SortableContext>
-            <DragOverlay
-              dropAnimation={{
-                sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.5" } } }),
-              }}
-            >
-              {activeItem ? (
-                <div style={{ width: effectiveColMaxPx, cursor: "grabbing" }}>
-                  <CounterPanel
-                    id={activeItem.id}
-                    label={activeItem.label}
-                    emoji={activeItem.emoji}
-                    color={activeItem.color}
-                    count={activeItem.count}
-                    target={activeItem.target}
-                    onIncrement={handleIncrement}
-                    onDecrement={handleDecrement}
-                    onSetCount={handleSetCount}
-                    onAdjustBy={handleAdjustBy}
-                    showStep5={appSettings.showStep5 ?? true}
-                    showStep10={appSettings.showStep10 ?? true}
-                    showStepFree={appSettings.showStepFree ?? false}
-                    stepFreeValue={appSettings.stepFreeValue ?? 1}
-                    onDeleteItem={(id) => setItemToDelete(id)}
-                    onEditItem={(id) => setEditingItemId(id)}
-                    isLightMode={isLightMode}
-                    isOverlay
-                    showEditDeleteOnCard={appSettings.showCardEditDelete ?? true}
-                    cardSize={appSettings.cardSize}
-                  />
+            ) : (
+              <div className="grid items-stretch gap-2 sm:gap-2.5 w-full" style={{ gridTemplateColumns: `repeat(${effectiveCols}, minmax(${captureColMaxPx}px, ${captureColMaxPx}px))`, maxWidth: `${captureGridMaxWidth}px`, width: `${captureGridMaxWidth}px`, padding: 0, margin: 0, transform: `scale(${captureScale})`, transformOrigin: "top left", justifyContent: "center" }}>
+                {state.items.map((item) => (
+                  <div key={item.id} style={{ minHeight: 0 }}><div style={{ width: captureColMaxPx, transformOrigin: "top left" }}><CounterPanel id={item.id} label={item.label} emoji={item.emoji} color={item.color} count={item.count} target={item.target} onIncrement={() => {}} onDecrement={() => {}} showStep5={state.appSettings.showStep5} showStep10={state.appSettings.showStep10} showStepFree={state.appSettings.showStepFree} stepFreeValue={state.appSettings.stepFreeValue} onDeleteItem={() => {}} onEditItem={() => {}} isLightMode={state.isLightMode} showEditDeleteOnCard={false} cardSize={state.appSettings.cardSize} /></div></div>
+                ))}
+                <div className="list-none rounded-2xl" style={{ touchAction: "none" }}><AddItemPanel isLightMode={state.isLightMode} onAddItem={() => {}} onExpand={() => {}} onCollapse={() => {}} /></div>
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {isSplitMode && state.isLightMode && <div className="absolute inset-0 pointer-events-none z-0" style={{ background: splitLightBg }} />}
+      {isSplitMode && <CounterOrbsBackground isLightMode={state.isLightMode} />}
+
+      <HamburgerMenu
+        isOpen={state.isMenuOpen}
+        onToggle={() => state.setIsMenuOpen(false)}
+        customTemplates={state.customTemplates}
+        currentTemplateId={state.currentTemplateId}
+        onSelectTemplate={actions.handleSelectTemplate}
+        isLightMode={state.isLightMode}
+        onToggleTheme={() => state.setIsLightMode(!state.isLightMode)}
+        onReset={actions.handleReset}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        onSaveCustomTemplate={actions.handleSaveCustomTemplate}
+        onDeleteCustomTemplate={actions.handleDeleteCustomTemplate}
+        onOverwriteCustomTemplate={actions.handleOverwriteCustomTemplate}
+        viewMode="counter"
+        accentColor={state.appSettings.accentColor}
+      />
+
+      <header className="flex-none p-3 sm:p-4 flex items-center justify-between z-10">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button onClick={() => state.setIsMenuOpen(true)} className="p-2 sm:p-2.5 rounded-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-md transition-all border border-white/10"><ListOrdered className="w-5 h-5 sm:w-6 sm:h-6" /></button>
+          {!isSplitMode && <ModeSelector isLightMode={state.isLightMode} />}
+          <div className="hidden sm:block h-8 w-px bg-white/10 ml-1" />
+          <div className="flex flex-col ml-1">
+            <h1 className="text-sm sm:text-lg font-bold tracking-tight opacity-90 truncate max-w-[120px] sm:max-w-none">{currentTemplate?.name ?? "カウンター"}</h1>
+            <p className="text-[10px] sm:text-xs opacity-50 font-medium">合計: {totalCount.toLocaleString()}{totalTarget > 0 ? ` / ${totalTarget.toLocaleString()}` : ""}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {state.currentTemplateId === "prefectures" && (
+            <button onClick={() => setIsPrefectureRankingOpen(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 transition-all"><span className="text-xs font-bold">ランキング</span></button>
+          )}
+          <button onClick={share.handleShareAsImage} className="p-2 sm:p-2.5 rounded-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-md transition-all border border-white/10"><ImageDown className="w-5 h-5 sm:w-6 sm:h-6" /></button>
+        </div>
+      </header>
+
+      <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 custom-scrollbar relative z-10" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}>
+        <div className="mx-auto flex flex-col items-center gap-6" style={{ maxWidth: isPositionedLayout ? "none" : `${gridMaxWidth}px` }}>
+          {state.appSettings.showProjectName && (state.appSettings.projectName || "").trim() && (
+            <div className="w-full flex justify-center mb-2"><h2 className={`font-black tracking-tighter ${state.appSettings.projectNameSize === "S" ? "text-xl" : state.appSettings.projectNameSize === "L" ? "text-4xl" : "text-2xl"}`} style={{ color: state.appSettings.projectNameColor }}>{state.appSettings.projectName}</h2></div>
+          )}
+          {state.currentTemplateId === "prefectures" ? (
+            <div className="w-full max-w-4xl aspect-square sm:aspect-video flex flex-col gap-4">
+              <div className="flex-1 min-h-0"><PrefectureShapeMap items={state.items} onIncrement={(idx) => { const id = state.items[idx]?.id; if (id) actions.handleIncrement(id); }} onDecrement={(idx) => { const id = state.items[idx]?.id; if (id) actions.handleDecrement(id); }} isLightMode={state.isLightMode} accentColor={state.appSettings.accentColor} showCountLabels={state.showPrefectureCountLabels} showPrefectureNames={state.showPrefectureNames} /></div>
+              <div className="flex items-center justify-center gap-4 py-2"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={state.showPrefectureCountLabels} onChange={(e) => state.setShowPrefectureCountLabels(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5" /><span className="text-xs opacity-70">数字を表示</span></label><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={state.showPrefectureNames} onChange={(e) => state.setShowPrefectureNames(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5" /><span className="text-xs opacity-70">県名を表示</span></label></div>
+            </div>
+          ) : isPositionedLayout ? (
+            <div ref={positionedContainerRef} className="relative w-full aspect-square sm:aspect-video rounded-3xl overflow-hidden border border-white/10" style={{ backgroundImage: `url(${currentTemplate?.backgroundImage})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
+              {state.items.map((item) => (
+                <div key={item.id} className="absolute" style={{ left: `${item.x ?? 50}%`, top: `${item.y ?? 50}%`, width: effectiveColMaxPx, height: effectiveColMaxPx, transform: "translate(-50%, -50%)" }}>
+                  <CounterPanel id={item.id} label={item.label} emoji={item.emoji} color={item.color} count={item.count} target={item.target} onIncrement={actions.handleIncrement} onDecrement={actions.handleDecrement} onSetCount={actions.handleSetCount} onAdjustBy={actions.handleAdjustBy} showStep5={state.appSettings.showStep5} showStep10={state.appSettings.showStep10} showStepFree={state.appSettings.showStepFree} stepFreeValue={state.appSettings.stepFreeValue} onDeleteItem={actions.handleDeleteItem} onEditItem={(id) => setEditingItemId(id)} isLightMode={state.isLightMode} showEditDeleteOnCard={state.appSettings.showCardEditDelete} onRequestAchieveTarget={actions.handleAchieveTarget} showAchieveTargetButton={state.appSettings.showAchieveTargetButtonOnCard} cardSize={state.appSettings.cardSize} />
                 </div>
-              ) : null}
-            </DragOverlay>
-          </DndContext>
+              ))}
+            </div>
+          ) : (
+            <DndContext sensors={drag.sensors} collisionDetection={closestCenter} onDragStart={drag.handleDragStart} onDragEnd={drag.handleDragEnd}>
+              <div className="grid items-stretch gap-2 sm:gap-2.5 w-full" style={{ gridTemplateColumns: `repeat(${effectiveCols}, minmax(${effectiveColMaxPx}px, ${effectiveColMaxPx}px))` }}>
+                <SortableContext items={state.items.map(i => i.id)} strategy={rectSortingStrategy}>
+                  {state.items.map((item) => (
+                    <CounterPanel key={item.id} id={item.id} label={item.label} emoji={item.emoji} color={item.color} count={item.count} target={item.target} onIncrement={actions.handleIncrement} onDecrement={actions.handleDecrement} onSetCount={actions.handleSetCount} onAdjustBy={actions.handleAdjustBy} showStep5={state.appSettings.showStep5} showStep10={state.appSettings.showStep10} showStepFree={state.appSettings.showStepFree} stepFreeValue={state.appSettings.stepFreeValue} onDeleteItem={setItemToDelete} onEditItem={(id) => setEditingItemId(id)} isLightMode={state.isLightMode} showEditDeleteOnCard={state.appSettings.showCardEditDelete} onRequestAchieveTarget={actions.handleAchieveTarget} showAchieveTargetButton={state.appSettings.showAchieveTargetButtonOnCard} cardSize={state.appSettings.cardSize} />
+                  ))}
+                </SortableContext>
+                <div className="list-none rounded-2xl" style={{ touchAction: "none" }}><AddItemPanel isLightMode={state.isLightMode} onAddItem={actions.handleAddItem} onExpand={() => setAddPanelExpanded(true)} onCollapse={() => setAddPanelExpanded(false)} /></div>
+              </div>
+              {typeof document !== "undefined" && createPortal(<DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.5" } } }) }}>{drag.activeItem ? <div style={{ width: effectiveColMaxPx }}><CounterPanel id={drag.activeItem.id} label={drag.activeItem.label} emoji={drag.activeItem.emoji} color={drag.activeItem.color} count={drag.activeItem.count} target={drag.activeItem.target} onIncrement={() => {}} onDecrement={() => {}} onDeleteItem={() => {}} onEditItem={() => {}} isLightMode={state.isLightMode} isOverlay cardSize={state.appSettings.cardSize} /></div> : null}</DragOverlay>, document.body)}
+            </DndContext>
           )}
         </div>
       </main>
 
-      {/* 画像で共有ボタン（ヘッダー右下・ヘルプの左） */}
-      <button
-        type="button"
-        onClick={handleShareAsImage}
-        className="fixed z-[100] w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110"
-        style={{
-          top: "70px",
-          right: "64px",
-          background: isLightMode ? "rgba(255, 255, 255, 0.4)" : "rgba(20, 10, 40, 0.4)",
-          backdropFilter: "blur(8px)",
-          border: `1px solid ${isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"}`,
-        }}
-        title="画像で共有"
-      >
-        <ImageDown
-          size={20}
-          className={isLightMode ? "text-gray-500" : "text-white/40"}
+      {isSettingsOpen && (
+        <SettingsModal 
+          settings={state.appSettings} 
+          onSave={state.setAppSettings} 
+          onClose={() => setIsSettingsOpen(false)} 
+          isLightMode={state.isLightMode} 
         />
-      </button>
-
-      {/* Edit Item Modal */}
-      {editingItemId && (() => {
-        const editingItem = items.find((i) => i.id === editingItemId);
-        if (!editingItem) return null;
-        return (
-          <EditItemModal
-            key={editingItem.id}
+      )}
+      
+      {(() => {
+        const editingItem = state.items.find(i => i.id === editingItemId);
+        return editingItem && (
+          <EditItemModal 
             id={editingItem.id}
             label={editingItem.label}
             emoji={editingItem.emoji}
             color={editingItem.color}
             target={editingItem.target}
-            isLightMode={isLightMode}
-            onSave={(id, label, emoji, target, color) => {
-              handleEditItem(id, label, emoji, target, color);
-              setEditingItemId(null);
-            }}
+            onSave={actions.handleEditItem}
             onClose={() => setEditingItemId(null)}
+            isLightMode={state.isLightMode}
           />
         );
       })()}
 
-      {/* Settings Modal */}
-      {isSettingsOpen && (
-        <SettingsModal
-          settings={appSettings}
-          isLightMode={isLightMode}
-          onSave={setAppSettings}
-          onClose={() => setIsSettingsOpen(false)}
-        />
-      )}
-
-      <ConfirmDialog
-        open={itemToDelete !== null}
-        message="本当に削除しますか？"
-        confirmLabel="削除する"
-        cancelLabel="キャンセル"
-        onConfirm={() => {
-          if (itemToDelete) {
-            setItems((prev) => prev.filter((item) => item.id !== itemToDelete));
-            setItemToDelete(null);
-          }
-        }}
-        onCancel={() => setItemToDelete(null)}
+      <PrefectureRankingPanel 
+        isOpen={isPrefectureRankingOpen} 
+        onClose={() => setIsPrefectureRankingOpen(false)} 
+        items={state.items} 
+        isLightMode={state.isLightMode} 
+        accentColor={state.appSettings.accentColor}
+        onIncrement={(idx) => { const id = state.items[idx]?.id; if (id) actions.handleIncrement(id); }}
+        onDecrement={(idx) => { const id = state.items[idx]?.id; if (id) actions.handleDecrement(id); }}
       />
-      <ConfirmDialog
-        open={itemIdToAchieveTarget !== null}
-        message="目標を達成しますか？"
-        confirmLabel="はい"
-        cancelLabel="いいえ"
-        onConfirm={handleConfirmAchieveTarget}
-        onCancel={handleCancelAchieveTarget}
-      />
-      <ConfirmDialog
-        open={allTargetsConfirmOpen}
-        title="全目標達成"
-        message="すべての項目を目標値まで進めますか？"
-        confirmLabel="はい"
-        cancelLabel="いいえ"
-        onConfirm={handleConfirmAchieveAllTargets}
-        onCancel={handleCancelAchieveAllTargets}
-        danger={false}
-      />
+      
+      <ConfirmDialog open={!!itemToDelete} title="削除の確認" message="この項目を削除してもよろしいですか？" confirmLabel="削除する" cancelLabel="キャンセル" onConfirm={() => { if (itemToDelete) actions.handleDeleteItem(itemToDelete); setItemToDelete(null); }} onCancel={() => setItemToDelete(null)} danger />
     </div>
   );
 }

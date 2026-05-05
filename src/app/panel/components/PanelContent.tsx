@@ -1,865 +1,136 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, PanelTopOpen, Menu, ImagePlus, Share2, Save, List, Pencil, Eye, Trash2, Edit3, PanelLeft, X } from "lucide-react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import ModeSelector from "@/components/ModeSelector";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { 
+  X, 
+  PanelLeft, 
+  Pencil, 
+  Eye 
+} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+
+// Types & Libs
+import { 
+  type PanelOverlay, 
+  type SavedPanel, 
+  type PartitionStroke, 
+  type PanelEditStep,
+  type CustomPart,
+  OverlayShape,
+  createDefaultOverlay,
+  createCustomOverlay,
+  createImageOverlay,
+  defaultPanelState
+} from "../lib/panelTypes";
+import { 
+  saveImage, 
+  deleteImage,
+  isIdbKey
+} from "../lib/panelImageStore";
+import { 
+  getImageBoundsPct, 
+  snapToGrid, 
+  collectIdbImageRefsFromPanelState, 
+  panelStateReferencesImageRef 
+} from "../lib/panelUtils";
+
+// Hooks
+import { usePanelState } from "../hooks/usePanelState";
+import { useOverlayInteraction } from "../hooks/useOverlayInteraction";
+import { usePanelDrawing } from "../hooks/usePanelDrawing";
+import { usePanelActions } from "../hooks/usePanelActions";
+import { useToast } from "@/components/Toast";
+import { useIsDesktop } from "../../../hooks/useIsDesktop";
+
+// Components
+import { PanelHeader } from "./sub/PanelHeader";
+import { PanelMenu } from "./sub/PanelMenu";
+import { PanelCanvas } from "./sub/PanelCanvas";
+import PanelEditSidebar from "./PanelEditSidebar";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ImageCropModal from "@/components/ImageCropModal";
-import { toPng } from "html-to-image";
-import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
-import { useToast } from "@/components/Toast";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
-import ShareReplyToField from "@/components/ShareReplyToField";
-import {
-  saveImage,
-  resolveImageUrl,
-  deleteImage,
-  isIdbKey,
-  dataUrlToBlob,
-} from "../lib/panelImageStore";
-import {
-  type PanelState,
-  type PanelOverlay,
-  type SavedPanel,
-  type SavedCustomShape,
-  type CustomPart,
-  type FilterType,
-  type OverlayShape,
-  type PartitionSegment,
-  type PartitionCurve,
-  type PartitionStroke,
-  type PanelEditStep,
-  createOverlayId,
-  createDefaultOverlay,
-  createImageOverlay,
-  createCustomOverlay,
-  createFreeOverlayFromCurvedRegion,
-  getPartitionSegments,
-  getPartitionStrokes,
-  isPartitionLine,
-  getPartClipPath,
-  getCustomOverlayCentroid,
-  getFreeOverlayCentroid,
-} from "../lib/panelTypes";
-import { getRegionsFromSegments } from "../lib/panelRegionDetection";
-import {
-  GRID_SNAP_PERCENT,
-  snapToGrid,
-  snapToNearestGuide,
-  getTriangleTextAnchor,
-  getImageBoundsPct,
-  findStrokeIndexAt,
-} from "../lib/panelUtils";
-import { smoothPoints, pointsToBezierChain } from "../lib/panelStrokeUtils";
 import CustomShapeEditorModal from "@/components/CustomShapeEditorModal";
-import PanelEditSidebar, { type PanelSidebarTabId } from "./PanelEditSidebar";
 
-const defaultPanelState: PanelState = {
-  imageDataUrl: null,
-  activeFilters: [],
-  filterIntensity: 50,
-  filterShowLabel: false,
-  overlays: [],
-  isEditMode: true,
-};
-
-const TAP_WINDOW_MS = 200;
-
-function panelStateReferencesImageRef(state: PanelState, ref: string): boolean {
-  if (state.imageDataUrl === ref) return true;
-  return state.overlays.some((overlay) => overlay.shape === "image" && overlay.imageDataUrl === ref);
-}
-
-function collectIdbImageRefsFromPanelState(state: PanelState): string[] {
-  const refs = new Set<string>();
-  if (isIdbKey(state.imageDataUrl)) refs.add(state.imageDataUrl);
-  state.overlays.forEach((overlay) => {
-    if (overlay.shape === "image" && isIdbKey(overlay.imageDataUrl)) {
-      refs.add(overlay.imageDataUrl);
-    }
-  });
-  return [...refs];
-}
-
-export default function PanelContent({
-  isSplitMode = false,
-}: {
+interface PanelContentProps {
   isSplitMode?: boolean;
-  isRightPane?: boolean;
-} = {}) {
+}
+
+export default function PanelContent({ isSplitMode = false }: PanelContentProps) {
   const { showToast } = useToast();
-  const isDesktop = useMediaQuery("(min-width: 768px)");
-  const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("panel-light-mode", false);
-  const [panelState, setPanelState] = useLocalStorage<PanelState>("panel-state", defaultPanelState);
-  /** IndexedDB から解決した背景画像の表示用 URL（ObjectURL or data: URL） */
-  const [resolvedBgUrl, setResolvedBgUrl] = useState<string | null>(null);
-  /** IndexedDB から解決した覆い画像の表示用 URL。キー = overlay.id */
-  const [resolvedOverlayUrls, setResolvedOverlayUrls] = useState<Record<string, string>>({});
-  /** 共有処理中フラグ */
-  const [isSharing, setIsSharing] = useState(false);
-  const [savedPanels, setSavedPanels] = useLocalStorage<SavedPanel[]>("panel-saved-list", []);
-  const [savedCustomShapes, setSavedCustomShapes] = useLocalStorage<SavedCustomShape[]>("panel-custom-shapes", []);
-  const [favoriteColors, setFavoriteColors] = useLocalStorage<string[]>("panel-favorite-colors", []);
-  const [editSidebarWidthPx, setEditSidebarWidthPx] = useLocalStorage<number>("panel-edit-sidebar-width", 288);
-  const [customShapeModalOpen, setCustomShapeModalOpen] = useState(false);
-  const [customShapeEditingId, setCustomShapeEditingId] = useState<string | null>(null);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [achievedOverlayId, setAchievedOverlayId] = useState<string | null>(null);
-  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
-  const [addShape, setAddShape] = useState<OverlayShape | null>(null);
-  const [isDrawingFree, setIsDrawingFree] = useState(false);
-  const [freeDrawPreviewPoints, setFreeDrawPreviewPoints] = useState<{ x: number; y: number }[]>([]);
-  const freePointsRef = useRef<{ x: number; y: number }[]>([]);
-  const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
-  const [allAchieveConfirmOpen, setAllAchieveConfirmOpen] = useState(false);
-  const [renamePanelId, setRenamePanelId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState("");
-  const [pendingCropDataUrl, setPendingCropDataUrl] = useState<string | null>(null);
-  const [lineDrawStart, setLineDrawStart] = useState<{ x: number; y: number } | null>(null);
-  const [lineDrawEnd, setLineDrawEnd] = useState<{ x: number; y: number } | null>(null);
-  const [selectedLineIndex, setSelectedLineIndex] = useState<number | null>(null);
-  const [lineToolMode, setLineToolMode] = useState<"pen" | "hand">("pen");
-  /** ペンで引く線の種類。曲線は2次ベジェ（始点・終点と制御点） */
-  const [lineSegmentMode, setLineSegmentMode] = useState<"line" | "curve">("line");
-  /** 目標数値入力の編集中の文字列。空でフォーカスを外す or Enter で 0 にフォールバック */
-  const [targetNumberDraft, setTargetNumberDraft] = useState<{ overlayId: string; value: string } | null>(null);
-  /** 編集モード時サイドバーのタブ: 画像 | 覆い */
-  const [panelSidebarTab, setPanelSidebarTab] = useState<PanelSidebarTabId>("overlay");
-  /** 編集サイドバーをオーバーレイ表示する幅か（1024px未満） */
-  const [isEditSidebarNarrow, setIsEditSidebarNarrow] = useState(false);
-  /** 狭い画面で編集サイドバーオーバーレイを開いているか */
-  const [editSidebarOverlayOpen, setEditSidebarOverlayOpen] = useState(false);
-  const lineDragRef = useRef<{ strokeIndex: number; startP: { x: number; y: number }; originalSegments: PartitionSegment[] } | null>(null);
-  const strokePointsRef = useRef<{ x: number; y: number }[]>([]);
-  /** 曲線プレビュー用の点列（レンダーで参照するため state） */
-  const [strokePreviewPoints, setStrokePreviewPoints] = useState<{ x: number; y: number }[]>([]);
-  const [imageBoundsPct, setImageBoundsPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const isDesktop = useIsDesktop();
+  
+  // -- Hooks --
+  const state = usePanelState();
+  const {
+    panelState, setPanelState,
+    overlays, setOverlays,
+    pushOverlayHistory,
+    isLightMode, setIsLightMode,
+    imageDataUrl, imageAspectRatio,
+    resolvedBgUrl, resolvedOverlayUrls,
+    savedPanels, setSavedPanels,
+    savedCustomShapes, setSavedCustomShapes,
+    isEditMode, panelEditStep,
+    activeFilters, filterIntensity, filterShowLabel,
+    editSidebarWidthPx, setEditSidebarWidthPx
+  } = state;
+
+  // -- Refs --
   const captureRef = useRef<HTMLDivElement>(null);
   const captureWrapperRef = useRef<HTMLDivElement>(null);
-  const editSidebarRef = useRef<HTMLDivElement>(null);
-  const lineDrawAreaRef = useRef<HTMLDivElement>(null);
-  const tapPendingRef = useRef(false);
-  const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageOverlayInputRef = useRef<HTMLInputElement>(null);
+  const editSidebarRef = useRef<HTMLDivElement>(null);
 
-  const dragRef = useRef<{ id: string; startX: number; startY: number; startOX: number; startOY: number } | null>(null);
-  const resizeRef = useRef<{
-    id: string;
-    handle: "se" | "sw" | "ne" | "nw" | "n" | "s" | "e" | "w";
-    startX: number;
-    startY: number;
-    startW: number;
-    startH: number;
-    startOX: number;
-    startOY: number;
-  } | null>(null);
-  const rotateRef = useRef<{ id: string; startAngle: number; startRotation: number; centerX: number; centerY: number } | null>(null);
-  const activePointersRef = useRef<Map<number, { clientX: number; clientY: number }>>(new Map());
-  const pinchRef = useRef<{
-    id: string;
-    initialDistance: number;
-    initialW: number;
-    initialH: number;
-    initialRotation: number;
-    initialAngle: number;
-  } | null>(null);
-  const overlayClipboardRef = useRef<PanelOverlay | null>(null);
-  const OVERLAY_HISTORY_MAX = 50;
-  const overlayHistoryRef = useRef<PanelOverlay[][]>([]);
-  const DRAG_THRESHOLD_PX = 5;
+  // -- UI States --
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [panelSidebarTab, setPanelSidebarTab] = useState<"image" | "lines" | "overlay" | "layer" | "shapes">("image");
+  const [editSidebarOverlayOpen, setEditSidebarOverlayOpen] = useState(false);
+  const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
+  const [targetNumberDraft, setTargetNumberDraft] = useState<{ overlayId: string; value: string } | null>(null);
+  const [pendingCropDataUrl, setPendingCropDataUrl] = useState<string | null>(null);
+  const [achievedOverlayId, setAchievedOverlayId] = useState<string | null>(null);
+  const [allAchieveConfirmOpen, setAllAchieveConfirmOpen] = useState(false);
+  const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
+  const [renamePanelId, setRenamePanelId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [customShapeModalOpen, setCustomShapeModalOpen] = useState(false);
+  const [customShapeEditingId, setCustomShapeEditingId] = useState<string | null>(null);
 
-  const pushOverlayHistory = useCallback((current: PanelOverlay[]) => {
-    const snapshot = current.map((o) => ({ ...o }));
-    overlayHistoryRef.current = [...overlayHistoryRef.current, snapshot].slice(-OVERLAY_HISTORY_MAX);
-  }, []);
+  const [addShape, setAddShape] = useState<OverlayShape | null>(null);
+  const [lineToolMode, setLineToolMode] = useState<"pen" | "hand">("pen");
+  const [lineSegmentMode, setLineSegmentMode] = useState<"line" | "curve">("line");
+  const [partitionStrokes, setPartitionStrokes] = useState<PartitionStroke[]>([]);
 
-  const {
-    imageDataUrl,
-    imageAspectRatio,
-    activeFilters,
-    filterIntensity: rawFilterIntensity,
-    filterShowLabel,
-    overlays,
-    isEditMode,
-    panelEditStep = "overlays",
-  } = panelState;
-  const partitionStrokes = getPartitionStrokes(panelState);
-  const filterIntensity = rawFilterIntensity ?? 50;
+  // -- Derived --
   const isLineStep = isEditMode && panelEditStep === "lines";
-  const setOverlays = useCallback(
-    (updater: (prev: PanelOverlay[]) => PanelOverlay[]) => {
-      setPanelState((s) => ({ ...s, overlays: updater(s.overlays) }));
-    },
-    [setPanelState]
-  );
+  const isEditSidebarNarrow = !isDesktop || (typeof window !== "undefined" && window.innerWidth < 1024);
 
-  // ---------- IndexedDB → 表示用 URL 解決 ----------
+  const imageBoundsPct = useMemo(() => {
+    if (!captureRef.current) return null;
+    const rect = captureRef.current.getBoundingClientRect();
+    return getImageBoundsPct(rect, imageAspectRatio ?? undefined);
+  }, [imageAspectRatio]);
 
-  // 背景画像の解決
-  useEffect(() => {
-    let cancelled = false;
-    const ref = imageDataUrl;
-    if (!ref) { setResolvedBgUrl(null); return; }
-    if (!isIdbKey(ref)) { setResolvedBgUrl(ref); return; }
-    resolveImageUrl(ref).then((url) => {
-      if (!cancelled) setResolvedBgUrl(url);
-    }).catch(() => {
-      if (!cancelled) setResolvedBgUrl(null);
-    });
-    return () => { cancelled = true; };
-  }, [imageDataUrl]);
-
-  // 覆い画像オーバーレイの解決
-  useEffect(() => {
-    let cancelled = false;
-    const imageOverlays = overlays.filter((o) => o.shape === "image" && o.imageDataUrl);
-    if (imageOverlays.length === 0) {
-      setResolvedOverlayUrls({});
-      return;
-    }
-    const resolveAll = async () => {
-      const entries: [string, string][] = [];
-      for (const o of imageOverlays) {
-        const ref = o.imageDataUrl!;
-        if (!isIdbKey(ref)) {
-          entries.push([o.id, ref]);
-        } else {
-          const url = await resolveImageUrl(ref);
-          if (url) entries.push([o.id, url]);
-        }
-      }
-      if (!cancelled) setResolvedOverlayUrls(Object.fromEntries(entries));
-    };
-    resolveAll().catch(() => {});
-    return () => { cancelled = true; };
-  }, [overlays]);
-
-  // ObjectURL のクリーンアップ
-  useEffect(() => {
-    return () => {
-      if (resolvedBgUrl?.startsWith("blob:")) URL.revokeObjectURL(resolvedBgUrl);
-      Object.values(resolvedOverlayUrls).forEach((u) => {
-        if (u.startsWith("blob:")) URL.revokeObjectURL(u);
-      });
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // storage-quota-exceeded イベントを監視してトースト通知
-  useEffect(() => {
-    const handler = () => {
-      showToast("ストレージの空き容量が不足しているため保存できませんでした。ブラウザの不要なデータを削除してください。", "error");
-    };
-    window.addEventListener("storage-quota-exceeded", handler);
-    return () => window.removeEventListener("storage-quota-exceeded", handler);
-  }, [showToast]);
-
-  const setPartitionStrokes = useCallback(
-    (updater: (prev: PartitionStroke[]) => PartitionStroke[]) => {
-      setPanelState((s) => ({
-        ...s,
-        partitionStrokes: updater(getPartitionStrokes(s)),
-      }));
-    },
-    [setPanelState]
-  );
-
-  useEffect(() => {
-    if (isSplitMode) return;
-    if (isLightMode) document.body.classList.add("light-mode");
-    else document.body.classList.remove("light-mode");
-    return () => document.body.classList.remove("light-mode");
-  }, [isLightMode, isSplitMode]);
-
-  /** 選択変更時にドラフトをクリアするため、setSelectedOverlayId の代わりに使用 */
   const setSelectedOverlayIdAndClearDraft = useCallback((id: string | null) => {
     setSelectedOverlayId(id);
     setTargetNumberDraft(null);
   }, []);
 
-  useEffect(() => {
-    const w = Number(editSidebarWidthPx);
-    if (Number.isNaN(w) || w < 200 || w > 560) {
-      setEditSidebarWidthPx(288);
-    }
-  }, [editSidebarWidthPx, setEditSidebarWidthPx]);
+  // -- Interactions Hook --
+  const interaction = useOverlayInteraction({
+    overlays, setOverlays, pushOverlayHistory,
+    selectedOverlayId, setSelectedOverlayIdAndClearDraft,
+    isEditMode, getRect: () => captureRef.current?.getBoundingClientRect()
+  });
 
-  useEffect(() => {
-    const check = () => {
-      const narrow = typeof window !== "undefined" && window.innerWidth < 1024;
-      setIsEditSidebarNarrow(narrow);
-      if (!narrow) setEditSidebarOverlayOpen(false);
-    };
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
-
-  const applySidebarResize = useCallback((clientX: number, startX: number, startW: number) => {
-    const newW = Math.min(560, Math.max(200, startW + (clientX - startX)));
-    setEditSidebarWidthPx(newW);
-  }, [setEditSidebarWidthPx]);
-  const handleEditSidebarResizeStart = useCallback((e: React.MouseEvent) => {
-    if (e.button !== 0) return;
-    const startX = e.clientX;
-    const startW = Math.max(200, Math.min(560, Number(editSidebarWidthPx) || 288));
-    const onMove = (moveEvent: MouseEvent) => applySidebarResize(moveEvent.clientX, startX, startW);
-    const onUp = () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-    };
-    document.body.style.userSelect = "none";
-    document.body.style.cursor = "col-resize";
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-  }, [editSidebarWidthPx, applySidebarResize]);
-  const handleEditSidebarResizeTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.changedTouches.length === 0) return;
-    const startX = e.changedTouches[0]!.clientX;
-    const startW = Math.max(200, Math.min(560, Number(editSidebarWidthPx) || 288));
-    const onMove = (moveEvent: TouchEvent) => {
-      if (moveEvent.changedTouches.length === 0) return;
-      moveEvent.preventDefault();
-      applySidebarResize(moveEvent.changedTouches[0]!.clientX, startX, startW);
-    };
-    const onEnd = () => {
-      document.removeEventListener("touchmove", onMove, { capture: true });
-      document.removeEventListener("touchend", onEnd);
-      document.removeEventListener("touchcancel", onEnd);
-    };
-    document.addEventListener("touchmove", onMove, { passive: false, capture: true });
-    document.addEventListener("touchend", onEnd);
-    document.addEventListener("touchcancel", onEnd);
-  }, [editSidebarWidthPx, applySidebarResize]);
-
-  // 線で切り分け時: キャプチャ枠内の画像表示範囲を state に保持（破線・線の表示位置合わせ用）。setState は rAF で非同期にし effect 直下を避ける。
-  useEffect(() => {
-    const el = captureRef.current;
-    if (!el || typeof imageAspectRatio !== "number") {
-      const rafId = requestAnimationFrame(() => setImageBoundsPct(null));
-      return () => cancelAnimationFrame(rafId);
-    }
-    const update = () => {
-      const rect = el.getBoundingClientRect();
-      setImageBoundsPct(getImageBoundsPct(rect, imageAspectRatio));
-    };
-    const rafId = requestAnimationFrame(update);
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => {
-      cancelAnimationFrame(rafId);
-      ro.disconnect();
-    };
-  }, [imageAspectRatio]);
-
-  // Migrate old state without filterIntensity
-  useEffect(() => {
-    setPanelState((s) => (typeof (s as PanelState).filterIntensity === "number" ? s : { ...s, filterIntensity: 50 }));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isEditMode) return;
-      const tag = document.activeElement?.tagName?.toLowerCase();
-      if (tag === "input" || tag === "textarea") return;
-      const key = e.key;
-
-      // Backspace / Delete: 線で切り分け中は選択中の線を削除、それ以外は選択中の覆いを削除
-      if ((key === "Backspace" || key === "Delete") && !e.ctrlKey && !e.metaKey) {
-        if (panelEditStep === "lines" && selectedLineIndex !== null) {
-          if (selectedLineIndex >= 0 && selectedLineIndex < partitionStrokes.length) {
-            e.preventDefault();
-            setPartitionStrokes((prev) => prev.filter((_, i) => i !== selectedLineIndex));
-            setSelectedLineIndex(null);
-          }
-          return;
-        }
-        if (!selectedOverlayId) return;
-        const current = overlays;
-        const exists = current.some((o) => o.id === selectedOverlayId);
-        if (!exists) return;
-        e.preventDefault();
-        pushOverlayHistory(current);
-        setOverlays((prev) => prev.filter((p) => p.id !== selectedOverlayId));
-        setSelectedOverlayIdAndClearDraft(null);
-        return;
-      }
-
-      if (!e.ctrlKey && !e.metaKey) return;
-      const lower = key?.toLowerCase();
-      if (lower === "z") {
-        e.preventDefault();
-        const prev = overlayHistoryRef.current.pop();
-        if (prev) setPanelState((s) => ({ ...s, overlays: prev }));
-        return;
-      }
-      if (lower === "c") {
-        if (!selectedOverlayId) return;
-        const o = overlays.find((x) => x.id === selectedOverlayId);
-        if (o) overlayClipboardRef.current = { ...o };
-        return;
-      }
-      if (lower === "x") {
-        if (!selectedOverlayId) return;
-        const o = overlays.find((x) => x.id === selectedOverlayId);
-        if (o) {
-          overlayClipboardRef.current = { ...o };
-          pushOverlayHistory(overlays);
-          setOverlays((prev) => prev.filter((p) => p.id !== selectedOverlayId));
-          setSelectedOverlayIdAndClearDraft(null);
-          e.preventDefault();
-        }
-        return;
-      }
-      if (lower === "v") {
-        const clip = overlayClipboardRef.current;
-        if (!clip) return;
-        e.preventDefault();
-        pushOverlayHistory(overlays);
-        const dup: PanelOverlay = { ...clip, id: createOverlayId(), x: clip.x + 3, y: clip.y + 3 };
-        setOverlays((prev) => [...prev, dup]);
-        setSelectedOverlayIdAndClearDraft(dup.id);
-        return;
-      }
-      if (lower === "d") {
-        if (!selectedOverlayId) return;
-        const o = overlays.find((x) => x.id === selectedOverlayId);
-        if (!o) return;
-        e.preventDefault();
-        pushOverlayHistory(overlays);
-        const dup: PanelOverlay = {
-          ...o,
-          id: createOverlayId(),
-          x: snapToGrid(Math.min(100 - o.width, o.x + 3)),
-          y: snapToGrid(Math.min(100 - o.height, o.y + 3)),
-        };
-        setOverlays((prev) => [...prev, dup]);
-        setSelectedOverlayIdAndClearDraft(dup.id);
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isEditMode, panelEditStep, partitionStrokes, setPartitionStrokes, selectedLineIndex, setSelectedLineIndex, selectedOverlayId, overlays, setOverlays, setPanelState, pushOverlayHistory, setSelectedOverlayIdAndClearDraft]);
-
-  const _applyImageWithAspect = useCallback(
-    (dataUrl: string, aspectRatio: number) => {
-      setPanelState((s) => ({ ...s, imageDataUrl: dataUrl, imageAspectRatio: aspectRatio }));
-    },
-    [setPanelState]
-  );
-
-  const handleCropConfirm = useCallback(
-    async (result: { dataUrl: string; aspectRatio: number; blob?: Blob }) => {
-      try {
-        // 古い背景画像の IndexedDB エントリを削除
-        const oldRef = panelState.imageDataUrl;
-        if (oldRef) {
-          const isReferencedBySavedPanels = savedPanels.some((saved) =>
-            panelStateReferencesImageRef(saved.state, oldRef)
-          );
-          if (!isReferencedBySavedPanels) {
-            deleteImage(oldRef).catch(() => {});
-          }
-        }
-
-        // Blob があれば IndexedDB に保存、なければ Data URL から Blob を生成
-        const blob = result.blob ?? dataUrlToBlob(result.dataUrl);
-        const idbRef = await saveImage(blob);
-
-        setPanelState((s) => ({
-          ...s,
-          imageDataUrl: idbRef,
-          imageAspectRatio: result.aspectRatio,
-          partitionStrokes: [],
-          panelEditStep: "lines" as PanelEditStep,
-        }));
-      } catch (err) {
-        console.warn("Failed to save image to IndexedDB, falling back to data URL:", err);
-        showToast("画像の保存に失敗しました。ブラウザのストレージ容量を確認してください。", "error");
-        // フォールバック: Data URL を直接 state に入れる
-        setPanelState((s) => ({
-          ...s,
-          imageDataUrl: result.dataUrl,
-          imageAspectRatio: result.aspectRatio,
-          partitionStrokes: [],
-          panelEditStep: "lines" as PanelEditStep,
-        }));
-      }
-      setPendingCropDataUrl(null);
-    },
-    [setPanelState, panelState.imageDataUrl, savedPanels, showToast]
-  );
-
-  const handleImageUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (!file?.type.startsWith("image/")) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPendingCropDataUrl(reader.result as string);
-      };
-      reader.onerror = () => {
-        showToast("画像ファイルの読み込みに失敗しました。", "error");
-      };
-      reader.readAsDataURL(file);
-      e.target.value = "";
-    },
-    [showToast]
-  );
-
-  const handleImageDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      const file = e.dataTransfer.files?.[0];
-      if (!file?.type.startsWith("image/")) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPendingCropDataUrl(reader.result as string);
-      };
-      reader.onerror = () => {
-        showToast("画像ファイルの読み込みに失敗しました。", "error");
-      };
-      reader.readAsDataURL(file);
-    },
-    [showToast]
-  );
-
-  const handleOverlayTap = useCallback(
-    (overlay: PanelOverlay) => {
-      if (overlay.shape === "image") return;
-      if (overlay.targetType === "text") {
-        setAchievedOverlayId(overlay.id);
-        return;
-      }
-      if (overlay.targetType === "number") {
-        const overlayId = overlay.id;
-        setOverlays((prev) => {
-          const next = prev.map((o) =>
-            o.id === overlayId ? { ...o, count: o.count + 1 } : o
-          );
-          const updated = next.find((o) => o.id === overlayId);
-          if (
-            updated &&
-            updated.target > 0 &&
-            updated.count >= updated.target
-          ) {
-            queueMicrotask(() => setAchievedOverlayId(overlayId));
-          }
-          return next;
-        });
-      }
-    },
-    [setOverlays]
-  );
-
-  const getRect = useCallback(() => captureRef.current?.getBoundingClientRect(), []);
-  const clientToPct = useCallback((clientX: number, clientY: number) => {
-    const rect = getRect();
-    if (!rect) return { x: 0, y: 0 };
-    return {
-      x: ((clientX - rect.left) / rect.width) * 100,
-      y: ((clientY - rect.top) / rect.height) * 100,
-    };
-  }, [getRect]);
-
-  const handlePointerDown = useCallback(
-    (overlay: PanelOverlay, e: React.PointerEvent) => {
-      const isPrimary = e.button === 0 || e.pointerType === "touch";
-      if (!isPrimary) return;
-      const el = e.target as HTMLElement;
-      if (el.closest("button") || el.closest("input")) return;
-      const handle = el.closest("[data-handle]")?.getAttribute("data-handle");
-      const rect = getRect();
-      if (!rect) return;
-
-      if (isEditMode && selectedOverlayId === overlay.id) {
-        if (handle === "rotate") {
-          e.preventDefault();
-          pushOverlayHistory(overlays);
-          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-          const centerX = rect.left + (overlay.x + overlay.width / 2) / 100 * rect.width;
-          const centerY = rect.top + (overlay.y + overlay.height / 2) / 100 * rect.height;
-          const startAngle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
-          rotateRef.current = {
-            id: overlay.id,
-            startAngle,
-            startRotation: overlay.rotation ?? 0,
-            centerX,
-            centerY,
-          };
-          tapPendingRef.current = false;
-          return;
-        }
-        if (handle === "se" || handle === "sw" || handle === "ne" || handle === "nw" || handle === "n" || handle === "s" || handle === "e" || handle === "w") {
-          e.preventDefault();
-          pushOverlayHistory(overlays);
-          (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-          resizeRef.current = {
-            id: overlay.id,
-            handle: handle as "se" | "sw" | "ne" | "nw" | "n" | "s" | "e" | "w",
-            startX: e.clientX,
-            startY: e.clientY,
-            startW: overlay.width,
-            startH: overlay.height,
-            startOX: overlay.x,
-            startOY: overlay.y,
-          };
-          tapPendingRef.current = false;
-          return;
-        }
-        if (handle) return;
-        if (activePointersRef.current.size >= 2) return;
-        pushOverlayHistory(overlays);
-        dragRef.current = {
-          id: overlay.id,
-          startX: e.clientX,
-          startY: e.clientY,
-          startOX: overlay.x,
-          startOY: overlay.y,
-        };
-        (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-      }
-
-      if (tapTimerRef.current) clearTimeout(tapTimerRef.current);
-      tapPendingRef.current = true;
-      tapTimerRef.current = setTimeout(() => {
-        tapPendingRef.current = false;
-        tapTimerRef.current = null;
-      }, TAP_WINDOW_MS);
-    },
-    [isEditMode, selectedOverlayId, getRect, overlays, pushOverlayHistory]
-  );
-
-  const handleOverlayPointerMove = useCallback(
-    (overlay: PanelOverlay, e: React.PointerEvent) => {
-      const rect = getRect();
-      if (!rect) return;
-
-      if (rotateRef.current?.id === overlay.id) {
-        e.preventDefault();
-        const centerX = rect.left + (overlay.x + overlay.width / 2) / 100 * rect.width;
-        const centerY = rect.top + (overlay.y + overlay.height / 2) / 100 * rect.height;
-        const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX);
-        const deg = (angle - rotateRef.current.startAngle) * (180 / Math.PI);
-        setOverlays((prev) =>
-          prev.map((o) =>
-            o.id === overlay.id ? { ...o, rotation: snapToGrid(rotateRef.current!.startRotation + deg) } : o
-          )
-        );
-        return;
-      }
-
-      if (resizeRef.current?.id === overlay.id) {
-        e.preventDefault();
-        const dxPct = ((e.clientX - resizeRef.current.startX) / rect.width) * 100;
-        const dyPct = ((e.clientY - resizeRef.current.startY) / rect.height) * 100;
-        const { handle, startW, startH, startOX, startOY } = resizeRef.current;
-        let x = startOX,
-          y = startOY,
-          w = startW,
-          h = startH;
-        if (handle === "se") {
-          w = Math.max(4, startW + dxPct);
-          h = Math.max(4, startH + dyPct);
-        } else if (handle === "sw") {
-          x = startOX + dxPct;
-          w = Math.max(4, startW - dxPct);
-          h = Math.max(4, startH + dyPct);
-        } else if (handle === "ne") {
-          y = startOY + dyPct;
-          w = Math.max(4, startW + dxPct);
-          h = Math.max(4, startH - dyPct);
-        } else if (handle === "nw") {
-          x = startOX + dxPct;
-          y = startOY + dyPct;
-          w = Math.max(4, startW - dxPct);
-          h = Math.max(4, startH - dyPct);
-        } else if (handle === "n") {
-          y = startOY + dyPct;
-          h = Math.max(4, startH - dyPct);
-        } else if (handle === "s") {
-          h = Math.max(4, startH + dyPct);
-        } else if (handle === "e") {
-          w = Math.max(4, startW + dxPct);
-        } else if (handle === "w") {
-          x = startOX + dxPct;
-          w = Math.max(4, startW - dxPct);
-        }
-        setOverlays((prev) =>
-          prev.map((o) => (o.id === overlay.id ? { ...o, x, y, width: w, height: h } : o))
-        );
-        tapPendingRef.current = false;
-        return;
-      }
-
-      if (dragRef.current?.id === overlay.id) {
-        e.preventDefault();
-        const dist = Math.hypot(e.clientX - dragRef.current.startX, e.clientY - dragRef.current.startY);
-        if (dist > DRAG_THRESHOLD_PX) tapPendingRef.current = false;
-        const startPct = clientToPct(dragRef.current.startX, dragRef.current.startY);
-        const nowPct = clientToPct(e.clientX, e.clientY);
-        const dx = nowPct.x - startPct.x;
-        const dy = nowPct.y - startPct.y;
-
-        // 基本の移動位置（グリッドスナップ＋枠内に収める）
-        let nx = dragRef.current.startOX + dx;
-        let ny = dragRef.current.startOY + dy;
-        nx = snapToGrid(nx);
-        ny = snapToGrid(ny);
-        nx = Math.max(0, Math.min(100 - overlay.width, nx));
-        ny = Math.max(0, Math.min(100 - overlay.height, ny));
-
-        // 中心・端・他の覆いにスナップ
-        const xGuides: number[] = [];
-        const yGuides: number[] = [];
-
-        // 枠全体の端・中心
-        xGuides.push(0, 50 - overlay.width / 2, 100 - overlay.width);
-        yGuides.push(0, 50 - overlay.height / 2, 100 - overlay.height);
-
-        // 他の覆いとの整列
-        overlays.forEach((o) => {
-          if (o.id === overlay.id) return;
-          // x方向: 左端・右端・中央を揃える
-          xGuides.push(
-            o.x, // 左端
-            o.x + o.width - overlay.width, // 右端
-            o.x + o.width / 2 - overlay.width / 2 // 中央
-          );
-          // y方向
-          yGuides.push(
-            o.y,
-            o.y + o.height - overlay.height,
-            o.y + o.height / 2 - overlay.height / 2
-          );
-        });
-
-        const snappedX = snapToNearestGuide(nx, xGuides, 2.5);
-        const snappedY = snapToNearestGuide(ny, yGuides, 2.5);
-
-        setOverlays((prev) =>
-          prev.map((o) =>
-            o.id === overlay.id
-              ? {
-                  ...o,
-                  x: Math.max(0, Math.min(100 - overlay.width, snappedX)),
-                  y: Math.max(0, Math.min(100 - overlay.height, snappedY)),
-                }
-              : o
-          )
-        );
-      }
-    },
-    [getRect, clientToPct, setOverlays, overlays]
-  );
-
-  const handleOverlayPointerUp = useCallback(() => {
-    dragRef.current = null;
-    resizeRef.current = null;
-    rotateRef.current = null;
-  }, []);
-
-  const handleCapturePointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      activePointersRef.current.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
-      const map = activePointersRef.current;
-      if (map.size === 2 && selectedOverlayId) {
-        const arr = Array.from(map.values());
-        const p0 = arr[0];
-        const p1 = arr[1];
-        if (!p0 || !p1) return;
-        const dist = Math.hypot(p1.clientX - p0.clientX, p1.clientY - p0.clientY);
-        const angle = Math.atan2(p1.clientY - p0.clientY, p1.clientX - p0.clientX);
-        const overlay = overlays.find((o) => o.id === selectedOverlayId);
-        if (overlay && dist > 5) {
-          pushOverlayHistory(overlays);
-          dragRef.current = null;
-          resizeRef.current = null;
-          rotateRef.current = null;
-          pinchRef.current = {
-            id: overlay.id,
-            initialDistance: dist,
-            initialW: overlay.width,
-            initialH: overlay.height,
-            initialRotation: overlay.rotation ?? 0,
-            initialAngle: angle,
-          };
-        }
-      }
-    },
-    [selectedOverlayId, overlays, pushOverlayHistory]
-  );
-
-  const handleCapturePointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      activePointersRef.current.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
-      const pinch = pinchRef.current;
-      if (!pinch || activePointersRef.current.size !== 2) return;
-      const arr = Array.from(activePointersRef.current.values());
-      const p0 = arr[0];
-      const p1 = arr[1];
-      if (!p0 || !p1) return;
-      const dist = Math.hypot(p1.clientX - p0.clientX, p1.clientY - p0.clientY);
-      const angle = Math.atan2(p1.clientY - p0.clientY, p1.clientX - p0.clientX);
-      const scale = dist / pinch.initialDistance;
-      const angleDeg = (angle - pinch.initialAngle) * (180 / Math.PI);
-      const newW = Math.max(4, Math.min(100, pinch.initialW * scale));
-      const newH = Math.max(4, Math.min(100, pinch.initialH * scale));
-      const newRotation = pinch.initialRotation + angleDeg;
-      setOverlays((prev) =>
-        prev.map((o) =>
-          o.id === pinch.id ? { ...o, width: newW, height: newH, rotation: newRotation } : o
-        )
-      );
-    },
-    [setOverlays]
-  );
-
-  const handleCapturePointerUp = useCallback((e: React.PointerEvent) => {
-    activePointersRef.current.delete(e.pointerId);
-    if (activePointersRef.current.size < 2) pinchRef.current = null;
-  }, []);
-
-  const handleCapturePointerLeaveOrCancel = useCallback((e: React.PointerEvent) => {
-    activePointersRef.current.delete(e.pointerId);
-    if (activePointersRef.current.size < 2) pinchRef.current = null;
-  }, []);
-
-  const handlePointerUp = useCallback(
-    (overlay: PanelOverlay, e: React.PointerEvent) => {
-      const el = e.target as HTMLElement;
-      if (el.closest("button") || el.closest("input")) return;
-      if (tapTimerRef.current) {
-        clearTimeout(tapTimerRef.current);
-        tapTimerRef.current = null;
-      }
-      if (tapPendingRef.current) {
-        tapPendingRef.current = false;
-        if (!isEditMode) handleOverlayTap(overlay);
-      }
-    },
-    [handleOverlayTap, isEditMode]
-  );
-
-  const handleConfirmAchieve = useCallback(() => {
-    if (achievedOverlayId) {
-      setOverlays((prev) => prev.filter((o) => o.id !== achievedOverlayId));
-      setAchievedOverlayId(null);
-    }
-  }, [achievedOverlayId, setOverlays]);
-
-  const handleConfirmAllAchieve = useCallback(() => {
-    setOverlays(() => []);
-    setAllAchieveConfirmOpen(false);
-  }, [setOverlays]);
-
-  const clientToPctForLine = useCallback(
-    (clientX: number, clientY: number) => {
+  // -- Drawing Hook --
+  const drawing = usePanelDrawing({
+    isLineStep, lineToolMode, lineSegmentMode,
+    partitionStrokes, setPartitionStrokes,
+    addShape, setAddShape,
+    setOverlays, pushOverlayHistory,
+    clientToPctForLine: (cx, cy) => {
       const rect = captureRef.current?.getBoundingClientRect();
       if (!rect) return { x: 50, y: 50 };
       const bounds = imageBoundsPct ?? getImageBoundsPct(rect, imageAspectRatio ?? undefined);
@@ -868,1484 +139,237 @@ export default function PanelContent({
       const imgWidth = (rect.width * bounds.width) / 100;
       const imgHeight = (rect.height * bounds.height) / 100;
       if (imgWidth <= 0 || imgHeight <= 0) return { x: 50, y: 50 };
-      const x = ((clientX - imgLeft) / imgWidth) * 100;
-      const y = ((clientY - imgTop) / imgHeight) * 100;
-      return { x, y };
+      return { x: ((cx - imgLeft) / imgWidth) * 100, y: ((cy - imgTop) / imgHeight) * 100 };
     },
-    [imageAspectRatio, imageBoundsPct]
-  );
-
-  const clampPct = useCallback((v: number) => Math.max(0, Math.min(100, v)), []);
-
-  const LINE_HIT_THRESHOLD = 3;
-
-  const handleLineDrawPointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      const isPrimary = e.button === 0 || e.pointerType === "touch";
-      if (!isLineStep || !isPrimary) return;
-      e.preventDefault();
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-      const p = clientToPctForLine(e.clientX, e.clientY);
-      if (lineToolMode === "hand") {
-        const hit = findStrokeIndexAt(partitionStrokes, p.x, p.y, LINE_HIT_THRESHOLD);
-        if (hit !== null && partitionStrokes[hit]) {
-          setSelectedLineIndex(hit);
-          const stroke = partitionStrokes[hit]!;
-          const originalSegments = stroke.segments.map((seg): PartitionSegment => {
-            if (isPartitionLine(seg)) return { x1: seg.x1, y1: seg.y1, x2: seg.x2, y2: seg.y2 };
-            const c = seg as PartitionCurve;
-            return { type: "curve" as const, x1: c.x1, y1: c.y1, x2: c.x2, y2: c.y2, cpx: c.cpx, cpy: c.cpy };
-          });
-          lineDragRef.current = { strokeIndex: hit, startP: p, originalSegments };
-          return;
-        }
-        setSelectedLineIndex(null);
-        lineDragRef.current = null;
-        return;
-      }
-      setSelectedLineIndex(null);
-      lineDragRef.current = null;
-      setLineDrawStart(p);
-      setLineDrawEnd(p);
-      if (lineSegmentMode === "curve") {
-        strokePointsRef.current = [{ x: p.x, y: p.y }];
-        setStrokePreviewPoints([{ x: p.x, y: p.y }]);
-      }
-    },
-    [isLineStep, lineToolMode, lineSegmentMode, clientToPctForLine, partitionStrokes]
-  );
-
-  const handleLineDrawPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (!isLineStep) return;
-      if (lineDragRef.current) {
-        const p = clientToPctForLine(e.clientX, e.clientY);
-        const { strokeIndex, startP, originalSegments } = lineDragRef.current;
-        const dx = p.x - startP.x;
-        const dy = p.y - startP.y;
-        const clamp = (v: number) => Math.max(0, Math.min(100, v));
-        const moved = originalSegments.map((seg) => {
-          if (isPartitionLine(seg)) {
-            return { x1: clamp(seg.x1 + dx), y1: clamp(seg.y1 + dy), x2: clamp(seg.x2 + dx), y2: clamp(seg.y2 + dy) };
-          }
-          const curve = seg as PartitionCurve;
-          return { type: "curve" as const, x1: clamp(curve.x1 + dx), y1: clamp(curve.y1 + dy), x2: clamp(curve.x2 + dx), y2: clamp(curve.y2 + dy), cpx: clamp(curve.cpx + dx), cpy: clamp(curve.cpy + dy) };
-        });
-        setPartitionStrokes((prev) => prev.map((stroke, i) => (i === strokeIndex ? { segments: moved } : stroke)));
-        return;
-      }
-      if (!lineDrawStart) return;
-      const p = clientToPctForLine(e.clientX, e.clientY);
-      if (lineSegmentMode === "curve") {
-        const pts = strokePointsRef.current;
-        const last = pts[pts.length - 1];
-        if (last && (last.x - p.x) ** 2 + (last.y - p.y) ** 2 >= 0.3 ** 2) {
-          const next = [...pts, { x: p.x, y: p.y }];
-          strokePointsRef.current = next;
-          setStrokePreviewPoints(next);
-        }
-      }
-      setLineDrawEnd(p);
-    },
-    [isLineStep, lineDrawStart, lineSegmentMode, clientToPctForLine, setPartitionStrokes]
-  );
-
-  const handleLineDrawPointerUp = useCallback(
-    (e: React.PointerEvent) => {
-      const isPrimary = e.button === 0 || e.pointerType === "touch";
-      if (!isLineStep || !isPrimary) return;
-      (e.target as HTMLElement).releasePointerCapture?.(e.pointerId);
-      if (lineDragRef.current) {
-        lineDragRef.current = null;
-        return;
-      }
-      const end = clientToPctForLine(e.clientX, e.clientY);
-      if (lineDrawStart && (lineDrawStart.x !== end.x || lineDrawStart.y !== end.y)) {
-        if (lineSegmentMode === "curve") {
-          const pts = strokePointsRef.current;
-          if (pts.length >= 2) {
-            const smoothed = smoothPoints(pts, 5);
-            const segments = pointsToBezierChain(smoothed);
-            if (segments.length > 0) {
-              setPartitionStrokes((prev) => [...prev, { segments }]);
-            }
-          }
-        } else {
-          const x1 = clampPct(lineDrawStart.x);
-          const y1 = clampPct(lineDrawStart.y);
-          const x2 = clampPct(end.x);
-          const y2 = clampPct(end.y);
-          setPartitionStrokes((prev) => [...prev, { segments: [{ x1, y1, x2, y2 }] }]);
-        }
-      }
-      setLineDrawStart(null);
-      setLineDrawEnd(null);
-      strokePointsRef.current = [];
-      setStrokePreviewPoints([]);
-    },
-    [isLineStep, lineDrawStart, lineSegmentMode, clientToPctForLine, clampPct, setPartitionStrokes]
-  );
-
-  const handleGenerateRegions = useCallback(() => {
-    const segments = getPartitionSegments(panelState);
-    const regions = getRegionsFromSegments(segments);
-    const newOverlays = regions.map((region) => createFreeOverlayFromCurvedRegion(region));
-    setSelectedLineIndex(null);
-    setPanelState((s) => ({ ...s, overlays: newOverlays, panelEditStep: "overlays" as PanelEditStep }));
-  }, [setPanelState, panelState]);
-
-  const handleAddOverlayAtPoint = useCallback(
-    (shape: OverlayShape, clientX: number, clientY: number) => {
-      if (shape === "free" || !captureRef.current) return;
-      const rect = captureRef.current.getBoundingClientRect();
-      let x = ((clientX - rect.left) / rect.width) * 100;
-      let y = ((clientY - rect.top) / rect.height) * 100;
-      x = Math.max(0, Math.min(100, snapToGrid(x)));
-      y = Math.max(0, Math.min(100, snapToGrid(y)));
-      const newOverlay = createDefaultOverlay(shape, x, y);
-      const half = 8;
-      newOverlay.x = Math.max(0, snapToGrid(x - half));
-      newOverlay.y = Math.max(0, snapToGrid(y - half));
-      newOverlay.width = snapToGrid(half * 2) || GRID_SNAP_PERCENT;
-      newOverlay.height = snapToGrid(half * 2) || GRID_SNAP_PERCENT;
-      setOverlays((prev) => [...prev, newOverlay]);
-      setSelectedOverlayIdAndClearDraft(newOverlay.id);
-    },
-    [setOverlays, setSelectedOverlayIdAndClearDraft]
-  );
-
-  const handleAddTriangleStripes = useCallback(
-    (rows: number) => {
-      if (!captureRef.current || !imageDataUrl) return;
-      const rect = captureRef.current.getBoundingClientRect();
-      const { x: imgX, y: imgY, width: imgW, height: imgH } = getImageBoundsPct(rect, imageAspectRatio ?? undefined);
-      const rowH = imgH / rows;
-      const newOverlays: PanelOverlay[] = [];
-      for (let row = 0; row < rows; row++) {
-        const y0 = imgY + row * rowH;
-        const h = row === rows - 1 ? imgY + imgH - y0 : rowH;
-        const x0 = imgX;
-        const w = imgW;
-        // 各段を対角線で2つの三角に分割（隙間ゼロMECE）。スナップは使わない。
-        const useDownward = row % 2 === 0; // 段ごとに対角線の向きを交互に
-        const upper = createDefaultOverlay("triangle", x0, y0);
-        upper.x = x0;
-        upper.y = y0;
-        upper.width = w;
-        upper.height = h;
-        upper.triangleKind = useDownward ? "diagDownUpper" : "diagUpUpper";
-        upper.rotation = 0;
-        const lower = createDefaultOverlay("triangle", x0, y0);
-        lower.x = x0;
-        lower.y = y0;
-        lower.width = w;
-        lower.height = h;
-        lower.triangleKind = useDownward ? "diagDownLower" : "diagUpLower";
-        lower.rotation = 0;
-        newOverlays.push(upper, lower);
-      }
-      pushOverlayHistory(overlays);
-      setOverlays((prev) => [...prev, ...newOverlays]);
-    },
-    [imageAspectRatio, imageDataUrl, overlays, pushOverlayHistory, setOverlays]
-  );
-
-  const handleCustomShapeConfirm = useCallback(
-    (parts: CustomPart[]) => {
-      if (customShapeEditingId) {
-        pushOverlayHistory(overlays);
-        setOverlays((prev) =>
-          prev.map((o) => (o.id === customShapeEditingId ? { ...o, parts } : o))
-        );
-      } else {
-        pushOverlayHistory(overlays);
-        const cx = 50 - 10;
-        const cy = 50 - 10;
-        const newOverlay = createCustomOverlay(parts, cx, cy, 20, 20);
-        setOverlays((prev) => [...prev, newOverlay]);
-        setSelectedOverlayIdAndClearDraft(newOverlay.id);
-      }
-      setCustomShapeModalOpen(false);
-      setCustomShapeEditingId(null);
-    },
-    [customShapeEditingId, overlays, pushOverlayHistory, setOverlays, setSelectedOverlayIdAndClearDraft]
-  );
-
-  const handleSaveCustomTemplate = useCallback(
-    (name: string, parts: CustomPart[]) => {
-      const newTemplate: SavedCustomShape = {
-        id: createOverlayId(),
-        name: name.trim() || "カスタム図形",
-        savedAt: Date.now(),
-        parts: [...parts],
-      };
-      setSavedCustomShapes((prev) => [...prev, newTemplate]);
-    },
-    [setSavedCustomShapes]
-  );
-
-  const handleAddOverlay = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!addShape || addShape === "free" || addShape === "custom") return;
-      if (!captureRef.current) return;
-      e.preventDefault();
-      pushOverlayHistory(overlays);
-      handleAddOverlayAtPoint(addShape, e.clientX, e.clientY);
-      setAddShape(null);
-    },
-    [addShape, overlays, handleAddOverlayAtPoint, pushOverlayHistory]
-  );
-
-  const handleAddRectGrid = useCallback(
-    (cols: number, rows: number) => {
-      if (!captureRef.current) return;
-      const rect = captureRef.current.getBoundingClientRect();
-      const { x: imgX, y: imgY, width: imgW, height: imgH } = getImageBoundsPct(rect, imageAspectRatio ?? undefined);
-      const tileW = imgW / cols;
-      const tileH = imgH / rows;
-      const newOverlays: PanelOverlay[] = [];
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          const baseX = imgX + col * tileW;
-          const baseY = imgY + row * tileH;
-          const o = createDefaultOverlay("rect", baseX, baseY);
-          o.x = snapToGrid(baseX);
-          o.y = snapToGrid(baseY);
-          // 最終列・行だけ誤差補正を入れて、画像領域の端とずれにくくする
-          const rawW = col === cols - 1 ? imgX + imgW - o.x : tileW;
-          const rawH = row === rows - 1 ? imgY + imgH - o.y : tileH;
-          o.width = snapToGrid(rawW);
-          o.height = snapToGrid(rawH);
-          newOverlays.push(o);
-        }
-      }
-      pushOverlayHistory(overlays);
-      setOverlays((prev) => [...prev, ...newOverlays]);
-    },
-    [imageAspectRatio, overlays, pushOverlayHistory, setOverlays]
-  );
-
-  const handleFreeDrawStart = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (addShape !== "free" || !captureRef.current) return;
-      e.preventDefault();
-      (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-      const rect = captureRef.current.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      const start = [{ x, y }];
-      freePointsRef.current = start;
-      setFreeDrawPreviewPoints(start);
-      setIsDrawingFree(true);
-    },
-    [addShape]
-  );
-
-  const handleFreeDrawMove = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      if (!isDrawingFree || !captureRef.current) return;
-      const rect = captureRef.current.getBoundingClientRect();
-      const x = ((e.clientX - rect.left) / rect.width) * 100;
-      const y = ((e.clientY - rect.top) / rect.height) * 100;
-      const next = [...freePointsRef.current, { x, y }];
-      freePointsRef.current = next;
-      setFreeDrawPreviewPoints(next);
-    },
-    [isDrawingFree]
-  );
-
-  const handleFreeDrawEnd = useCallback(() => {
-    if (!isDrawingFree) return;
-    const points = freePointsRef.current;
-    if (points.length < 3) {
-      setIsDrawingFree(false);
-      setFreeDrawPreviewPoints([]);
-      freePointsRef.current = [];
-      return;
+    clientToPct: (cx, cy) => {
+      const rect = captureRef.current?.getBoundingClientRect();
+      if (!rect) return { x: 0, y: 0 };
+      return { x: ((cx - rect.left) / rect.width) * 100, y: ((cy - rect.top) / rect.height) * 100 };
     }
-    pushOverlayHistory(overlays);
-    let minX = 100, minY = 100, maxX = 0, maxY = 0;
-    points.forEach((p) => {
-      minX = Math.min(minX, p.x);
-      minY = Math.min(minY, p.y);
-      maxX = Math.max(maxX, p.x);
-      maxY = Math.max(maxY, p.y);
-    });
-    const newOverlay = createDefaultOverlay("free", minX, minY);
-    newOverlay.x = minX;
-    newOverlay.y = minY;
-    newOverlay.width = maxX - minX || 10;
-    newOverlay.height = maxY - minY || 10;
-    newOverlay.points = points.map((p) => ({ x: p.x - minX, y: p.y - minY }));
-    setOverlays((prev) => [...prev, newOverlay]);
-    setIsDrawingFree(false);
-    setFreeDrawPreviewPoints([]);
-    freePointsRef.current = [];
-    setAddShape(null);
-  }, [isDrawingFree, setOverlays, overlays, pushOverlayHistory]);
+  });
+
+  // -- Actions Hook --
+  const actions = usePanelActions({
+    panelState, setPanelState, overlays, setOverlays, pushOverlayHistory,
+    setSelectedOverlayIdAndClearDraft, imageDataUrl, imageAspectRatio,
+    captureRef, isLightMode, isDesktop, resolvedBgUrl, resolvedOverlayUrls,
+    savedPanels, setSavedPanels, setSavedCustomShapes, showToast
+  });
+
+  // -- Handlers --
+  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file?.type.startsWith("image/")) return;
+    const idbRef = await saveImage(file);
+    setPanelState(s => ({ ...s, imageDataUrl: idbRef, imageAspectRatio: undefined }));
+    e.target.value = "";
+  }, [setPanelState]);
+
+  const handleImageDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files?.[0];
+    if (!file?.type.startsWith("image/")) return;
+    const idbRef = await saveImage(file);
+    setPanelState(s => ({ ...s, imageDataUrl: idbRef, imageAspectRatio: undefined }));
+  }, [setPanelState]);
+
+  const handleOverlayTap = useCallback((overlay: PanelOverlay) => {
+    if (overlay.targetType === "text" || overlay.count >= overlay.target) {
+      setAchievedOverlayId(overlay.id);
+    } else {
+      setOverlays(prev => prev.map(o => o.id === overlay.id ? { ...o, count: o.count + 1 } : o));
+    }
+  }, [setOverlays]);
+
+  const handlePointerUpWithTap = useCallback((overlay: PanelOverlay, e: React.PointerEvent) => {
+    interaction.handleOverlayPointerUp();
+    const el = e.target as HTMLElement;
+    if (el.closest("button") || el.closest("input")) return;
+    if (interaction.tapPendingRef.current) {
+      interaction.tapPendingRef.current = false;
+      if (!isEditMode) handleOverlayTap(overlay);
+    }
+  }, [interaction, isEditMode, handleOverlayTap]);
+
+  const handleCropConfirm = useCallback((result: { dataUrl: string; aspectRatio: number }) => {
+    setPanelState(s => ({ ...s, imageDataUrl: result.dataUrl, imageAspectRatio: result.aspectRatio }));
+    setPendingCropDataUrl(null);
+  }, [setPanelState]);
 
   const handleDeleteSavedPanel = useCallback(() => {
-    if (panelToDeleteId) {
-      const panelToDelete = savedPanels.find((p) => p.id === panelToDeleteId);
-      const nextSavedPanels = savedPanels.filter((p) => p.id !== panelToDeleteId);
-      setSavedPanels(nextSavedPanels);
-      if (panelToDelete) {
-        const refsToCheck = collectIdbImageRefsFromPanelState(panelToDelete.state);
-        refsToCheck.forEach((ref) => {
-          const usedByCurrentPanel = panelStateReferencesImageRef(panelState, ref);
-          const usedByAnySavedPanel = nextSavedPanels.some((saved) =>
-            panelStateReferencesImageRef(saved.state, ref)
-          );
-          if (!usedByCurrentPanel && !usedByAnySavedPanel) {
-            deleteImage(ref).catch(() => {});
-          }
-        });
-      }
-      setPanelToDeleteId(null);
-    }
-  }, [panelToDeleteId, panelState, savedPanels, setSavedPanels]);
-
-  const handleRenameSavedPanel = useCallback(
-    (saved: SavedPanel) => {
-      setRenamePanelId(saved.id);
-      setRenameValue(saved.name);
-    },
-    []
-  );
+    if (!panelToDeleteId) return;
+    const next = savedPanels.filter(p => p.id !== panelToDeleteId);
+    setSavedPanels(next);
+    setPanelToDeleteId(null);
+  }, [panelToDeleteId, savedPanels, setSavedPanels]);
 
   const handleRenameSubmit = useCallback(() => {
-    if (!renamePanelId || !renameValue.trim()) {
-      setRenamePanelId(null);
-      return;
-    }
-    setSavedPanels((prev) =>
-      prev.map((p) => (p.id === renamePanelId ? { ...p, name: renameValue.trim() } : p))
-    );
+    if (!renamePanelId || !renameValue.trim()) { setRenamePanelId(null); return; }
+    setSavedPanels(savedPanels.map(p => p.id === renamePanelId ? { ...p, name: renameValue.trim() } : p));
     setRenamePanelId(null);
-    setRenameValue("");
-  }, [renamePanelId, renameValue, setSavedPanels]);
+  }, [renamePanelId, renameValue, savedPanels, setSavedPanels]);
 
-  const handleSavePanel = useCallback(() => {
-    const name = prompt("保存名を入力", `パネル ${savedPanels.length + 1}`);
-    if (!name?.trim()) return;
-    const saved: SavedPanel = {
-      id: `saved-${Date.now()}`,
-      name: name.trim(),
-      savedAt: Date.now(),
-      state: { ...panelState },
-    };
-    setSavedPanels((prev) => [...prev, saved]);
-    setIsMenuOpen(false);
-  }, [panelState, savedPanels.length, setSavedPanels]);
+  const handleSidebarResize = useCallback((e: MouseEvent | TouchEvent) => {
+    const cx = "touches" in e ? e.touches[0]!.clientX : e.clientX;
+    setEditSidebarWidthPx(Math.max(200, Math.min(600, cx)));
+  }, [setEditSidebarWidthPx]);
 
-  const handleLoadPanel = useCallback(
-    (saved: SavedPanel) => {
-      const state = saved.state;
-      setPanelState({
-        ...defaultPanelState,
-        ...state,
-        filterIntensity: state.filterIntensity ?? 50,
-        imageAspectRatio: state.imageAspectRatio ?? undefined,
-      });
-      setSelectedOverlayIdAndClearDraft(null);
-      setIsMenuOpen(false);
-    },
-    [setPanelState, setSelectedOverlayIdAndClearDraft]
-  );
+  const handleResizeEnd = useCallback(() => {
+    window.removeEventListener("mousemove", handleSidebarResize);
+    window.removeEventListener("mouseup", handleResizeEnd);
+    window.removeEventListener("touchmove", handleSidebarResize);
+    window.removeEventListener("touchend", handleResizeEnd);
+  }, [handleSidebarResize]);
 
-  const handleShare = useCallback(async () => {
-    const el = captureRef.current;
-    if (!el || isSharing) return;
+  const handleResizeStart = useCallback(() => {
+    window.addEventListener("mousemove", handleSidebarResize);
+    window.addEventListener("mouseup", handleResizeEnd);
+    window.addEventListener("touchmove", handleSidebarResize);
+    window.addEventListener("touchend", handleResizeEnd);
+  }, [handleSidebarResize, handleResizeEnd]);
 
-    // すべての画像リソースが解決済みか確認
-    if (imageDataUrl && isIdbKey(imageDataUrl) && !resolvedBgUrl) {
-      showToast("画像を読み込み中です。しばらくしてからもう一度お試しください。", "error");
-      return;
-    }
-    const hasUnresolvedOverlay = overlays.some(
-      (o) => o.shape === "image" && o.imageDataUrl && isIdbKey(o.imageDataUrl) && !resolvedOverlayUrls[o.id]
-    );
-    if (hasUnresolvedOverlay) {
-      showToast("画像を読み込み中です。しばらくしてからもう一度お試しください。", "error");
-      return;
-    }
+  // -- Render Helpers --
+  const selectedOverlay = useMemo(() => 
+    selectedOverlayId ? overlays.find(o => o.id === selectedOverlayId) ?? null : null
+  , [selectedOverlayId, overlays]);
 
-    setIsSharing(true);
-    // ポップアップブロック回避: ユーザー操作の直後にツイートURLを生成しておく
-    const shareText = "パネル明け進捗";
-    const tweetUrl = generateShareUrl(shareText, { toolId: "panel" });
-    try {
-      const dataUrl = await toPng(el, {
-        backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e",
-        pixelRatio: 2,
-        skipFonts: true,
-      });
-      const filename = `panel-${getTimestampForFilename()}.png`;
-
-      // PCでは共有シート（OS標準）を出さず、ダウンロード＋ツイートURLを開く
-      if (!isDesktop) {
-        const shared = await shareImageWithText(dataUrl, shareText, filename);
-        if (shared) return;
-      }
-
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = filename;
-      a.click();
-      window.open(tweetUrl, "_blank", "noopener,noreferrer");
-    } catch (err) {
-      console.warn("Panel image export failed:", err);
-      showToast("画像の書き出しに失敗しました。", "error");
-    } finally {
-      setIsSharing(false);
-    }
-  }, [isLightMode, isSharing, isDesktop, imageDataUrl, resolvedBgUrl, overlays, resolvedOverlayUrls, showToast]);
-
-  const toggleFilter = useCallback(
-    (filter: FilterType) => {
-      setPanelState((s) => ({
-        ...s,
-        activeFilters: s.activeFilters.includes(filter)
-          ? s.activeFilters.filter((f) => f !== filter)
-          : [...s.activeFilters, filter],
-      }));
-    },
-    [setPanelState]
-  );
-
-  const headerBg = isLightMode ? "rgba(255,255,255,0.95)" : "rgba(20,10,40,0.92)";
-  const iconColor = isLightMode ? "text-gray-800" : "text-white";
-  const iconHover = isLightMode ? "hover:bg-gray-200" : "hover:bg-white/20";
-  const splitPaneBg = isSplitMode ? (isLightMode ? undefined : "#0a051e") : undefined;
-  const splitLightBg =
-    "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)";
+  const sidebarProps = {
+    tab: panelSidebarTab, setTab: setPanelSidebarTab,
+    isLightMode, editSidebarRef, effectiveSidebarWidth: editSidebarWidthPx,
+    fileInputRef, imageOverlayInputRef, imageDataUrl,
+    setPendingCropDataUrl, setPanelState,
+    isLineStep, lineToolMode, setLineToolMode, lineSegmentMode, setLineSegmentMode,
+    partitionStrokes, setPartitionStrokes,
+    selectedLineIndex: drawing.selectedLineIndex, setSelectedLineIndex: drawing.setSelectedLineIndex,
+    onGenerateRegions: actions.handleGenerateRegions,
+    selectedOverlay, overlays, setOverlays,
+    targetNumberDraft, setTargetNumberDraft,
+    favoriteColors: state.favoriteColors, setFavoriteColors: state.setFavoriteColors,
+    pushOverlayHistory, setSelectedOverlayId,
+    setCustomShapeEditingId, setCustomShapeModalOpen,
+    addShape, setAddShape, setIsDrawingFree: drawing.setIsDrawingFree,
+    captureRef,
+    onAddOverlayAtPoint: (shape: OverlayShape, x: number, y: number) => actions.handleAddOverlayAtPoint(shape, x, y),
+    onAddRectGrid: actions.handleAddRectGrid,
+    onAddTriangleStripes: actions.handleAddTriangleStripes,
+    activeFilters, toggleFilter: (f: any) => setPanelState(s => ({ ...s, activeFilters: s.activeFilters.includes(f) ? s.activeFilters.filter(x => x !== f) : [...s.activeFilters, f] })),
+    filterShowLabel, filterIntensity,
+    setCustomShapeModalOpenForNew: () => { setCustomShapeEditingId(null); setCustomShapeModalOpen(true); }
+  };
 
   return (
     <div
       className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`}
-      style={splitPaneBg ? { background: splitPaneBg } : undefined}
+      style={{ background: isSplitMode && !isLightMode ? "#0a051e" : undefined }}
     >
       {isSplitMode && isLightMode && (
-        <div className="absolute inset-0 pointer-events-none z-0" style={{ background: splitLightBg }} />
+        <div className="absolute inset-0 pointer-events-none z-0" style={{ background: "linear-gradient(135deg, #f0e6ff 0%, #e0ecff 30%, #dff0fa 50%, #f5e6f9 70%, #eee8ff 100%)" }} />
       )}
 
-      {/* Header */}
-      <div
-        className={`shrink-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 ${isSplitMode ? "relative min-h-[56px]" : "fixed top-0"}`}
-        style={{
-          background: isSplitMode ? (isLightMode ? "#f8f9fa" : "#0a051e") : headerBg,
-          backdropFilter: isSplitMode ? "none" : "blur(12px)",
-          borderBottom: isSplitMode ? "none" : `1px solid ${isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)"}`,
-        }}
-      >
-        <div className="flex items-center gap-2">
-          {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
-          {isEditMode && isEditSidebarNarrow && (
-            <button
-              onClick={() => setEditSidebarOverlayOpen(true)}
-              className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
-              title="編集パネルを開く"
-              aria-label="編集パネルを開く"
-            >
-              <PanelLeft size={16} />
-            </button>
-          )}
-          <button
-            onClick={() => {
-              setPanelState((s) => ({ ...s, isEditMode: !s.isEditMode }));
-              if (isEditMode) setAddShape(null);
-            }}
-            className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
-            title={isEditMode ? "パネル明けモードに切り替え" : "編集モードに切り替え"}
-          >
-            {isEditMode ? <Eye size={16} /> : <Pencil size={16} />}
-            <span className="sr-only">{isEditMode ? "編集" : "パネル明け"}</span>
-          </button>
-          {!isEditMode && (
-            <button
-              onClick={() => setAllAchieveConfirmOpen(true)}
-              className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
-              title="すべての覆いを開ける"
-            >
-              <PanelTopOpen size={16} />
-              <span className="sr-only">全達成</span>
-              <span className="ml-1 text-xs font-medium hidden sm:inline">全達成</span>
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleShare}
-            disabled={isSharing}
-            className={`p-1.5 rounded-lg transition-all shrink-0 ${isSharing ? "opacity-50 cursor-wait" : `${iconColor} ${iconHover}`}`}
-            title="画像を保存して X で共有"
-          >
-            <Share2 size={16} />
-          </button>
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
-            title="メニュー"
-          >
-            <Menu size={16} />
-          </button>
-          <button
-            onClick={() => setIsLightMode(!isLightMode)}
-            className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
-            title={isLightMode ? "ダークモード" : "ライトモード"}
-          >
-            {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
-          </button>
-        </div>
-      </div>
+      <PanelHeader
+        isLightMode={isLightMode} setIsLightMode={setIsLightMode}
+        isEditMode={isEditMode} setIsEditMode={v => setPanelState(s => ({ ...s, isEditMode: v }))}
+        isSplitMode={isSplitMode} isEditSidebarNarrow={isEditSidebarNarrow}
+        setEditSidebarOverlayOpen={setEditSidebarOverlayOpen}
+        setAllAchieveConfirmOpen={setAllAchieveConfirmOpen}
+        handleShare={actions.handleShare} isSharing={actions.isSharing}
+        setIsMenuOpen={setIsMenuOpen} isMenuOpen={isMenuOpen}
+      />
 
-      {/* Hamburger menu */}
-      <AnimatePresence>
-        {isMenuOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[90] bg-black/40"
-              onClick={() => setIsMenuOpen(false)}
-            />
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="fixed left-0 top-[56px] bottom-0 w-72 max-w-[85vw] z-[91] overflow-y-auto scroll-touch p-4"
-              style={{
-                background: isLightMode ? "rgba(255,255,255,0.98)" : "rgba(20,10,40,0.98)",
-                borderRight: `1px solid ${isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"}`,
-              }}
-            >
-              <div className={`space-y-4 ${isLightMode ? "text-gray-800" : "text-white"}`}>
-                <h3 className="font-bold flex items-center gap-2">
-                  <PanelTopOpen size={18} /> パネル
-                </h3>
-                <button
-                  onClick={handleSavePanel}
-                  className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
-                >
-                  <Save size={16} /> 現在のパネルを保存
-                </button>
-                <button
-                  onClick={handleShare}
-                  disabled={isSharing}
-                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 ${isSharing ? "opacity-50 cursor-wait" : ""}`}
-                >
-                  <Share2 size={16} />
-                  {isSharing ? "共有中…" : "画像を保存して X で共有"}
-                </button>
+      <PanelMenu
+        isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} isLightMode={isLightMode}
+        handleSavePanel={actions.handleSavePanel} handleShare={actions.handleShare} isSharing={actions.isSharing}
+        savedPanels={savedPanels} renamePanelId={renamePanelId} setRenamePanelId={setRenamePanelId}
+        renameValue={renameValue} setRenameValue={setRenameValue}
+        handleRenameSubmit={handleRenameSubmit} handleRenameSavedPanel={s => { setRenamePanelId(s.id); setRenameValue(s.name); }}
+        handleLoadPanel={s => { setPanelState({ ...defaultPanelState, ...s.state }); setSelectedOverlayIdAndClearDraft(null); setIsMenuOpen(false); }}
+        setPanelToDeleteId={setPanelToDeleteId}
+      />
 
-                <div className="pt-2">
-                  <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
-                    <Share2 size={14} className="opacity-70" /> X共有の設定
-                  </h4>
-                  <ShareReplyToField toolId="panel" isLightMode={isLightMode} />
-                </div>
-                <div>
-                  <h4 className="text-sm font-medium mb-2 flex items-center gap-1">
-                    <List size={14} /> 保存したパネル
-                  </h4>
-                  <ul className="space-y-1">
-                    {savedPanels.length === 0 ? (
-                      <li className="text-sm opacity-70">保存したパネルはありません</li>
-                    ) : (
-                      savedPanels.map((s) => (
-                        <li key={s.id} className="flex items-center gap-1 group">
-                          {renamePanelId === s.id ? (
-                            <>
-                              <input
-                                type="text"
-                                value={renameValue}
-                                onChange={(e) => setRenameValue(e.target.value)}
-                                onKeyDown={(e) => { if (e.key === "Enter") handleRenameSubmit(); if (e.key === "Escape") { setRenamePanelId(null); setRenameValue(""); } }}
-                                onBlur={handleRenameSubmit}
-                                className="flex-1 min-w-0 px-2 py-1 rounded text-sm border bg-transparent"
-                                autoFocus
-                              />
-                            </>
-                          ) : (
-                            <>
-                              <button
-                                onClick={() => handleLoadPanel(s)}
-                                className="flex-1 min-w-0 text-left px-2 py-1.5 rounded text-sm hover:bg-white/10 truncate"
-                              >
-                                {s.name}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleRenameSavedPanel(s)}
-                                className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/10 shrink-0"
-                                title="名前を変更"
-                              >
-                                <Edit3 size={12} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => setPanelToDeleteId(s.id)}
-                                className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-red-400 shrink-0"
-                                title="削除"
-                              >
-                                <Trash2 size={12} />
-                              </button>
-                            </>
-                          )}
-                        </li>
-                      ))
-                    )}
-                  </ul>
-                </div>
-            </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <main className={`relative z-10 flex-1 flex flex-col min-h-0 overflow-auto scroll-touch ${isSplitMode ? "pt-0" : "pt-[56px]"}`}>
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+        <input ref={imageOverlayInputRef} type="file" accept="image/*" className="hidden" onChange={async (e) => {
+          const file = e.target.files?.[0];
+          if (!file) return;
+          const idbRef = await saveImage(file);
+          const newO = createImageOverlay(idbRef, 42.5, 42.5);
+          pushOverlayHistory(overlays);
+          setOverlays(prev => [...prev, newO]);
+          setSelectedOverlayIdAndClearDraft(newO.id);
+          e.target.value = "";
+        }} />
 
-      <main
-        className={`relative z-10 flex-1 flex flex-col min-h-0 overflow-auto scroll-touch ${isSplitMode ? "pt-0" : "pt-[56px]"}`}
-        onClick={(e) => {
-          if (isEditMode && captureWrapperRef.current && !captureWrapperRef.current.contains(e.target as Node)) {
-            setSelectedOverlayIdAndClearDraft(null);
-          }
-        }}
-        role="presentation"
-      >
-        {/* 画像選択・追加用（常にマウント。編集モード外のクリックやサイドバーから参照） */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleImageUpload}
-          aria-hidden
-        />
-        <input
-          ref={imageOverlayInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (!file?.type.startsWith("image/")) return;
-            e.target.value = "";
-            try {
-              // ファイルを直接 Blob として IndexedDB に保存
-              const idbRef = await saveImage(file);
-              const newOverlay = createImageOverlay(idbRef, 42.5, 42.5);
-              setPanelState((s) => {
-                pushOverlayHistory(s.overlays);
-                return { ...s, overlays: [...s.overlays, newOverlay] };
-              });
-              setSelectedOverlayIdAndClearDraft(newOverlay.id);
-            } catch (err) {
-              console.warn("Failed to save overlay image:", err);
-              showToast("覆い画像の保存に失敗しました。", "error");
-              // フォールバック: Data URL で直接保存
-              const reader = new FileReader();
-              reader.onload = () => {
-                const dataUrl = reader.result as string;
-                const newOverlay = createImageOverlay(dataUrl, 42.5, 42.5);
-                setPanelState((s) => {
-                  pushOverlayHistory(s.overlays);
-                  return { ...s, overlays: [...s.overlays, newOverlay] };
-                });
-                setSelectedOverlayIdAndClearDraft(newOverlay.id);
-              };
-              reader.readAsDataURL(file);
-            }
-          }}
-          aria-hidden
-        />
-        {/* 狭い画面: 編集サイドバーをオーバーレイで表示 */}
         <AnimatePresence>
-          {isEditMode && isEditSidebarNarrow && editSidebarOverlayOpen && (() => {
-            const selectedOverlay = selectedOverlayId ? overlays.find((x) => x.id === selectedOverlayId) ?? null : null;
-            const overlaySidebarWidth = typeof window !== "undefined" ? Math.min(320, Math.max(260, window.innerWidth * 0.85)) : 320;
-            return (
-              <>
-                <motion.div
-                  aria-hidden
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="fixed left-0 top-14 bottom-0 right-0 z-[60]"
-                  style={{ background: isLightMode ? "rgba(0,0,0,0.35)" : "rgba(0,0,0,0.5)" }}
-                  onClick={() => setEditSidebarOverlayOpen(false)}
-                />
-                <motion.aside
-                  initial={{ x: "-100%" }}
-                  animate={{ x: 0 }}
-                  exit={{ x: "-100%" }}
-                  transition={{ type: "tween", duration: 0.2 }}
-                  className="fixed left-0 top-14 bottom-0 z-[61] flex flex-col overflow-hidden shadow-xl"
-                  style={{
-                    width: overlaySidebarWidth,
-                    background: isLightMode ? "rgba(248,250,252,0.98)" : "rgba(10,5,30,0.98)",
-                    borderRight: `1px solid ${isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.1)"}`,
-                    backdropFilter: "blur(12px)",
-                  }}
-                >
-                  <div
-                    className={`flex items-center justify-between px-3 py-2 shrink-0 border-b ${isLightMode ? "text-gray-800 border-gray-200" : "text-white/90 border-white/10"}`}
-                  >
-                    <span className="text-sm font-medium">編集パネル</span>
-                    <button
-                      type="button"
-                      onClick={() => setEditSidebarOverlayOpen(false)}
-                      className={`p-1.5 rounded-lg ${isLightMode ? "hover:bg-gray-200 text-gray-600" : "hover:bg-white/10 text-white/70"}`}
-                      aria-label="閉じる"
-                    >
-                      <X size={18} />
-                    </button>
-                  </div>
-                  <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-                    <PanelEditSidebar
-                      tab={panelSidebarTab}
-                      setTab={setPanelSidebarTab}
-                      isLightMode={isLightMode}
-                      editSidebarRef={editSidebarRef}
-                      effectiveSidebarWidth={overlaySidebarWidth}
-                      fileInputRef={fileInputRef}
-                      imageOverlayInputRef={imageOverlayInputRef}
-                      imageDataUrl={imageDataUrl}
-                      setPendingCropDataUrl={setPendingCropDataUrl}
-                      setPanelState={setPanelState}
-                      isLineStep={isLineStep}
-                      lineToolMode={lineToolMode}
-                      setLineToolMode={setLineToolMode}
-                      lineSegmentMode={lineSegmentMode}
-                      setLineSegmentMode={setLineSegmentMode}
-                      partitionStrokes={partitionStrokes}
-                      setPartitionStrokes={setPartitionStrokes}
-                      selectedLineIndex={selectedLineIndex}
-                      setSelectedLineIndex={setSelectedLineIndex}
-                      onGenerateRegions={handleGenerateRegions}
-                      selectedOverlay={selectedOverlay}
-                      overlays={overlays}
-                      setOverlays={setOverlays}
-                      targetNumberDraft={targetNumberDraft}
-                      setTargetNumberDraft={setTargetNumberDraft}
-                      favoriteColors={favoriteColors}
-                      setFavoriteColors={setFavoriteColors}
-                      pushOverlayHistory={pushOverlayHistory}
-                      setSelectedOverlayId={setSelectedOverlayId}
-                      setCustomShapeEditingId={setCustomShapeEditingId}
-                      setCustomShapeModalOpen={setCustomShapeModalOpen}
-                      addShape={addShape}
-                      setAddShape={setAddShape}
-                      setIsDrawingFree={setIsDrawingFree}
-                      captureRef={captureRef}
-                      onAddOverlayAtPoint={handleAddOverlayAtPoint}
-                      onAddRectGrid={handleAddRectGrid}
-                      onAddTriangleStripes={handleAddTriangleStripes}
-                      activeFilters={activeFilters}
-                      toggleFilter={toggleFilter}
-                      filterShowLabel={filterShowLabel}
-                      filterIntensity={filterIntensity}
-                      setCustomShapeModalOpenForNew={() => { setCustomShapeEditingId(null); setCustomShapeModalOpen(true); }}
-                    />
-                  </div>
-                </motion.aside>
-              </>
-            );
-          })()}
+          {isEditMode && isEditSidebarNarrow && editSidebarOverlayOpen && (
+            <>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed left-0 top-14 bottom-0 right-0 z-[60] bg-black/40" onClick={() => setEditSidebarOverlayOpen(false)} />
+              <motion.aside initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ type: "tween", duration: 0.2 }} className="fixed left-0 top-14 bottom-0 z-[61] flex flex-col overflow-hidden shadow-xl" style={{ width: 300, background: isLightMode ? "rgba(248,250,252,0.98)" : "rgba(10,5,30,0.98)", backdropFilter: "blur(12px)" }}>
+                <div className="flex items-center justify-between px-3 py-2 border-b border-white/10">
+                  <span className="text-sm font-medium">編集パネル</span>
+                  <button onClick={() => setEditSidebarOverlayOpen(false)}><X size={18} /></button>
+                </div>
+                <PanelEditSidebar {...sidebarProps} />
+              </motion.aside>
+            </>
+          )}
         </AnimatePresence>
 
-        {/* Capture area: 編集モード時は常に左にサイドバー・右に画像（狭い画面ではサイドバーはオーバーレイで表示） */}
-        <div
-          ref={captureWrapperRef}
-          className={`flex-1 flex min-h-0 ${isEditMode ? "flex-row" : "flex-col"}`}
-        >
-          {isEditMode && !isEditSidebarNarrow && (() => {
-            const effectiveSidebarWidth = Math.max(200, Math.min(560, Number(editSidebarWidthPx) || 288));
-            const selectedOverlay = selectedOverlayId ? overlays.find((x) => x.id === selectedOverlayId) ?? null : null;
-            return (
-              <>
-              <PanelEditSidebar
-                tab={panelSidebarTab}
-                setTab={setPanelSidebarTab}
-                isLightMode={isLightMode}
-                editSidebarRef={editSidebarRef}
-                effectiveSidebarWidth={effectiveSidebarWidth}
-                fileInputRef={fileInputRef}
-                imageOverlayInputRef={imageOverlayInputRef}
-                imageDataUrl={imageDataUrl}
-                setPendingCropDataUrl={setPendingCropDataUrl}
-                setPanelState={setPanelState}
-                isLineStep={isLineStep}
-                lineToolMode={lineToolMode}
-                setLineToolMode={setLineToolMode}
-                lineSegmentMode={lineSegmentMode}
-                setLineSegmentMode={setLineSegmentMode}
-                partitionStrokes={partitionStrokes}
-                setPartitionStrokes={setPartitionStrokes}
-                selectedLineIndex={selectedLineIndex}
-                setSelectedLineIndex={setSelectedLineIndex}
-                onGenerateRegions={handleGenerateRegions}
-                selectedOverlay={selectedOverlay}
-                overlays={overlays}
-                setOverlays={setOverlays}
-                targetNumberDraft={targetNumberDraft}
-                setTargetNumberDraft={setTargetNumberDraft}
-                favoriteColors={favoriteColors}
-                setFavoriteColors={setFavoriteColors}
-                pushOverlayHistory={pushOverlayHistory}
-                setSelectedOverlayId={setSelectedOverlayId}
-                setCustomShapeEditingId={setCustomShapeEditingId}
-                setCustomShapeModalOpen={setCustomShapeModalOpen}
-                addShape={addShape}
-                setAddShape={setAddShape}
-                setIsDrawingFree={setIsDrawingFree}
-                captureRef={captureRef}
-                onAddOverlayAtPoint={handleAddOverlayAtPoint}
-                onAddRectGrid={handleAddRectGrid}
-                onAddTriangleStripes={handleAddTriangleStripes}
-                activeFilters={activeFilters}
-                toggleFilter={toggleFilter}
-                filterShowLabel={filterShowLabel}
-                filterIntensity={filterIntensity}
-                setCustomShapeModalOpenForNew={() => { setCustomShapeEditingId(null); setCustomShapeModalOpen(true); }}
-              />
-              <div
-                role="separator"
-                aria-label="編集パネル幅を調節"
-                onMouseDown={handleEditSidebarResizeStart}
-                onTouchStart={handleEditSidebarResizeTouchStart}
-                className="shrink-0 w-4 h-full cursor-col-resize select-none flex items-center justify-center group touch-manipulation"
-                style={{ minWidth: 16 }}
-              >
-                <span
-                  className="w-0.5 h-8 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                  style={{ background: isLightMode ? "rgba(0,0,0,0.15)" : "rgba(255,255,255,0.2)" }}
-                />
+        <div ref={captureWrapperRef} className={`flex-1 flex min-h-0 ${isEditMode ? "flex-row" : "flex-col"}`}>
+          {isEditMode && !isEditSidebarNarrow && (
+            <>
+              <PanelEditSidebar {...sidebarProps} />
+              <div role="separator" onMouseDown={handleResizeStart} onTouchStart={handleResizeStart} className="shrink-0 w-4 h-full cursor-col-resize flex items-center justify-center group">
+                <span className="w-0.5 h-8 bg-white/20 group-hover:bg-white/40 rounded-full" />
               </div>
-              </>
-            );
-          })()}
-          <div
-            className={`flex-1 min-w-0 flex items-center justify-center ${
-              isEditMode
-                ? isLineStep
-                  ? "p-5 sm:p-8"
-                  : "p-4"
-                : "min-h-0 overflow-y-auto overflow-x-hidden py-8 px-4 sm:py-10 sm:px-6 scroll-touch"
-            }`}
-          >
-          <div
-            ref={captureRef}
-            className={`relative w-full flex items-center justify-center overflow-hidden rounded-xl ${
-              isEditMode ? "max-w-full max-h-full" : "max-w-4xl min-h-[45vmin]"
-            }`}
-            style={{
-              aspectRatio: imageDataUrl && typeof imageAspectRatio === "number" ? imageAspectRatio : 16 / 9,
-              background: imageDataUrl ? "transparent" : (isLightMode ? "#e0e0e0" : "#1a1a2e"),
-            }}
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={!imageDataUrl ? handleImageDrop : undefined}
-            onPointerDownCapture={handleCapturePointerDown}
-            onPointerMoveCapture={handleCapturePointerMove}
-            onPointerUpCapture={handleCapturePointerUp}
-            onPointerLeave={isDrawingFree ? handleFreeDrawEnd : handleCapturePointerLeaveOrCancel}
-            onPointerCancel={isDrawingFree ? handleFreeDrawEnd : handleCapturePointerLeaveOrCancel}
-            onClick={addShape && addShape !== "free" ? handleAddOverlay : undefined}
-            onPointerDown={addShape === "free" ? handleFreeDrawStart : undefined}
-            onPointerMove={isDrawingFree ? handleFreeDrawMove : undefined}
-            onPointerUp={isDrawingFree ? handleFreeDrawEnd : undefined}
-          >
-            {!imageDataUrl ? (
-              <div
-                className={`absolute inset-0 flex flex-col items-center justify-center gap-2 cursor-pointer ${isLightMode ? "text-gray-500" : "text-white/50"}`}
-                onClick={() => fileInputRef.current?.click()}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={handleImageDrop}
-              >
-                <ImagePlus size={48} />
-                <span className="text-sm font-medium text-center px-4">
-                  ここをクリックするか、画像をドラッグ＆ドロップしてアップロード
-                </span>
-              </div>
-            ) : (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element -- Image from IndexedDB or Data URL */}
-                <img
-                  src={resolvedBgUrl ?? (imageDataUrl && !isIdbKey(imageDataUrl) ? imageDataUrl : undefined)}
-                  alt="パネル画像"
-                  className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-                />
-                {/* Filter layers */}
-                {activeFilters.includes("blur") && (
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      backdropFilter: `blur(${2 * (filterIntensity / 50)}px)`,
-                      WebkitBackdropFilter: `blur(${2 * (filterIntensity / 50)}px)`,
-                    }}
-                  />
-                )}
-                {activeFilters.includes("noise") && (
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      opacity: 0.15 + (filterIntensity / 100) * 0.4,
-                      backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                      backgroundSize: "128px 128px",
-                    }}
-                  />
-                )}
-                {activeFilters.includes("grid") && (
-                  <div
-                    className="absolute inset-0 pointer-events-none"
-                    style={{
-                      opacity: 0.05 + (filterIntensity / 100) * 0.15,
-                      backgroundImage: "linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)",
-                      backgroundSize: "20px 20px",
-                    }}
-                  />
-                )}
-                {filterShowLabel && activeFilters.length > 0 && (
-                  <div
-                    className={`absolute top-2 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded text-xs font-bold ${isLightMode ? "bg-black/20 text-gray-800" : "bg-white/20 text-white"}`}
-                  >
-                    AI読み取り防止
-                  </div>
-                )}
-                {/* 線で切り分け: 描いた線の表示と描画用ヒット領域（ラッパー外で確実に表示） */}
-                {isLineStep && (
-                  <>
-                    <svg
-                      className="absolute w-full h-full pointer-events-none overflow-visible"
-                      viewBox="0 0 100 100"
-                      preserveAspectRatio="none"
-                      style={
-                        imageBoundsPct && imageBoundsPct.width > 0 && imageBoundsPct.height > 0
-                          ? {
-                              left: `${imageBoundsPct.x}%`,
-                              top: `${imageBoundsPct.y}%`,
-                              width: `${imageBoundsPct.width}%`,
-                              height: `${imageBoundsPct.height}%`,
-                            }
-                          : { left: 0, top: 0, width: "100%", height: "100%" }
-                      }
-                    >
-                      <rect
-                        x={0}
-                        y={0}
-                        width={100}
-                        height={100}
-                        fill="none"
-                        stroke="rgba(139,92,246,0.5)"
-                        strokeWidth={0.5}
-                        strokeDasharray="2 2"
-                      />
-                      {partitionStrokes.flatMap((stroke, strokeIdx) =>
-                        stroke.segments.map((seg, segIdx) =>
-                          isPartitionLine(seg) ? (
-                            <line
-                              key={`${strokeIdx}-${segIdx}`}
-                              x1={seg.x1}
-                              y1={seg.y1}
-                              x2={seg.x2}
-                              y2={seg.y2}
-                              stroke={strokeIdx === selectedLineIndex ? "rgba(251,191,36,0.95)" : "rgba(139,92,246,0.9)"}
-                              strokeWidth={strokeIdx === selectedLineIndex ? 1.4 : 0.8}
-                              strokeLinecap="round"
-                            />
-                          ) : (
-                            (() => {
-                              const curve = seg as PartitionCurve;
-                              return (
-                                <path
-                                  key={`${strokeIdx}-${segIdx}`}
-                                  d={`M ${curve.x1} ${curve.y1} Q ${curve.cpx} ${curve.cpy} ${curve.x2} ${curve.y2}`}
-                                  fill="none"
-                                  stroke={strokeIdx === selectedLineIndex ? "rgba(251,191,36,0.95)" : "rgba(139,92,246,0.9)"}
-                                  strokeWidth={strokeIdx === selectedLineIndex ? 1.4 : 0.8}
-                                  strokeLinecap="round"
-                                />
-                              );
-                            })()
-                          )
-                        )
-                      )}
-                      {lineDrawStart && lineDrawEnd && (
-                        lineSegmentMode === "curve" && strokePreviewPoints.length >= 2 ? (
-                          (() => {
-                            const smoothed = smoothPoints(strokePreviewPoints, 5);
-                            const segments = pointsToBezierChain(smoothed) as PartitionCurve[];
-                            const d =
-                              segments.length > 0
-                                ? `M ${segments[0]!.x1} ${segments[0]!.y1}` +
-                                  segments.map((s) => ` Q ${s.cpx} ${s.cpy} ${s.x2} ${s.y2}`).join(" ")
-                                : "";
-                            return (
-                              <path
-                                d={d}
-                                fill="none"
-                                stroke="rgba(251,191,36,0.95)"
-                                strokeWidth={1}
-                                strokeLinecap="round"
-                                strokeDasharray="2 2"
-                              />
-                            );
-                          })()
-                        ) : lineSegmentMode === "curve" ? (
-                          (() => {
-                            const dx = lineDrawEnd.x - lineDrawStart.x;
-                            const dy = lineDrawEnd.y - lineDrawStart.y;
-                            const cpx = (lineDrawStart.x + lineDrawEnd.x) / 2 - 0.2 * dy;
-                            const cpy = (lineDrawStart.y + lineDrawEnd.y) / 2 + 0.2 * dx;
-                            return (
-                              <path
-                                d={`M ${lineDrawStart.x} ${lineDrawStart.y} Q ${cpx} ${cpy} ${lineDrawEnd.x} ${lineDrawEnd.y}`}
-                                fill="none"
-                                stroke="rgba(251,191,36,0.95)"
-                                strokeWidth={1}
-                                strokeLinecap="round"
-                                strokeDasharray="2 2"
-                              />
-                            );
-                          })()
-                        ) : (
-                          <line
-                            x1={lineDrawStart.x}
-                            y1={lineDrawStart.y}
-                            x2={lineDrawEnd.x}
-                            y2={lineDrawEnd.y}
-                            stroke="rgba(251,191,36,0.95)"
-                            strokeWidth={1}
-                            strokeLinecap="round"
-                            strokeDasharray="2 2"
-                          />
-                        )
-                      )}
-                    </svg>
-                    <div
-                      ref={lineDrawAreaRef}
-                      className={`absolute overflow-visible touch-none ${lineToolMode === "pen" ? "cursor-crosshair" : "cursor-grab"}`}
-                      style={(() => {
-                        const margin = 10;
-                        if (!imageBoundsPct || imageBoundsPct.width <= 0 || imageBoundsPct.height <= 0) {
-                          return { left: 0, top: 0, width: "100%", height: "100%" };
-                        }
-                        const left = Math.max(0, imageBoundsPct.x - margin);
-                        const top = Math.max(0, imageBoundsPct.y - margin);
-                        const width = Math.min(100 - left, imageBoundsPct.width + margin * 2);
-                        const height = Math.min(100 - top, imageBoundsPct.height + margin * 2);
-                        return {
-                          left: `${left}%`,
-                          top: `${top}%`,
-                          width: `${width}%`,
-                          height: `${height}%`,
-                        };
-                      })()}
-                      onPointerDown={handleLineDrawPointerDown}
-                      onPointerMove={handleLineDrawPointerMove}
-                      onPointerUp={handleLineDrawPointerUp}
-                      onPointerLeave={() => {
-                        if (lineDrawStart) {
-                          setLineDrawStart(null);
-                          setLineDrawEnd(null);
-                          strokePointsRef.current = [];
-                          setStrokePreviewPoints([]);
-                        }
-                      }}
-                    />
-                  </>
-                )}
-                {/* 画像の表示範囲内にクリップ（オーバーレイ・フリードローが破線の外にはみ出さない）。線で切り分け中はクリックを透過させる */}
-                <div
-                  className="absolute overflow-hidden"
-                  style={{
-                    ...(imageBoundsPct && imageBoundsPct.width > 0 && imageBoundsPct.height > 0
-                      ? {
-                          left: `${imageBoundsPct.x}%`,
-                          top: `${imageBoundsPct.y}%`,
-                          width: `${imageBoundsPct.width}%`,
-                          height: `${imageBoundsPct.height}%`,
-                        }
-                      : { left: 0, top: 0, right: 0, bottom: 0 }),
-                    pointerEvents: isLineStep ? "none" : undefined,
-                  }}
-                >
-                {/* Overlays */}
-                {!isLineStep && overlays.map((overlay) => {
-                  if (overlay.hidden) return null;
-                  const isFree = overlay.shape === "free";
-                  const isImage = overlay.shape === "image";
-                  const isCustom = overlay.shape === "custom" && overlay.parts && overlay.parts.length > 0;
-                  const freePoints = isFree && !overlay.pathD && overlay.points && overlay.points.length >= 2
-                    ? overlay.points
-                        .map((p) => {
-                          const x = overlay.width ? (p.x / overlay.width) * 100 : 0;
-                          const y = overlay.height ? (p.y / overlay.height) * 100 : 0;
-                          return `${x},${y}`;
-                        })
-                        .join(" ")
-                    : "";
-                  const freePathD = isFree ? overlay.pathD : undefined;
-                  const rotation = overlay.rotation ?? 0;
-                  const selected = selectedOverlayId === overlay.id;
-                  return (
-                    <div
-                      key={overlay.id}
-                      className="absolute cursor-pointer select-none flex flex-col items-center justify-center overflow-hidden"
-                      style={{
-                        left: `${overlay.x}%`,
-                        top: `${overlay.y}%`,
-                        width: `${overlay.width}%`,
-                        height: `${overlay.height}%`,
-                        minWidth: 24,
-                        minHeight: 24,
-                        transform: `${overlay.flipX ? "scaleX(-1) " : ""}rotate(${rotation}deg)`,
-                        transformOrigin: "center center",
-                        opacity: (overlay.opacity ?? 100) / 100,
-                        pointerEvents: isFree ? "none" : undefined,
-                        background: isFree || isImage || isCustom ? "transparent" : overlay.color,
-                        border: isFree ? (selected ? `2px solid ${overlay.color}` : "none") : selected ? `2px solid ${overlay.color}` : "1px solid rgba(255,255,255,0.3)",
-                        borderRadius: isCustom ? 0 : overlay.shape === "circle" ? "50%" : overlay.shape === "rect" ? 0 : 4,
-                        clipPath: isCustom
-                          ? undefined
-                          : overlay.shape === "triangle"
-                            ? overlay.triangleKind === "rightTop"
-                              ? "polygon(0 0, 100% 0, 0 100%)"
-                              : overlay.triangleKind === "rightBottom"
-                              ? "polygon(0 0, 100% 100%, 0 100%)"
-                              : overlay.triangleKind === "isoLeft"
-                              ? "polygon(0 50%, 100% 0, 100% 100%)"
-                              : overlay.triangleKind === "isoRight"
-                              ? "polygon(100% 50%, 0 0, 0 100%)"
-                              : overlay.triangleKind === "diagDownUpper"
-                              ? "polygon(0 0, 100% 0, 0 100%)" // 左上三角（対角線 左上→右下）
-                              : overlay.triangleKind === "diagDownLower"
-                              ? "polygon(100% 0, 100% 100%, 0 100%)" // 右下三角
-                              : overlay.triangleKind === "diagUpUpper"
-                              ? "polygon(0 0, 100% 0, 100% 100%)" // 右上三角（対角線 右上→左下）
-                              : overlay.triangleKind === "diagUpLower"
-                              ? "polygon(0 0, 100% 100%, 0 100%)" // 左下三角
-                              : "polygon(50% 0%, 100% 100%, 0% 100%)"
-                            : undefined,
-                      }}
-                      onPointerDown={!isFree ? (e) => handlePointerDown(overlay, e) : undefined}
-                      onPointerMove={!isFree ? (e) => handleOverlayPointerMove(overlay, e) : undefined}
-                      onPointerUp={!isFree ? (e) => { handleOverlayPointerUp(); handlePointerUp(overlay, e); } : undefined}
-                      onPointerLeave={!isFree ? () => { handleOverlayPointerUp(); if (tapTimerRef.current) { clearTimeout(tapTimerRef.current); tapTimerRef.current = null; } tapPendingRef.current = false; } : undefined}
-                      onClick={!isFree ? (e) => { e.stopPropagation(); if (isEditMode) setSelectedOverlayIdAndClearDraft(selectedOverlayId === overlay.id ? null : overlay.id); } : undefined}
-                    >
-                      {isImage && overlay.imageDataUrl ? (
-                        <>
-                          {/* eslint-disable-next-line @next/next/no-img-element -- overlay image from IndexedDB or Data URL */}
-                          <img src={resolvedOverlayUrls[overlay.id] ?? (overlay.imageDataUrl && !isIdbKey(overlay.imageDataUrl) ? overlay.imageDataUrl : undefined)} alt="" className="w-full h-full object-contain pointer-events-none" />
-                        </>
-                      ) : null}
-                      {isFree && (freePathD || freePoints) ? (
-                        <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
-                          {freePathD ? (
-                            <path
-                              d={freePathD}
-                              fill={overlay.color}
-                              stroke="rgba(255,255,255,0.3)"
-                              strokeWidth={0.5}
-                              style={{ pointerEvents: "auto" }}
-                              onPointerDown={(e) => handlePointerDown(overlay, e)}
-                              onPointerMove={(e) => handleOverlayPointerMove(overlay, e)}
-                              onPointerUp={(e) => {
-                                handleOverlayPointerUp();
-                                handlePointerUp(overlay, e);
-                              }}
-                              onPointerLeave={() => {
-                                handleOverlayPointerUp();
-                                if (tapTimerRef.current) {
-                                  clearTimeout(tapTimerRef.current);
-                                  tapTimerRef.current = null;
-                                }
-                                tapPendingRef.current = false;
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (isEditMode) setSelectedOverlayIdAndClearDraft(selectedOverlayId === overlay.id ? null : overlay.id);
-                              }}
-                            />
-                          ) : (
-                            <polygon
-                              points={freePoints}
-                              fill={overlay.color}
-                              stroke="rgba(255,255,255,0.3)"
-                              strokeWidth={0.5}
-                              style={{ pointerEvents: "auto" }}
-                              onPointerDown={(e) => handlePointerDown(overlay, e)}
-                              onPointerMove={(e) => handleOverlayPointerMove(overlay, e)}
-                              onPointerUp={(e) => {
-                                handleOverlayPointerUp();
-                                handlePointerUp(overlay, e);
-                              }}
-                              onPointerLeave={() => {
-                                handleOverlayPointerUp();
-                                if (tapTimerRef.current) {
-                                  clearTimeout(tapTimerRef.current);
-                                  tapTimerRef.current = null;
-                                }
-                                tapPendingRef.current = false;
-                              }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (isEditMode) setSelectedOverlayIdAndClearDraft(selectedOverlayId === overlay.id ? null : overlay.id);
-                              }}
-                            />
-                          )}
-                        </svg>
-                      ) : null}
-                      {isCustom && overlay.parts ? (
-                        <>
-                          {overlay.parts.map((part) => {
-                            const clipPath = getPartClipPath(part);
-                            const color = part.color ?? overlay.color;
-                            const rot = part.rotation ?? 0;
-                            return (
-                              <div
-                                key={part.id}
-                                className="absolute pointer-events-none"
-                                style={{
-                                  left: `${part.x}%`,
-                                  top: `${part.y}%`,
-                                  width: `${part.width}%`,
-                                  height: `${part.height}%`,
-                                  transform: `rotate(${rot}deg)`,
-                                  transformOrigin: "center center",
-                                  background: color,
-                                  borderRadius: part.shape === "circle" ? "50%" : part.shape === "rect" ? 0 : 4,
-                                  clipPath: clipPath ?? undefined,
-                                }}
-                              />
-                            );
-                          })}
-                        </>
-                      ) : null}
-                      {!isImage && (isFree ? ((overlay.points && overlay.points.length > 0) || !!overlay.pathD) : isCustom ? overlay.parts?.length : true) ? (
-                        <div
-                          className={`relative z-10 flex flex-col items-center justify-center p-0.5 ${
-                            isEditMode ? "pointer-events-none" : ""
-                          } ${overlay.shape === "triangle" ? "" : isCustom ? "" : isFree ? "" : "w-full h-full"}`}
-                          style={(() => {
-                            if (isCustom && overlay.parts?.length) {
-                              const c = getCustomOverlayCentroid(overlay.parts);
-                              return {
-                                position: "absolute" as const,
-                                left: `${c.x}%`,
-                                top: `${c.y}%`,
-                                transform: `${overlay.flipX ? "scaleX(-1) " : ""}translate(-50%, -50%)`,
-                                maxWidth: "90%",
-                              };
-                            }
-                            if (isFree && overlay.width && overlay.height) {
-                              const c = getFreeOverlayCentroid(overlay);
-                              if (c) {
-                                const leftPct = ((c.x - overlay.x) / overlay.width) * 100;
-                                const topPct = ((c.y - overlay.y) / overlay.height) * 100;
-                                return {
-                                  position: "absolute" as const,
-                                  left: `${leftPct}%`,
-                                  top: `${topPct}%`,
-                                  transform: `${overlay.flipX ? "scaleX(-1) " : ""}translate(-50%, -50%)`,
-                                  maxWidth: "90%",
-                                };
-                              }
-                            }
-                            if (overlay.shape === "triangle") {
-                              return {
-                                position: "absolute" as const,
-                                left: `${getTriangleTextAnchor(overlay.triangleKind).x}%`,
-                                top: `${getTriangleTextAnchor(overlay.triangleKind).y}%`,
-                                transform: `${overlay.flipX ? "scaleX(-1) " : ""}translate(-50%, -50%)`,
-                                maxWidth: "90%",
-                              };
-                            }
-                            if (overlay.flipX) {
-                              return { transform: "scaleX(-1)" };
-                            }
-                            return undefined;
-                          })()}
-                        >
-                          {overlay.label ? (
-                            <span
-                              className={`font-medium truncate w-full text-center ${isLightMode ? "text-gray-800" : "text-white/90"}`}
-                              style={{ fontSize: overlay.labelFontSize ? `${overlay.labelFontSize}pt` : "10px" }}
-                            >
-                              {overlay.label}
-                            </span>
-                          ) : null}
-                          <span
-                            className={`font-bold tabular-nums ${isLightMode ? "text-gray-900" : "text-white"}`}
-                            style={{ fontSize: overlay.fontSize ? `${overlay.fontSize}pt` : undefined }}
-                          >
-                            {overlay.targetType === "number" ? (
-                              <>
-                                {overlay.count}
-                                {overlay.target > 0 && <span className="opacity-60" style={{ fontSize: overlay.fontSize ? "0.7em" : undefined }}>/{overlay.target}</span>}
-                              </>
-                            ) : (
-                              <span
-                                className="font-medium px-1 truncate max-w-full block"
-                                style={{ fontSize: overlay.fontSize ? undefined : "0.75rem" }}
-                              >
-                                {overlay.targetText || "（テキスト）"}
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                      ) : null}
-                      {isEditMode && selected ? (
-                        <>
-                          {/* 円形ガイド（傾き用） */}
-                          <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 5 }} viewBox="0 0 100 100" preserveAspectRatio="none">
-                            <circle cx="50" cy="50" r="58" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth={1} strokeDasharray="4 3" />
-                          </svg>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              pushOverlayHistory(overlays);
-                              setOverlays((prev) => prev.filter((p) => p.id !== overlay.id));
-                              setSelectedOverlayIdAndClearDraft(null);
-                            }}
-                            className="absolute top-0 right-0 w-6 h-6 -translate-y-1/2 translate-x-1/2 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center shrink-0 shadow border-2 border-white"
-                            style={{ zIndex: 25 }}
-                            title="削除"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                          <div
-                            data-handle="rotate"
-                            className="absolute -top-8 left-1/2 -translate-x-1/2 flex items-center justify-center cursor-grab active:cursor-grabbing"
-                            style={{ zIndex: 20, width: 32, height: 24 }}
-                          >
-                            <div className="w-8 h-5 rounded bg-violet-500/80 flex items-center justify-center">
-                              <span className="text-xs text-white">↻</span>
-                            </div>
-                          </div>
-                          {(["se", "sw", "ne", "nw"] as const).map((h) => (
-                            <div
-                              key={h}
-                              data-handle={h}
-                              className="absolute flex items-center justify-center cursor-nwse-resize"
-                              style={{
-                                top: h.includes("n") ? -12 : undefined,
-                                bottom: h.includes("s") ? -12 : undefined,
-                                left: h.includes("w") ? -12 : undefined,
-                                right: h.includes("e") ? -12 : undefined,
-                                width: 28,
-                                height: 28,
-                                zIndex: 20,
-                              }}
-                            >
-                              <div className="w-3 h-3 rounded-full bg-violet-500 border-2 border-white" />
-                            </div>
-                          ))}
-                          {(["n", "s", "e", "w"] as const).map((h) => (
-                            <div
-                              key={h}
-                              data-handle={h}
-                              className="absolute flex items-center justify-center cursor-pointer"
-                              style={{
-                                top: h === "n" ? -12 : h === "s" ? undefined : "50%",
-                                bottom: h === "s" ? -12 : undefined,
-                                left: h === "w" ? -12 : h === "e" ? undefined : "50%",
-                                right: h === "e" ? -12 : undefined,
-                                transform:
-                                  h === "n" || h === "s"
-                                    ? "translateX(-50%)"
-                                    : h === "e" || h === "w"
-                                    ? "translateY(-50%)"
-                                    : undefined,
-                                width: 28,
-                                height: 28,
-                                zIndex: 20,
-                              }}
-                            >
-                              <div className="w-2.5 h-2.5 rounded-full bg-violet-500 border-2 border-white" />
-                            </div>
-                          ))}
-                        </>
-                      ) : null}
-                    </div>
-                  );
-                })}
-                {/* Free draw preview */}
-                {isDrawingFree && freeDrawPreviewPoints.length > 1 && (
-                  <svg
-                    className="absolute inset-0 w-full h-full pointer-events-none"
-                    viewBox="0 0 100 100"
-                    preserveAspectRatio="none"
-                  >
-                    <polygon
-                      points={freeDrawPreviewPoints.map((p) => `${p.x},${p.y}`).join(" ")}
-                      fill="rgba(139,92,246,0.3)"
-                      stroke="rgba(139,92,246,0.8)"
-                      strokeWidth={0.5}
-                    />
-                  </svg>
-                )}
-                </div>
-              </>
-            )}
-          </div>
+            </>
+          )}
+          <div className={`flex-1 flex items-center justify-center ${isEditMode ? "p-4" : "p-8"}`}>
+            <PanelCanvas
+              captureRef={captureRef}
+              imageDataUrl={imageDataUrl} resolvedBgUrl={resolvedBgUrl} imageAspectRatio={imageAspectRatio ?? undefined}
+              isLightMode={isLightMode} isEditMode={isEditMode} isLineStep={isLineStep}
+              activeFilters={activeFilters} filterIntensity={filterIntensity} filterShowLabel={filterShowLabel}
+              overlays={overlays} selectedOverlayId={selectedOverlayId} resolvedOverlayUrls={resolvedOverlayUrls}
+              imageBoundsPct={imageBoundsPct}
+              onPointerDownCapture={interaction.handleCapturePointerDown}
+              onPointerMoveCapture={interaction.handleCapturePointerMove}
+              onPointerUpCapture={interaction.handleCapturePointerUp}
+              onPointerLeaveCapture={interaction.handleCapturePointerLeaveOrCancel}
+              partitionStrokes={partitionStrokes} selectedLineIndex={drawing.selectedLineIndex}
+              lineDrawStart={drawing.lineDrawStart} lineDrawEnd={drawing.lineDrawEnd}
+              lineSegmentMode={lineSegmentMode} lineToolMode={lineToolMode} strokePreviewPoints={drawing.strokePreviewPoints}
+              onLineDrawPointerDown={drawing.handleLineDrawPointerDown}
+              onLineDrawPointerMove={drawing.handleLineDrawPointerMove}
+              onLineDrawPointerUp={drawing.handleLineDrawPointerUp}
+              isDrawingFree={drawing.isDrawingFree} freeDrawPreviewPoints={drawing.freeDrawPreviewPoints}
+              onFreeDrawStart={drawing.handleFreeDrawStart} onFreeDrawMove={drawing.handleFreeDrawMove} onFreeDrawEnd={drawing.handleFreeDrawEnd}
+              onImageUploadClick={() => fileInputRef.current?.click()}
+              onImageDrop={handleImageDrop}
+              onAddOverlayClick={(e) => {
+                if (!addShape || !captureRef.current) return;
+                const rect = captureRef.current.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                actions.handleAddOverlayAtPoint(addShape, x, y);
+                setAddShape(null);
+              }}
+              onOverlayPointerDown={interaction.handlePointerDown}
+              onOverlayPointerMove={interaction.handleOverlayPointerMove}
+              onOverlayPointerUp={handlePointerUpWithTap}
+              onOverlayPointerLeave={() => { interaction.handleOverlayPointerUp(); }}
+              onOverlayClick={(id, e) => { e.stopPropagation(); if (isEditMode) setSelectedOverlayIdAndClearDraft(selectedOverlayId === id ? null : id); }}
+              onOverlayDelete={(id, e) => { e.stopPropagation(); pushOverlayHistory(overlays); setOverlays(prev => prev.filter(o => o.id !== id)); setSelectedOverlayIdAndClearDraft(null); }}
+              pushOverlayHistory={pushOverlayHistory} addShape={addShape}
+            />
           </div>
         </div>
       </main>
 
-      <ConfirmDialog
-        open={achievedOverlayId !== null}
-        message="達成しますか？"
-        confirmLabel="はい"
-        cancelLabel="いいえ"
-        onConfirm={handleConfirmAchieve}
-        onCancel={() => setAchievedOverlayId(null)}
-        danger={false}
-      />
-      <ConfirmDialog
-        open={allAchieveConfirmOpen}
-        title="全達成"
-        message="すべての覆いを開けますか？（目標の有無は問いません）"
-        confirmLabel="はい"
-        cancelLabel="いいえ"
-        onConfirm={handleConfirmAllAchieve}
-        onCancel={() => setAllAchieveConfirmOpen(false)}
-        danger={false}
-      />
-      <ConfirmDialog
-        open={panelToDeleteId !== null}
-        message="本当にこの保存パネルを削除しますか？"
-        confirmLabel="削除する"
-        cancelLabel="キャンセル"
-        onConfirm={handleDeleteSavedPanel}
-        onCancel={() => setPanelToDeleteId(null)}
-        danger
-      />
-      <ImageCropModal
-        open={pendingCropDataUrl !== null}
-        imageDataUrl={pendingCropDataUrl}
-        onConfirm={handleCropConfirm}
-        onCancel={() => setPendingCropDataUrl(null)}
-        isLightMode={isLightMode}
-      />
-      <CustomShapeEditorModal
-        open={customShapeModalOpen}
-        initialParts={
-          customShapeEditingId
-            ? (overlays.find((x) => x.id === customShapeEditingId)?.parts ?? [])
-            : []
-        }
-        savedTemplates={savedCustomShapes}
-        onConfirm={handleCustomShapeConfirm}
-        onCancel={() => {
-          setCustomShapeModalOpen(false);
-          setCustomShapeEditingId(null);
-        }}
-        onSaveTemplate={handleSaveCustomTemplate}
-        isLightMode={isLightMode}
-      />
+      <ConfirmDialog open={achievedOverlayId !== null} message="達成しますか？" onConfirm={() => { setOverlays(prev => prev.filter(o => o.id !== achievedOverlayId)); setAchievedOverlayId(null); }} onCancel={() => setAchievedOverlayId(null)} />
+      <ConfirmDialog open={allAchieveConfirmOpen} message="すべての覆いを開けますか？" onConfirm={() => { setOverlays(() => []); setAllAchieveConfirmOpen(false); }} onCancel={() => setAllAchieveConfirmOpen(false)} />
+      <ConfirmDialog open={panelToDeleteId !== null} message="本当に削除しますか？" onConfirm={handleDeleteSavedPanel} onCancel={() => setPanelToDeleteId(null)} danger />
+      <ImageCropModal open={pendingCropDataUrl !== null} imageDataUrl={pendingCropDataUrl!} onConfirm={handleCropConfirm} onCancel={() => setPendingCropDataUrl(null)} isLightMode={isLightMode} />
+      <CustomShapeEditorModal open={customShapeModalOpen} initialParts={customShapeEditingId ? (overlays.find(o => o.id === customShapeEditingId)?.parts ?? []) : []} savedTemplates={state.savedCustomShapes} onConfirm={actions.handleCustomShapeConfirm} onCancel={() => { setCustomShapeModalOpen(false); setCustomShapeEditingId(null); }} onSaveTemplate={actions.handleSaveCustomTemplate} isLightMode={isLightMode} />
     </div>
   );
 }
