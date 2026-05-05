@@ -2,9 +2,11 @@
 
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { X, ExternalLink, Copy, Check, Music } from "lucide-react";
-import type { Player, GachaPool } from "@/lib/gacha";
+import type { Player, GachaPool, IntegrationConfig } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { isLocalUrl, getGachaFile } from "@/lib/gachaFileStore";
+import { issueClaimForPlayer } from "@/lib/gachaDistribution";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 /** 1行分のコピー用テキスト（項目名 + 種別 + リンク）。local:// は「ローカル登録」と表記 */
 function formatLine(item: { name: string; link: string; kindLabel: string }): string {
@@ -16,6 +18,8 @@ interface PlayerLinkCollectionModalProps {
     player: Player;
     pool: GachaPool;
     isLightMode: boolean;
+    integrationConfig?: IntegrationConfig;
+    onUpdatePlayers?: (updater: (prev: Player[]) => Player[]) => void;
     onClose: () => void;
 }
 
@@ -24,6 +28,8 @@ export default function PlayerLinkCollectionModal({
     player,
     pool,
     isLightMode,
+    integrationConfig,
+    onUpdatePlayers,
     onClose,
 }: PlayerLinkCollectionModalProps) {
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
@@ -145,6 +151,30 @@ export default function PlayerLinkCollectionModal({
         }
     }, []);
 
+    const [isIssuing, setIsIssuing] = useState(false);
+    const [issueError, setIssueError] = useState<string | null>(null);
+
+    const handleIssueClaim = useCallback(async () => {
+        if (!integrationConfig || !onUpdatePlayers) return;
+        setIsIssuing(true);
+        setIssueError(null);
+        try {
+            const res = await issueClaimForPlayer(player, pool, integrationConfig);
+            if (res.ok && res.claim_url) {
+                const campaignId = pool.linkedCampaignId;
+                onUpdatePlayers(prev => prev.map(p => p.id === player.id ? { ...p, issuedClaimUrl: res.claim_url, issuedCampaignId: campaignId } : p));
+            } else {
+                setIssueError(res.error || "発行に失敗しました");
+            }
+        } catch (e) {
+            setIssueError(e instanceof Error ? e.message : "通信エラーが発生しました");
+        } finally {
+            setIsIssuing(false);
+        }
+    }, [integrationConfig, onUpdatePlayers, player, pool]);
+
+    const isIntegrationActive = !!integrationConfig?.integrationToken && !!pool.linkedCampaignId;
+
     return (
         <>
             <div
@@ -160,7 +190,7 @@ export default function PlayerLinkCollectionModal({
             >
                 <div className="flex items-center justify-between gap-2 px-4 py-3 shrink-0 border-b" style={{ borderColor: glassBorder }}>
                     <h2 id="link-collection-title" className={`text-sm font-bold truncate min-w-0 ${textPrimary}`}>
-                        {player.name} — リンク集
+                        {player.name} — 配布・リンク集
                     </h2>
                     <div className="flex items-center gap-1 shrink-0">
                         {linkItems.length > 0 && (
@@ -183,12 +213,67 @@ export default function PlayerLinkCollectionModal({
                         </button>
                     </div>
                 </div>
-                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch p-4">
-                    {linkItems.length === 0 ? (
-                        <p className={`text-xs ${textMuted}`}>
-                            このガチャで獲得した品目に画像URL・音声URLが設定されているものはありません。設定タブで品目にURLを設定してください。
-                        </p>
-                    ) : (
+                
+                <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+                    {/* API連携配布エリア */}
+                    {isIntegrationActive && (
+                        <div className="p-4 border-b shrink-0" style={{ borderColor: glassBorder, background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)" }}>
+                            <h3 className={`text-xs font-bold ${textPrimary} mb-3 flex items-center gap-1`}>
+                                <EmojiGlyph emoji="🎁" size={14} /> dango link share で配布
+                            </h3>
+                            {player.issuedClaimUrl && player.issuedCampaignId === pool.linkedCampaignId ? (
+                                <div className="flex flex-col gap-2">
+                                    <span className="text-[10px] font-bold text-green-500 flex items-center gap-1">
+                                        <EmojiGlyph emoji="✅" size={12} /> 配布URLを発行済みです
+                                    </span>
+                                    <div className="flex gap-2">
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            value={player.issuedClaimUrl}
+                                            className={`flex-1 text-xs px-2 py-1.5 rounded-lg outline-none ${textPrimary}`}
+                                            style={{ background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)", border: `1px solid ${glassBorder}` }}
+                                            onClick={(e) => (e.target as HTMLInputElement).select()}
+                                        />
+                                        <button
+                                            onClick={() => navigator.clipboard.writeText(player.issuedClaimUrl!)}
+                                            className="px-3 py-1.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-xs font-medium transition-colors whitespace-nowrap"
+                                        >
+                                            コピー
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-2">
+                                    <p className={`text-[10px] ${textMuted}`}>
+                                        このプレイヤーに割り当てる受取人URL（Claim）を発行します。
+                                    </p>
+                                    <button
+                                        onClick={handleIssueClaim}
+                                        disabled={isIssuing}
+                                        className="w-full py-2 px-3 rounded-xl text-sm font-bold bg-blue-500 hover:bg-blue-600 text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                                    >
+                                        <EmojiGlyph emoji="🌐" size={16} />
+                                        {isIssuing ? "発行中..." : "配布URLを発行"}
+                                    </button>
+                                    {issueError && (
+                                        <p className="text-[10px] text-red-500">{issueError}</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* ローカルリンク集エリア */}
+                    <div className="flex-1 overflow-y-auto scroll-touch p-4">
+                        <h3 className={`text-xs font-bold ${textPrimary} mb-3 flex items-center gap-1`}>
+                            <EmojiGlyph emoji="📂" size={14} /> 獲得品目 (ローカル・個別リンク)
+                        </h3>
+                        {linkItems.length === 0 ? (
+                            <p className={`text-xs ${textMuted}`}>
+                                このガチャで獲得した品目に画像URL・音声URLが設定されているものはありません。
+                            </p>
+                        ) : (
                         <ul className="flex flex-col gap-2">
                             {linkItems.map((item) => {
                                 const rarity = pool.rarities.find((r) => r.id === item.rarityId);
@@ -260,6 +345,7 @@ export default function PlayerLinkCollectionModal({
                     )}
                 </div>
             </div>
-        </>
-    );
+        </div>
+    </>
+);
 }

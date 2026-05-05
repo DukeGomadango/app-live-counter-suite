@@ -12,25 +12,38 @@ import GachaResultDisplay from "@/components/gacha/GachaResultDisplay";
 import GachaPlayerManager from "@/components/gacha/GachaPlayerManager";
 import PlayerHistoryCard from "@/components/gacha/PlayerHistoryCard";
 import GachaSwitchDropdown from "@/components/gacha/GachaSwitchDropdown";
-import type { GachaPool, Player, GachaResult, GachaSettings, GachaPoolPreset } from "@/lib/gacha";
+import type { GachaPool, Player, GachaResult, GachaSettings, GachaPoolPreset, IntegrationConfig, GachaItem } from "@/lib/gacha";
 import { createDefaultPool, createDefaultPlayer, performGachaPull, createDefaultSettings, GACHA_ACCENT_COLORS, migratePlayerData, ensureResultIds, clonePoolKeepingIds, getSampleTemplates, migratePoolItemsForLink } from "@/lib/gacha";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ShareReplyToField from "@/components/ShareReplyToField";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
+import { fetchExternalCampaigns, createExternalCampaign, type ExternalCampaign, issueClaimForPlayer } from "@/lib/gachaDistribution";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import GachaAssetMappingModal from "@/components/gacha/GachaAssetMappingModal";
+import GachaDistributionPanel from "@/components/gacha/GachaDistributionPanel";
+import { FiFile, FiGift } from "react-icons/fi";
 
-type MobileTab = "setup" | "gacha" | "results" | "players" | "items";
-type SidebarTab = "setup" | "players" | "items" | "presets";
+type MobileTab = "setup" | "gacha" | "results" | "players" | "items" | "distribute";
+type SidebarTab = "setup" | "players" | "items" | "presets" | "distribute";
 
 // ===== 歯車メニューコンポーネント =====
 function GachaSettingsPanel({
     settings,
     onSettingsChange,
+    integrationConfig,
+    onIntegrationConfigChange,
+    pool,
+    onPoolChange,
     isLightMode,
     onClose,
 }: {
     settings: GachaSettings;
     onSettingsChange: (s: GachaSettings) => void;
+    integrationConfig: IntegrationConfig;
+    onIntegrationConfigChange: (c: IntegrationConfig) => void;
+    pool: GachaPool;
+    onPoolChange: (p: GachaPool) => void;
     isLightMode: boolean;
     onClose: () => void;
 }) {
@@ -178,8 +191,13 @@ function GachaSettingsPanel({
                         <p className={`text-[10px] ${textSecondary} mb-1.5`}>設定すると、共有時にそのツイートへの返信として開きます</p>
                         <ShareReplyToField toolId="gacha" isLightMode={isLightMode} compact />
                     </div>
+
+                    <div className="h-px bg-white/10 my-2" style={{ backgroundColor: glassBorder }} />
+
                 </div>
             </motion.div>
+
+
         </>
     );
 }
@@ -298,6 +316,10 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     const [pool, setPool] = useLocalStorage<GachaPool>("gacha-pool", DEFAULT_POOL);
     const [players, setPlayers] = useLocalStorage<Player[]>("gacha-players", []);
     const [activePlayerId, setActivePlayerId] = useLocalStorage<string | null>("gacha-active-player", null);
+    const [integrationConfig, setIntegrationConfig] = useLocalStorage<IntegrationConfig>("gacha-integration-config", {
+        apiBaseUrl: typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://share.dango.tools',
+        integrationToken: "",
+    });
     const [latestResults, setLatestResults] = useState<GachaResult[] | null>(null);
     const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("gacha-light-mode", false);
     const [gachaSettings, setGachaSettings] = useLocalStorage<GachaSettings>("gacha-settings", DEFAULT_SETTINGS);
@@ -322,6 +344,20 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     useEffect(() => {
         setPool(prev => migratePoolItemsForLink(prev));
     }, [setPool]);
+
+    // OAuth連携のコールバック処理
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const u = new URL(window.location.href);
+        const token = u.searchParams.get("integration_token");
+        if (token) {
+            setIntegrationConfig(prev => ({ ...prev, integrationToken: token }));
+            u.searchParams.delete("integration_token");
+            u.searchParams.delete("state");
+            window.history.replaceState({}, "", u.toString());
+            setShowSettingsPanel(true);
+        }
+    }, [setIntegrationConfig]);
 
     // 設定に orbIntensity / orbColor がない古い保存データにデフォルトを付与
     useEffect(() => {
@@ -465,6 +501,22 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         return () => window.removeEventListener("resize", check);
     }, []);
 
+    // 外部配布システムとの同期
+    const syncPlayerWithRemote = useCallback(async (player: Player) => {
+        if (!pool.linkedCampaignId || !integrationConfig.integrationToken) return;
+        
+        try {
+            const result = await issueClaimForPlayer(player, pool, integrationConfig);
+            if (result.ok && result.claim_url) {
+                setPlayers(prev => (prev || []).map(p => 
+                    p.id === player.id ? { ...p, issuedClaimUrl: result.claim_url, issuedCampaignId: pool.linkedCampaignId } : p
+                ));
+            }
+        } catch (e) {
+            console.error("Failed to sync player with remote:", e);
+        }
+    }, [pool.linkedCampaignId, integrationConfig, setPlayers]);
+
     // プレイヤー操作
     const addPlayer = useCallback((name: string) => {
         const newPlayer = createDefaultPlayer(name);
@@ -474,7 +526,9 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             return [...current, newPlayer];
         });
         setActivePlayerId(newPlayer.id);
-    }, [setPlayers, setActivePlayerId]);
+        // 背景で同期（名簿への追加）
+        syncPlayerWithRemote(newPlayer);
+    }, [setPlayers, setActivePlayerId, syncPlayerWithRemote]);
 
     const removePlayer = useCallback((id: string) => {
         setPlayers(prev => (prev || []).filter(p => p.id !== id));
@@ -548,7 +602,10 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             });
             setActivePlayerId(updatedPlayer.id);
         }
-    }, [pool, players, activePlayerId, setLatestResults, setPlayers, setActivePlayerId, gachaSettings.enableAnimation, isMobile]);
+
+        // 背景で同期（景品の紐付け更新）
+        syncPlayerWithRemote(updatedPlayer);
+    }, [pool, players, activePlayerId, setLatestResults, setPlayers, setActivePlayerId, gachaSettings.enableAnimation, isMobile, syncPlayerWithRemote]);
 
     const handleAnimationComplete = useCallback(() => {
         // 状態更新をマイクロタスクで分離し、稀な固まりを軽減
@@ -676,6 +733,10 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                         <GachaSettingsPanel
                             settings={gachaSettings}
                             onSettingsChange={setGachaSettings}
+                            integrationConfig={integrationConfig}
+                            onIntegrationConfigChange={setIntegrationConfig}
+                            pool={pool}
+                            onPoolChange={setPool}
                             isLightMode={isLightMode}
                             onClose={() => setShowSettingsPanel(false)}
                         />
@@ -727,7 +788,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     <AnimatePresence mode="wait">
                         {mobileTab === "setup" && (
                             <motion.div key="setup" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="px-3 pt-2 min-h-full pb-10">
-                                <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={false} />
+                                <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={false} integrationConfig={integrationConfig} />
                             </motion.div>
                         )}
                         {mobileTab === "gacha" && (
@@ -770,6 +831,8 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                             onViewPlayerHistory={setPlayerHistoryViewId}
                                             pool={pool}
                                             isLightMode={isLightMode}
+                                            integrationConfig={integrationConfig}
+                                            onUpdatePlayers={setPlayers}
                                             textContrastLight={false}
                                             shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
                                         />
@@ -782,6 +845,22 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                 <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
                                     <div className="pb-10">
                                         <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={false} />
+                                    </div>
+                                </div>
+                            </motion.div>
+                        )}
+                        {mobileTab === "distribute" && (
+                            <motion.div key="distribute" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
+                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
+                                    <div className="pb-10">
+                                        <GachaDistributionPanel
+                                            pool={pool}
+                                            onPoolChange={setPool}
+                                            integrationConfig={integrationConfig}
+                                            onIntegrationConfigChange={setIntegrationConfig}
+                                            players={players}
+                                            isLightMode={isLightMode}
+                                        />
                                     </div>
                                 </div>
                             </motion.div>
@@ -805,7 +884,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                         { id: "gacha" as MobileTab, icon: Sparkles, label: "ガチャ" },
                         { id: "results" as MobileTab, icon: BarChart3, label: "結果" },
                         { id: "players" as MobileTab, icon: Users, label: "履歴" },
-                        { id: "items" as MobileTab, icon: Package, label: "品目" },
+                        { id: "distribute" as MobileTab, icon: FiGift, label: "配布" },
                     ]).map(tab => {
                         const Icon = tab.icon;
                         const isActive = mobileTab === tab.id;
@@ -895,6 +974,10 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     <GachaSettingsPanel
                         settings={gachaSettings}
                         onSettingsChange={setGachaSettings}
+                        integrationConfig={integrationConfig}
+                        onIntegrationConfigChange={setIntegrationConfig}
+                        pool={pool}
+                        onPoolChange={setPool}
                         isLightMode={isLightMode}
                         onClose={() => setShowSettingsPanel(false)}
                     />
@@ -950,6 +1033,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                                 { id: "setup" as SidebarTab, icon: Settings, label: "設定" },
                                                 { id: "players" as SidebarTab, icon: Users, label: "プレイヤー" },
                                                 { id: "items" as SidebarTab, icon: Package, label: "品目別" },
+                                                { id: "distribute" as SidebarTab, icon: FiGift, label: "配布" },
                                                 { id: "presets" as SidebarTab, icon: Save, label: "保存・読み込み" },
                                             ]).map(tab => {
                                                 const Icon = tab.icon;
@@ -1015,9 +1099,20 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                                         isLightMode={isLightMode}
                                                         textContrastLight={false}
                                                         shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
+                                                        integrationConfig={integrationConfig}
+                                                        onUpdatePlayers={setPlayers}
                                                     />
                                                 ) : sidebarTab === "items" ? (
                                                     <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={false} />
+                                                ) : sidebarTab === "distribute" ? (
+                                                    <GachaDistributionPanel
+                                                        pool={pool}
+                                                        onPoolChange={setPool}
+                                                        integrationConfig={integrationConfig}
+                                                        onIntegrationConfigChange={setIntegrationConfig}
+                                                        players={players}
+                                                        isLightMode={isLightMode}
+                                                    />
                                                 ) : (
                                                     <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
                                                 )}
@@ -1044,6 +1139,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                 { id: "setup" as SidebarTab, icon: Settings, label: "設定" },
                                 { id: "players" as SidebarTab, icon: Users, label: "プレイヤー" },
                                 { id: "items" as SidebarTab, icon: Package, label: "品目別" },
+                                { id: "distribute" as SidebarTab, icon: FiGift, label: "配布" },
                                 { id: "presets" as SidebarTab, icon: Save, label: "保存・読み込み" },
                             ]).map(tab => {
                                 const Icon = tab.icon;
@@ -1109,9 +1205,20 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                         isLightMode={isLightMode}
                                         textContrastLight={false}
                                         shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
+                                        integrationConfig={integrationConfig}
+                                        onUpdatePlayers={setPlayers}
                                     />
                                 ) : sidebarTab === "items" ? (
                                     <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={false} />
+                                ) : sidebarTab === "distribute" ? (
+                                    <GachaDistributionPanel
+                                        pool={pool}
+                                        onPoolChange={setPool}
+                                        integrationConfig={integrationConfig}
+                                        onIntegrationConfigChange={setIntegrationConfig}
+                                        players={players}
+                                        isLightMode={isLightMode}
+                                    />
                                 ) : (
                                     <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
                                 )}

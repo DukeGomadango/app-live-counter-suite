@@ -24,6 +24,16 @@ body {
   height: 100%;
   width: 100%;
 }
+/* Fix native select options readability */
+select option {
+  background-color: white;
+  color: #1a1a2e;
+}
+
+body:not(.light-mode) select option {
+  background-color: #1a0a2e;
+  color: #ededed;
+}
 
 /* ===== DARK MODE (default) ===== */
 body {

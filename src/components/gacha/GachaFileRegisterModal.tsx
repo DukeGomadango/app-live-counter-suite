@@ -6,6 +6,9 @@ import { X, Upload, Image as ImageIcon, Music } from "lucide-react";
 import type { GachaItem } from "@/lib/gacha";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { putGachaFile } from "@/lib/gachaFileStore";
+import type { ExternalAsset } from "@/lib/gachaDistribution";
+import EmojiGlyph from "../icons/EmojiGlyph";
+import { Link2 } from "lucide-react";
 
 const MAX_AUDIO_BYTES = 5 * 1024 * 1024; // 5MB (音声などの制限)
 const MAX_IMAGE_DIMENSION = 1024; // ガチャ画像は長辺1024pxに自動圧縮
@@ -57,10 +60,11 @@ interface GachaFileRegisterModalProps {
     item: GachaItem;
     isLightMode: boolean;
     onClose: () => void;
-    onUpdate: (updates: { imageUrl?: string; audioUrl?: string }) => void;
+    onUpdate: (updates: { imageUrl?: string; audioUrl?: string; linkedAssetId?: string }) => void;
+    externalAssets?: ExternalAsset[];
 }
 
-type Kind = "image" | "audio";
+type Kind = "image" | "audio" | "link";
 
 export default function GachaFileRegisterModal({
     poolId,
@@ -68,6 +72,7 @@ export default function GachaFileRegisterModal({
     isLightMode,
     onClose,
     onUpdate,
+    externalAssets,
 }: GachaFileRegisterModalProps) {
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
@@ -267,9 +272,10 @@ export default function GachaFileRegisterModal({
                 </div>
                 <div className="p-4 overflow-y-auto scroll-touch flex flex-col gap-4">
                     {/* 登録済みステータス */}
-                    <div className={`text-[10px] flex gap-3 ${textMuted}`}>
-                        <span>画像: {item.imageUrl ? "登録済み" : "未設定"}</span>
-                        <span>音声: {item.audioUrl ? "登録済み" : "未設定"}</span>
+                    <div className={`text-[10px] flex flex-wrap gap-x-4 gap-y-1 ${textMuted}`}>
+                        <span className="flex items-center gap-1">画像: {item.imageUrl ? <span className="text-emerald-500 font-bold">登録済み</span> : "未設定"}</span>
+                        <span className="flex items-center gap-1">音声: {item.audioUrl ? <span className="text-emerald-500 font-bold">登録済み</span> : "未設定"}</span>
+                        <span className="flex items-center gap-1">配布: {item.linkedAssetId ? <span className="text-purple-500 font-bold">紐付け済み</span> : "未設定"}</span>
                     </div>
 
                     {/* 種別選択 */}
@@ -290,62 +296,121 @@ export default function GachaFileRegisterModal({
                             <Music size={14} />
                             音声
                         </button>
+                        <button
+                            type="button"
+                            onClick={() => setKind("link")}
+                            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${kind === "link" ? "bg-purple-500/20 text-purple-400 border border-purple-400/50" : isLightMode ? "bg-gray-100 text-gray-600 hover:bg-gray-200" : "bg-white/10 text-white/70 hover:bg-white/20"}`}
+                        >
+                            <Link2 size={14} aria-hidden />
+                            配布ファイル
+                        </button>
                     </div>
 
-                    <input
-                        ref={inputRef}
-                        type="file"
-                        accept={accept}
-                        onChange={handleFileChange}
-                        className="hidden"
-                        aria-hidden
-                    />
-                    <div
-                        onClick={() => { if (!processing) inputRef.current?.click(); }}
-                        onDrop={processing ? undefined : handleDrop}
-                        onDragOver={handleDragOver}
-                        className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors min-h-[100px] ${processing ? "opacity-50 pointer-events-none" : isLightMode ? "border-gray-300 hover:border-purple-400 hover:bg-purple-50/50" : "border-white/20 hover:border-purple-400/60 hover:bg-white/5"}`}
-                    >
-                        {processing ? (
-                            <>
-                                <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-1" />
-                                <span className={`text-[10px] ${textMuted}`}>画像を最適化しています…</span>
-                            </>
-                        ) : previewUrl && kind === "image" ? (
-                            // eslint-disable-next-line @next/next/no-img-element -- プレビュー用データURLのため img を使用
-                            <img src={previewUrl} alt="登録画像のプレビュー" className="max-h-20 max-w-full object-contain rounded" />
-                        ) : (
-                            <Upload size={24} className={isLightMode ? "text-gray-400" : "text-white/50"} />
-                        )}
-                        {!processing && (
-                            <span className={`text-[10px] ${textMuted}`}>
-                                {file ? file.name : (kind === "image" ? "クリックまたはドロップで画像を選択（自動最適化）" : "クリックまたはドロップで音声を選択（5MB以下）")}
-                            </span>
-                        )}
-                    </div>
-                    <input
-                        type="url"
-                        value={urlInput}
-                        onChange={(e) => setUrlInput(e.target.value)}
-                        placeholder="または URL を入力"
-                        className={`w-full text-xs px-3 py-2 rounded-lg ${textPrimary} outline-none placeholder:opacity-60`}
-                        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                    />
-                    {currentUrl && (
+                    {kind === "link" ? (
+                        <div className="flex flex-col gap-3 py-2">
+                            <div className="flex items-center gap-1.5 mb-1">
+                                <EmojiGlyph emoji="📦" size={14} />
+                                <span className={`text-[10px] font-bold ${isLightMode ? "text-gray-700" : "text-white/80"} uppercase tracking-wider`}>
+                                    dango link share のアセットを選択
+                                </span>
+                            </div>
+                            {externalAssets && externalAssets.length > 0 ? (
+                                <select
+                                    value={item.linkedAssetId || ""}
+                                    onChange={(e) => onUpdate({ linkedAssetId: e.target.value || undefined })}
+                                    className={`w-full text-xs px-3 py-2.5 rounded-xl ${textPrimary} outline-none cursor-pointer appearance-none`}
+                                    style={{ 
+                                        background: inputBg, 
+                                        border: `1px solid ${inputBorder}`,
+                                        backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='${encodeURIComponent(isLightMode ? "#6b7280" : "#9ca3af")}' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                                        backgroundRepeat: "no-repeat",
+                                        backgroundPosition: "right 12px center",
+                                    }}
+                                >
+                                    <option value="">-- 配布しない（枠のみ / 未設定） --</option>
+                                    {externalAssets.map((asset) => (
+                                        <option key={asset.id} value={asset.id} style={isLightMode ? { color: "#111827" } : { background: "#1a0a3e", color: "#f8fafc" }}>
+                                            {asset.label || "無題のアセット"}
+                                        </option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div className={`p-6 rounded-2xl border-2 border-dashed ${isLightMode ? "border-gray-200 bg-gray-50/50" : "border-white/10 bg-white/5"} flex flex-col items-center gap-3`}>
+                                    <EmojiGlyph emoji="⚠️" size={24} />
+                                    <div className="text-center space-y-1">
+                                        <p className={`text-[11px] font-bold ${textPrimary}`}>アセットが見つかりません</p>
+                                        <p className={`text-[10px] ${textMuted} leading-relaxed`}>
+                                            連携先のキャンペーンにファイルが登録されていないか、<br />
+                                            連携設定（トークン）が有効ではありません。
+                                        </p>
+                                    </div>
+                                </div>
+                            )}
+                            <p className={`text-[10px] ${textMuted} leading-relaxed mt-1 px-1`}>
+                                ここでアセットを選択すると、プレイヤーがこの品目を獲得した際、<br />
+                                対応するファイルが自動的に配布物としてリンクされます。
+                            </p>
+                        </div>
+                    ) : (
+                        <>
+                            <input
+                                ref={inputRef}
+                                type="file"
+                                accept={accept}
+                                onChange={handleFileChange}
+                                className="hidden"
+                                aria-hidden
+                            />
+                            <div
+                                onClick={() => { if (!processing) inputRef.current?.click(); }}
+                                onDrop={processing ? undefined : handleDrop}
+                                onDragOver={handleDragOver}
+                                className={`border-2 border-dashed rounded-xl p-5 flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors min-h-[100px] ${processing ? "opacity-50 pointer-events-none" : isLightMode ? "border-gray-300 hover:border-purple-400 hover:bg-purple-50/50" : "border-white/20 hover:border-purple-400/60 hover:bg-white/5"}`}
+                            >
+                                {processing ? (
+                                    <>
+                                        <div className="w-6 h-6 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mb-1" />
+                                        <span className={`text-[10px] ${textMuted}`}>画像を最適化しています…</span>
+                                    </>
+                                ) : previewUrl && kind === "image" ? (
+                                    // eslint-disable-next-line @next/next/no-img-element -- プレビュー用データURLのため img を使用
+                                    <img src={previewUrl} alt="登録画像のプレビュー" className="max-h-20 max-w-full object-contain rounded" />
+                                ) : (
+                                    <Upload size={24} className={isLightMode ? "text-gray-400" : "text-white/50"} />
+                                )}
+                                {!processing && (
+                                    <span className={`text-[10px] ${textMuted}`}>
+                                        {file ? file.name : (kind === "image" ? "クリックまたはドロップで画像を選択（自動最適化）" : "クリックまたはドロップで音声を選択（5MB以下）")}
+                                    </span>
+                                )}
+                            </div>
+                            <input
+                                type="url"
+                                value={urlInput}
+                                onChange={(e) => setUrlInput(e.target.value)}
+                                placeholder="または URL を入力"
+                                className={`w-full text-xs px-3 py-2 rounded-lg ${textPrimary} outline-none placeholder:opacity-60`}
+                                style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                            />
+                        </>
+                    )}
+                    {kind !== "link" && currentUrl && (
                         <p className={`text-[10px] truncate ${textMuted}`} title={currentUrl}>
                             登録済み: {currentUrl.startsWith("local://") ? "ファイル" : currentUrl}
                         </p>
                     )}
                     {error && <p className="text-xs text-red-500" role="alert">{error}</p>}
                     <div className="flex gap-2">
-                        <button
-                            type="button"
-                            onClick={handleRegister}
-                            disabled={saving || processing || (!file && !urlInput.trim())}
-                            className="px-3 py-2 rounded-lg text-xs font-medium bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 disabled:pointer-events-none"
-                        >
-                            {saving ? "登録中…" : "登録"}
-                        </button>
+                        {kind !== "link" && (
+                            <button
+                                type="button"
+                                onClick={handleRegister}
+                                disabled={saving || processing || (!file && !urlInput.trim())}
+                                className="px-3 py-2 rounded-lg text-xs font-medium bg-purple-500 text-white hover:bg-purple-600 disabled:opacity-50 disabled:pointer-events-none"
+                            >
+                                {saving ? "登録中…" : "登録"}
+                            </button>
+                        )}
                         {hasContent && (
                             <button
                                 type="button"

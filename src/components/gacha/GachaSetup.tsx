@@ -15,8 +15,9 @@ import {
     Check,
     Upload,
     } from "lucide-react";
-import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
+import type { GachaPool, GachaItem, RarityTier, IntegrationConfig } from "@/lib/gacha";
 import { generateId, getRarityProbabilities, getGlobalProbabilities } from "@/lib/gacha";
+import { fetchExternalAssets, type ExternalAsset } from "@/lib/gachaDistribution";
 import {
     DndContext,
     closestCenter,
@@ -47,6 +48,7 @@ interface GachaSetupProps {
     isLightMode: boolean;
     /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
     textContrastLight?: boolean;
+    integrationConfig?: IntegrationConfig;
 }
 
 function SectionHeader({
@@ -90,7 +92,7 @@ function SectionHeader({
     );
 }
 
-export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false }: GachaSetupProps) {
+export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false, integrationConfig }: GachaSetupProps) {
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
@@ -108,11 +110,28 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [draggingSelectionIds, setDraggingSelectionIds] = useState<Set<string> | null>(null);
     const [mounted, setMounted] = useState(false);
+    const [externalAssets, setExternalAssets] = useState<ExternalAsset[]>([]);
 
     useEffect(() => {
         const id = setTimeout(() => setMounted(true), 0);
         return () => clearTimeout(id);
     }, []);
+
+    // 連携先のアセット一覧を取得
+    useEffect(() => {
+        if (pool.linkedCampaignId && integrationConfig?.integrationToken) {
+            void (async () => {
+                try {
+                    const assets = await fetchExternalAssets(pool.linkedCampaignId!, integrationConfig);
+                    setExternalAssets(assets);
+                } catch (e) {
+                    console.error("Failed to fetch external assets", e);
+                }
+            })();
+        } else {
+            setExternalAssets([]);
+        }
+    }, [pool.linkedCampaignId, integrationConfig]);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
@@ -682,6 +701,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         onToggleSelect={toggleItemSelected}
                                                         draggingSelectionIds={draggingSelectionIds}
                                                         activeDragId={activeDragId}
+                                                        externalAssets={externalAssets}
                                                     />
                                                 );
                                             })}
@@ -899,6 +919,7 @@ interface SortableItemProps {
     onToggleSelect: (id: string) => void;
     draggingSelectionIds: Set<string> | null;
     activeDragId: string | null;
+    externalAssets: ExternalAsset[];
 }
 
 function SortableItem({
@@ -920,6 +941,7 @@ function SortableItem({
     onToggleSelect,
     draggingSelectionIds,
     activeDragId,
+    externalAssets,
 }: SortableItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
     const isEditing = editingItemId === item.id;
@@ -1087,6 +1109,7 @@ function SortableItem({
                     onUpdate={(updates) => {
                         updateItem(item.id, updates);
                     }}
+                    externalAssets={externalAssets}
                 />
             )}
 

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { UserPlus, Trash2, RotateCcw, ChevronRight, User, Link, FileArchive, Pencil, Check } from "lucide-react";
+import { UserPlus, Trash2, RotateCcw, ChevronRight, User, Link, FileArchive, Pencil, Check, Gift } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
 import { getPlayerItemAttachments, buildPlayerAttachmentsZip } from "@/lib/gachaZip";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
@@ -25,6 +25,8 @@ interface GachaPlayerManagerProps {
     /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
     textContrastLight?: boolean;
     shareHashtags?: string;
+    integrationConfig?: import("@/lib/gacha").IntegrationConfig;
+    onUpdatePlayers?: (updater: (prev: Player[]) => Player[]) => void;
 }
 
 export default function GachaPlayerManager({
@@ -40,7 +42,9 @@ export default function GachaPlayerManager({
     pool,
     isLightMode,
     textContrastLight = false,
-    shareHashtags: _shareHashtags = DEFAULT_EXTRA_HASHTAG,
+    shareHashtags = DEFAULT_EXTRA_HASHTAG,
+    integrationConfig,
+    onUpdatePlayers,
 }: GachaPlayerManagerProps) {
     const [newPlayerName, setNewPlayerName] = useState("");
     const [playerToDelete, setPlayerToDelete] = useState<string | null>(null);
@@ -287,9 +291,13 @@ export default function GachaPlayerManager({
                                         <button
                                             onClick={e => { e.stopPropagation(); setLinkCollectionPlayerId(player.id); }}
                                             className={`p-1 rounded text-[10px] transition-all ${isLightMode ? "text-purple-700 hover:bg-purple-50" : "text-purple-400 hover:bg-purple-500/10"}`}
-                                            title="リンク集"
+                                            title="配布・リンク集"
                                         >
-                                            <Link size={12} />
+                                            {integrationConfig?.integrationToken && pool.linkedCampaignId ? (
+                                                <Gift size={12} className={player.issuedClaimUrl && player.issuedCampaignId === pool.linkedCampaignId ? "text-green-500" : ""} />
+                                            ) : (
+                                                <Link size={12} />
+                                            )}
                                         </button>
                                         <button
                                             onClick={e => { e.stopPropagation(); setPlayerToZip(player); }}
@@ -409,6 +417,8 @@ export default function GachaPlayerManager({
                         player={player}
                         pool={pool}
                         isLightMode={isLightMode}
+                        integrationConfig={integrationConfig}
+                        onUpdatePlayers={onUpdatePlayers}
                         onClose={() => setLinkCollectionPlayerId(null)}
                     />
                 );

@@ -23,6 +23,8 @@ export interface GachaItem {
     imageUrl?: string;
     /** 品目に紐づける音声のURL（プレイヤーリンク集・ZIPで使用） */
     audioUrl?: string;
+    /** ファイル配布連携: file-share-app 側のキャンペーンアセット ID */
+    linkedAssetId?: string;
 }
 
 export interface GachaPool {
@@ -34,6 +36,8 @@ export interface GachaPool {
     pityEnabled: boolean;
     pityThreshold: number;      // 天井到達回数
     pityGuaranteedRarityId: string; // 天井で確定するレア度ID
+    /** ファイル配布連携: file-share-app のキャンペーン ID */
+    linkedCampaignId?: string;
 }
 
 /** 保存したガチャ設定（プリセット） */
@@ -62,6 +66,14 @@ export interface GachaSettings {
     enableAnimation: boolean; // 演出ON/OFF
     /** 共有ツイートに付与する追加ハッシュタグ（スペース区切り）。#だんごツールは常に付与される */
     shareHashtags: string;
+}
+
+/** ファイル配布連携（dango link share）の接続情報。OAuth Consent で取得する。 */
+export interface IntegrationConfig {
+    /** 連携先の API ベースURL（例: "https://share.dango.tools"） */
+    apiBaseUrl: string;
+    /** OAuth Consent で取得した Integration Token */
+    integrationToken: string;
 }
 
 export const GACHA_BG_COLORS = [
@@ -128,6 +140,10 @@ export interface Player {
     pityCounter: number; // 天井カウント (最高レア出たらリセット)
     /** 天井に到達した回数（天井発動のたびに+1） */
     pityReachCount?: number;
+    /** ファイル配布連携: 発行済みの Claim URL（ローカル保持） */
+    issuedClaimUrl?: string;
+    /** ファイル配布連携: 発行時のキャンペーンID */
+    issuedCampaignId?: string;
 }
 
 export type SortMode = "rarity-asc" | "rarity-desc" | "name" | "count";
