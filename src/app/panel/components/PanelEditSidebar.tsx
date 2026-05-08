@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ImagePlus, Pencil, Hand, Layers, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, GripVertical, Edit3, Eye, EyeOff, Shapes } from "lucide-react";
+import { ImagePlus, Pencil, Hand, Layers, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, GripVertical, Edit3, Eye, EyeOff, Shapes, Trash2 } from "lucide-react";
 import type { PanelState, PanelOverlay, PartitionStroke, FilterType, OverlayShape } from "../lib/panelTypes";
 import { DEFAULT_OVERLAY_COLOR } from "../lib/panelTypes";
 import { parseHexToRgb, rgbToHex, normalizeHex, rgbToHsl, hslToRgb } from "../lib/panelUtils";
@@ -836,6 +836,21 @@ export default function PanelEditSidebar({
                               title="名前を変更"
                             >
                               <Edit3 size={12} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm("このレイヤーを削除しますか？")) {
+                                  pushOverlayHistory(overlays);
+                                  setOverlays(prev => prev.filter(p => p.id !== overlay.id));
+                                  if (o?.id === overlay.id) setSelectedOverlayId(null);
+                                }
+                              }}
+                              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-red-400 shrink-0"
+                              title="削除"
+                            >
+                              <Trash2 size={12} />
                             </button>
                           </div>
                         </div>
