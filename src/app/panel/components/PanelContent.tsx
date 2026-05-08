@@ -101,7 +101,14 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
   const [addShape, setAddShape] = useState<OverlayShape | null>(null);
   const [lineToolMode, setLineToolMode] = useState<"pen" | "hand">("pen");
   const [lineSegmentMode, setLineSegmentMode] = useState<"line" | "curve">("line");
-  const [partitionStrokes, setPartitionStrokes] = useState<PartitionStroke[]>([]);
+  const partitionStrokes = panelState.partitionStrokes ?? [];
+  const setPartitionStrokes = useCallback((value: React.SetStateAction<PartitionStroke[]>) => {
+    setPanelState(s => {
+      const current = s.partitionStrokes ?? [];
+      const next = typeof value === "function" ? value(current) : value;
+      return { ...s, partitionStrokes: next };
+    });
+  }, [setPanelState]);
 
   // -- Derived --
   const isLineStep = isEditMode && panelEditStep === "lines";
@@ -291,7 +298,12 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
         savedPanels={savedPanels} renamePanelId={renamePanelId} setRenamePanelId={setRenamePanelId}
         renameValue={renameValue} setRenameValue={setRenameValue}
         handleRenameSubmit={handleRenameSubmit} handleRenameSavedPanel={s => { setRenamePanelId(s.id); setRenameValue(s.name); }}
-        handleLoadPanel={s => { setPanelState({ ...defaultPanelState, ...s.state }); setSelectedOverlayIdAndClearDraft(null); setIsMenuOpen(false); }}
+        handleLoadPanel={s => { 
+          const newState = { ...defaultPanelState, ...s.state };
+          setPanelState(newState); 
+          setSelectedOverlayIdAndClearDraft(null); 
+          setIsMenuOpen(false); 
+        }}
         setPanelToDeleteId={setPanelToDeleteId}
       />
 
