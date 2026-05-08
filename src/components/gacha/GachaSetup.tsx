@@ -45,7 +45,6 @@ interface GachaSetupProps {
     isLightMode: boolean;
     /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
     textContrastLight?: boolean;
-    integrationConfig?: IntegrationConfig;
 }
 
 function SectionHeader({
@@ -89,7 +88,7 @@ function SectionHeader({
     );
 }
 
-export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false, integrationConfig }: GachaSetupProps) {
+export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false }: GachaSetupProps) {
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
@@ -864,8 +863,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     );
 }
 
-// 極小確率は指数表記、それ以外は桁数に応じて toFixed
-// 極小確率は指数表記、それ以外は不要な0を除去して整形
 function formatProb(prob: number): string {
     if (prob === 0) return "0";
     let s: string;
@@ -874,11 +871,9 @@ function formatProb(prob: number): string {
     else if (prob >= 1e-6) s = prob.toFixed(6);
     else s = prob.toExponential(2);
     
-    // 末尾の0と小数点を削除（例: 4.00 -> 4, 4.10 -> 4.1）
     return s.replace(/\.?0+$/, "").replace(/(\.\d*?)0+$/, "$1");
 }
 
-// DnD用の子コンポーネント
 interface SortableItemProps {
     item: GachaItem;
     itemIndex: number;

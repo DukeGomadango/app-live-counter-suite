@@ -248,12 +248,12 @@ import type { PanelState } from "./panelTypes";
 /** PanelState 内で使用されている idb:// 形式の画像参照をすべて抽出する */
 export function collectIdbImageRefsFromPanelState(state: PanelState): string[] {
   const refs = new Set<string>();
-  if (isIdbKey(state.backgroundImageUrl)) {
-    refs.add(state.backgroundImageUrl);
+  if (isIdbKey(state.imageDataUrl)) {
+    refs.add(state.imageDataUrl!);
   }
   state.overlays.forEach((ov) => {
-    if (ov.shape === "image" && isIdbKey(ov.imageUrl)) {
-      refs.add(ov.imageUrl);
+    if (ov.shape === "image" && isIdbKey(ov.imageDataUrl)) {
+      refs.add(ov.imageDataUrl!);
     }
   });
   return Array.from(refs);
@@ -261,6 +261,6 @@ export function collectIdbImageRefsFromPanelState(state: PanelState): string[] {
 
 /** PanelState が指定された画像参照（idb://...）を使用しているかチェックする */
 export function panelStateReferencesImageRef(state: PanelState, ref: string): boolean {
-  if (state.backgroundImageUrl === ref) return true;
-  return state.overlays.some((ov) => ov.shape === "image" && ov.imageUrl === ref);
+  if (state.imageDataUrl === ref) return true;
+  return state.overlays.some((ov) => ov.shape === "image" && ov.imageDataUrl === ref);
 }

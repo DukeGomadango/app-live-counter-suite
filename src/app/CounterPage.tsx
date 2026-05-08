@@ -60,7 +60,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
     currentTemplateLayout: TEMPLATES.find(t => t.id === state.currentTemplateId)?.layout
   });
   const drag = useCounterDrag(state.items, state.setItems);
-  const share = useCounterShare(state.isLightMode, state.currentTemplateId);
+  const { handleShareAsImage, isCapturingShareImage, shareAreaRef, captureDims } = useCounterShare(state.isLightMode, state.currentTemplateId);
 
   const [addPanelExpanded, setAddPanelExpanded] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -138,8 +138,8 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   const gridMaxWidth = effectiveCols * effectiveColMaxPx + (effectiveCols - 1) * gridGapPx;
 
   // Capture variables
-  const captureW = share.captureDims ? share.captureDims.w : windowWidth;
-  const captureH = share.captureDims ? share.captureDims.h : winH;
+  const captureW = captureDims ? captureDims.w : windowWidth;
+  const captureH = captureDims ? captureDims.h : winH;
   const captureColMaxPxBase = captureW <= 480 ? sizeConfig.mobile : captureW <= 768 ? sizeConfig.tablet : sizeConfig.desktop;
   const captureColMaxPx = captureColMaxPxBase * cardScale;
   const captureRows = Math.ceil(totalSlots / effectiveCols);
@@ -166,8 +166,8 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
 
   return (
     <div className="h-full min-h-0 w-full flex flex-col relative z-10" style={{ "--accent-color": state.appSettings.accentColor } as React.CSSProperties}>
-      {typeof document !== "undefined" && share.isCapturingShareImage && createPortal(
-        <div ref={share.shareAreaRef} style={{ position: "fixed", left: 0, top: 0, width: `${isPositionedLayout ? capturePositionedOuter : captureOuterWidth}px`, height: `${isPositionedLayout ? capturePositionedOuter : captureOuterHeight}px`, overflow: "hidden", zIndex: -1, pointerEvents: "none", background: captureBaseBg }} aria-hidden>
+      {typeof document !== "undefined" && isCapturingShareImage && createPortal(
+        <div ref={shareAreaRef} style={{ position: "fixed", left: 0, top: 0, width: `${isPositionedLayout ? capturePositionedOuter : captureOuterWidth}px`, height: `${isPositionedLayout ? capturePositionedOuter : captureOuterHeight}px`, overflow: "hidden", zIndex: -1, pointerEvents: "none", background: captureBaseBg }} aria-hidden>
           <div style={{ position: "absolute", inset: 0, zIndex: 0, background: captureOrbBg, opacity: orbOpacity, pointerEvents: "none" }} />
           <div style={{ position: "absolute", left: `${capturePadding}px`, top: `${capturePadding}px`, width: `${isPositionedLayout ? capturePositionedSize : captureWidth}px`, height: `${isPositionedLayout ? capturePositionedSize : captureHeight}px`, overflow: "hidden", zIndex: 1 }}>
             {state.currentTemplateId === "prefectures" ? (
@@ -227,7 +227,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
           {state.currentTemplateId === "prefectures" && (
             <button onClick={() => setIsPrefectureRankingOpen(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 transition-all"><span className="text-xs font-bold">ランキング</span></button>
           )}
-          <button onClick={share.handleShareAsImage} className="p-2 sm:p-2.5 rounded-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-md transition-all border border-white/10"><ImageDown className="w-5 h-5 sm:w-6 sm:h-6" /></button>
+          <button onClick={handleShareAsImage} className="p-2 sm:p-2.5 rounded-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-md transition-all border border-white/10"><ImageDown className="w-5 h-5 sm:w-6 sm:h-6" /></button>
         </div>
       </header>
 

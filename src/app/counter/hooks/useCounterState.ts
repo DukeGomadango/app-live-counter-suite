@@ -67,7 +67,7 @@ export function useCounterState() {
   // Migrate settings for new fields
   useEffect(() => {
     setAppSettings((prev) => {
-      const hadLegacy = "showStepButtons" in prev && (prev as any).showStepButtons === true;
+      const hadLegacy = "showStepButtons" in prev && (prev as Record<string, unknown>).showStepButtons === true;
       return {
         ...prev,
         projectNameSize: prev.projectNameSize ?? "M",

@@ -38,6 +38,12 @@ export default function GachaDistributionPanel({
 }: GachaDistributionPanelProps) {
     const { showToast } = useToast();
     const [campaigns, setCampaigns] = useState<ExternalCampaign[]>([]);
+    
+    interface UploadStatus {
+        status: "uploading" | "success" | "error";
+        progress?: number;
+        error?: string;
+    }
     const [assets, setAssets] = useState<ExternalAsset[]>([]);
     const [loading, setLoading] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
@@ -46,7 +52,7 @@ export default function GachaDistributionPanel({
     
     // Mapping state
     const [mapping, setMapping] = useState<Record<string, string>>({});
-    const [uploads, setUploads] = useState<Record<string, any>>({});
+    const [uploads, setUploads] = useState<Record<string, UploadStatus>>({});
     const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
     const [isDraggingGlobal, setIsDraggingGlobal] = useState(false);
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});

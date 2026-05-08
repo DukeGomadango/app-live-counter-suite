@@ -16,6 +16,7 @@ import {
   type PartitionStroke, 
   type PanelEditStep,
   type CustomPart,
+  type FilterType,
   OverlayShape,
   createDefaultOverlay,
   createCustomOverlay,
@@ -106,10 +107,12 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
   const isLineStep = isEditMode && panelEditStep === "lines";
   const isEditSidebarNarrow = !isDesktop || (typeof window !== "undefined" && window.innerWidth < 1024);
 
-  const imageBoundsPct = useMemo(() => {
-    if (!captureRef.current) return null;
+  const [imageBoundsPct, setImageBoundsPct] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+
+  useEffect(() => {
+    if (!captureRef.current) return;
     const rect = captureRef.current.getBoundingClientRect();
-    return getImageBoundsPct(rect, imageAspectRatio ?? undefined);
+    setImageBoundsPct(getImageBoundsPct(rect, imageAspectRatio ?? undefined));
   }, [imageAspectRatio]);
 
   const setSelectedOverlayIdAndClearDraft = useCallback((id: string | null) => {
@@ -189,7 +192,7 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
       interaction.tapPendingRef.current = false;
       if (!isEditMode) handleOverlayTap(overlay);
     }
-  }, [interaction, isEditMode, handleOverlayTap]);
+  }, [interaction.handleOverlayPointerUp, interaction.tapPendingRef, isEditMode, handleOverlayTap]);
 
   const handleCropConfirm = useCallback((result: { dataUrl: string; aspectRatio: number }) => {
     setPanelState(s => ({ ...s, imageDataUrl: result.dataUrl, imageAspectRatio: result.aspectRatio }));
@@ -214,12 +217,18 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     setEditSidebarWidthPx(Math.max(200, Math.min(600, cx)));
   }, [setEditSidebarWidthPx]);
 
+  const handleResizeEndRef = useRef<() => void>(() => {});
+  
   const handleResizeEnd = useCallback(() => {
     window.removeEventListener("mousemove", handleSidebarResize);
-    window.removeEventListener("mouseup", handleResizeEnd);
+    window.removeEventListener("mouseup", handleResizeEndRef.current);
     window.removeEventListener("touchmove", handleSidebarResize);
-    window.removeEventListener("touchend", handleResizeEnd);
+    window.removeEventListener("touchend", handleResizeEndRef.current);
   }, [handleSidebarResize]);
+
+  useEffect(() => {
+    handleResizeEndRef.current = handleResizeEnd;
+  }, [handleResizeEnd]);
 
   const handleResizeStart = useCallback(() => {
     window.addEventListener("mousemove", handleSidebarResize);
@@ -252,7 +261,7 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     onAddOverlayAtPoint: (shape: OverlayShape, x: number, y: number) => actions.handleAddOverlayAtPoint(shape, x, y),
     onAddRectGrid: actions.handleAddRectGrid,
     onAddTriangleStripes: actions.handleAddTriangleStripes,
-    activeFilters, toggleFilter: (f: any) => setPanelState(s => ({ ...s, activeFilters: s.activeFilters.includes(f) ? s.activeFilters.filter(x => x !== f) : [...s.activeFilters, f] })),
+    activeFilters, toggleFilter: (f: FilterType) => setPanelState(s => ({ ...s, activeFilters: s.activeFilters.includes(f) ? s.activeFilters.filter(x => x !== f) : [...s.activeFilters, f] })),
     filterShowLabel, filterIntensity,
     setCustomShapeModalOpenForNew: () => { setCustomShapeEditingId(null); setCustomShapeModalOpen(true); }
   };

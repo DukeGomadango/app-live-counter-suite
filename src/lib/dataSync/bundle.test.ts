@@ -38,7 +38,7 @@ describe("buildSyncBundle / applySyncBundle", () => {
   });
 
   it("exports only selected groups and excludes internal keys", async () => {
-    const bundle = await buildSyncBundle(new Set(["counter"]), false, storage, {});
+    const bundle = await buildSyncBundle(new Set(["counter"]), storage);
     expect(bundle.localStorage["counter-items"]).toBe("[1]");
     expect(bundle.localStorage["flowchart-nodes"]).toBeUndefined();
     expect(EXCLUDED_FROM_SYNC_EXPORT_KEYS.has(LOCAL_DRIVE_FILE_ID_KEY)).toBe(true);
@@ -50,12 +50,12 @@ describe("buildSyncBundle / applySyncBundle", () => {
     const bundle: SyncBundle = {
       schemaVersion: SYNC_SCHEMA_VERSION,
       exportedAt: new Date().toISOString(),
-      scope: { groups: ["counter"], includeGachaMedia: false },
+      scope: { groups: ["counter"] },
       localStorage: { "counter-items": "[9]" },
     };
     await applySyncBundle(bundle, storage, {
       mode: "partial",
-      scopeForReplace: { enabledGroups: new Set(), includeGachaMedia: false },
+      scopeForReplace: { enabledGroups: new Set() },
     });
     expect(storage.getItem("counter-items")).toBe("[9]");
     expect(storage.getItem("flowchart-nodes")).toBe("[2]");
@@ -65,12 +65,12 @@ describe("buildSyncBundle / applySyncBundle", () => {
     const bundle: SyncBundle = {
       schemaVersion: SYNC_SCHEMA_VERSION,
       exportedAt: new Date().toISOString(),
-      scope: { groups: ["counter"], includeGachaMedia: false },
+      scope: { groups: ["counter"] },
       localStorage: { "counter-items": "[3]" },
     };
     await applySyncBundle(bundle, storage, {
       mode: "replace_scope",
-      scopeForReplace: { enabledGroups: new Set(["counter", "chart"]), includeGachaMedia: false },
+      scopeForReplace: { enabledGroups: new Set(["counter", "chart"]) },
     });
     expect(storage.getItem("counter-items")).toBe("[3]");
     expect(storage.getItem("flowchart-nodes")).toBeNull();
@@ -82,7 +82,7 @@ describe("parseSyncBundleJson", () => {
     const b: SyncBundle = {
       schemaVersion: SYNC_SCHEMA_VERSION,
       exportedAt: "2020-01-01T00:00:00.000Z",
-      scope: { groups: ["lp"], includeGachaMedia: false },
+      scope: { groups: ["lp"] },
       localStorage: { "lp-layout-mode": '"cards"' },
     };
     const parsed = parseSyncBundleJson(JSON.stringify(b));
@@ -95,7 +95,7 @@ describe("isBundleANewerThanB", () => {
     const a: SyncBundle = {
       schemaVersion: 1,
       exportedAt: "2021-01-02T00:00:00.000Z",
-      scope: { groups: [], includeGachaMedia: false },
+      scope: { groups: [] },
       localStorage: {},
     };
     const b: SyncBundle = { ...a, exportedAt: "2021-01-01T00:00:00.000Z" };

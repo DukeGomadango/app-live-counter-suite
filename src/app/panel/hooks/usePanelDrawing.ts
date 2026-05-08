@@ -228,7 +228,8 @@ export function usePanelDrawing({
         color: "rgba(139,92,246,0.6)", // Default color
         count: 0,
         target: 0,
-        targetType: "number",
+        targetType: "number" as const,
+        targetText: "",
       };
       return [...prev, newOverlay];
     });

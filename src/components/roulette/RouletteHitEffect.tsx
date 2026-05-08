@@ -14,9 +14,11 @@ interface RouletteHitEffectProps {
     hitNames?: string[];
     /** 演出量: high=派手（紙吹雪多め・長め・テキスト大） / low=控えめ */
     effectLevel?: "high" | "low";
+    /** 表示するテキスト（デフォルト: "当たり!"） */
+    text?: string;
 }
 
-export default function RouletteHitEffect({ show, onComplete, accentColor, hitNames = [], effectLevel = "low" }: RouletteHitEffectProps) {
+export default function RouletteHitEffect({ show, onComplete, accentColor, hitNames = [], effectLevel = "low", text = "当たり!" }: RouletteHitEffectProps) {
     const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; color: string; delay: number; duration: number; size: number; rotate: number }>>([]);
 
     const isHigh = effectLevel === "high";
@@ -108,7 +110,7 @@ export default function RouletteHitEffect({ show, onComplete, accentColor, hitNa
                                 : `0 0 30px ${accentColor}, 0 0 60px ${accentColor}80`,
                         }}
                     >
-                        当たり!
+                        {text}
                     </span>
                     {hitNames.length > 0 && (
                         <p className="font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] text-center px-2 max-w-full text-sm sm:text-base md:text-lg lg:text-xl line-clamp-3">

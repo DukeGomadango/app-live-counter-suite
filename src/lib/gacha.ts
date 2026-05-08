@@ -21,6 +21,8 @@ export interface GachaItem {
     weight: number; // 排出重み（確率 = weight / 全weightの合計）
     /** ファイル配布連携: file-share-app 側のキャンペーンアセット ID */
     linkedAssetId?: string;
+    imageUrl?: string;
+    audioUrl?: string;
 }
 
 export interface GachaPool {

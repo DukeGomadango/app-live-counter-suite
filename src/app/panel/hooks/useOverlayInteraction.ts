@@ -99,7 +99,7 @@ export function useOverlayInteraction({
           (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
           resizeRef.current = {
             id: overlay.id,
-            handle: handle as any,
+            handle: handle as "se" | "sw" | "ne" | "nw" | "n" | "s" | "e" | "w",
             startX: e.clientX,
             startY: e.clientY,
             startW: overlay.width,

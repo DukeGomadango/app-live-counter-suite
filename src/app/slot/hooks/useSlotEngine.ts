@@ -284,8 +284,10 @@ export function useSlotEngine({
     lastWin,
     showFlash,
     showHitEffect,
+    setShowHitEffect,
     handleSpin,
     handleStop,
+    canStop,
     nextStoppableIndex,
     allStopped,
     isReach

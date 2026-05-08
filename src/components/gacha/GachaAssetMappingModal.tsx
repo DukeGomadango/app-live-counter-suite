@@ -160,13 +160,6 @@ export default function GachaAssetMappingModal({
             
             // 1. まず親コンポーネントに設定を返す（これで pool が更新される）
             onSave(updatedItems);
-
-            // 2. 既に結果を持っているプレイヤー全員のリンクを同期（叩き直し）
-            // issueClaimForPlayer は内部で Idempotency-Key を使うので、
-            // 既存のURLは変えずに中身だけを最新の mapping で更新できる。
-            const playersToSync = (window as any).__GACHA_PLAYERS__ || []; // グローバルまたは Props から取得
-            // ※実際には GachaContent から渡される players を使うのが正解だが、
-            // 一旦このコンポーネントで「再発行が必要」なことを通知し、親側で同期させるのが筋が良い。
             
             onClose();
         } catch (e) {

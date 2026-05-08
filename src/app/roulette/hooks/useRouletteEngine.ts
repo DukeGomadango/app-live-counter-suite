@@ -47,7 +47,7 @@ export function useRouletteEngine({
         (kind: "wheel" | "ball") => {
             if (settings.soundEnabled === false) return;
             stopSpinLoop();
-            const ctx = audioContextRef.current ?? new (window.AudioContext || (window as any).webkitAudioContext)();
+            const ctx = audioContextRef.current ?? new (window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
             audioContextRef.current = ctx;
             if (ctx.state === "suspended") {
                 ctx.resume().catch(() => {});

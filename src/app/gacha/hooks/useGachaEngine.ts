@@ -11,6 +11,7 @@ import {
   createDefaultPlayer
 } from "@/lib/gacha";
 import { issueClaimForPlayer, deleteExternalSlot } from "@/lib/gachaDistribution";
+import { type MobileTab } from "./useGachaSidebar";
 
 interface GachaEngineProps {
   pool: GachaPool;
@@ -22,7 +23,7 @@ interface GachaEngineProps {
   setLatestResults: (r: GachaResult[] | null) => void;
   gachaSettings: GachaSettings;
   isMobile: boolean;
-  setMobileTab: (tab: any) => void;
+  setMobileTab: (tab: MobileTab) => void;
 }
 
 export function useGachaEngine({

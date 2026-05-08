@@ -18,10 +18,10 @@ import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 interface GachaSettingsPanelProps {
   settings: GachaSettings;
   onSettingsChange: (s: GachaSettings) => void;
-  integrationConfig: IntegrationConfig;
-  onIntegrationConfigChange: (c: IntegrationConfig) => void;
   pool: GachaPool;
   onPoolChange: (p: GachaPool) => void;
+  integrationConfig?: IntegrationConfig;
+  onIntegrationConfigChange?: (c: IntegrationConfig) => void;
   isLightMode: boolean;
   onClose: () => void;
 }
@@ -29,10 +29,10 @@ interface GachaSettingsPanelProps {
 export function GachaSettingsPanel({
   settings,
   onSettingsChange,
-  integrationConfig,
-  onIntegrationConfigChange,
   pool,
   onPoolChange,
+  integrationConfig,
+  onIntegrationConfigChange,
   isLightMode,
   onClose,
 }: GachaSettingsPanelProps) {

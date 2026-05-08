@@ -21,5 +21,5 @@ export default function PanelPage(props: PageProps) {
     isSplitMode?: boolean;
     isRightPane?: boolean;
   };
-  return <PanelContent isSplitMode={isSplitMode} isRightPane={isRightPane} />;
+  return <PanelContent isSplitMode={isSplitMode} />;
 }

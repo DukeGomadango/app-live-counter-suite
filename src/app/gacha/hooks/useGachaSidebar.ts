@@ -3,8 +3,8 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
-type MobileTab = "setup" | "gacha" | "results" | "players" | "items" | "distribute";
-type SidebarTab = "setup" | "players" | "items" | "presets" | "distribute";
+export type MobileTab = "setup" | "gacha" | "results" | "players" | "items" | "distribute";
+export type SidebarTab = "setup" | "players" | "items" | "presets" | "distribute";
 
 export function useGachaSidebar() {
   const [mobileTab, setMobileTab] = useState<MobileTab>("gacha");
@@ -78,18 +78,20 @@ export function useGachaSidebar() {
     document.addEventListener("touchcancel", onEnd);
   }, [sidebarWidthPx, setSidebarWidthPx, applyResize]);
 
-  useEffect(() => {
-    if (mobileTab === "setup") setShowScrollHint(true);
-  }, [mobileTab]);
+  const handleSetMobileTab = useCallback((tab: MobileTab) => {
+    setMobileTab(tab);
+    if (tab === "setup") setShowScrollHint(true);
+  }, []);
 
-  useEffect(() => {
+  const handleSetSidebarTab = useCallback((tab: SidebarTab) => {
+    setSidebarTab(tab);
     setShowSidebarScrollHint(true);
-  }, [sidebarTab]);
+  }, []);
 
   return {
-    mobileTab, setMobileTab,
+    mobileTab, setMobileTab: handleSetMobileTab,
     sidebarOpen, setSidebarOpen,
-    sidebarTab, setSidebarTab,
+    sidebarTab, setSidebarTab: handleSetSidebarTab,
     playerHistoryViewId, setPlayerHistoryViewId,
     sidebarWidthPx, setSidebarWidthPx,
     showScrollHint, setShowScrollHint,
