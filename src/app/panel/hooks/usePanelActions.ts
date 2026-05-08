@@ -13,7 +13,6 @@ import {
   createDefaultOverlay,
   createCustomOverlay,
   createOverlayId,
-  defaultPanelState,
   getPartitionSegments,
   createFreeOverlayFromCurvedRegion
 } from "../lib/panelTypes";
@@ -26,8 +25,7 @@ import {
   generateShareUrl,
   shareImageWithText
 } from "@/lib/share";
-import { deleteImage, isIdbKey } from "../lib/panelImageStore";
-import { useToast } from "@/components/Toast";
+import { isIdbKey } from "../lib/panelImageStore";
 
 interface PanelActionsProps {
   panelState: PanelState;
@@ -187,7 +185,7 @@ export function usePanelActions({
     } finally {
       setIsSharing(false);
     }
-  }, [isLightMode, isSharing, isDesktop, imageDataUrl, resolvedBgUrl, overlays, resolvedOverlayUrls, showToast, captureRef]);
+  }, [isLightMode, isSharing, isDesktop, imageDataUrl, resolvedBgUrl, overlays, resolvedOverlayUrls, showToast, captureRef, imageAspectRatio]);
 
   const handleAddRectGrid = useCallback(
     (cols: number, rows: number) => {

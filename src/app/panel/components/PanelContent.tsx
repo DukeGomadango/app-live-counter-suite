@@ -189,10 +189,10 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     const el = e.target as HTMLElement;
     if (el.closest("button") || el.closest("input")) return;
     if (interaction.tapPendingRef.current) {
-      interaction.tapPendingRef.current = false;
+      interaction.resetTapPending();
       if (!isEditMode) handleOverlayTap(overlay);
     }
-  }, [interaction.handleOverlayPointerUp, interaction.tapPendingRef, isEditMode, handleOverlayTap]);
+  }, [interaction, isEditMode, handleOverlayTap]);
 
   const handleCropConfirm = useCallback((result: { dataUrl: string; aspectRatio: number }) => {
     setPanelState(s => ({ ...s, imageDataUrl: result.dataUrl, imageAspectRatio: result.aspectRatio }));

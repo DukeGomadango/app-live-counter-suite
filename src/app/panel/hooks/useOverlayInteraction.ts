@@ -306,6 +306,14 @@ export function useOverlayInteraction({
     if (activePointersRef.current.size < 2) pinchRef.current = null;
   }, []);
 
+  const resetTapPending = useCallback(() => {
+    tapPendingRef.current = false;
+    if (tapTimerRef.current) {
+      clearTimeout(tapTimerRef.current);
+      tapTimerRef.current = null;
+    }
+  }, []);
+
   return {
     handlePointerDown,
     handleOverlayPointerMove,
@@ -314,6 +322,7 @@ export function useOverlayInteraction({
     handleCapturePointerMove,
     handleCapturePointerUp,
     handleCapturePointerLeaveOrCancel,
+    resetTapPending,
     tapPendingRef,
     tapTimerRef
   };
