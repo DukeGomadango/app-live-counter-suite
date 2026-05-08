@@ -73,7 +73,8 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     savedCustomShapes, setSavedCustomShapes,
     isEditMode, panelEditStep,
     activeFilters, filterIntensity, filterShowLabel,
-    editSidebarWidthPx, setEditSidebarWidthPx
+    editSidebarWidthPx, setEditSidebarWidthPx,
+    undoOverlays
   } = state;
 
   // -- Refs --
@@ -243,6 +244,52 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     window.addEventListener("touchmove", handleSidebarResize);
     window.addEventListener("touchend", handleResizeEnd);
   }, [handleSidebarResize, handleResizeEnd]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 入力フィールドにフォーカスがある場合は無効
+      const target = e.target as HTMLElement;
+      if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) {
+        return;
+      }
+
+      // Ctrl+Z / Cmd+Z: Undo
+      if ((e.ctrlKey || e.metaKey) && e.key === "z") {
+        e.preventDefault();
+        if (isLineStep) {
+          // 線で切り分けモード中の Undo: 最後に引いた線を削除
+          setPartitionStrokes(prev => prev.slice(0, -1));
+          drawing.setSelectedLineIndex(null);
+        } else {
+          // 図形編集モード中の Undo
+          undoOverlays();
+        }
+        return;
+      }
+
+      // Delete / Backspace: 削除
+      if (e.key === "Delete" || e.key === "Backspace") {
+        if (isLineStep && drawing.selectedLineIndex !== null) {
+          e.preventDefault();
+          setPartitionStrokes(prev => prev.filter((_, i) => i !== drawing.selectedLineIndex));
+          drawing.setSelectedLineIndex(null);
+        } else if (selectedOverlayId) {
+          e.preventDefault();
+          pushOverlayHistory(overlays);
+          setOverlays(prev => prev.filter(o => o.id !== selectedOverlayId));
+          setSelectedOverlayIdAndClearDraft(null);
+        }
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [
+    isLineStep, partitionStrokes, setPartitionStrokes, 
+    drawing, selectedOverlayId, overlays, setOverlays, 
+    pushOverlayHistory, undoOverlays, setSelectedOverlayIdAndClearDraft
+  ]);
 
   // -- Render Helpers --
   const selectedOverlay = useMemo(() => 
