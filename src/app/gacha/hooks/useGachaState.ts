@@ -38,6 +38,8 @@ export function useGachaState() {
 
   // OAuth連携のコールバック処理
   useEffect(() => {
+    const isIntegrationEnabled = process.env.NEXT_PUBLIC_ENABLE_GACHA_INTEGRATION === 'true';
+    if (!isIntegrationEnabled) return;
     if (typeof window === 'undefined') return;
     const u = new URL(window.location.href);
     const token = u.searchParams.get("integration_token");

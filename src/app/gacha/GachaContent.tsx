@@ -40,6 +40,9 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     // -- Hooks --
     const state = useGachaState();
     const sidebar = useGachaSidebar();
+    
+    const isIntegrationEnabled = process.env.NEXT_PUBLIC_ENABLE_GACHA_INTEGRATION === 'true';
+
     const engine = useGachaEngine({
         pool: state.pool,
         players: state.players,
@@ -132,12 +135,13 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
 
     // OAuth callback handling inside useGachaState but need to show settings panel if token was present
     useEffect(() => {
+        if (!isIntegrationEnabled) return;
         if (typeof window === 'undefined') return;
         const u = new URL(window.location.href);
         if (u.searchParams.get("integration_token")) {
             setShowSettingsPanel(true);
         }
-    }, []);
+    }, [isIntegrationEnabled]);
 
     if (isMobile) {
         const mobileHeaderPosition = isSplitMode ? "sticky top-0" : "fixed top-0 left-0 right-0";
@@ -257,7 +261,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                         { id: "gacha" as MobileTab, icon: Sparkles, label: "ガチャ" },
                         { id: "results" as MobileTab, icon: BarChart3, label: "結果" },
                         { id: "players" as MobileTab, icon: Users, label: "履歴" },
-                        { id: "distribute" as MobileTab, icon: FiGift, label: "配布" },
+                        ...(isIntegrationEnabled ? [{ id: "distribute" as MobileTab, icon: FiGift, label: "配布" }] : []),
                     ]).map(tab => {
                         const Icon = tab.icon;
                         const isActive = sidebar.mobileTab === tab.id;
@@ -330,7 +334,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                             { id: "setup" as SidebarTab, icon: Settings, label: "設定" },
                                             { id: "players" as SidebarTab, icon: Users, label: "プレイヤー" },
                                             { id: "items" as SidebarTab, icon: Package, label: "品目別" },
-                                            { id: "distribute" as SidebarTab, icon: FiGift, label: "配布" },
+                                            ...(isIntegrationEnabled ? [{ id: "distribute" as SidebarTab, icon: FiGift, label: "配布" }] : []),
                                             { id: "presets" as SidebarTab, icon: Save, label: "保存・読み込み" },
                                         ]).map(tab => {
                                             const Icon = tab.icon;
@@ -363,7 +367,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                     { id: "setup" as SidebarTab, icon: Settings, label: "設定" },
                                     { id: "players" as SidebarTab, icon: Users, label: "プレイヤー" },
                                     { id: "items" as SidebarTab, icon: Package, label: "品目別" },
-                                    { id: "distribute" as SidebarTab, icon: FiGift, label: "配布" },
+                                    ...(isIntegrationEnabled ? [{ id: "distribute" as SidebarTab, icon: FiGift, label: "配布" }] : []),
                                     { id: "presets" as SidebarTab, icon: Save, label: "保存・読み込み" },
                                 ]).map(tab => {
                                     const Icon = tab.icon;

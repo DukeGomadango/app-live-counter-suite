@@ -14,8 +14,8 @@ import {
     FiSearch,
     FiLink2
 } from "react-icons/fi";
-import { fetchExternalCampaigns, createExternalCampaign, type ExternalCampaign, issueClaimForPlayer, type ExternalAsset, fetchExternalAssets, uploadAssetAndRegister } from "@/lib/gachaDistribution";
-import type { GachaPool, IntegrationConfig, GachaItem, Player } from "@/lib/gacha";
+import { fetchExternalCampaigns, createExternalCampaign, type ExternalCampaign, issueClaimForPlayer, type ExternalAsset, fetchExternalAssets, uploadAssetAndRegister, fetchExternalGachaConfig } from "@/lib/gachaDistribution";
+import type { GachaPool, IntegrationConfig, GachaItem, Player, RarityTier } from "@/lib/gacha";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toast";
 
@@ -194,6 +194,58 @@ export default function GachaDistributionPanel({
         setSyncing(false);
     };
 
+    const handleSyncConfig = async () => {
+        if (!pool.linkedCampaignId) return;
+        setSyncing(true);
+        try {
+            const config = await fetchExternalGachaConfig(pool.linkedCampaignId, integrationConfig);
+            if (!config.gachaConfig) {
+                showToast("キャンペーン側にガチャ構成が設定されていません", "error");
+                return;
+            }
+
+            // 1. レアリティの同期
+            const newRarities: RarityTier[] = config.gachaConfig.rarities.map((r, i) => ({
+                id: r.id,
+                name: r.name,
+                color: r.color,
+                glowColor: r.color + "66",
+                bgColor: r.color + "1a",
+                sortOrder: i + 1,
+                defaultWeight: r.probability
+            }));
+
+            // 2. アイテムの同期
+            const newItems: GachaItem[] = config.items.map(item => ({
+                id: item.id, // AssetID をそのまま ItemID に
+                name: item.label || "無題のアイテム",
+                rarityId: item.rarityId || newRarities[newRarities.length - 1]!.id,
+                weight: 100, // レア度内確率は等倍(100)で初期化
+                linkedAssetId: item.id
+            }));
+
+            onPoolChange({
+                ...pool,
+                rarities: newRarities,
+                items: newItems
+            });
+
+            // マッピング状態も更新
+            const newMapping: Record<string, string> = {};
+            newItems.forEach(it => {
+                if (it.linkedAssetId) newMapping[it.id] = it.linkedAssetId;
+            });
+            setMapping(newMapping);
+            
+            showToast("Link Share からガチャ構成とアセットを同期しました", "success");
+        } catch (e) {
+            console.error(e);
+            showToast("同期に失敗しました", "error");
+        } finally {
+            setSyncing(false);
+        }
+    };
+
     if (!integrationConfig.integrationToken) {
         return (
             <div className="flex flex-col items-center justify-center p-12 text-center h-full">
@@ -265,15 +317,25 @@ export default function GachaDistributionPanel({
                         </button>
 
                         {pool.linkedCampaignId && (
-                            <a
-                                href={`${integrationConfig.apiBaseUrl}/campaigns/${pool.linkedCampaignId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`p-2 rounded-xl border-2 transition-all flex items-center gap-2 px-4 bg-purple-500/10 border-purple-500/20 text-purple-500 hover:bg-purple-500/20 shadow-sm`}
-                            >
-                                <FiExternalLink />
-                                <span className="text-sm font-bold">管理画面を開く</span>
-                            </a>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleSyncConfig}
+                                    disabled={syncing}
+                                    className={`p-2 rounded-xl border-2 transition-all flex items-center gap-2 px-4 bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20 shadow-sm disabled:opacity-50`}
+                                >
+                                    {syncing ? <FiLoader className="animate-spin" /> : <FiRefreshCw />}
+                                    <span className="text-sm font-bold">設定を同期</span>
+                                </button>
+                                <a
+                                    href={`${integrationConfig.apiBaseUrl}/campaigns/${pool.linkedCampaignId}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className={`p-2 rounded-xl border-2 transition-all flex items-center gap-2 px-4 bg-purple-500/10 border-purple-500/20 text-purple-500 hover:bg-purple-500/20 shadow-sm`}
+                                >
+                                    <FiExternalLink />
+                                    <span className="text-sm font-bold">管理画面を開く</span>
+                                </a>
+                            </div>
                         )}
                     </div>
                 </div>

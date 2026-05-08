@@ -21,6 +21,26 @@ export interface ExternalAsset {
     id: string;
     label: string | null;
     asset_url: string | null;
+    gachaRarityId?: string | null;
+}
+
+/** ガチャ構成情報のレスポンス */
+export interface ExternalGachaRarity {
+    id: string;
+    name: string;
+    probability: number;
+    color: string;
+}
+
+export interface ExternalGachaConfigResponse {
+    gachaConfig: {
+        rarities: ExternalGachaRarity[];
+    } | null;
+    items: {
+        id: string;
+        label: string;
+        rarityId: string | null;
+    }[];
 }
 
 /** recipient-slots API のレスポンス */
@@ -110,6 +130,23 @@ export async function fetchCampaignAssets(campaignId: string, config: Integratio
     if (!res.ok) throw new Error("アセットの取得に失敗しました");
     const data = await res.json();
     return data.assets;
+}
+
+/**
+ * 連携先キャンペーンのガチャ構成（レア度設定とアイテム紐付け）を取得する。
+ */
+export async function fetchExternalGachaConfig(
+    campaignId: string,
+    config: IntegrationConfig
+): Promise<ExternalGachaConfigResponse> {
+    const res = await fetch(
+        `${config.apiBaseUrl}/api/v1/external/campaigns/${encodeURIComponent(campaignId)}/gacha-config`,
+        { headers: authHeaders(config) }
+    );
+    if (!res.ok) {
+        throw new Error(`ガチャ設定の取得に失敗しました (HTTP ${res.status})`);
+    }
+    return res.json() as Promise<ExternalGachaConfigResponse>;
 }
 
 /** アップロードURLを取得 */
