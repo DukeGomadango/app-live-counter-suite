@@ -153,7 +153,7 @@ export function usePanelActions({
     try {
       // 1. まず全体のキャプチャを取得
       const fullDataUrl = await toPng(el, {
-        backgroundColor: null,
+        backgroundColor: undefined,
         pixelRatio: 2,
         skipFonts: true,
       });
