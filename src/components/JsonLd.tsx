@@ -64,7 +64,7 @@ export default function JsonLd() {
     } else if (pathname === "/panel") {
         name = "パネル | だんごツール";
         description = "画像に覆いをかけてタップで開け。AI読み取り防止・目標達成で覆い解除。配信やイベントのパネル開けに。";
-        features = ["画像アップロード", "AI読み取り防止フィルター（複数同時）", "覆い（丸・三角・四角）・目標・タップで達成", "編集モード/パネル明けモード", "保存・共有"];
+        features = ["画像アップロード", "AI読み取り防止フィルター（複数同時）", "覆い（丸・三角・四角）・目標・タップで達成", "編集モード/パネル開けモード", "保存・共有"];
     }
 
     const organizationId = `${SITE_CONFIG.url}/#organization`;

@@ -70,10 +70,10 @@ export function PanelHeader({
         <button
           onClick={() => setIsEditMode(!isEditMode)}
           className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
-          title={isEditMode ? "パネル明けモードに切り替え" : "編集モードに切り替え"}
+          title={isEditMode ? "パネル開けモードに切り替え" : "編集モードに切り替え"}
         >
           {isEditMode ? <Eye size={16} /> : <Pencil size={16} />}
-          <span className="sr-only">{isEditMode ? "編集" : "パネル明け"}</span>
+          <span className="sr-only">{isEditMode ? "編集" : "パネル開け"}</span>
         </button>
         {!isEditMode && (
           <button

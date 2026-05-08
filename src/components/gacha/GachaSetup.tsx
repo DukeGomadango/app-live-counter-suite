@@ -538,7 +538,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                 </DndContext>
                                 <button
                                     onClick={addRarity}
-                                    className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition-all ${textLight ? "bg-purple-100 text-purple-700 hover:bg-purple-200" : "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"}`}
+                                    className={`flex items-center justify-center gap-1 py-2 rounded-lg text-xs font-medium transition-all border ${textLight ? "bg-purple-100 text-purple-700 hover:bg-purple-200 border-purple-200" : "bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border-purple-500/30"}`}
                                 >
                                     <Plus size={12} /> レア度を追加
                                 </button>

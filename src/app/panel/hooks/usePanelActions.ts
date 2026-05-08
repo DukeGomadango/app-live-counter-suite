@@ -74,7 +74,7 @@ export function usePanelActions({
     const segments = getPartitionSegments(panelState);
     const regions = getRegionsFromSegments(segments);
     const newOverlays = regions.map((region) => createFreeOverlayFromCurvedRegion(region));
-    setPanelState((s) => ({ ...s, overlays: newOverlays, panelEditStep: "overlays" as PanelEditStep }));
+    setPanelState((s) => ({ ...s, overlays: [...s.overlays, ...newOverlays], panelEditStep: "overlays" as PanelEditStep }));
   }, [setPanelState, panelState]);
 
   const handleAddOverlayAtPoint = useCallback(
@@ -150,14 +150,22 @@ export function usePanelActions({
     }
 
     setIsSharing(true);
-    const shareText = "パネル明け進捗";
+    const shareText = "パネル開け進捗";
     const tweetUrl = generateShareUrl(shareText, { toolId: "panel" });
     try {
-      const dataUrl = await toPng(el, {
-        backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e",
+      // 1. まず全体のキャプチャを取得
+      const fullDataUrl = await toPng(el, {
+        backgroundColor: null,
         pixelRatio: 2,
         skipFonts: true,
       });
+
+      // 2. クロップ範囲（ピクセル）を計算
+      const rect = el.getBoundingClientRect();
+      const bounds = getImageBoundsPct(rect, imageAspectRatio ?? undefined);
+
+      // 3. クロップ処理
+      const dataUrl = await cropDataUrl(fullDataUrl, bounds);
       const filename = `panel-${getTimestampForFilename()}.png`;
 
       if (!isDesktop) {
@@ -241,4 +249,44 @@ export function usePanelActions({
     handleSaveCustomTemplate,
     isSharing
   };
+}
+
+/**
+ * DataURL の画像を指定されたパーセント範囲でクロップする
+ */
+async function cropDataUrl(
+  dataUrl: string,
+  bounds: { x: number; y: number; width: number; height: number }
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      // 元画像のサイズを取得
+      const W = img.width;
+      const H = img.height;
+
+      // クロップ範囲をピクセルに変換
+      const cropX = (W * bounds.x) / 100;
+      const cropY = (H * bounds.y) / 100;
+      const cropW = (W * bounds.width) / 100;
+      const cropH = (H * bounds.height) / 100;
+
+      // キャンバスをクロップ後のサイズに設定
+      canvas.width = cropW;
+      canvas.height = cropH;
+
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Canvas context is not available"));
+        return;
+      }
+
+      // 切り出し描画
+      ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+      resolve(canvas.toDataURL("image/png"));
+    };
+    img.onerror = () => reject(new Error("Image load failed"));
+    img.src = dataUrl;
+  });
 }
