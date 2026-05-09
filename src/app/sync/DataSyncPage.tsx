@@ -30,6 +30,7 @@ import {
 import type { SyncGroupId } from "@/lib/dataSync/storageKeys";
 import { SYNC_GROUPS } from "@/lib/dataSync/storageKeys";
 import { createAllGroupsOn, SyncScopeSection, type GroupEnabledMap } from "./SyncScopeSection";
+import { useTheme } from "@/context/ThemeContext";
 
 declare global {
   interface Window {
@@ -61,10 +62,10 @@ function labelForGroups(ids: SyncGroupId[]): string {
 }
 
 export default function DataSyncPage() {
+  const { isLightMode, toggleTheme } = useTheme();
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const [tab, setTab] = useState<"file" | "google" | "qr" | "nfc">("file");
-  const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
   const [groupEnabled, setGroupEnabled] = useState<GroupEnabledMap>(() => createAllGroupsOn());
   const [importMode, setImportMode] = useState<ImportMode>("partial");
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
@@ -88,12 +89,6 @@ export default function DataSyncPage() {
   useEffect(() => {
     setNfcSupported(typeof window !== "undefined" && "NDEFReader" in window);
   }, []);
-
-  useEffect(() => {
-    if (isLightMode) document.body.classList.add("light-mode");
-    else document.body.classList.remove("light-mode");
-    return () => document.body.classList.remove("light-mode");
-  }, [isLightMode]);
 
   useEffect(() => {
     if (tab !== "google" || !clientId) return;
@@ -425,7 +420,7 @@ export default function DataSyncPage() {
         </div>
         <button
           type="button"
-          onClick={() => setIsLightMode(!isLightMode)}
+          onClick={toggleTheme}
           className={`p-2 rounded-xl ${isLightMode ? "bg-black/5 text-amber-600" : "bg-white/10 text-amber-200"}`}
           aria-label="テーマ切替"
         >

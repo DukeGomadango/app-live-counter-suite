@@ -118,12 +118,12 @@ export default function PanelEditSidebar({
   return (
     <div
       ref={editSidebarRef}
-      className="shrink-0 min-w-0 overflow-y-auto overflow-x-hidden border-r flex flex-col w-full"
+      className={`shrink-0 min-w-0 overflow-y-auto overflow-x-hidden border-r flex flex-col w-full ${isLightMode ? "bg-white/90 backdrop-blur-md" : "bg-transparent"}`}
       style={{
         width: effectiveSidebarWidth,
         minWidth: 200,
         maxWidth: 560,
-        borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)",
+        borderColor: isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.08)",
       }}
     >
       {/* タブナビゲーション: ガチャ風の縦並び */}
@@ -159,13 +159,13 @@ export default function PanelEditSidebar({
             <div className="w-full flex flex-col gap-2">
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-sm border border-sky-500/40 bg-sky-500/10 text-sky-400"
+                className={`w-full flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-sm border ${isLightMode ? "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100" : "border-sky-500/40 bg-sky-500/10 text-sky-400"}`}
               >
                 <ImagePlus size={14} /> 画像を選択
               </button>
               <button
                 onClick={() => imageOverlayInputRef.current?.click()}
-                className="w-full flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-sm border border-amber-500/40 bg-amber-500/10 text-amber-400"
+                className={`w-full flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-sm border ${isLightMode ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100" : "border-amber-500/40 bg-amber-500/10 text-amber-400"}`}
               >
                 <ImagePlus size={14} /> 画像を追加
               </button>
@@ -173,7 +173,7 @@ export default function PanelEditSidebar({
                 <button
                   type="button"
                   onClick={() => setPendingCropDataUrl(imageDataUrl)}
-                  className="w-full flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-sm border border-sky-500/40 bg-sky-500/10 text-sky-400"
+                  className={`w-full flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-sm border ${isLightMode ? "border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100" : "border-sky-500/40 bg-sky-500/10 text-sky-400"}`}
                 >
                   画像のトリミング
                 </button>
@@ -188,7 +188,7 @@ export default function PanelEditSidebar({
             <button
               type="button"
               onClick={() => setPanelState((s) => ({ ...s, panelEditStep: "lines" }))}
-              className="w-full px-3 py-2.5 rounded-lg text-sm font-medium border-2 border-amber-500/50 bg-amber-500/15 text-amber-600 dark:text-amber-300 hover:bg-amber-500/25"
+              className={`w-full px-3 py-2.5 rounded-lg text-sm font-medium border-2 ${isLightMode ? "border-amber-400 bg-amber-100 text-amber-800 hover:bg-amber-200" : "border-amber-500/50 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"}`}
             >
               線で切り分けを開始
             </button>
@@ -200,7 +200,9 @@ export default function PanelEditSidebar({
                     type="button"
                     onClick={() => setLineToolMode("pen")}
                     title="ペン：線を引く"
-                    className={`p-1.5 rounded border ${lineToolMode === "pen" ? "border-violet-500/60 bg-violet-500/20 text-violet-300" : "border-transparent opacity-60 hover:opacity-100"}`}
+                    className={`p-1.5 rounded border transition-colors ${lineToolMode === "pen" 
+                      ? (isLightMode ? "border-violet-400 bg-violet-100 text-violet-700" : "border-violet-500/60 bg-violet-500/20 text-violet-300") 
+                      : (isLightMode ? "border-transparent text-gray-400 hover:bg-gray-100 hover:text-gray-600" : "border-transparent text-white/40 hover:bg-white/5 hover:text-white/60")}`}
                   >
                     <Pencil size={18} />
                   </button>
@@ -208,7 +210,9 @@ export default function PanelEditSidebar({
                     type="button"
                     onClick={() => setLineToolMode("hand")}
                     title="手：線を選択・移動"
-                    className={`p-1.5 rounded border ${lineToolMode === "hand" ? "border-violet-500/60 bg-violet-500/20 text-violet-300" : "border-transparent opacity-60 hover:opacity-100"}`}
+                    className={`p-1.5 rounded border transition-colors ${lineToolMode === "hand" 
+                      ? (isLightMode ? "border-violet-400 bg-violet-100 text-violet-700" : "border-violet-500/60 bg-violet-500/20 text-violet-300") 
+                      : (isLightMode ? "border-transparent text-gray-400 hover:bg-gray-100 hover:text-gray-600" : "border-transparent text-white/40 hover:bg-white/5 hover:text-white/60")}`}
                   >
                     <Hand size={18} />
                   </button>
@@ -219,7 +223,9 @@ export default function PanelEditSidebar({
                       type="button"
                       onClick={() => setLineSegmentMode("line")}
                       title="直線"
-                      className={`px-2 py-1 rounded text-xs border ${lineSegmentMode === "line" ? "border-violet-500/50 bg-violet-500/15" : "border-transparent opacity-60 hover:opacity-100"}`}
+                      className={`px-2 py-1 rounded text-xs border transition-colors ${lineSegmentMode === "line" 
+                        ? (isLightMode ? "border-violet-400 bg-violet-100 text-violet-700 font-bold" : "border-violet-500/50 bg-violet-500/15") 
+                        : (isLightMode ? "border-transparent text-gray-400 hover:bg-gray-100" : "border-transparent opacity-60 hover:opacity-100")}`}
                     >
                       直線
                     </button>
@@ -227,7 +233,9 @@ export default function PanelEditSidebar({
                       type="button"
                       onClick={() => setLineSegmentMode("curve")}
                       title="曲線（2次ベジェ）"
-                      className={`px-2 py-1 rounded text-xs border ${lineSegmentMode === "curve" ? "border-violet-500/50 bg-violet-500/15" : "border-transparent opacity-60 hover:opacity-100"}`}
+                      className={`px-2 py-1 rounded text-xs border transition-colors ${lineSegmentMode === "curve" 
+                        ? (isLightMode ? "border-violet-400 bg-violet-100 text-violet-700 font-bold" : "border-violet-500/50 bg-violet-500/15") 
+                        : (isLightMode ? "border-transparent text-gray-400 hover:bg-gray-100" : "border-transparent opacity-60 hover:opacity-100")}`}
                     >
                       曲線
                     </button>
@@ -246,7 +254,7 @@ export default function PanelEditSidebar({
                       setPartitionStrokes((prev) => prev.filter((_, i) => i !== selectedLineIndex));
                       setSelectedLineIndex(null);
                     }}
-                    className="px-2 py-1 rounded text-xs border border-red-500/40 bg-red-500/10 text-red-400"
+                    className={`px-2 py-1 rounded text-xs border ${isLightMode ? "border-red-300 bg-red-50 text-red-700 hover:bg-red-100" : "border-red-500/40 bg-red-500/10 text-red-400"}`}
                   >
                     選択中の線を削除
                   </button>
@@ -256,7 +264,7 @@ export default function PanelEditSidebar({
                     type="button"
                     onClick={() => { setPartitionStrokes((prev) => prev.slice(0, -1)); setSelectedLineIndex(null); }}
                     disabled={partitionStrokes.length === 0}
-                    className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 disabled:opacity-40"
+                    className={`px-2 py-1 rounded text-xs border disabled:opacity-40 transition-colors ${isLightMode ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100" : "border-amber-500/40 bg-amber-500/10 text-amber-400"}`}
                   >
                     やり直し（1本削除）
                   </button>
@@ -264,7 +272,7 @@ export default function PanelEditSidebar({
                     type="button"
                     onClick={() => { setPartitionStrokes(() => []); setSelectedLineIndex(null); }}
                     disabled={partitionStrokes.length === 0}
-                    className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 disabled:opacity-40"
+                    className={`px-2 py-1 rounded text-xs border disabled:opacity-40 transition-colors ${isLightMode ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100" : "border-amber-500/40 bg-amber-500/10 text-amber-400"}`}
                   >
                     クリア
                   </button>
@@ -272,7 +280,7 @@ export default function PanelEditSidebar({
                 <button
                   type="button"
                   onClick={onGenerateRegions}
-                  className="w-full px-3 py-2 rounded text-sm font-medium border border-violet-500/40 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30"
+                  className={`w-full px-3 py-2 rounded text-sm font-medium border transition-colors ${isLightMode ? "border-violet-400 bg-violet-500 text-white hover:bg-violet-600 shadow-sm" : "border-violet-500/40 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30"}`}
                 >
                   領域を生成
                 </button>
@@ -395,7 +403,7 @@ export default function PanelEditSidebar({
                 <div className="w-full flex flex-wrap items-center gap-2">
                   <span className="text-sm font-medium shrink-0">色:</span>
                   <div
-                    className="w-8 h-8 rounded border-2 shrink-0 border-white/30"
+                    className={`w-8 h-8 rounded border-2 shrink-0 ${isLightMode ? "border-black/10" : "border-white/30"}`}
                     style={{ background: o.color ?? DEFAULT_OVERLAY_COLOR }}
                     title="現在の色"
                   />
@@ -406,7 +414,7 @@ export default function PanelEditSidebar({
                           key={`fav-${fav}-${idx}`}
                           type="button"
                           onClick={() => setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, color: fav } : p)))}
-                          className="w-6 h-6 rounded border border-white/30 hover:border-white/60 transition-colors shrink-0"
+                          className={`w-6 h-6 rounded border hover:border-white/60 transition-colors shrink-0 ${isLightMode ? "border-black/10" : "border-white/30"}`}
                           style={{ background: fav }}
                           title={fav}
                         />
@@ -463,11 +471,11 @@ export default function PanelEditSidebar({
                     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
                   };
                   return (
-                    <div className="flex flex-col gap-2 p-2 rounded border bg-black/20 border-white/15 w-full min-w-0">
+                    <div className={`flex flex-col gap-2 p-2 rounded border w-full min-w-0 ${isLightMode ? "bg-gray-50 border-gray-200 shadow-inner" : "bg-black/20 border-white/15"}`}>
                       <div className="flex gap-2 items-stretch w-full min-w-0">
                         <div
                           ref={slSquareRef}
-                          className="relative flex-1 min-w-0 aspect-square rounded border border-white/30 cursor-crosshair touch-none"
+                          className={`relative flex-1 min-w-0 aspect-square rounded border cursor-crosshair touch-none ${isLightMode ? "border-black/20" : "border-white/30"}`}
                           style={{
                             backgroundImage: `linear-gradient(to bottom, transparent 0%, black 100%), linear-gradient(to right, white 0%, hsl(${hsl.h}, 100%, 50%) 100%)`,
                           }}
@@ -488,7 +496,7 @@ export default function PanelEditSidebar({
                         </div>
                         <div
                           ref={hStripRef}
-                          className="relative w-5 shrink-0 self-stretch rounded border border-white/30 cursor-ns-resize touch-none"
+                          className={`relative w-5 shrink-0 self-stretch rounded border cursor-ns-resize touch-none ${isLightMode ? "border-black/20" : "border-white/30"}`}
                           style={{
                             background: "linear-gradient(to bottom, hsl(0,100%,50%), hsl(60,100%,50%), hsl(120,100%,50%), hsl(180,100%,50%), hsl(240,100%,50%), hsl(300,100%,50%), hsl(360,100%,50%))",
                           }}
@@ -503,7 +511,7 @@ export default function PanelEditSidebar({
                           />
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs text-white/70">
+                      <div className={`flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-xs ${isLightMode ? "text-gray-500" : "text-white/70"}`}>
                         <span className="font-mono">{color}</span>
                         <span className="font-mono tabular-nums">R {rgb.r} G {rgb.g} B {rgb.b}</span>
                       </div>
@@ -513,7 +521,7 @@ export default function PanelEditSidebar({
                           <div className="flex flex-wrap gap-1 mt-1">
                             {favoriteColors.map((fav, idx) => (
                               <div key={`${fav}-${idx}`} className="relative group">
-                                <button type="button" onClick={() => setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, color: fav } : p)))} className="w-6 h-6 rounded border-2 border-white/30 hover:border-white/60 transition-colors shrink-0" style={{ background: fav }} title={fav} />
+                                <button type="button" onClick={() => setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, color: fav } : p)))} className={`w-6 h-6 rounded border-2 hover:border-white/60 transition-colors shrink-0 ${isLightMode ? "border-black/10" : "border-white/30"}`} style={{ background: fav }} title={fav} />
                                 <button
                                   type="button"
                                   onClick={(e) => { e.stopPropagation(); setFavoriteColors((prev) => prev.filter((_, i) => i !== idx)); }}
@@ -534,7 +542,7 @@ export default function PanelEditSidebar({
                           if (!normalized) return;
                           setFavoriteColors((prev) => (prev.some((c) => normalizeHex(c) === normalized) ? prev : [...prev, normalized]));
                         }}
-                        className="px-2 py-1 rounded text-xs border border-white/20 bg-white/10 hover:bg-white/15 transition-colors"
+                        className={`px-2 py-1 rounded text-xs border transition-colors ${isLightMode ? "border-gray-300 bg-white text-gray-700 hover:bg-gray-100" : "border-white/20 bg-white/10 hover:bg-white/15 text-white"}`}
                       >
                         現在の色を登録
                       </button>
@@ -573,18 +581,18 @@ export default function PanelEditSidebar({
                 <div className="w-full flex flex-wrap gap-2">
                   <button
                     onClick={() => { pushOverlayHistory(overlays); setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, flipX: !p.flipX } : p))); }}
-                    className="px-2 py-1 rounded text-sm bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25"
+                    className={`px-2 py-1 rounded text-sm transition-colors ${isLightMode ? "bg-indigo-100 text-indigo-700 hover:bg-indigo-200" : "bg-indigo-500/15 text-indigo-400 hover:bg-indigo-500/25"}`}
                   >
                     左右反転
                   </button>
                   {o.shape === "custom" && o.parts && o.parts.length > 0 ? (
-                    <button type="button" onClick={() => { setCustomShapeEditingId(o.id); setCustomShapeModalOpen(true); }} className="px-2 py-1 rounded text-sm bg-violet-500/20 text-violet-400 hover:bg-violet-500/30">
+                    <button type="button" onClick={() => { setCustomShapeEditingId(o.id); setCustomShapeModalOpen(true); }} className={`px-2 py-1 rounded text-sm transition-colors ${isLightMode ? "bg-violet-100 text-violet-700 hover:bg-violet-200" : "bg-violet-500/20 text-violet-400 hover:bg-violet-500/30"}`}>
                       図形を編集
                     </button>
                   ) : null}
                   <button
                     onClick={() => { pushOverlayHistory(overlays); setOverlays((prev) => prev.filter((p) => p.id !== o.id)); setSelectedOverlayId(null); }}
-                    className="px-2 py-1 rounded text-sm bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                    className={`px-2 py-1 rounded text-sm transition-colors ${isLightMode ? "bg-red-100 text-red-700 hover:bg-red-200" : "bg-red-500/20 text-red-400 hover:bg-red-500/30"}`}
                   >
                     削除
                   </button>
@@ -658,7 +666,7 @@ export default function PanelEditSidebar({
                           return next;
                         });
                       }}
-                      className="flex items-center gap-1 px-2 py-1.5 rounded text-xs border border-slate-500/30 bg-slate-500/10 hover:bg-slate-500/20"
+                      className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs border transition-colors ${isLightMode ? "border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200" : "border-slate-500/30 bg-slate-500/10 hover:bg-slate-500/20 text-white"}`}
                       title="最前面へ"
                     >
                       <ChevronsUp size={14} /> 最前面
@@ -675,11 +683,11 @@ export default function PanelEditSidebar({
             )}
 
             {/* レイヤーリストへの導線（タブへ移動） */}
-            <div className="w-full flex flex-col gap-2 mt-2 pt-4 border-t" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }}>
+            <div className="w-full flex flex-col gap-2 mt-2 pt-4 border-t" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.08)" }}>
               <button
                 type="button"
                 onClick={() => setTab("layer")}
-                className="w-full flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border border-indigo-500/40 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+                className={`w-full flex items-center justify-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${isLightMode ? "border-indigo-300 bg-indigo-100 text-indigo-700 hover:bg-indigo-200" : "border-indigo-500/40 bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20"}`}
               >
                 <Layers size={14} /> レイヤー一覧・管理を開く
               </button>
@@ -903,9 +911,9 @@ export default function PanelEditSidebar({
             </div>
             <div className="w-full flex flex-wrap items-center gap-1.5">
               <span className="text-xs opacity-70 shrink-0">MECE:</span>
-              <button type="button" onClick={() => onAddRectGrid(2, 2)} className="px-2 py-1 rounded text-xs border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20">四角2×2</button>
-              <button type="button" onClick={() => onAddRectGrid(3, 3)} className="px-2 py-1 rounded text-xs border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20">四角3×3</button>
-              <button type="button" onClick={() => onAddTriangleStripes(3)} className="px-2 py-1 rounded text-xs border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20">三角3段</button>
+              <button type="button" onClick={() => onAddRectGrid(2, 2)} className={`px-2 py-1 rounded text-xs border transition-colors ${isLightMode ? "border-violet-400 bg-violet-50 text-violet-700 hover:bg-violet-100" : "border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"}`}>四角2×2</button>
+              <button type="button" onClick={() => onAddRectGrid(3, 3)} className={`px-2 py-1 rounded text-xs border transition-colors ${isLightMode ? "border-violet-400 bg-violet-50 text-violet-700 hover:bg-violet-100" : "border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"}`}>四角3×3</button>
+              <button type="button" onClick={() => onAddTriangleStripes(3)} className={`px-2 py-1 rounded text-xs border transition-colors ${isLightMode ? "border-amber-400 bg-amber-50 text-amber-800 hover:bg-amber-100" : "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"}`}>三角3段</button>
             </div>
             <div className="w-full flex flex-wrap items-center gap-1.5">
               <span className="text-xs opacity-70 shrink-0">フィルター:</span>

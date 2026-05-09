@@ -69,29 +69,62 @@ export const metadata: Metadata = {
   },
 };
 
+import { ThemeProvider } from "@/context/ThemeContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja">
+    <html lang="ja" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                let theme = localStorage.getItem('app-theme-mode');
+                if (!theme) {
+                  const legacyKeys = ['counter-light-mode', 'slot-light-mode', 'gacha-light-mode', 'roulette-light-mode', 'calculator-light-mode', 'panel-light-mode', 'lp-light-mode'];
+                  for (const key of legacyKeys) {
+                    if (localStorage.getItem(key) === 'true') {
+                      theme = 'light';
+                      break;
+                    }
+                  }
+                }
+                if (!theme && window.matchMedia('(prefers-color-scheme: light)').matches) {
+                  theme = 'light';
+                }
+                if (theme === 'light') {
+                  document.documentElement.classList.add('light');
+                  document.body.classList.add('light-mode');
+                } else {
+                  document.documentElement.classList.add('dark');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
       <body className={`${montserrat.variable} antialiased`}>
-        <JsonLd />
-        <SplitModuleProvider>
-          <ToastProvider>
-          <AnalyticsSender />
-          <div className="h-screen overflow-y-auto scroll-touch">
-            {children}
-          </div>
-          <HelpButton />
-          <footer className="fixed bottom-2 right-2 pointer-events-none z-[5]">
-          <span className="text-[10px] text-zinc-500 dark:text-zinc-600 opacity-70">
-            ごまだんご伯爵
-          </span>
-        </footer>
-          </ToastProvider>
-        </SplitModuleProvider>
+        <ThemeProvider>
+          <JsonLd />
+          <SplitModuleProvider>
+            <ToastProvider>
+            <AnalyticsSender />
+            <div className="h-screen overflow-y-auto scroll-touch">
+              {children}
+            </div>
+            <HelpButton />
+            <footer className="fixed bottom-2 right-2 pointer-events-none z-[5]">
+            <span className="text-[10px] text-zinc-500 dark:text-zinc-600 opacity-70">
+              ごまだんご伯爵
+            </span>
+          </footer>
+            </ToastProvider>
+          </SplitModuleProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

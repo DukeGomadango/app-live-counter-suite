@@ -75,14 +75,14 @@ export function PanelMenu({
               </h3>
               <button
                 onClick={handleSavePanel}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${isLightMode ? "border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100" : "border-violet-500/40 bg-violet-500/10 text-violet-400 hover:bg-violet-500/20"}`}
               >
                 <Save size={16} /> 現在のパネルを保存
               </button>
               <button
                 onClick={handleShare}
                 disabled={isSharing}
-                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 ${isSharing ? "opacity-50 cursor-wait" : ""}`}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg border transition-colors ${isSharing ? "opacity-50 cursor-wait" : isLightMode ? "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-100" : "border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20"}`}
               >
                 <Share2 size={16} />
                 {isSharing ? "共有中…" : "画像を保存して X で共有"}
@@ -123,14 +123,14 @@ export function PanelMenu({
                           <>
                             <button
                               onClick={() => handleLoadPanel(s)}
-                              className="flex-1 min-w-0 text-left px-2 py-1.5 rounded text-sm hover:bg-white/10 truncate"
+                              className={`flex-1 min-w-0 text-left px-2 py-1.5 rounded text-sm truncate transition-colors ${isLightMode ? "hover:bg-gray-100" : "hover:bg-white/10"}`}
                             >
                               {s.name}
                             </button>
                             <button
                               type="button"
                               onClick={() => handleRenameSavedPanel(s)}
-                              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-white/10 shrink-0"
+                              className={`p-1 rounded opacity-0 group-hover:opacity-100 shrink-0 transition-colors ${isLightMode ? "hover:bg-gray-100 text-gray-500" : "hover:bg-white/10 text-white/70"}`}
                               title="名前を変更"
                             >
                               <Edit3 size={12} />
@@ -138,7 +138,7 @@ export function PanelMenu({
                             <button
                               type="button"
                               onClick={() => setPanelToDeleteId(s.id)}
-                              className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-red-500/20 text-red-400 shrink-0"
+                              className={`p-1 rounded opacity-0 group-hover:opacity-100 shrink-0 transition-colors ${isLightMode ? "hover:bg-red-50 text-red-600" : "hover:bg-red-500/20 text-red-400"}`}
                               title="削除"
                             >
                               <Trash2 size={12} />

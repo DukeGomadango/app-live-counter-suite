@@ -41,10 +41,6 @@ export function useSlotState() {
     "slot-active-player",
     null
   );
-  const [isLightMode, setIsLightMode] = useLocalStorage<boolean>(
-    "slot-light-mode",
-    false
-  );
   const [templates, setTemplates] = useLocalStorage<SlotTemplate[]>(
     "slot-templates",
     []
@@ -55,13 +51,6 @@ export function useSlotState() {
   );
 
   const slotMigratedRef = useRef(false);
-
-  // Theme effect
-  useEffect(() => {
-    if (isLightMode) document.body.classList.add("light-mode");
-    else document.body.classList.remove("light-mode");
-    return () => document.body.classList.remove("light-mode");
-  }, [isLightMode]);
 
   // Migration effects
   useEffect(() => {
@@ -101,7 +90,6 @@ export function useSlotState() {
     settings, setSettings,
     players, setPlayers,
     activePlayerId, setActivePlayerId,
-    isLightMode, setIsLightMode,
     templates, setTemplates
   };
 }

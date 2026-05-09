@@ -18,10 +18,6 @@ export function useCounterState() {
     "counter-menu-open",
     false
   );
-  const [isLightMode, setIsLightMode] = useLocalStorage<boolean>(
-    "counter-light-mode",
-    false
-  );
   const [customTemplates, setCustomTemplates] = useLocalStorage<Template[]>(
     "counter-custom-templates",
     []
@@ -93,20 +89,10 @@ export function useCounterState() {
     document.body.style.setProperty("--orb-opacity", String(appSettings.orbIntensity / 100));
   }, [appSettings.orbIntensity]);
 
-  // Apply theme to body
-  useEffect(() => {
-    if (isLightMode) {
-      document.body.classList.add("light-mode");
-    } else {
-      document.body.classList.remove("light-mode");
-    }
-  }, [isLightMode]);
-
   return {
     items, setItems,
     currentTemplateId, setCurrentTemplateId,
     isMenuOpen, setIsMenuOpen,
-    isLightMode, setIsLightMode,
     customTemplates, setCustomTemplates,
     showPrefectureCountLabels, setShowPrefectureCountLabels,
     showPrefectureNames, setShowPrefectureNames,

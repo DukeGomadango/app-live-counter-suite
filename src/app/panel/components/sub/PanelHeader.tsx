@@ -12,10 +12,9 @@ import {
   Sun 
 } from "lucide-react";
 import ModeSelector from "@/components/ModeSelector";
+import { useTheme } from "@/context/ThemeContext";
 
 interface PanelHeaderProps {
-  isLightMode: boolean;
-  setIsLightMode: (v: boolean) => void;
   isEditMode: boolean;
   setIsEditMode: (v: boolean) => void;
   isSplitMode: boolean;
@@ -29,8 +28,6 @@ interface PanelHeaderProps {
 }
 
 export function PanelHeader({
-  isLightMode,
-  setIsLightMode,
   isEditMode,
   setIsEditMode,
   isSplitMode,
@@ -42,6 +39,8 @@ export function PanelHeader({
   setIsMenuOpen,
   isMenuOpen,
 }: PanelHeaderProps) {
+  const { isLightMode, toggleTheme } = useTheme();
+
   const headerBg = isLightMode ? "rgba(255,255,255,0.95)" : "rgba(20,10,40,0.92)";
   const iconColor = isLightMode ? "text-gray-800" : "text-white";
   const iconHover = isLightMode ? "hover:bg-gray-200" : "hover:bg-white/20";
@@ -104,7 +103,7 @@ export function PanelHeader({
           <Menu size={16} />
         </button>
         <button
-          onClick={() => setIsLightMode(!isLightMode)}
+          onClick={toggleTheme}
           className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
           title={isLightMode ? "ダークモード" : "ライトモード"}
         >

@@ -98,7 +98,7 @@ function SymbolEditRow({
             role,
           })
         }
-        className="px-2 py-1 rounded text-xs bg-teal-500/30 text-teal-200"
+        className={`px-2 py-1 rounded text-xs transition-colors ${isLightMode ? "bg-teal-100 text-teal-800 hover:bg-teal-200" : "bg-teal-500/30 text-teal-200 hover:bg-teal-500/40"}`}
       >
         保存
       </button>
@@ -295,10 +295,10 @@ export default function SlotReelSymbolPanel({
               onClick={() => onSettingsChange({ ...settings, reelCount: n })}
               className={`min-w-[2.5rem] py-2 rounded-lg text-sm font-medium transition ${
                 settings.reelCount === n
-                  ? "bg-teal-500/30 text-teal-200 border border-teal-500/50"
+                  ? (isLightMode ? "bg-teal-500 text-white shadow-sm" : "bg-teal-500/30 text-teal-200 border border-teal-500/50")
                   : isLightMode
-                    ? "bg-black/5 text-gray-600 border border-black/10"
-                    : "bg-white/10 text-white/70 border border-white/10"
+                    ? "bg-black/5 text-gray-600 border border-black/10 hover:bg-black/10"
+                    : "bg-white/10 text-white/70 border border-white/10 hover:bg-white/15"
               }`}
             >
               {n}
@@ -422,10 +422,10 @@ export default function SlotReelSymbolPanel({
               }
               className={`min-w-[4rem] py-2 rounded-lg text-sm font-medium transition ${
                 (settings.visibleRows ?? 1) === n
-                  ? "bg-teal-500/30 text-teal-200 border border-teal-500/50"
+                  ? (isLightMode ? "bg-teal-500 text-white shadow-sm" : "bg-teal-500/30 text-teal-200 border border-teal-500/50")
                   : isLightMode
-                    ? "bg-black/5 text-gray-600 border border-black/10"
-                    : "bg-white/10 text-white/70 border border-white/10"
+                    ? "bg-black/5 text-gray-600 border border-black/10 hover:bg-black/10"
+                    : "bg-white/10 text-white/70 border border-white/10 hover:bg-white/15"
               }`}
             >
               {n}段
@@ -463,10 +463,10 @@ export default function SlotReelSymbolPanel({
                   }
                   className={`min-w-[4.5rem] py-2 rounded-lg text-sm font-medium transition ${
                     isActive
-                      ? "bg-teal-500/30 text-teal-200 border border-teal-500/50"
+                      ? (isLightMode ? "bg-teal-500 text-white shadow-sm" : "bg-teal-500/30 text-teal-200 border border-teal-500/50")
                       : isLightMode
-                        ? "bg-black/5 text-gray-600 border border-black/10"
-                        : "bg-white/10 text-white/70 border border-white/10"
+                        ? "bg-black/5 text-gray-600 border border-black/10 hover:bg-black/10"
+                        : "bg-white/10 text-white/70 border border-white/10 hover:bg-white/15"
                   }`}
                 >
                   {label}
@@ -655,12 +655,12 @@ export default function SlotReelSymbolPanel({
               key={i}
               type="button"
               onClick={() => setReelTab(i)}
-              className={`px-2 py-1 rounded text-xs font-medium ${
+              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
                 reelTab === i
-                  ? "bg-teal-500/30 text-teal-200 border border-teal-500/50"
+                  ? (isLightMode ? "bg-teal-500 text-white shadow-sm" : "bg-teal-500/30 text-teal-200 border border-teal-500/50")
                   : isLightMode
-                    ? "bg-black/5 text-gray-600 border border-black/10"
-                    : "bg-white/10 text-white/70 border border-white/10"
+                    ? "bg-black/5 text-gray-600 border border-black/10 hover:bg-black/10"
+                    : "bg-white/10 text-white/70 border border-white/10 hover:bg-white/15"
               }`}
             >
               リール{i + 1}

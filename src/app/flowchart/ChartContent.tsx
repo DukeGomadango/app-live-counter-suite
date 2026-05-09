@@ -61,6 +61,7 @@ import {
 import { useChartKeyboardShortcuts } from "./useChartKeyboardShortcuts";
 import { useChartLineActions } from "./useChartLineActions";
 import { useChartEdgePresentation } from "./useChartEdgePresentation";
+import { useTheme } from "@/context/ThemeContext";
 
 const nodeTypes = {
     line: LineNode,
@@ -92,7 +93,7 @@ function ChartContentInner({
     appSettings: AppSettings;
     setAppSettings: Dispatch<SetStateAction<AppSettings>>;
 }) {
-    const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
+    const { isLightMode, toggleTheme } = useTheme();
 
     const accentColor = appSettings.accentColor || "#a855f7";
 
@@ -320,7 +321,7 @@ function ChartContentInner({
                 isOpen={isMenuOpen}
                 onToggle={() => setIsMenuOpen(!isMenuOpen)}
                 isLightMode={isLightMode}
-                onToggleTheme={() => setIsLightMode(!isLightMode)}
+                onToggleTheme={toggleTheme}
                 onReset={() => {
                     setNodes(CHART_INITIAL_NODES);
                     setEdges([]);

@@ -6,7 +6,6 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 export type LayoutMode = "cards" | "strip";
 
 export function useLpState() {
-  const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("counter-light-mode", false);
   const [layoutMode, setLayoutMode] = useLocalStorage<LayoutMode>("lp-layout-mode", "cards");
   const [mounted, setMounted] = useState(false);
   const [faqSectionOpen, setFaqSectionOpen] = useState(false);
@@ -22,25 +21,15 @@ export function useLpState() {
   }, []);
 
   useEffect(() => {
-    if (isLightMode) {
-      document.body.classList.add("light-mode");
-    } else {
-      document.body.classList.remove("light-mode");
-    }
-  }, [isLightMode]);
-
-  useEffect(() => {
     const onScroll = () => setShowHeaderCta(window.scrollY > 72);
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const effectiveLight = mounted ? isLightMode : false;
   const effectiveLayout = mounted ? layoutMode : "cards";
 
   return {
-    isLightMode, setIsLightMode,
     layoutMode, setLayoutMode,
     mounted,
     faqSectionOpen, setFaqSectionOpen,
@@ -49,7 +38,6 @@ export function useLpState() {
     changelogOpen, setChangelogOpen,
     showHeaderCta,
     dataLinkOpen, setDataLinkOpen,
-    effectiveLight,
     effectiveLayout
   };
 }

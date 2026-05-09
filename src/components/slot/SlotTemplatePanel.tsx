@@ -167,13 +167,13 @@ export default function SlotTemplatePanel({
               }
             }}
             disabled={!templateName.trim()}
-            className={`px-3 py-1.5 rounded text-sm font-medium ${
+            className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${
               templateName.trim()
                 ? isLightMode
-                  ? "bg-teal-100 text-teal-700 hover:bg-teal-200"
+                  ? "bg-teal-500 text-white hover:bg-teal-600 shadow-sm"
                   : "bg-teal-500/30 text-teal-300 hover:bg-teal-500/40"
                 : isLightMode
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                  ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
                   : "bg-white/5 text-white/40 cursor-not-allowed"
             }`}
           >
@@ -207,10 +207,10 @@ export default function SlotTemplatePanel({
                   <button
                     type="button"
                     onClick={() => onLoadTemplate(t.id)}
-                    className={`p-1.5 rounded text-teal-600 ${
+                    className={`p-1.5 rounded transition-colors ${
                       isLightMode
-                        ? "hover:bg-teal-100"
-                        : "hover:bg-teal-500/20 text-teal-300"
+                        ? "text-teal-600 hover:bg-teal-50"
+                        : "text-teal-300 hover:bg-teal-500/20"
                     }`}
                     title="読み込み"
                   >
@@ -220,10 +220,10 @@ export default function SlotTemplatePanel({
                     <button
                       type="button"
                       onClick={() => onOverwriteTemplate(t.id, t.name)}
-                      className={`p-1.5 rounded text-amber-600 ${
+                      className={`p-1.5 rounded transition-colors ${
                         isLightMode
-                          ? "hover:bg-amber-100"
-                          : "hover:bg-amber-500/20 text-amber-300"
+                          ? "text-amber-600 hover:bg-amber-50"
+                          : "text-amber-300 hover:bg-amber-500/20"
                       }`}
                       title="現在の設定で上書き保存"
                     >
@@ -234,8 +234,8 @@ export default function SlotTemplatePanel({
                     <button
                       type="button"
                       onClick={() => onDeleteTemplate(t.id)}
-                      className={`p-1.5 rounded text-red-500 ${
-                        isLightMode ? "hover:bg-red-100" : "hover:bg-red-500/20"
+                      className={`p-1.5 rounded transition-colors ${
+                        isLightMode ? "text-red-600 hover:bg-red-50" : "text-red-400 hover:bg-red-500/20"
                       }`}
                       title="削除"
                     >

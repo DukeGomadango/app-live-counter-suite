@@ -42,6 +42,7 @@ import { usePanelDrawing } from "../hooks/usePanelDrawing";
 import { usePanelActions } from "../hooks/usePanelActions";
 import { useToast } from "@/components/Toast";
 import { useIsDesktop } from "../../../hooks/useIsDesktop";
+import { useTheme } from "@/context/ThemeContext";
 
 // Components
 import { PanelHeader } from "./sub/PanelHeader";
@@ -59,6 +60,7 @@ interface PanelContentProps {
 export default function PanelContent({ isSplitMode = false }: PanelContentProps) {
   const { showToast } = useToast();
   const isDesktop = useIsDesktop();
+  const { isLightMode } = useTheme();
   
   // -- Hooks --
   const state = usePanelState();
@@ -66,7 +68,6 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     panelState, setPanelState,
     overlays, setOverlays,
     pushOverlayHistory,
-    isLightMode, setIsLightMode,
     imageDataUrl, imageAspectRatio,
     resolvedBgUrl, resolvedOverlayUrls,
     savedPanels, setSavedPanels,
@@ -330,7 +331,6 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
       )}
 
       <PanelHeader
-        isLightMode={isLightMode} setIsLightMode={setIsLightMode}
         isEditMode={isEditMode} setIsEditMode={v => setPanelState(s => ({ ...s, isEditMode: v }))}
         isSplitMode={isSplitMode} isEditSidebarNarrow={isEditSidebarNarrow}
         setEditSidebarOverlayOpen={setEditSidebarOverlayOpen}

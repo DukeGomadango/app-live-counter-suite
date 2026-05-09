@@ -27,7 +27,6 @@ export function useGachaState() {
     integrationToken: "",
   });
   const [latestResults, setLatestResults] = useState<GachaResult[] | null>(null);
-  const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("gacha-light-mode", false);
   const [gachaSettings, setGachaSettings] = useLocalStorage<GachaSettings>("gacha-settings", DEFAULT_SETTINGS);
   const [hasMigrated, setHasMigrated] = useState(false);
 
@@ -100,23 +99,12 @@ export function useGachaState() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasMigrated]);
 
-  // テーマ適用
-  useEffect(() => {
-    if (isLightMode) {
-      document.body.classList.add("light-mode");
-    } else {
-      document.body.classList.remove("light-mode");
-    }
-    return () => document.body.classList.remove("light-mode");
-  }, [isLightMode]);
-
   return {
     pool, setPool,
     players, setPlayers,
     activePlayerId, setActivePlayerId,
     integrationConfig, setIntegrationConfig,
     latestResults, setLatestResults,
-    isLightMode, setIsLightMode,
     gachaSettings, setGachaSettings,
     hasMigrated, setHasMigrated
   };

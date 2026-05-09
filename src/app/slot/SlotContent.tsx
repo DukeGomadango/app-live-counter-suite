@@ -1,249 +1,121 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sun, Moon, Menu, Settings, ImageDown, X } from "lucide-react";
 import ModeSelector from "@/components/ModeSelector";
-import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
+import { useTheme } from "@/context/ThemeContext";
 
 import SlotReel from "@/components/slot/SlotReel";
 import SlotSettingsPanel from "@/components/slot/SlotSettingsPanel";
 import SlotPlayerManager from "@/components/slot/SlotPlayerManager";
-import SlotReelSymbolPanel from "@/components/slot/SlotReelSymbolPanel";
-import SlotTemplatePanel from "@/components/slot/SlotTemplatePanel";
 import SlotStatsPanel from "@/components/slot/SlotStatsPanel";
+import SlotTemplatePanel from "@/components/slot/SlotTemplatePanel";
+import SlotReelSymbolPanel from "@/components/slot/SlotReelSymbolPanel";
 import SlotPlayerHistoryCard from "@/components/slot/SlotPlayerHistoryCard";
-import SlotShareSummary from "@/components/slot/SlotShareSummary";
 import RouletteHitEffect from "@/components/roulette/RouletteHitEffect";
 
-import {
-  type SlotSymbol,
-  type SlotTemplate,
-  createDefaultSymbols,
-  createDefaultReelStrips,
-  resolveStrip,
-  resolveReelStrips,
-  isReelStripsLegacyFormat,
-  createSlotTemplate,
-  normalizeReelStripsForLoad,
-  getNumbers17Preset,
-  getDefaultSymbolsPreset,
-  createDefaultPlayer,
-  MIN_REEL_COUNT,
-  MAX_REEL_COUNT,
-} from "@/lib/slot";
-
-// Hooks
 import { useSlotState } from "./hooks/useSlotState";
 import { useSlotEngine } from "./hooks/useSlotEngine";
 import { useSlotSidebar } from "./hooks/useSlotSidebar";
-import { useSlotShare } from "./hooks/useSlotShare";
-
-// Components
 import { SlotOrbsBackground } from "./components/SlotOrbsBackground";
+import { resolveReelStrips } from "@/lib/slot";
+import { 
+  handleExportSlotResultAsImage, 
+  handleApplyNumbers17Preset,
+  handleApplyDefaultSymbolsPreset,
+  handleLoadSlotTemplate,
+  handleSaveSlotTemplate,
+  handleDeleteSlotTemplate,
+  handleOverwriteSlotTemplate
+} from "./lib/slotActions";
 
-const MAX_SAVED_SLOT_TEMPLATES = 30;
-const DEFAULT_SYMBOLS = createDefaultSymbols();
-const DEFAULT_STRIPS = createDefaultReelStrips(DEFAULT_SYMBOLS);
-
-export default function SlotContent({
-  isSplitMode = false,
-  isRightPane: _isRightPane = false,
-}: {
-  isSplitMode?: boolean;
-  isRightPane?: boolean;
-} = {}) {
-  // -- Hooks --
+export default function SlotContent({ isSplitMode = false, isRightPane: _isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
   const {
     symbolMaster, setSymbolMaster,
-    reelStrips, setReelStrips,
+    reelStrips: reelStripIds, setReelStrips,
     settings, setSettings,
     players, setPlayers,
     activePlayerId, setActivePlayerId,
-    isLightMode, setIsLightMode,
     templates, setTemplates
   } = useSlotState();
+  const { isLightMode, toggleTheme } = useTheme();
   const {
     sidebarOpen, setSidebarOpen,
     sidebarTab, setSidebarTab,
-    playerHistoryViewId, setPlayerHistoryViewId,
     sidebarWidthPx,
     handleSidebarResizeStart,
-    handleSidebarResizeTouchStart
+    handleSidebarResizeTouchStart,
+    playerHistoryViewId, setPlayerHistoryViewId
   } = useSlotSidebar();
 
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
 
-  const reelCount = Math.min(
-    MAX_REEL_COUNT,
-    Math.max(MIN_REEL_COUNT, settings.reelCount)
+  // リール配列をシンボルオブジェクトに解決
+  const resolvedStrips = useMemo(() => 
+    resolveReelStrips(reelStripIds as string[][], symbolMaster),
+    [reelStripIds, symbolMaster]
   );
 
-  const isLegacyStrips = useMemo(() => isReelStripsLegacyFormat(reelStrips), [reelStrips]);
-
-  // Derived strips
-  const strips = useMemo((): SlotSymbol[][] => {
-    if (isLegacyStrips) {
-      const base = (reelStrips as SlotSymbol[][]).length >= reelCount
-          ? (reelStrips as SlotSymbol[][])
-          : DEFAULT_STRIPS;
-      return base.slice(0, reelCount).map((strip, i) =>
-          strip.length > 0 ? strip : (reelStrips as SlotSymbol[][])[i] ?? DEFAULT_STRIPS[i] ?? DEFAULT_STRIPS[0]!
-        );
-    }
-    const ids = reelStrips as string[][];
-    const resolved = resolveReelStrips(ids, symbolMaster);
-    const padStrip = symbolMaster.length > 0 ? symbolMaster.map((s) => s.id) : [];
-    const resolvedPadded = resolved.length >= reelCount ? resolved : [
-            ...resolved,
-            ...Array.from({ length: reelCount - resolved.length }, () => resolveStrip(padStrip, symbolMaster)),
-          ];
-    const base = resolvedPadded.slice(0, reelCount);
-    const fallback = symbolMaster.length > 0 ? symbolMaster : DEFAULT_SYMBOLS;
-    return base.map((strip) => strip.length > 0 ? strip : fallback);
-  }, [reelCount, reelStrips, symbolMaster, isLegacyStrips]);
-
-  const activePlayer = useMemo(() => {
-    const id = activePlayerId ?? players[0]?.id ?? null;
-    return players.find((p) => p.id === id) ?? players[0] ?? null;
-  }, [activePlayerId, players]);
+  const activePlayer = useMemo(() => players.find(p => p.id === activePlayerId) || null, [players, activePlayerId]);
 
   const engine = useSlotEngine({
-    strips,
-    settings: settings,
+    strips: resolvedStrips,
+    settings,
     activePlayer,
-    setPlayers: setPlayers,
-    reelCount
+    setPlayers,
+    reelCount: settings.reelCount
   });
 
-  const slotSharePayload = useMemo(() => {
-    const labels = strips.slice(0, reelCount).map((strip, i) => {
-      const idx = engine.reelResults[i];
-      if (idx == null) return "?";
-      const sym = strip[idx % strip.length];
-      return sym?.label ?? "?";
-    });
-    const line = engine.lastWin
-      ? engine.lastWin.isReplay ? "REPLAY!" : `${engine.lastWin.label} ${engine.lastWin.payout}枚`
-      : "はずれ";
-    return { reelLabels: labels, resultLine: line };
-  }, [strips, reelCount, engine.reelResults, engine.lastWin]);
-
-  const { handleShare, isCapturing, shareAreaRef } = useSlotShare({
-    activePlayerName: activePlayer?.name,
-    reelLabels: slotSharePayload.reelLabels,
-    resultLine: slotSharePayload.resultLine,
-    isLightMode: isLightMode
-  });
-
-  // Additional Handlers
-  const addPlayer = useCallback((name: string) => {
-    setPlayers((prev) => [...prev, createDefaultPlayer(name)]);
-  }, [setPlayers]);
-
-  const removePlayer = useCallback((id: string) => {
-    const next = players.filter((p) => p.id !== id);
-    if (next.length === 0) return;
-    setPlayers(next);
-    if (activePlayerId === id) setActivePlayerId(next[0]?.id ?? null);
-  }, [players, activePlayerId, setPlayers, setActivePlayerId]);
-
-  const updatePlayer = useCallback((id: string, patch: { name?: string; balance?: number; defaultBet?: number }) => {
-    setPlayers((prev) => prev.map((p) => p.id !== id ? p : {
-      ...p,
-      ...(patch.name !== undefined && { name: patch.name || p.name }),
-      ...(patch.balance !== undefined && { balance: Math.max(0, patch.balance) }),
-      ...(patch.defaultBet !== undefined && { defaultBet: Math.max(1, patch.defaultBet) }),
-    }));
-  }, [setPlayers]);
-
-  const handleSaveSlotTemplate = useCallback((name: string) => {
-    const reelStripIds = strips.map((strip) => strip.map((s) => s.id));
-    const t = createSlotTemplate(name, reelCount, settings.ceilingSpins, symbolMaster, reelStripIds);
-    setTemplates((prev) => [...prev.filter((x) => x.id !== t.id), t].slice(-MAX_SAVED_SLOT_TEMPLATES));
-  }, [strips, reelCount, settings.ceilingSpins, symbolMaster, setTemplates]);
-
-  const handleLoadSlotTemplate = useCallback((templateId: string) => {
-    const t = templates.find((x) => x.id === templateId);
-    if (!t) return;
-    setSettings((prev) => ({ ...prev, reelCount: t.reelCount, ceilingSpins: t.ceilingSpins }));
-    setSymbolMaster(t.symbolMaster);
-    setReelStrips(normalizeReelStripsForLoad(t.reelStrips, t.reelCount, t.symbolMaster));
-  }, [templates, setSettings, setSymbolMaster, setReelStrips]);
-
-  const handleDeleteSlotTemplate = useCallback((id: string) => {
-    setTemplates((prev) => prev.filter((t) => t.id !== id));
-  }, [setTemplates]);
-
-  const handleOverwriteSlotTemplate = useCallback((id: string, name: string) => {
-    const t = templates.find((x) => x.id === id);
-    if (!t) return;
-    const reelStripIds = strips.map((strip) => strip.map((s) => s.id));
-    const next = createSlotTemplate(name, reelCount, settings.ceilingSpins, symbolMaster, reelStripIds);
-    setTemplates((prev) => prev.map((x) => x.id === id ? next : x));
-  }, [templates, strips, reelCount, settings.ceilingSpins, symbolMaster, setTemplates]);
-
-  const handleApplyNumbers17Preset = useCallback(() => {
-    const { symbolMaster: master, reelStrips: strips } = getNumbers17Preset();
-    setSymbolMaster(master);
-    setReelStrips(strips);
-    setSettings((prev) => ({ ...prev, reelCount: 3, ceilingSpins: 0, bonusGamesCount: 0 }));
-  }, [setSymbolMaster, setReelStrips, setSettings]);
-
-  const handleApplyDefaultSymbolsPreset = useCallback(() => {
-    const { symbolMaster: master, reelStrips: strips } = getDefaultSymbolsPreset();
-    setSymbolMaster(master);
-    setReelStrips(strips);
-    setSettings((prev) => ({ ...prev, reelCount: 3, ceilingSpins: 0, bonusGamesCount: 15 }));
-  }, [setSymbolMaster, setReelStrips, setSettings]);
-
-  const { glassBorder } = useGlassStyle(isLightMode);
   const accentColor = settings.accentColor ?? "#a855f7";
   const orbIntensity = settings.orbIntensity ?? 50;
   const displayLight = isLightMode;
-  const isDesktop = useMediaQuery("(min-width: 768px)");
-  const showSidebar = (!isSplitMode && isDesktop) || sidebarOpen;
+
+  const handleShare = useCallback(async () => {
+    if (!engine.lastWin) return;
+    await handleExportSlotResultAsImage(engine.lastWin, activePlayer?.name ?? "ゲスト");
+  }, [engine.lastWin, activePlayer]);
+
+  const addPlayer = useCallback((name: string) => {
+    setPlayers(prev => [...prev, {
+      id: crypto.randomUUID(),
+      name,
+      balance: 1000,
+      defaultBet: 1,
+      spinHistory: [],
+      stats: { totalSpins: 0, totalWon: 0, totalBet: 0, biggestWin: 0 }
+    }]);
+  }, [setPlayers]);
+
+  const removePlayer = useCallback((id: string) => {
+    setPlayers(prev => prev.filter(p => p.id !== id));
+    if (activePlayerId === id) setActivePlayerId(null);
+  }, [activePlayerId, setActivePlayerId, setPlayers]);
+
+  const updatePlayer = useCallback((player: any) => {
+    setPlayers(prev => prev.map(p => p.id === player.id ? player : p));
+  }, [setPlayers]);
+
+  const showSidebar = sidebarOpen || (isDesktop && !isSplitMode);
 
   const gameArea = (
-    <div className="flex-1 min-h-0 flex flex-col items-center justify-center p-4 gap-6 relative z-10">
-      <div className="flex flex-col items-center gap-1">
-        <div className="flex items-center gap-2">
-          <select
-            value={activePlayerId ?? ""}
-            onChange={(e) => setActivePlayerId(e.target.value || null)}
-            className={`text-sm rounded-lg px-3 py-1.5 border ${displayLight ? "bg-white border-gray-200 text-gray-800" : "bg-white/10 border-white/20 text-white"}`}
-          >
-            {players.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}（残高 {p.balance} 枚 · BET {p.defaultBet} 枚）</option>
-            ))}
-          </select>
-        </div>
-      </div>
-      {settings.ceilingSpins > 0 && (
-        <p className={`text-xs ${displayLight ? "text-gray-500" : "text-white/60"}`}>天井まで {Math.max(0, settings.ceilingSpins - engine.ceilingCount)} 回</p>
-      )}
-
-      <div className="relative group">
-        <div className="absolute -inset-4 bg-gradient-to-b from-white/10 to-transparent rounded-[2.5rem] blur-2xl opacity-50 group-hover:opacity-100 transition-opacity" />
-        <div className="relative flex items-center justify-center gap-3 md:gap-6 p-4 md:p-8 rounded-[2.5rem] bg-black/20 backdrop-blur-md border border-white/10 shadow-2xl">
-          {strips.slice(0, reelCount).map((strip, i) => (
-            <SlotReel
-              key={i}
-              symbols={strip}
-              isSpinning={engine.isSpinning}
-              stoppedIndex={engine.reelResults[i] ?? null}
-              visibleRows={settings.visibleRows ?? 1}
-              onStop={() => engine.handleStop(i)}
-              canStop={engine.canStop(i)}
-              isLightMode={isLightMode}
-              accentColor={accentColor}
-              isReach={engine.isReach && i === 2}
-            />
-          ))}
-          {engine.showFlash && <div className="absolute inset-0 rounded-[2.5rem] bg-white/20 animate-flash pointer-events-none" />}
-        </div>
+    <div className="flex-1 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      <div className="mb-8 w-full max-w-4xl flex justify-center gap-4 slot-reel-container">
+        {resolvedStrips.map((strip, i) => (
+          <SlotReel
+            key={i}
+            symbols={strip}
+            isSpinning={engine.isSpinning}
+            stoppedIndex={engine.reelResults[i] ?? null}
+            onStop={() => engine.handleStop(i)}
+            canStop={engine.canStop(i)}
+            accentColor={accentColor}
+            isLightMode={isLightMode}
+            visibleRows={settings.visibleRows}
+          />
+        ))}
       </div>
 
       <div className="flex flex-col items-center gap-4 w-full max-w-sm">
@@ -279,7 +151,9 @@ export default function SlotContent({
   return (
     <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`}>
       <SlotOrbsBackground isLightMode={isLightMode} accentColor={accentColor} orbIntensity={orbIntensity} />
-      <header className="shrink-0 z-50 flex items-center justify-between px-4 py-3 bg-white/70 dark:bg-black/30 backdrop-blur-md border-b border-black/5 dark:border-white/5">
+      <header
+        className={`${isSplitMode ? "relative" : "fixed top-0 left-0 right-0"} h-14 flex items-center justify-between px-4 z-[60] bg-bg-header backdrop-blur-md border-b border-border-subtle`}
+      >
         <div className="flex items-center gap-3">
           {(isSplitMode || !isDesktop) && (
             <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors"><Menu size={20} /></button>
@@ -289,7 +163,7 @@ export default function SlotContent({
           <h1 className="text-sm font-bold tracking-tight opacity-80">スロット</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setIsLightMode(!isLightMode)} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors">{isLightMode ? <Moon size={18} /> : <Sun size={18} />}</button>
+          <button onClick={toggleTheme} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors">{isLightMode ? <Moon size={18} /> : <Sun size={18} />}</button>
           <button onClick={() => setShowSettingsPanel(true)} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors"><Settings size={18} /></button>
         </div>
       </header>
@@ -303,10 +177,10 @@ export default function SlotContent({
               )}
               <motion.aside
                 initial={isDesktop && !isSplitMode ? false : { x: -sidebarWidthPx }} animate={{ x: 0 }} exit={{ x: -sidebarWidthPx }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className={`flex flex-col bg-white/80 dark:bg-black/40 backdrop-blur-xl border-r border-black/5 dark:border-white/5 z-50 ${isDesktop && !isSplitMode ? "relative" : "absolute inset-y-0 left-0"}`}
+                className={`flex flex-col bg-bg-sidebar backdrop-blur-xl border-r border-border-subtle z-50 ${isDesktop && !isSplitMode ? "relative" : "absolute inset-y-0 left-0"}`}
                 style={{ width: sidebarWidthPx }}
               >
-                <div className="flex p-2 gap-1 border-b border-black/5 dark:border-white/5">
+                <div className="flex p-2 gap-1 border-b border-border-subtle">
                   {(["reel", "players", "templates", "stats"] as const).map((tab) => (
                     <button key={tab} onClick={() => setSidebarTab(tab)} className={`flex-1 py-2 px-1 rounded-lg text-[10px] font-bold transition-all ${sidebarTab === tab ? "bg-black/5 dark:bg-white/10" : "opacity-40 hover:opacity-100"}`}>
                       {tab === "reel" ? "リール" : tab === "players" ? "名簿" : tab === "templates" ? "保存" : "統計"}
@@ -320,7 +194,7 @@ export default function SlotContent({
                       onSettingsChange={setSettings}
                       symbolMaster={symbolMaster}
                       onSymbolMasterChange={setSymbolMaster}
-                      reelStripIds={reelStrips as string[][]}
+                      reelStripIds={reelStripIds as string[][]}
                       onReelStripIdsChange={setReelStrips as (ids: string[][]) => void}
                       isLightMode={isLightMode}
                     />
@@ -342,12 +216,12 @@ export default function SlotContent({
                       symbolMaster={symbolMaster}
                       onSymbolMasterChange={setSymbolMaster}
                       templates={templates}
-                      onSaveTemplate={handleSaveSlotTemplate}
-                      onLoadTemplate={handleLoadSlotTemplate}
-                      onDeleteTemplate={handleDeleteSlotTemplate}
-                      onOverwriteTemplate={handleOverwriteSlotTemplate}
-                      onApplyNumbers17Preset={handleApplyNumbers17Preset}
-                      onApplyDefaultSymbolsPreset={handleApplyDefaultSymbolsPreset}
+                      onSaveTemplate={(name) => handleSaveSlotTemplate(name, symbolMaster, reelStripIds as string[][], settings, setTemplates)}
+                      onLoadTemplate={(id) => handleLoadSlotTemplate(id, templates, setSymbolMaster, setReelStrips, setSettings)}
+                      onDeleteTemplate={(id) => handleDeleteSlotTemplate(id, setTemplates)}
+                      onOverwriteTemplate={(id, name) => handleOverwriteSlotTemplate(id, name, symbolMaster, reelStripIds as string[][], settings, setTemplates)}
+                      onApplyNumbers17Preset={() => handleApplyNumbers17Preset(setSymbolMaster, setReelStrips)}
+                      onApplyDefaultSymbolsPreset={() => handleApplyDefaultSymbolsPreset(setSymbolMaster, setReelStrips)}
                       isLightMode={isLightMode}
                     />
                   )}
@@ -380,8 +254,8 @@ export default function SlotContent({
         {playerHistoryViewId && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPlayerHistoryViewId(null)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-2xl max-h-[80vh] overflow-hidden bg-white dark:bg-gray-900 rounded-3xl shadow-2xl flex flex-col">
-              <div className="flex items-center justify-between p-4 border-b dark:border-white/10">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-2xl max-h-[80vh] overflow-hidden bg-bg-sidebar backdrop-blur-2xl rounded-3xl shadow-2xl flex flex-col border border-border-subtle">
+              <div className="flex items-center justify-between p-4 border-b border-border-subtle">
                 <h3 className="font-bold">履歴詳細</h3>
                 <button onClick={() => setPlayerHistoryViewId(null)} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10"><X size={20} /></button>
               </div>
@@ -397,10 +271,6 @@ export default function SlotContent({
         )}
       </AnimatePresence>
       {engine.showHitEffect && <RouletteHitEffect show={engine.showHitEffect} text={engine.lastWin?.isReplay ? "REPLAY!" : engine.lastWin?.label ?? "WIN!"} accentColor={accentColor} onComplete={() => engine.setShowHitEffect(false)} />}
-      {isCapturing && createPortal(
-        <div className="fixed inset-0 z-[-1] pointer-events-none opacity-0 overflow-hidden"><div ref={shareAreaRef} className="w-[1200px] h-[630px] flex items-center justify-center bg-[#0f0a1e]"><SlotShareSummary playerName={activePlayer?.name} reelLabels={slotSharePayload.reelLabels} resultLine={slotSharePayload.resultLine} isLightMode={isLightMode} /></div></div>,
-        document.body
-      )}
     </div>
   );
 }

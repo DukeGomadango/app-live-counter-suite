@@ -19,6 +19,8 @@ type Props = {
     onResetClick: () => void;
     hideThemeToggle: boolean;
     onToggleTheme: () => void;
+    leftContent?: React.ReactNode;
+    rightContent?: React.ReactNode;
 };
 
 export function HamburgerMenuHeader({
@@ -35,6 +37,8 @@ export function HamburgerMenuHeader({
     onResetClick,
     hideThemeToggle,
     onToggleTheme,
+    leftContent,
+    rightContent,
 }: Props) {
     const {
         headerBarBg,
@@ -43,105 +47,87 @@ export function HamburgerMenuHeader({
         borderSubtle,
         bgSubtleHover,
         textMuted,
+        textPri,
+        textSec,
     } = tokens;
 
     return (
-        <div
-            className="absolute top-0 left-0 right-0 z-50 flex items-center justify-between px-1.5 sm:px-3 py-2"
-            style={{
-                background: headerBarBg,
-                backdropFilter: "blur(12px)",
-                borderBottom: `1px solid ${borderColor}`,
-            }}
+        <header
+            className={`h-[52px] w-full absolute top-0 left-0 z-50 flex items-center px-1.5 sm:px-3 border-b transition-colors duration-300 ${headerBarBg} ${borderSubtle} backdrop-blur-md`}
         >
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Left Area: Flex-1 to push center */}
+            <div className="flex-1 flex items-center gap-1.5 sm:gap-2.5 min-w-0 z-10">
                 <button
                     onClick={onToggle}
                     className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
                 >
                     {isOpen ? (
-                        <X size={18} className={isLightMode ? "text-gray-700" : "text-white/80"} />
+                        <X className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                     ) : (
-                        <Menu size={18} className={isLightMode ? "text-gray-700" : "text-white/80"} />
+                        <Menu className={`w-4 h-4 sm:w-5 sm:h-5 ${textPri}`} />
                     )}
                 </button>
                 {!hideModeSelector && <ModeSelector isLightMode={isLightMode} />}
+                {leftContent && (
+                    <>
+                        <div className="hidden sm:block h-6 w-px bg-white/10 mx-1" />
+                        {leftContent}
+                    </>
+                )}
             </div>
 
+            {/* Center Area: Absolutely Centered */}
             {viewMode === "counter" && (
-                <div
-                    className={`flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1 rounded-full ${bgSubtle} border ${borderSubtle} mx-1 shrink min-w-0`}
-                >
-                    <span className={`text-[10px] sm:text-sm ${textMuted}`}>合計</span>
-                    <div className="flex items-baseline gap-0.5 truncate">
-                        <AnimatePresence mode="popLayout">
-                            <motion.span
-                                key={totalCount}
-                                initial={{ opacity: 0, y: -6, scale: 0.8 }}
-                                animate={{ opacity: 1, y: 0, scale: 1 }}
-                                exit={{ opacity: 0, y: 6, scale: 0.8 }}
-                                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                                className="text-sm sm:text-base font-bold tabular-nums"
-                                style={{
-                                    color:
-                                        totalCount > 0
-                                            ? "#a855f7"
-                                            : isLightMode
-                                              ? "rgba(0,0,0,0.3)"
-                                              : "rgba(255,255,255,0.4)",
-                                    textShadow: totalCount > 0 ? "0 0 10px rgba(168,85,247,0.4)" : "none",
-                                }}
-                            >
-                                {totalCount}
-                            </motion.span>
-                        </AnimatePresence>
-                        {totalTarget > 0 && (
-                            <span className={`text-[10px] sm:text-xs ${textMuted} tabular-nums break-keep`}>
-                                /{totalTarget}
-                            </span>
-                        )}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none z-0">
+                    <div className={`px-2.5 py-1 sm:px-4 sm:py-1.5 rounded-full flex items-center gap-1.5 sm:gap-2 transition-all duration-300 ${bgSubtle} border ${borderSubtle} shadow-sm backdrop-blur-xl`}>
+                        <div className="flex flex-col items-center leading-tight">
+                            <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>合計</span>
+                            <div className="flex items-baseline gap-0.5">
+                                <span className={`text-sm sm:text-base font-bold tabular-nums ${textPri}`}>
+                                    {totalCount.toLocaleString()}
+                                </span>
+                                {totalTarget > 0 && (
+                                    <span className={`text-[10px] sm:text-xs ${textMuted} tabular-nums break-keep`}>
+                                        /{totalTarget.toLocaleString()}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
 
-            <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* Right Area: Flex-1 and justify-end */}
+            <div className="flex-1 flex items-center justify-end gap-1 sm:gap-2 shrink-0 z-10">
+                {rightContent}
                 <button
                     onClick={onOpenSettings}
                     className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
                     title="設定"
                 >
-                    <Settings size={16} className={isLightMode ? "text-gray-500" : "text-white/50"} />
+                    <Settings className={`w-4 h-4 sm:w-5 sm:h-5 ${textSec}`} />
                 </button>
                 <button
                     onClick={onResetClick}
-                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 border ${
-                        confirmReset
-                            ? "bg-red-500/20 border-red-500/30"
-                            : `${bgSubtle} ${borderSubtle} ${bgSubtleHover}`
-                    }`}
-                    title={confirmReset ? "もう一度クリックで確定" : "カウントリセット"}
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover} hover:text-red-400`}
+                    title="リセット"
                 >
-                    <RotateCcw
-                        size={16}
-                        className={
-                            confirmReset ? "text-red-400" : isLightMode ? "text-gray-500" : "text-white/50"
-                        }
-                    />
+                    <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
                 </button>
                 {!hideThemeToggle && (
                     <button
                         onClick={onToggleTheme}
                         className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
-                        title={isLightMode ? "ダークモードに切替" : "ライトモードに切替"}
+                        title="テーマ切替"
                     >
                         {isLightMode ? (
-                            <Moon size={16} className="text-gray-600" />
+                            <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600" />
                         ) : (
-                            <Sun size={16} className="text-yellow-400" />
+                            <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-amber-200" />
                         )}
                     </button>
                 )}
             </div>
-        </div>
+        </header>
     );
 }

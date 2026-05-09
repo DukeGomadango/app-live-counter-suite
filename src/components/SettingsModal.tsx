@@ -5,6 +5,7 @@ import { X, Check, Type, Palette, Maximize, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
+import { useTheme } from "@/context/ThemeContext";
 
 export type CardSize = "S" | "M" | "L" | "XL";
 export type EdgeThickness = "S" | "M" | "L";
@@ -49,7 +50,7 @@ export interface AppSettings {
 
 interface SettingsModalProps {
     settings: AppSettings;
-    isLightMode: boolean;
+    isLightMode?: boolean;
     mode?: "counter" | "chart";
     onSave: (settings: AppSettings) => void;
     onClose: () => void;
@@ -92,11 +93,14 @@ const PROJECT_NAME_SIZE_OPTIONS: { value: "S" | "M" | "L" | "XL"; label: string;
 
 export default function SettingsModal({
     settings: initialSettings,
-    isLightMode,
+    isLightMode: isLightModeProp,
     mode = "counter",
     onSave,
     onClose,
 }: SettingsModalProps) {
+    const { isLightMode: isLightModeContext } = useTheme();
+    const isLightMode = isLightModeProp ?? isLightModeContext;
+
     const [settings, setSettings] = useState<AppSettings>({ ...initialSettings });
 
     const handleSave = () => {
@@ -372,10 +376,10 @@ export default function SettingsModal({
                                                 style={
                                                     active
                                                         ? {
-                                                              background: `${accentColor}20`,
-                                                              borderColor: `${accentColor}50`,
-                                                              boxShadow: `0 0 12px ${accentColor}20`,
-                                                          }
+                                                               background: `${accentColor}20`,
+                                                               borderColor: `${accentColor}50`,
+                                                               boxShadow: `0 0 12px ${accentColor}20`,
+                                                           }
                                                         : undefined
                                                 }
                                             >
@@ -441,10 +445,10 @@ export default function SettingsModal({
                                                 style={
                                                     active
                                                         ? {
-                                                              background: `${accentColor}20`,
-                                                              borderColor: `${accentColor}50`,
-                                                              boxShadow: `0 0 12px ${accentColor}20`,
-                                                          }
+                                                               background: `${accentColor}20`,
+                                                               borderColor: `${accentColor}50`,
+                                                               boxShadow: `0 0 12px ${accentColor}20`,
+                                                           }
                                                         : undefined
                                                 }
                                             >
@@ -500,10 +504,10 @@ export default function SettingsModal({
                                                 style={
                                                     active
                                                         ? {
-                                                              background: `${accentColor}20`,
-                                                              borderColor: `${accentColor}50`,
-                                                              boxShadow: `0 0 12px ${accentColor}20`,
-                                                          }
+                                                               background: `${accentColor}20`,
+                                                               borderColor: `${accentColor}50`,
+                                                               boxShadow: `0 0 12px ${accentColor}20`,
+                                                           }
                                                         : undefined
                                                 }
                                             >
@@ -803,7 +807,7 @@ export default function SettingsModal({
 
                     {/* Footer */}
                     <div
-                        className="flex items-center gap-2 px-5 py-4 shrink-0"
+                        className="px-5 py-4 shrink-0 flex gap-3"
                         style={{ borderTop: `1px solid ${borderColor}` }}
                     >
                         <button
@@ -814,16 +818,12 @@ export default function SettingsModal({
                         </button>
                         <button
                             onClick={handleSave}
-                            className="flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors flex items-center justify-center gap-1.5"
+                            className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
                             style={{
-                                background: `${accentColor}20`,
-                                color: accentColor,
-                                border: `1px solid ${accentColor}40`,
+                                background: `linear-gradient(135deg, ${accentColor}, ${accentColor}dd)`,
+                                boxShadow: `0 10px 20px ${accentColor}30`,
                             }}
-                            onMouseEnter={(e) => { e.currentTarget.style.background = `${accentColor}30`; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.background = `${accentColor}20`; }}
                         >
-                            <Check size={14} />
                             保存
                         </button>
                     </div>

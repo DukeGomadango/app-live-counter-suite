@@ -6,9 +6,10 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, CloudUpload, Home } from "lucide-react";
 import { TOOLS, TOOLS_BY_CATEGORY } from "@/lib/tools";
+import { useTheme } from "@/context/ThemeContext";
 
 interface ModeSelectorProps {
-    isLightMode?: boolean;
+    isLightMode?: boolean; // Keep for backward compatibility/overrides
 }
 
 const TOP_ENTRY = {
@@ -47,7 +48,10 @@ const ALL_MODES: ModeEntry[] = [
     })),
 ];
 
-export default function ModeSelector({ isLightMode = false }: ModeSelectorProps) {
+export default function ModeSelector({ isLightMode: isLightModeProp }: ModeSelectorProps) {
+    const { isLightMode: isLightModeContext } = useTheme();
+    const isLightMode = isLightModeProp ?? isLightModeContext;
+    
     const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
     const dropdownRef = useRef<HTMLDivElement>(null);
@@ -71,7 +75,6 @@ export default function ModeSelector({ isLightMode = false }: ModeSelectorProps)
     }, [isOpen]);
 
     const textColor = isLightMode ? "text-gray-700" : "text-white/80";
-    const _bgSubtle = isLightMode ? "bg-black/5" : "bg-white/5";
     const bgHover = isLightMode ? "hover:bg-black/10" : "hover:bg-white/10";
     const borderColor = isLightMode ? "border-black/10" : "border-white/10";
     const dropdownBg = isLightMode ? "rgba(255,255,255,0.95)" : "rgba(15,8,35,0.95)";

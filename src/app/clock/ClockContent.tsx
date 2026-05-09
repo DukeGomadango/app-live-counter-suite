@@ -7,6 +7,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import ClockSettingsPanel from "@/components/clock/ClockSettingsPanel";
+import { useTheme } from "@/context/ThemeContext";
 import {
   createDefaultClockSettings,
   type ClockSettings,
@@ -60,7 +61,7 @@ export default function ClockContent({
   isSplitMode?: boolean;
   isRightPane?: boolean;
 } = {}) {
-  const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("clock-light-mode", false);
+  const { isLightMode, toggleTheme } = useTheme();
   const [settings, setSettings] = useLocalStorage<ClockSettings>(
     "clock-settings",
     createDefaultClockSettings()
@@ -70,16 +71,8 @@ export default function ClockContent({
   const [clockDisplayMode, setClockDisplayMode] = useState<ClockDisplayMode>("digital");
 
   const { glassBorder: _glassBorder } = useGlassStyle(isLightMode);
-  const _headerBg = isLightMode ? "rgba(255,255,255,0.7)" : "rgba(20,10,40,0.6)";
   const accentColor = settings.accentColor ?? "#f97316";
   const orbIntensity = settings.orbIntensity ?? 50;
-
-  useEffect(() => {
-    if (isSplitMode) return;
-    if (isLightMode) document.body.classList.add("light-mode");
-    else document.body.classList.remove("light-mode");
-    return () => document.body.classList.remove("light-mode");
-  }, [isLightMode, isSplitMode]);
 
   const headerBgStrong = isLightMode ? "rgba(255,255,255,0.95)" : "rgba(20,10,40,0.92)";
   const iconColor = isLightMode ? "text-gray-800" : "text-white";
@@ -143,7 +136,7 @@ export default function ClockContent({
             <Settings size={16} />
           </button>
           <button
-            onClick={() => setIsLightMode(!isLightMode)}
+            onClick={toggleTheme}
             className={`p-1.5 rounded-lg transition-all shrink-0 ${iconColor} ${iconHover}`}
             title={isLightMode ? "ダークモード" : "ライトモード"}
             aria-label={isLightMode ? "ダークモード" : "ライトモード"}
@@ -324,7 +317,6 @@ function AnalogFace({
   const minuteAngle = (minute / 60) * 360 - 90;
   const secondAngle = (second / 60) * 360 - 90;
 
-  const _stroke = isLightMode ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.4)";
   const strokeStrong = isLightMode ? "rgba(0,0,0,0.7)" : "rgba(255,255,255,0.8)";
 
   const hand = (angle: number, length: number, width: number, color: string) => {
@@ -522,7 +514,7 @@ function TimerPanel({
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- interval は isRunning/showCentiseconds で切り替え、remainingMs は tick 内で参照
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- interval は isRunning/showCentiseconds で切り替え, remainingMs は tick 内で参照
   }, [isRunning, remainingMs === null, showCentiseconds]);
 
   const handleStart = () => {

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Settings, Users, Sparkles, BarChart3, Sun, Moon, Menu, X, Package, ChevronDown, Save } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
+import { useTheme } from "@/context/ThemeContext";
 import GachaSetup from "@/components/gacha/GachaSetup";
 import GachaPresetsPanel from "@/components/gacha/GachaPresetsPanel";
 import GachaRollAnimation from "@/components/gacha/GachaRollAnimation";
@@ -44,9 +45,10 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         activePlayerId, setActivePlayerId,
         integrationConfig, setIntegrationConfig,
         latestResults, setLatestResults,
-        isLightMode, setIsLightMode,
-        gachaSettings, setGachaSettings
+        gachaSettings, setGachaSettings,
+        hasMigrated, setHasMigrated
     } = useGachaState();
+    const { isLightMode, toggleTheme } = useTheme();
 
     const {
         mobileTab, setMobileTab,
@@ -188,7 +190,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                         <button onClick={() => setShowSettingsPanel(!showSettingsPanel)} className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}>
                             <Settings size={16} />
                         </button>
-                        <button onClick={() => setIsLightMode(!isLightMode)} className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}>
+                        <button onClick={toggleTheme} className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}>
                             {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
                         </button>
                     </div>
@@ -323,7 +325,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     <button onClick={() => setShowSettingsPanel(!showSettingsPanel)} className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}>
                         <Settings size={16} />
                     </button>
-                    <button onClick={() => setIsLightMode(!isLightMode)} className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}>
+                    <button onClick={toggleTheme} className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}>
                         {isLightMode ? <Moon size={16} /> : <Sun size={16} />}
                     </button>
                 </div>

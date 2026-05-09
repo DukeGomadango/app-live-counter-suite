@@ -56,6 +56,8 @@ interface HamburgerMenuProps {
     onSetNodeTarget?: (id: string, target: number) => void;
     onRequestAchieveTarget?: (id: string) => void;
     onRequestAchieveAllTargets?: () => void;
+    leftContent?: ReactNode;
+    rightContent?: ReactNode;
 }
 
 export default function HamburgerMenu({
@@ -93,6 +95,8 @@ export default function HamburgerMenu({
     onSetNodeTarget,
     onRequestAchieveTarget,
     onRequestAchieveAllTargets,
+    leftContent,
+    rightContent,
 }: HamburgerMenuProps) {
     const [activeTab, setActiveTab] = useState<HamburgerTabId>(viewMode === "counter" ? "templates" : "actions");
     const [confirmReset, setConfirmReset] = useState(false);
@@ -167,6 +171,8 @@ export default function HamburgerMenu({
                 onResetClick={handleReset}
                 hideThemeToggle={!!hideThemeToggle}
                 onToggleTheme={onToggleTheme}
+                leftContent={leftContent}
+                rightContent={rightContent}
             />
 
             <HamburgerMenuSidebar

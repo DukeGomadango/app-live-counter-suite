@@ -25,7 +25,6 @@ const OVERLAY_HISTORY_MAX = 50;
 
 export function usePanelState() {
   const { showToast } = useToast();
-  const [isLightMode, setIsLightMode] = useLocalStorage<boolean>("panel-light-mode", false);
   const [panelState, setPanelState] = useLocalStorage<PanelState>("panel-state", defaultPanelState);
   
   /** IndexedDB から解決した背景画像の表示用 URL（ObjectURL or data: URL） */
@@ -128,7 +127,6 @@ export function usePanelState() {
   }, []);
 
   return {
-    isLightMode, setIsLightMode,
     panelState, setPanelState,
     resolvedBgUrl,
     resolvedOverlayUrls,
