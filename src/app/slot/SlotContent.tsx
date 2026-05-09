@@ -94,8 +94,8 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
     if (activePlayerId === id) setActivePlayerId(null);
   }, [activePlayerId, setActivePlayerId, setPlayers]);
 
-  const updatePlayer = useCallback((player: SlotPlayer) => {
-    setPlayers(prev => prev.map(p => p.id === player.id ? player : p));
+  const updatePlayer = useCallback((id: string, patch: { name?: string; balance?: number; defaultBet?: number }) => {
+    setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...patch } : p));
   }, [setPlayers]);
 
   const showSidebar = sidebarOpen || (isDesktop && !isSplitMode);

@@ -18,7 +18,7 @@ import {
 
 /** スロット結果を画像として書き出し・共有する */
 export async function handleExportSlotResultAsImage(
-  lastWin: SlotSymbol, 
+  lastWin: { label: string }, 
   playerName: string
 ) {
   const el = document.querySelector(".slot-reel-container") as HTMLElement;

@@ -98,7 +98,7 @@ function SymbolEditRow({
             role,
           })
         }
-        className={`px-2 py-1 rounded text-xs transition-colors ${isLightMode ? "bg-teal-100 text-teal-800 hover:bg-teal-200" : "bg-teal-500/30 text-teal-200 hover:bg-teal-500/40"}`}
+        className={`px-2 py-1 rounded text-xs transition-colors ${_isLightMode ? "bg-teal-100 text-teal-800 hover:bg-teal-200" : "bg-teal-500/30 text-teal-200 hover:bg-teal-500/40"}`}
       >
         保存
       </button>

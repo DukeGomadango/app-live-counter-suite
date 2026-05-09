@@ -23,7 +23,7 @@ import EditItemModal from "@/components/EditItemModal";
 import SettingsModal, { type CardSize } from "@/components/SettingsModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ModeSelector from "@/components/ModeSelector";
-import { TEMPLATES } from "@/lib/templates";
+import { TEMPLATES, type Template } from "@/lib/templates";
 
 // Hooks
 import { useCounterState } from "./counter/hooks/useCounterState";

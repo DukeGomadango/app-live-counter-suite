@@ -47,8 +47,8 @@ export function HamburgerMenuHeader({
         borderSubtle,
         bgSubtleHover,
         textMuted,
-        textPri,
-        textSec,
+        textPrimary,
+        textSecondary,
     } = tokens;
 
     return (
@@ -64,7 +64,7 @@ export function HamburgerMenuHeader({
                     {isOpen ? (
                         <X className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
                     ) : (
-                        <Menu className={`w-4 h-4 sm:w-5 sm:h-5 ${textPri}`} />
+                        <Menu className={`w-4 h-4 sm:w-5 sm:h-5 ${textPrimary}`} />
                     )}
                 </button>
                 {!hideModeSelector && <ModeSelector isLightMode={isLightMode} />}
@@ -83,7 +83,7 @@ export function HamburgerMenuHeader({
                         <div className="flex flex-col items-center leading-tight">
                             <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>合計</span>
                             <div className="flex items-baseline gap-0.5">
-                                <span className={`text-sm sm:text-base font-bold tabular-nums ${textPri}`}>
+                                <span className={`text-sm sm:text-base font-bold tabular-nums ${textPrimary}`}>
                                     {totalCount.toLocaleString()}
                                 </span>
                                 {totalTarget > 0 && (
@@ -105,7 +105,7 @@ export function HamburgerMenuHeader({
                     className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
                     title="設定"
                 >
-                    <Settings className={`w-4 h-4 sm:w-5 sm:h-5 ${textSec}`} />
+                    <Settings className={`w-4 h-4 sm:w-5 sm:h-5 ${textSecondary}`} />
                 </button>
                 <button
                     onClick={onResetClick}
