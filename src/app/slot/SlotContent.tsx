@@ -259,7 +259,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
                 <h3 className="font-bold">履歴詳細</h3>
                 <button onClick={() => setPlayerHistoryViewId(null)} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10"><X size={20} /></button>
               </div>
-              <div className="flex-1 overflow-y-auto p-4">
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
                 {(() => {
                   const p = players.find((x) => x.id === playerHistoryViewId);
                   if (!p) return null;

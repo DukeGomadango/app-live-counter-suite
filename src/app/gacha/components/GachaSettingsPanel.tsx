@@ -76,7 +76,7 @@ export function GachaSettingsPanel({
         </div>
 
         <div
-          className="px-4 py-3 flex flex-col gap-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden scroll-touch"
+          className="px-4 py-3 flex flex-col gap-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden scroll-touch custom-scrollbar"
           style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}
         >
           {/* ガチャ配色 */}

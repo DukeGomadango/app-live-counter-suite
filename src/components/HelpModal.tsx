@@ -510,11 +510,7 @@ export default function HelpModal({ isOpen, onClose, currentPath, isLightMode, a
                                 </button>
                             </div>
 
-                            {/* Body (Scrollable) */}
-                            <div className="p-6 overflow-y-auto scroll-touch" style={{
-                                scrollbarWidth: "thin",
-                                scrollbarColor: `${isLightMode ? 'rgba(0,0,0,0.2)' : 'rgba(255,255,255,0.2)'} transparent`
-                            }}>
+                            <div className="p-6 overflow-y-auto scroll-touch custom-scrollbar">
                                 <p className={`mb-6 p-4 rounded-xl text-sm leading-relaxed ${textSecondary}`} style={{ background: bgSubtle }}>
                                     {content.description}
                                 </p>

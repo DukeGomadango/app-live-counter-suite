@@ -212,7 +212,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     if (!player) return null;
                     return (
                         <div className={`fixed inset-0 z-[60] flex flex-col overflow-hidden ${displayLight ? "bg-[#f8f9fa]/98" : "bg-[#0a051e]/95"}`}>
-                            <div className="flex-1 min-h-0 overflow-y-auto scroll-touch p-4 pt-14">
+                            <div className="flex-1 min-h-0 overflow-y-auto scroll-touch p-4 pt-14 custom-scrollbar">
                                 <PlayerHistoryCard player={player} pool={pool} isLightMode={isLightMode} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} onClose={() => setPlayerHistoryViewId(null)} />
                             </div>
                         </div>
@@ -221,7 +221,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
 
                 <div
                     ref={mobileTab === "setup" ? setupScrollRef : undefined}
-                    className={`flex-1 min-h-0 ${!isSplitMode ? "pt-12" : ""} relative z-10 ${mobileTab === "setup" ? "overflow-y-auto overflow-x-hidden scroll-smooth scroll-touch rounded-t-2xl mx-2 border border-t border-l border-r" : "overflow-hidden"}`}
+                    className={`flex-1 min-h-0 ${!isSplitMode ? "pt-12" : ""} relative z-10 custom-scrollbar ${mobileTab === "setup" ? "overflow-y-auto overflow-x-hidden scroll-smooth scroll-touch rounded-t-2xl mx-2 border border-t border-l border-r" : "overflow-hidden"}`}
                     style={{
                         ...(mobileTab === "setup" ? { borderColor: glassBorder } : {}),
                         paddingBottom: "max(6rem, calc(4rem + env(safe-area-inset-bottom, 0px)))",
@@ -251,7 +251,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                         )}
                         {mobileTab === "players" && (
                             <motion.div key="players" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
-                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
+                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch custom-scrollbar">
                                     <div className="pb-10">
                                         <GachaPlayerManager players={players} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} />
                                     </div>
@@ -260,7 +260,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                         )}
                         {mobileTab === "items" && (
                             <motion.div key="items" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
-                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
+                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch custom-scrollbar">
                                     <div className="pb-10">
                                         <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={false} />
                                     </div>
@@ -269,7 +269,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                         )}
                         {mobileTab === "distribute" && (
                             <motion.div key="distribute" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
-                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch">
+                                <div className="flex-1 min-h-0 overflow-y-auto scroll-touch custom-scrollbar">
                                     <div className="pb-10">
                                         <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={players} isLightMode={isLightMode} />
                                     </div>
@@ -375,7 +375,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                     </div>
                                     <div className="flex-1 min-h-0 relative flex flex-col">
                                         {showSidebarScrollHint && <div className="absolute left-0 right-0 bottom-0 z-10 flex items-center justify-center gap-1.5 py-2 pointer-events-none" style={{ background: isLightMode ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, transparent 100%)" : "linear-gradient(to top, rgba(10,5,30,0.95) 0%, transparent 100%)" }}><ChevronDown size={12} className={`animate-bounce ${displayLight ? "text-gray-700" : "text-white/75"}`} /></div>}
-                                        <div ref={sidebarScrollRef} onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth scroll-touch">
+                                        <div ref={sidebarScrollRef} onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth scroll-touch custom-scrollbar">
                                             {sidebarTab === "setup" ? <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} /> : sidebarTab === "players" ? <GachaPlayerManager players={players} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} /> : sidebarTab === "items" ? <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={false} /> : sidebarTab === "distribute" ? <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={players} isLightMode={isLightMode} /> : <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />}
                                         </div>
                                     </div>
@@ -408,7 +408,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                             </div>
                             <div className="flex-1 min-h-0 relative flex flex-col">
                                 {showSidebarScrollHint && <div className="absolute left-0 right-0 bottom-0 z-10 flex items-center justify-center gap-1.5 py-2 pointer-events-none" style={{ background: isLightMode ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, transparent 100%)" : "linear-gradient(to top, rgba(10,5,30,0.95) 0%, transparent 100%)" }}><ChevronDown size={12} className={`animate-bounce ${displayLight ? "text-gray-700" : "text-white/75"}`} /></div>}
-                                <div ref={sidebarScrollRef} onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth scroll-touch">
+                                <div ref={sidebarScrollRef} onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth scroll-touch custom-scrollbar">
                                     {sidebarTab === "setup" ? <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={false} /> : sidebarTab === "players" ? <GachaPlayerManager players={players} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} /> : sidebarTab === "items" ? <ItemHistoryPanel players={players} pool={pool} isLightMode={isLightMode} textContrastLight={false} /> : sidebarTab === "distribute" ? <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={players} isLightMode={isLightMode} /> : <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />}
                                 </div>
                             </div>

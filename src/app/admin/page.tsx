@@ -503,7 +503,7 @@ export default function AdminPage() {
               }}
             >
               <h2 className="px-4 py-3 font-semibold border-b border-white/10">日別（一覧）</h2>
-              <div className="overflow-x-auto max-h-80 overflow-y-auto">
+              <div className="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-white/50 border-b border-white/10 sticky top-0 bg-[#0a051e]/95">
@@ -549,7 +549,7 @@ export default function AdminPage() {
               {loadingVisitors ? (
                 <p className="px-4 py-6 text-white/40 text-sm">読み込み中...</p>
               ) : (
-                <div className="overflow-x-auto max-h-80 overflow-y-auto">
+                <div className="overflow-x-auto max-h-80 overflow-y-auto custom-scrollbar">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-left text-white/50 border-b border-white/10 sticky top-0 bg-[#0a051e]/95">

@@ -237,5 +237,38 @@ body::before {
     animation: none !important;
     opacity: 0 !important;
     box-shadow: none !important;
-  }
+}
+}
+
+* {
+  /* Firefox */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent-color, #a855f7) 30%, transparent) transparent;
+}
+
+/* Chrome, Edge, Safari */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  /* "Floating Glass" effect: use transparent border + background-clip to create a gap */
+  background-color: color-mix(in srgb, var(--accent-color, #a855f7) 25%, transparent);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 100px;
+  transition: background-color 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in srgb, var(--accent-color, #a855f7) 50%, transparent);
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
 }

@@ -375,7 +375,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
               ))}
             </div>
           ) : (
-            <DndContext sensors={drag.sensors} collisionDetection={closestCenter} onDragStart={drag.handleDragStart} onDragEnd={drag.handleDragEnd}>
+            <DndContext id="counter-dnd" sensors={drag.sensors} collisionDetection={closestCenter} onDragStart={drag.handleDragStart} onDragEnd={drag.handleDragEnd}>
               <div className="grid items-stretch gap-2 sm:gap-2.5 w-full" style={{ gridTemplateColumns: `repeat(${effectiveCols}, minmax(${effectiveColMaxPx}px, ${effectiveColMaxPx}px))` }}>
                 <SortableContext items={state.items.map(i => i.id)} strategy={rectSortingStrategy}>
                   {state.items.map((item) => (

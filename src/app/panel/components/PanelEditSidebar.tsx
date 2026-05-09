@@ -118,7 +118,7 @@ export default function PanelEditSidebar({
   return (
     <div
       ref={editSidebarRef}
-      className={`shrink-0 min-w-0 overflow-y-auto overflow-x-hidden border-r flex flex-col w-full ${isLightMode ? "bg-white/90 backdrop-blur-md" : "bg-transparent"}`}
+      className={`shrink-0 min-w-0 overflow-y-auto overflow-x-hidden border-r flex flex-col w-full custom-scrollbar ${isLightMode ? "bg-white/90 backdrop-blur-md" : "bg-transparent"}`}
       style={{
         width: effectiveSidebarWidth,
         minWidth: 200,
@@ -152,7 +152,7 @@ export default function PanelEditSidebar({
           );
         })}
       </div>
-      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-3 p-3 pb-10">
+      <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden flex flex-col gap-3 p-3 pb-10 custom-scrollbar">
         {tab === "image" && (
           <>
             <div className="text-sm font-medium opacity-80 w-full">画像</div>
@@ -701,7 +701,7 @@ export default function PanelEditSidebar({
               <span>レイヤー管理</span>
               <span className="text-xs font-normal opacity-70">上から前面・D&Dで並び替え</span>
             </div>
-            <div className="w-full flex flex-col gap-1 overflow-y-auto pr-1 pb-4">
+            <div className="w-full flex flex-col gap-1 overflow-y-auto pr-1 pb-4 custom-scrollbar">
               {overlays.length === 0 ? (
                 <div className="text-sm opacity-50 py-4 text-center border border-dashed rounded-lg border-current">
                   レイヤーはありません

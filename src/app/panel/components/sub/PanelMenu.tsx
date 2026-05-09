@@ -63,7 +63,7 @@ export function PanelMenu({
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
-            className="fixed left-0 top-[56px] bottom-0 w-72 max-w-[85vw] z-[91] overflow-y-auto scroll-touch p-4"
+            className="fixed left-0 top-[56px] bottom-0 w-72 max-w-[85vw] z-[91] overflow-y-auto scroll-touch p-4 custom-scrollbar"
             style={{
               background: isLightMode ? "rgba(255,255,255,0.98)" : "rgba(20,10,40,0.98)",
               borderRight: `1px solid ${isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)"}`,

@@ -64,7 +64,7 @@ export default function LandingPage() {
         <motion.div animate={{ x: [0, -60, 30, 0], y: [0, 60, -30, 0], scale: [1, 0.85, 1.15, 1] }} transition={{ duration: 25, repeat: Infinity, ease: "linear" }} className="absolute bottom-[10%] right-[10%] w-[35rem] h-[35rem] rounded-full blur-[120px]" style={{ background: `radial-gradient(circle, ${LP_ACCENT} 0%, transparent 60%)`, opacity: effectiveLight ? 0.24 : 0.5 }} />
       </div>
 
-      <main className="relative z-10 flex-1 min-h-0 flex flex-col items-center px-4 md:px-3 pt-[56px] pb-14 md:pb-6 md:overflow-y-auto scroll-touch">
+      <main className="relative z-10 flex-1 min-h-0 flex flex-col items-center px-4 md:px-3 pt-[56px] pb-14 md:pb-6 md:overflow-y-auto scroll-touch custom-scrollbar">
         <header className="w-full max-w-5xl mx-auto mt-8 md:mt-12 px-2 sm:px-3 py-2 sm:py-3 text-center md:text-left shrink-0">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:gap-6 items-stretch">
             <div className="flex flex-col justify-center">
