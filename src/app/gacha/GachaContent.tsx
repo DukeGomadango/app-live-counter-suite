@@ -303,7 +303,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
 
     // -- Desktop Layout --
     return (
-        <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`}>
+        <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`} style={{ "--accent-color": gachaSettings.accentColor ?? "#a855f7" } as React.CSSProperties}>
             {orbsLayer}
             <div className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 ${isSplitMode ? "min-h-[56px]" : ""}`} style={{ background: headerBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${glassBorder}` }}>
                 <div className="flex items-center gap-2">

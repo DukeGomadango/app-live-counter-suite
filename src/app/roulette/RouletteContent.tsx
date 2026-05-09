@@ -182,7 +182,7 @@ export default function RouletteContent({
     );
 
     return (
-        <div className={`flex flex-col overflow-hidden relative z-10 min-w-0 pt-14 ${isSplitMode ? "h-full w-full" : "h-screen w-screen"}`}>
+        <div className={`flex flex-col overflow-hidden relative z-10 min-w-0 pt-14 ${isSplitMode ? "h-full w-full" : "h-screen w-screen"}`} style={{ "--accent-color": accentColor } as React.CSSProperties}>
             {isSplitMode && isLightMode && <div className="absolute inset-0 pointer-events-none z-0" style={{ background: splitLightBg }} />}
             {settings.backgroundEnabled && (
                 <div className="absolute inset-0 pointer-events-none z-0" style={{ background: settings.backgroundColor ?? "#1a1a2e", opacity: (settings.backgroundOpacity ?? 100) / 100 }} />
