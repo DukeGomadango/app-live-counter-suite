@@ -75,37 +75,25 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [editingDesc, setEditingDesc] = useState("");
 
-  const handleStartEditName = () => {
+  const currentTemplate = useMemo(
+    () => TEMPLATES.find((t) => t.id === state.currentTemplateId) ?? state.customTemplates.find((t) => t.id === state.currentTemplateId) ?? null,
+    [state.currentTemplateId, state.customTemplates]
+  );
+
+  const totalCount = useMemo(() => state.items.reduce((sum, item) => sum + item.count, 0), [state.items]);
+  const totalTarget = useMemo(() => state.items.reduce((sum, item) => sum + item.target, 0), [state.items]);
+
+  const handleStartEditName = useCallback(() => {
     setEditingName(currentTemplate?.name ?? "");
     setIsEditingName(true);
-  };
+  }, [currentTemplate?.name]);
 
-  const handleStartEditDesc = () => {
+  const handleStartEditDesc = useCallback(() => {
     setEditingDesc(currentTemplate?.description ?? "");
     setIsEditingDesc(true);
-  };
+  }, [currentTemplate?.description]);
 
-  const handleSaveName = () => {
-    const trimmed = editingName.trim();
-    if (!trimmed || trimmed === currentTemplate?.name) {
-      setIsEditingName(false);
-      return;
-    }
-    saveTemplateChanges({ name: trimmed });
-    setIsEditingName(false);
-  };
-
-  const handleSaveDesc = () => {
-    const trimmed = editingDesc.trim();
-    if (trimmed === currentTemplate?.description) {
-      setIsEditingDesc(false);
-      return;
-    }
-    saveTemplateChanges({ description: trimmed });
-    setIsEditingDesc(false);
-  };
-
-  const saveTemplateChanges = (changes: Partial<Template>) => {
+  const saveTemplateChanges = useCallback((changes: Partial<Template>) => {
     const isCustom = state.customTemplates.some(t => t.id === state.currentTemplateId);
     
     if (isCustom) {
@@ -123,7 +111,27 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
       state.setCustomTemplates(prev => [...prev, newTemplate]);
       state.setCurrentTemplateId(newId);
     }
-  };
+  }, [state, currentTemplate]);
+
+  const handleSaveName = useCallback(() => {
+    const trimmed = editingName.trim();
+    if (!trimmed || trimmed === currentTemplate?.name) {
+      setIsEditingName(false);
+      return;
+    }
+    saveTemplateChanges({ name: trimmed });
+    setIsEditingName(false);
+  }, [editingName, currentTemplate?.name, saveTemplateChanges]);
+
+  const handleSaveDesc = useCallback(() => {
+    const trimmed = editingDesc.trim();
+    if (trimmed === currentTemplate?.description) {
+      setIsEditingDesc(false);
+      return;
+    }
+    saveTemplateChanges({ description: trimmed });
+    setIsEditingDesc(false);
+  }, [editingDesc, currentTemplate?.description, saveTemplateChanges]);
   const positionedContainerRef = useRef<HTMLDivElement>(null);
   const [positionedContainerSize, setPositionedContainerSize] = useState<{ w: number; h: number } | null>(null);
   
@@ -134,13 +142,6 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
     return () => clearTimeout(id);
   }, []);
 
-  const totalCount = useMemo(() => state.items.reduce((sum, item) => sum + item.count, 0), [state.items]);
-  const totalTarget = useMemo(() => state.items.reduce((sum, item) => sum + item.target, 0), [state.items]);
-
-  const currentTemplate = useMemo(
-    () => TEMPLATES.find((t) => t.id === state.currentTemplateId) ?? state.customTemplates.find((t) => t.id === state.currentTemplateId) ?? null,
-    [state.currentTemplateId, state.customTemplates]
-  );
   const isPositionedLayout = Boolean(currentTemplate?.layout === "positioned" && currentTemplate?.backgroundImage);
 
   useEffect(() => {

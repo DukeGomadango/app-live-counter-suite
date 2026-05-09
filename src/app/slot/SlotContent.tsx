@@ -20,7 +20,7 @@ import { useSlotState } from "./hooks/useSlotState";
 import { useSlotEngine } from "./hooks/useSlotEngine";
 import { useSlotSidebar } from "./hooks/useSlotSidebar";
 import { SlotOrbsBackground } from "./components/SlotOrbsBackground";
-import { resolveReelStrips } from "@/lib/slot";
+import { resolveReelStrips, SlotPlayer } from "@/lib/slot";
 import { 
   handleExportSlotResultAsImage, 
   handleApplyNumbers17Preset,
@@ -94,7 +94,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
     if (activePlayerId === id) setActivePlayerId(null);
   }, [activePlayerId, setActivePlayerId, setPlayers]);
 
-  const updatePlayer = useCallback((player: any) => {
+  const updatePlayer = useCallback((player: SlotPlayer) => {
     setPlayers(prev => prev.map(p => p.id === player.id ? player : p));
   }, [setPlayers]);
 

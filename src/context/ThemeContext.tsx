@@ -13,7 +13,7 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-const THEME_STORAGE_KEY = "app-theme-mode";
+export const THEME_STORAGE_KEY = "app-theme-mode";
 const LEGACY_KEYS = [
   "counter-light-mode",
   "slot-light-mode",
@@ -25,35 +25,34 @@ const LEGACY_KEYS = [
 ];
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<ThemeMode>("dark");
-
-  // Initial load
-  useEffect(() => {
+  const [theme, setThemeState] = useState<ThemeMode>(() => {
+    if (typeof window === "undefined") return "dark";
+    
     // 1. Check unified key
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    if (saved === "light" || saved === "dark") {
-      setThemeState(saved as ThemeMode);
-    } else {
-      // 2. Migration from legacy keys
-      let foundLegacy = false;
-      for (const key of LEGACY_KEYS) {
-        const legacyVal = localStorage.getItem(key);
-        if (legacyVal === "true") {
-          setThemeState("light");
-          localStorage.setItem(THEME_STORAGE_KEY, "light");
-          foundLegacy = true;
-          break;
-        }
-      }
-      
-      // 3. System preference fallback
-      if (!foundLegacy && window.matchMedia("(prefers-color-scheme: light)").matches) {
-        setThemeState("light");
+    if (saved === "light" || saved === "dark") return saved as ThemeMode;
+    
+    // 2. Migration from legacy keys
+    for (const key of LEGACY_KEYS) {
+      const legacyVal = localStorage.getItem(key);
+      if (legacyVal === "true") {
+        localStorage.setItem(THEME_STORAGE_KEY, "light");
+        return "light";
       }
     }
+    
+    // 3. System preference fallback
+    if (window.matchMedia("(prefers-color-scheme: light)").matches) return "light";
+    
+    return "dark";
+  });
 
-    // Clean up legacy keys (optional but recommended)
-    LEGACY_KEYS.forEach(key => localStorage.removeItem(key));
+  // Initial load side effects (cleanup only)
+  useEffect(() => {
+    // Clean up legacy keys
+    if (typeof window !== "undefined") {
+      LEGACY_KEYS.forEach(key => localStorage.removeItem(key));
+    }
   }, []);
 
   // Apply theme class to document element
