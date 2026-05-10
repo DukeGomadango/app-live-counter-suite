@@ -81,28 +81,31 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
             )}
 
             {/* 天井ゲージ */}
-            {pool.pityEnabled && (
-                <div className="px-4 py-2 shrink-0" style={{ borderBottom: `1px solid ${glassBorder}` }}>
-                    <div className="flex justify-between mb-1">
-                        <span className={`text-[10px] ${textMuted}`}>天井カウント</span>
-                        <span className={`text-[10px] font-bold ${textSecondary}`}>
-                            {player.pityCounter} / {pool.pityThreshold}
-                        </span>
+            {(() => {
+                const st = player.poolStates?.[pool.id] || { totalPulls: 0, pityCounter: 0, pityReachCount: 0 };
+                return pool.pityEnabled && (
+                    <div className="px-4 py-2 shrink-0" style={{ borderBottom: `1px solid ${glassBorder}` }}>
+                        <div className="flex justify-between mb-1">
+                            <span className={`text-[10px] ${textMuted}`}>天井カウント</span>
+                            <span className={`text-[10px] font-bold ${textSecondary}`}>
+                                {st.pityCounter} / {pool.pityThreshold}
+                            </span>
+                        </div>
+                        <div className={`h-1.5 rounded-full overflow-hidden ${isLightMode ? "bg-gray-200" : "bg-white/10"}`}>
+                            <div
+                                className="h-full rounded-full transition-all"
+                                style={{
+                                    width: `${Math.min((st.pityCounter / pool.pityThreshold) * 100, 100)}%`,
+                                    background: "linear-gradient(90deg, #a855f7, #ef4444)",
+                                }}
+                            />
+                        </div>
+                        {(st.pityReachCount ?? 0) > 0 && (
+                            <p className={`text-[10px] mt-1 ${textMuted}`}>天井到達: {(st.pityReachCount ?? 0)}回</p>
+                        )}
                     </div>
-                    <div className={`h-1.5 rounded-full overflow-hidden ${isLightMode ? "bg-gray-200" : "bg-white/10"}`}>
-                        <div
-                            className="h-full rounded-full transition-all"
-                            style={{
-                                width: `${Math.min((player.pityCounter / pool.pityThreshold) * 100, 100)}%`,
-                                background: "linear-gradient(90deg, #a855f7, #ef4444)",
-                            }}
-                        />
-                    </div>
-                    {(player.pityReachCount ?? 0) > 0 && (
-                        <p className={`text-[10px] mt-1 ${textMuted}`}>天井到達: {(player.pityReachCount ?? 0)}回</p>
-                    )}
-                </div>
-            )}
+                );
+            })()}
 
             {/* タブ＋2カラムエリア */}
             <div className="flex-1 min-h-0 flex flex-col">

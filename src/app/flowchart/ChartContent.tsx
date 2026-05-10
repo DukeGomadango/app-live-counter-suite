@@ -35,7 +35,7 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { motion, AnimatePresence } from "framer-motion";
 import HamburgerMenu from "@/components/HamburgerMenu";
 import SettingsModal, { type AppSettings } from "@/components/SettingsModal";
-import ConfirmDialog from "@/components/ConfirmDialog";
+import { useConfirm } from "@/context/ConfirmContext";
 import {
     CHART_LAYOUT_BREAKPOINT_PX,
     CHART_TOTAL_ID,
@@ -114,8 +114,7 @@ function ChartContentInner({
 
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    const [nodeToDelete, setNodeToDelete] = useState<string | null>(null);
-    const [chartToDelete, setChartToDelete] = useState<string | null>(null);
+    const { confirm } = useConfirm();
 
     const [nodes, setNodes] = useDebouncedLocalStorage<Node[]>("flowchart-nodes", CHART_INITIAL_NODES, 400);
     const [edges, setEdges] = useDebouncedLocalStorage<Edge[]>("flowchart-edges", CHART_INITIAL_EDGES, 400);
@@ -227,10 +226,15 @@ function ChartContentInner({
         handleSetLineCount,
         handleUpdateLineConfig,
         handleUpdateSummaryLabels,
-        handleDelete,
         requestDeleteNode,
         addNewNode,
-    } = useChartLineActions(nodesRef, edgesRef, setNodes, setEdges, saveHistory, setNodeToDelete);
+    } = useChartLineActions(nodesRef, edgesRef, setNodes, setEdges, saveHistory, async (id) => {
+        if (await confirm({ message: "本当に削除しますか？", danger: true })) {
+            saveHistory(nodesRef.current, edgesRef.current);
+            setEdges((eds) => eds.filter((e) => e.source !== id && e.target !== id));
+            setNodes((nds) => mergeLedgerTotalsIntoNodes(nds.filter((n) => n.id !== id)));
+        }
+    });
 
     const chartNodeEnv = useMemo<ChartNodeEnv>(
         () => ({
@@ -321,16 +325,35 @@ function ChartContentInner({
                 onToggle={() => setIsMenuOpen(!isMenuOpen)}
                 isLightMode={isLightMode}
                 onToggleTheme={toggleTheme}
-                onReset={() => {
-                    setNodes(CHART_INITIAL_NODES);
-                    setEdges([]);
+                onReset={async () => {
+                    if (await confirm({ 
+                        title: "リセットの確認",
+                        message: "現在のチャートをすべて削除して初期状態に戻します。よろしいですか？",
+                        danger: true 
+                    })) {
+                        setNodes(CHART_INITIAL_NODES);
+                        setEdges([]);
+                    }
                 }}
                 onOpenSettings={() => setIsSettingsOpen(true)}
                 accentColor={accentColor}
                 savedCharts={savedCharts}
                 onSaveChart={handleSaveChart}
-                onLoadChart={handleLoadChart}
-                onDeleteChart={(id) => setChartToDelete(id)}
+                onLoadChart={async (chart) => {
+                    if (await confirm({
+                        title: "チャートの読み込み",
+                        message: "現在の編集内容が上書きされます。よろしいですか？",
+                        danger: true
+                    })) {
+                        handleLoadChart(chart);
+                        setIsMenuOpen(false);
+                    }
+                }}
+                onDeleteChart={async (id) => {
+                    if (await confirm({ message: "本当に削除しますか？", danger: true })) {
+                        handleDeleteChart(id);
+                    }
+                }}
                 globalTarget={globalTarget}
                 onSetGlobalTarget={setGlobalTarget}
                 viewMode="chart"
@@ -352,32 +375,7 @@ function ChartContentInner({
                 )}
             </AnimatePresence>
 
-            <ConfirmDialog
-                open={nodeToDelete !== null}
-                message="本当に削除しますか？"
-                confirmLabel="削除する"
-                cancelLabel="キャンセル"
-                onConfirm={() => {
-                    if (nodeToDelete) {
-                        handleDelete(nodeToDelete);
-                        setNodeToDelete(null);
-                    }
-                }}
-                onCancel={() => setNodeToDelete(null)}
-            />
-            <ConfirmDialog
-                open={chartToDelete !== null}
-                message="本当に削除しますか？"
-                confirmLabel="削除する"
-                cancelLabel="キャンセル"
-                onConfirm={() => {
-                    if (chartToDelete) {
-                        handleDeleteChart(chartToDelete);
-                        setChartToDelete(null);
-                    }
-                }}
-                onCancel={() => setChartToDelete(null)}
-            />
+
 
             {showAmbientOrbs && (
                 <div

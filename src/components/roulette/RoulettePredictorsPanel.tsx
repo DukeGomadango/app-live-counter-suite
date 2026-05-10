@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, History } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import { useConfirm } from "@/context/ConfirmContext";
 import type { RoulettePredictor, RouletteHitHistoryEntry, HighLowZone } from "@/lib/roulette";
 import { HIGH_LOW_PREDICTIONS } from "@/lib/roulette";
 
@@ -45,6 +46,7 @@ export default function RoulettePredictorsPanel({
     const [openDropdownId, setOpenDropdownId] = useState<string | null>(null);
     const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
     const ref = useRef<HTMLDivElement>(null);
+    const { confirm } = useConfirm();
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const _textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-600" : "text-white/60";
@@ -68,15 +70,20 @@ export default function RoulettePredictorsPanel({
         onChange([...predictors, { id: generateId(), name: `プレイヤー${predictors.length + 1}`, prediction: "" }]);
     };
 
-    const remove = (id: string) => {
-        if (predictors.length <= 1) return;
-        onChange(predictors.filter((p) => p.id !== id));
-        setOpenDropdownId(null);
-        setSelectedIds((prev) => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-        });
+    const remove = async (id: string, name: string) => {
+        if (await confirm({
+            title: "プレイヤーの削除",
+            message: `${name} さんを削除しますか？\n（このセッションのあたり履歴からも名前が消えます）`,
+            danger: true
+        })) {
+            onChange(predictors.filter((p) => p.id !== id));
+            setOpenDropdownId(null);
+            setSelectedIds((prev) => {
+                const next = new Set(prev);
+                next.delete(id);
+                return next;
+            });
+        }
     };
 
     const selectAll = () => setSelectedIds(new Set(predictors.map((p) => p.id)));
@@ -88,13 +95,21 @@ export default function RoulettePredictorsPanel({
             else next.add(id);
             return next;
         });
-    const removeSelected = () => {
-        if (selectedIds.size === 0 || predictors.length <= 1) return;
-        const next = predictors.filter((p) => !selectedIds.has(p.id));
-        if (next.length === 0) return;
-        onChange(next);
-        setSelectedIds(new Set());
-        setOpenDropdownId(null);
+    const removeSelected = async () => {
+        if (selectedIds.size === 0) return;
+        const count = selectedIds.size;
+        const isAll = count === predictors.length;
+        
+        if (await confirm({
+            title: isAll ? "全員削除" : "選択したプレイヤーを削除",
+            message: isAll ? "全てのプレイヤーを削除しますか？" : `${count} 名のプレイヤーを削除しますか？`,
+            danger: true
+        })) {
+            const next = predictors.filter((p) => !selectedIds.has(p.id));
+            onChange(next);
+            setSelectedIds(new Set());
+            setOpenDropdownId(null);
+        }
     };
 
     return (
@@ -129,7 +144,7 @@ export default function RoulettePredictorsPanel({
                 <div className="px-3 py-1.5 border-b flex items-center gap-2 shrink-0 flex-wrap" style={{ borderColor: glassBorder }}>
                     <button type="button" onClick={selectAll} className={`text-[10px] px-1.5 py-0.5 rounded ${textSecondary} hover:underline`}>全選択</button>
                     <button type="button" onClick={clearSelection} className={`text-[10px] px-1.5 py-0.5 rounded ${textSecondary} hover:underline`}>解除</button>
-                    {selectedIds.size > 0 && predictors.length > 1 && (
+                    {selectedIds.size > 0 && (
                         <button type="button" onClick={removeSelected} className="text-[10px] px-1.5 py-0.5 rounded text-red-400/90 hover:underline">選択削除</button>
                     )}
                 </div>
@@ -184,16 +199,14 @@ export default function RoulettePredictorsPanel({
                                             <History size={14} />
                                         </button>
                                     )}
-                                    {predictors.length > 1 && (
-                                        <button
-                                            type="button"
-                                            onClick={() => remove(p.id)}
-                                            className="p-1 rounded text-red-400/80 hover:bg-red-500/20 shrink-0"
-                                            title="削除"
-                                        >
-                                            <Trash2 size={14} />
-                                        </button>
-                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={() => remove(p.id, p.name)}
+                                        className="p-1 rounded text-red-400/80 hover:bg-red-500/20 shrink-0"
+                                        title="削除"
+                                    >
+                                        <Trash2 size={14} />
+                                    </button>
                                 </div>
                                 {isHighLowMode ? (
                                     <div className="flex gap-1.5 flex-wrap">
@@ -269,6 +282,12 @@ export default function RoulettePredictorsPanel({
                         );
                     })}
                 </AnimatePresence>
+                {predictors.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-8 opacity-50">
+                        <Plus size={24} className="mb-2" />
+                        <p className="text-xs">プレイヤーを追加してください</p>
+                    </div>
+                )}
             </div>
         </div>
     );

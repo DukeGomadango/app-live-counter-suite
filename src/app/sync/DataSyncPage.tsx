@@ -8,6 +8,7 @@ import { Sun, Moon } from "lucide-react";
 import QRCode from "qrcode";
 import jsQR from "jsqr";
 import ModeSelector from "@/components/ModeSelector";
+import { useConfirm } from "@/context/ConfirmContext";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { LOCAL_DRIVE_FILE_ID_KEY } from "@/lib/dataSync/constants";
 import {
@@ -75,6 +76,7 @@ export default function DataSyncPage() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [qrNote, setQrNote] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<SyncBundle | null>(null);
+  const { confirm } = useConfirm();
   const [nfcSupported, setNfcSupported] = useState(false);
 
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
@@ -205,14 +207,19 @@ export default function DataSyncPage() {
 
   const handleImportConfirm = async () => {
     if (!pendingImport) return;
+    
+    if (importMode === "replace_scope") {
+      const ok = await confirm({
+        title: "データ上書きの確認",
+        message: "現在チェックしている範囲のデータをこのブラウザから消してから、バンドルを適用します。よろしいですか？（取り消せません）",
+        confirmLabel: "削除して適用",
+        danger: true
+      });
+      if (!ok) return;
+    }
+
     clearMessages();
     try {
-      if (importMode === "replace_scope") {
-        const ok = window.confirm(
-          "現在チェックしている範囲のデータをこのブラウザから消してから、バンドルを適用します。よろしいですか？（取り消せません）"
-        );
-        if (!ok) return;
-      }
       await applySyncBundle(pendingImport, window.localStorage, {
         mode: importMode,
         scopeForReplace: {
@@ -598,6 +605,9 @@ export default function DataSyncPage() {
                 キャンセル
               </button>
             </div>
+          </section>
+        )}
+
           </section>
         )}
       </main>

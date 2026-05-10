@@ -15,7 +15,7 @@ export function useChartLineActions(
     setNodes: Dispatch<SetStateAction<Node[]>>,
     setEdges: Dispatch<SetStateAction<Edge[]>>,
     saveHistory: (currentNodes: Node[], currentEdges: Edge[]) => void,
-    setNodeToDelete: Dispatch<SetStateAction<string | null>>
+    onRequestDelete: (id: string) => void
 ) {
     const handleIncrement = useCallback(
         (id: string) => {
@@ -125,7 +125,7 @@ export function useChartLineActions(
         [setNodes, setEdges, saveHistory, nodesRef, edgesRef]
     );
 
-    const requestDeleteNode = useCallback((id: string) => setNodeToDelete(id), [setNodeToDelete]);
+    const requestDeleteNode = useCallback((id: string) => onRequestDelete(id), [onRequestDelete]);
 
     const addNewNode = useCallback(() => {
         const id = `line-${Date.now()}`;

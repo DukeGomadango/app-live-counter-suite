@@ -25,6 +25,7 @@ interface PanelHeaderProps {
   isSharing: boolean;
   setIsMenuOpen: (v: boolean) => void;
   isMenuOpen: boolean;
+  accentColor?: string;
 }
 
 export function PanelHeader({
@@ -38,6 +39,7 @@ export function PanelHeader({
   isSharing,
   setIsMenuOpen,
   isMenuOpen,
+  accentColor = "#a855f7",
 }: PanelHeaderProps) {
   const { isLightMode, toggleTheme } = useTheme();
 

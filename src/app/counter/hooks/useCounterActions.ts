@@ -113,22 +113,23 @@ export function useCounterActions({
   }, [items, setCustomTemplates]);
 
   const handleDeleteCustomTemplate = useCallback((id: string) => {
-    const t = customTemplates.find((x) => x.id === id);
-    if (!t) return;
-    if (!window.confirm(`テンプレート「${t.name}」を削除しますか？`)) return;
     setCustomTemplates((prev) => prev.filter((t) => t.id !== id));
-  }, [customTemplates, setCustomTemplates]);
+  }, [setCustomTemplates]);
 
   const handleOverwriteCustomTemplate = useCallback((id: string) => {
-    const t = customTemplates.find((x) => x.id === id);
-    if (!t) return;
-    if (!window.confirm(`現在の項目でテンプレート「${t.name}」を上書きしますか？`)) return;
     setCustomTemplates((prev) => prev.map((x) => x.id === id ? {
       ...x,
       description: `カスタムテンプレート (${items.length}項目)`,
       items: items.map(({ count: _count, target: _target, ...rest }) => rest)
     } : x));
-  }, [items, customTemplates, setCustomTemplates]);
+  }, [items, setCustomTemplates]);
+
+  const handleAchieveAllTargets = useCallback(() => {
+    setItems((prev) => prev.map((item) => {
+      if (!item.target) return item;
+      return { ...item, count: item.target };
+    }));
+  }, [setItems]);
 
   return {
     handleIncrement,
@@ -142,6 +143,7 @@ export function useCounterActions({
     handleSetTarget,
     handleSetAllTargets,
     handleAchieveTarget,
+    handleAchieveAllTargets,
     handleSelectTemplate,
     handleSaveCustomTemplate,
     handleDeleteCustomTemplate,

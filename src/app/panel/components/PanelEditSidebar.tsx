@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { ImagePlus, Pencil, Hand, Layers, ChevronUp, ChevronDown, ChevronsUp, ChevronsDown, GripVertical, Edit3, Eye, EyeOff, Shapes, Trash2 } from "lucide-react";
+import { useConfirm } from "@/context/ConfirmContext";
 import type { PanelState, PanelOverlay, PartitionStroke, FilterType, OverlayShape } from "../lib/panelTypes";
 import { DEFAULT_OVERLAY_COLOR } from "../lib/panelTypes";
 import { parseHexToRgb, rgbToHex, normalizeHex, rgbToHsl, hslToRgb } from "../lib/panelUtils";
@@ -115,6 +116,7 @@ export default function PanelEditSidebar({
   const [dragOverOverlayId, setDragOverOverlayId] = useState<string | null>(null);
   const [renamingOverlayId, setRenamingOverlayId] = useState<string | null>(null);
   const [renameInput, setRenameInput] = useState<string>("");
+  const { confirm } = useConfirm();
   return (
     <div
       ref={editSidebarRef}
@@ -847,9 +849,9 @@ export default function PanelEditSidebar({
                             </button>
                             <button
                               type="button"
-                              onClick={(e) => {
+                              onClick={async (e) => {
                                 e.stopPropagation();
-                                if (window.confirm("このレイヤーを削除しますか？")) {
+                                if (await confirm({ title: "レイヤー削除", message: "このレイヤーを削除しますか？", danger: true })) {
                                   pushOverlayHistory(overlays);
                                   setOverlays(prev => prev.filter(p => p.id !== overlay.id));
                                   if (o?.id === overlay.id) setSelectedOverlayId(null);
@@ -868,6 +870,7 @@ export default function PanelEditSidebar({
                 })
               )}
             </div>
+            
           </>
         )}
 

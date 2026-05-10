@@ -6,6 +6,7 @@ import type { GachaPool, GachaPoolPreset } from "@/lib/gacha";
 import { generateId, getSampleTemplates, clonePoolKeepingIds } from "@/lib/gacha";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import { useConfirm } from "@/context/ConfirmContext";
 
 interface GachaPresetsPanelProps {
     pool: GachaPool;
@@ -16,6 +17,7 @@ interface GachaPresetsPanelProps {
 export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: GachaPresetsPanelProps) {
     const [presets, setPresets] = useLocalStorage<GachaPoolPreset[]>("gacha-presets", []);
     const [newPresetName, setNewPresetName] = useState("");
+    const { confirm } = useConfirm();
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
@@ -79,16 +81,25 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
                                 <span className={`text-xs flex-1 truncate ${textPrimary}`}>{pre.name}</span>
                                 <div className="flex items-center gap-0.5 shrink-0">
                                     <button
-                                        onClick={() => onPoolChange(clonePoolKeepingIds(pre.pool))}
+                                        onClick={async () => {
+                                            if (await confirm({
+                                                title: "プリセットの読み込み",
+                                                message: `プリセット「${pre.name}」を読み込むと、現在の設定が上書きされます。よろしいですか？`,
+                                                danger: true
+                                            })) {
+                                                onPoolChange(clonePoolKeepingIds(pre.pool));
+                                            }
+                                        }}
                                         className={`p-1.5 rounded transition-all ${isLightMode ? "text-teal-700 hover:bg-teal-50" : "text-teal-400 hover:bg-teal-500/20"}`}
                                         title="読み込み"
                                     >
                                         <Download size={14} />
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            if (!window.confirm(`現在の設定でプリセット「${pre.name}」を上書きしますか？`)) return;
-                                            setPresets(prev => prev.map(p => p.id === pre.id ? { ...p, pool: JSON.parse(JSON.stringify(pool)), savedAt: Date.now() } : p));
+                                        onClick={async () => {
+                                            if (await confirm({ title: "プリセット上書き", message: `現在の設定でプリセット「${pre.name}」を上書きしますか？`, danger: true })) {
+                                                setPresets(prev => prev.map(p => p.id === pre.id ? { ...p, pool: JSON.parse(JSON.stringify(pool)), savedAt: Date.now() } : p));
+                                            }
                                         }}
                                         className={`p-1.5 rounded transition-all ${isLightMode ? "text-amber-700 hover:bg-amber-50" : "text-amber-400 hover:bg-amber-500/20"}`}
                                         title="現在の設定で上書き保存"
@@ -96,9 +107,10 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
                                         <Save size={14} />
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            if (!window.confirm(`プリセット「${pre.name}」を削除しますか？`)) return;
-                                            setPresets(prev => prev.filter(p => p.id !== pre.id));
+                                        onClick={async () => {
+                                            if (await confirm({ title: "プリセット削除", message: `プリセット「${pre.name}」を削除しますか？`, danger: true })) {
+                                                setPresets(prev => prev.filter(p => p.id !== pre.id));
+                                            }
                                         }}
                                         className={`p-1.5 rounded text-red-400 transition-colors ${isLightMode ? "hover:bg-red-50" : "hover:bg-red-500/20"}`}
                                         title="削除"
@@ -112,6 +124,8 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
                 </div>
             </div>
 
+
+
             {/* サンプルのテンプレート */}
             <div className="rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
                 <div className={`px-4 py-3 border-b ${textSecondary}`} style={{ borderColor: glassBorder }}>
@@ -124,7 +138,15 @@ export default function GachaPresetsPanel({ pool, onPoolChange, isLightMode }: G
                         <button
                             key={t.id}
                             type="button"
-                            onClick={() => onPoolChange(clonePoolKeepingIds(t.pool))}
+                            onClick={async () => {
+                                if (await confirm({
+                                    title: "テンプレートの読み込み",
+                                    message: `サンプル「${t.name}」を読み込むと、現在の設定が上書きされます。よろしいですか？`,
+                                    danger: true
+                                })) {
+                                    onPoolChange(clonePoolKeepingIds(t.pool));
+                                }
+                            }}
                             className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left transition-all ${isLightMode ? "hover:bg-purple-50 text-gray-900" : "hover:bg-white/10 text-white/90"}`}
                             style={{ border: `1px solid ${glassBorder}` }}
                         >

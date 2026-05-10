@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { UserPlus, Trash2, Pencil, Check, X, ChevronRight } from "lucide-react";
 import type { SlotPlayer } from "@/lib/slot";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
-import ConfirmDialog from "@/components/ConfirmDialog";
+import { useConfirm } from "@/context/ConfirmContext";
 
 interface SlotPlayerManagerProps {
   players: SlotPlayer[];
@@ -32,7 +32,7 @@ export default function SlotPlayerManager({
   onViewPlayerHistory,
 }: SlotPlayerManagerProps) {
   const [newPlayerName, setNewPlayerName] = useState("");
-  const [playerToDelete, setPlayerToDelete] = useState<string | null>(null);
+  const { confirm } = useConfirm();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editBalance, setEditBalance] = useState(0);
@@ -288,9 +288,13 @@ export default function SlotPlayerManager({
                           )}
                           <button
                             type="button"
-                            onClick={(e) => {
+                            onClick={async (e) => {
                               e.stopPropagation();
-                              if (canRemove) setPlayerToDelete(player.id);
+                              if (canRemove) {
+                                if (await confirm({ title: "プレイヤー削除", message: "本当に削除しますか？", danger: true })) {
+                                  onRemovePlayer(player.id);
+                                }
+                              }
                             }}
                             disabled={!canRemove}
                             className={`p-1.5 rounded-lg transition-all disabled:opacity-30 ${
@@ -318,19 +322,6 @@ export default function SlotPlayerManager({
         )}
       </div>
 
-      <ConfirmDialog
-        open={playerToDelete !== null}
-        message="本当に削除しますか？"
-        confirmLabel="削除する"
-        cancelLabel="キャンセル"
-        onConfirm={() => {
-          if (playerToDelete) {
-            onRemovePlayer(playerToDelete);
-            setPlayerToDelete(null);
-          }
-        }}
-        onCancel={() => setPlayerToDelete(null)}
-      />
     </div>
   );
 }

@@ -2,7 +2,6 @@
 
 import { useCallback, useMemo, useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { motion } from "framer-motion";
 import {
   DndContext,
   closestCenter,
@@ -13,7 +12,7 @@ import {
   SortableContext,
   rectSortingStrategy,
 } from "@dnd-kit/sortable";
-import { ImageDown, ListOrdered } from "lucide-react";
+import { ImageDown } from "lucide-react";
 import CounterPanel from "@/components/CounterPanel";
 import AddItemPanel from "@/components/AddItemPanel";
 import HamburgerMenu from "@/components/HamburgerMenu";
@@ -21,9 +20,8 @@ import PrefectureShapeMap from "@/components/PrefectureShapeMap";
 import PrefectureRankingPanel from "@/components/PrefectureRankingPanel";
 import EditItemModal from "@/components/EditItemModal";
 import SettingsModal, { type CardSize } from "@/components/SettingsModal";
-import ConfirmDialog from "@/components/ConfirmDialog";
-import ModeSelector from "@/components/ModeSelector";
 import ShareModal from "@/components/ShareModal";
+import { useConfirm } from "@/context/ConfirmContext";
 import { TEMPLATES, type Template } from "@/lib/templates";
 
 // Hooks
@@ -75,15 +73,15 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
     tweetText
   } = useCounterShare(isLightMode, state.currentTemplateId);
 
-  const [addPanelExpanded, setAddPanelExpanded] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
-  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPrefectureRankingOpen, setIsPrefectureRankingOpen] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editingName, setEditingName] = useState("");
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [editingDesc, setEditingDesc] = useState("");
+  
+  const { confirm } = useConfirm();
 
   const currentTemplate = useMemo(
     () => TEMPLATES.find((t) => t.id === state.currentTemplateId) ?? state.customTemplates.find((t) => t.id === state.currentTemplateId) ?? null,
@@ -116,7 +114,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
         ...currentTemplate!,
         id: newId,
         ...changes,
-        items: state.items.map(({ count, target, ...rest }) => rest),
+        items: state.items.map(({ count: _count, target: _target, ...rest }) => rest),
       };
       state.setCustomTemplates(prev => [...prev, newTemplate]);
       state.setCurrentTemplateId(newId);
@@ -143,7 +141,6 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
     setIsEditingDesc(false);
   }, [editingDesc, currentTemplate?.description, saveTemplateChanges]);
   const positionedContainerRef = useRef<HTMLDivElement>(null);
-  const [positionedContainerSize, setPositionedContainerSize] = useState<{ w: number; h: number } | null>(null);
   
   const windowWidth = useWindowWidth();
   const [winH, setWinH] = useState(800);
@@ -269,16 +266,48 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
         onToggle={() => state.setIsMenuOpen(!state.isMenuOpen)}
         customTemplates={state.customTemplates}
         currentTemplateId={state.currentTemplateId}
-        onSelectTemplate={actions.handleSelectTemplate}
+        onSelectTemplate={async (template) => {
+          if (await confirm({ title: "テンプレート切替", message: "テンプレートを切り替えると、現在のカウント進捗がリセットされます。よろしいですか？", danger: true })) {
+            actions.handleSelectTemplate(template);
+          }
+        }}
         isLightMode={isLightMode}
         onToggleTheme={toggleTheme}
-        onReset={actions.handleReset}
+        onReset={async () => {
+          if (await confirm({ title: "リセットの確認", message: "すべてのカウントを0にリセットしてもよろしいですか？", danger: true })) {
+            actions.handleReset();
+          }
+        }}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onSaveCustomTemplate={actions.handleSaveCustomTemplate}
-        onDeleteCustomTemplate={actions.handleDeleteCustomTemplate}
-        onOverwriteCustomTemplate={actions.handleOverwriteCustomTemplate}
+        onDeleteCustomTemplate={async (id) => {
+          const name = state.customTemplates.find(t => t.id === id)?.name;
+          if (await confirm({ title: "テンプレート削除", message: `テンプレート「${name}」を削除しますか？`, danger: true })) {
+            actions.handleDeleteCustomTemplate(id);
+          }
+        }}
+        onOverwriteCustomTemplate={async (id) => {
+          const name = state.customTemplates.find(t => t.id === id)?.name;
+          if (await confirm({ title: "テンプレート上書き", message: `現在の項目でテンプレート「${name}」を上書きしますか？`, danger: true })) {
+            actions.handleOverwriteCustomTemplate(id);
+          }
+        }}
         viewMode="counter"
         accentColor={state.appSettings.accentColor}
+        items={state.items}
+        totalCount={totalCount}
+        totalTarget={totalTarget}
+        onAddItem={actions.handleAddItem}
+        onEditItem={actions.handleEditItem}
+        onDeleteItem={async (id) => {
+          if (await confirm({ title: "削除の確認", message: "この項目を削除してもよろしいですか？", danger: true })) {
+            actions.handleDeleteItem(id);
+          }
+        }}
+        onSetTarget={actions.handleSetTarget}
+        onSetAllTargets={actions.handleSetAllTargets}
+        onRequestAchieveTarget={actions.handleAchieveTarget}
+        onRequestAchieveAllTargets={actions.handleAchieveAllTargets}
         leftContent={
           <div className="flex flex-col ml-1 min-w-0">
             <div className="flex items-center">
@@ -380,7 +409,11 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
             <div ref={positionedContainerRef} className="relative w-full aspect-square sm:aspect-video rounded-3xl overflow-hidden border border-white/10" style={{ backgroundImage: `url(${currentTemplate?.backgroundImage})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
               {state.items.map((item) => (
                 <div key={item.id} className="absolute" style={{ left: `${item.x ?? 50}%`, top: `${item.y ?? 50}%`, width: effectiveColMaxPx, height: effectiveColMaxPx, transform: "translate(-50%, -50%)" }}>
-                  <CounterPanel id={item.id} label={item.label} emoji={item.emoji} color={item.color} count={item.count} target={item.target} onIncrement={actions.handleIncrement} onDecrement={actions.handleDecrement} onSetCount={actions.handleSetCount} onAdjustBy={actions.handleAdjustBy} showStep5={state.appSettings.showStep5} showStep10={state.appSettings.showStep10} showStepFree={state.appSettings.showStepFree} stepFreeValue={state.appSettings.stepFreeValue} onDeleteItem={actions.handleDeleteItem} onEditItem={(id) => setEditingItemId(id)} isLightMode={isLightMode} showEditDeleteOnCard={state.appSettings.showCardEditDelete} onRequestAchieveTarget={actions.handleAchieveTarget} showAchieveTargetButton={state.appSettings.showAchieveTargetButtonOnCard} cardSize={state.appSettings.cardSize} />
+                  <CounterPanel id={item.id} label={item.label} emoji={item.emoji} color={item.color} count={item.count} target={item.target} onIncrement={actions.handleIncrement} onDecrement={actions.handleDecrement} onSetCount={actions.handleSetCount} onAdjustBy={actions.handleAdjustBy} showStep5={state.appSettings.showStep5} showStep10={state.appSettings.showStep10} showStepFree={state.appSettings.showStepFree} stepFreeValue={state.appSettings.stepFreeValue} onDeleteItem={async (id) => {
+                    if (await confirm({ title: "削除の確認", message: "この項目を削除してもよろしいですか？", danger: true })) {
+                      actions.handleDeleteItem(id);
+                    }
+                  }} onEditItem={(id) => setEditingItemId(id)} isLightMode={isLightMode} showEditDeleteOnCard={state.appSettings.showCardEditDelete} onRequestAchieveTarget={actions.handleAchieveTarget} showAchieveTargetButton={state.appSettings.showAchieveTargetButtonOnCard} cardSize={state.appSettings.cardSize} />
                 </div>
               ))}
             </div>
@@ -389,10 +422,14 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
               <div className="grid items-stretch gap-2 sm:gap-2.5 w-full" style={{ gridTemplateColumns: `repeat(${effectiveCols}, minmax(${effectiveColMaxPx}px, ${effectiveColMaxPx}px))` }}>
                 <SortableContext items={state.items.map(i => i.id)} strategy={rectSortingStrategy}>
                   {state.items.map((item) => (
-                    <CounterPanel key={item.id} id={item.id} label={item.label} emoji={item.emoji} color={item.color} count={item.count} target={item.target} onIncrement={actions.handleIncrement} onDecrement={actions.handleDecrement} onSetCount={actions.handleSetCount} onAdjustBy={actions.handleAdjustBy} showStep5={state.appSettings.showStep5} showStep10={state.appSettings.showStep10} showStepFree={state.appSettings.showStepFree} stepFreeValue={state.appSettings.stepFreeValue} onDeleteItem={setItemToDelete} onEditItem={(id) => setEditingItemId(id)} isLightMode={isLightMode} showEditDeleteOnCard={state.appSettings.showCardEditDelete} onRequestAchieveTarget={actions.handleAchieveTarget} showAchieveTargetButton={state.appSettings.showAchieveTargetButtonOnCard} cardSize={state.appSettings.cardSize} />
+                    <CounterPanel key={item.id} id={item.id} label={item.label} emoji={item.emoji} color={item.color} count={item.count} target={item.target} onIncrement={actions.handleIncrement} onDecrement={actions.handleDecrement} onSetCount={actions.handleSetCount} onAdjustBy={actions.handleAdjustBy} showStep5={state.appSettings.showStep5} showStep10={state.appSettings.showStep10} showStepFree={state.appSettings.showStepFree} stepFreeValue={state.appSettings.stepFreeValue} onDeleteItem={async (id) => {
+                      if (await confirm({ title: "削除の確認", message: "この項目を削除してもよろしいですか？", danger: true })) {
+                        actions.handleDeleteItem(id);
+                      }
+                    }} onEditItem={(id) => setEditingItemId(id)} isLightMode={isLightMode} showEditDeleteOnCard={state.appSettings.showCardEditDelete} onRequestAchieveTarget={actions.handleAchieveTarget} showAchieveTargetButton={state.appSettings.showAchieveTargetButtonOnCard} cardSize={state.appSettings.cardSize} />
                   ))}
                 </SortableContext>
-                <div className="list-none rounded-2xl" style={{ touchAction: "none" }}><AddItemPanel isLightMode={isLightMode} onAddItem={actions.handleAddItem} onExpand={() => setAddPanelExpanded(true)} onCollapse={() => setAddPanelExpanded(false)} /></div>
+                <div className="list-none rounded-2xl" style={{ touchAction: "none" }}><AddItemPanel isLightMode={isLightMode} onAddItem={actions.handleAddItem} onExpand={() => {}} onCollapse={() => {}} /></div>
               </div>
               {typeof document !== "undefined" && createPortal(<DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.5" } } }) }}>{drag.activeItem ? <div style={{ width: effectiveColMaxPx }}><CounterPanel id={drag.activeItem.id} label={drag.activeItem.label} emoji={drag.activeItem.emoji} color={drag.activeItem.color} count={drag.activeItem.count} target={drag.activeItem.target} onIncrement={() => {}} onDecrement={() => {}} onDeleteItem={() => {}} onEditItem={() => {}} isLightMode={isLightMode} isOverlay cardSize={state.appSettings.cardSize} /></div> : null}</DragOverlay>, document.body)}
             </DndContext>
@@ -444,7 +481,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
         isLightMode={isLightMode}
       />
 
-      <ConfirmDialog open={!!itemToDelete} title="削除の確認" message="この項目を削除してもよろしいですか？" confirmLabel="削除する" cancelLabel="キャンセル" onConfirm={() => { if (itemToDelete) actions.handleDeleteItem(itemToDelete); setItemToDelete(null); }} onCancel={() => setItemToDelete(null)} danger />
+
     </div>
   );
 }

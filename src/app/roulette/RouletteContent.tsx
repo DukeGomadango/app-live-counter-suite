@@ -13,7 +13,7 @@ import RoulettePredictorsPanel from "@/components/roulette/RoulettePredictorsPan
 import RouletteStatsPanel from "@/components/roulette/RouletteStatsPanel";
 import RouletteHitEffect from "@/components/roulette/RouletteHitEffect";
 import RoulettePredictorHistoryCard from "@/components/roulette/RoulettePredictorHistoryCard";
-import ConfirmDialog from "@/components/ConfirmDialog";
+import { useConfirm } from "@/context/ConfirmContext";
 
 import {
     createDefaultSlots,
@@ -65,8 +65,7 @@ export default function RouletteContent({
     const drag = useRouletteDrag(settings, setSettings, wheelAreaRef);
 
     const [showSettingsPanel, setShowSettingsPanel] = useState(false);
-    const [showClearHistoryConfirm, setShowClearHistoryConfirm] = useState(false);
-    const [showClearHitHistoryConfirm, setShowClearHitHistoryConfirm] = useState(false);
+    const { confirm } = useConfirm();
     const [wheelScale, setWheelScale] = useState(1);
 
     useLayoutEffect(() => {
@@ -103,22 +102,17 @@ export default function RouletteContent({
         }
     };
 
-    const handleOverwriteTemplate = (templateId: string, templateName: string) => {
-        if (!window.confirm(`現在の設定でテンプレート「${templateName}」を上書きしますか？`)) return;
-        setTemplates((prev) =>
-            prev.map((t) =>
-                t.id === templateId
-                    ? { ...t, slots: [...slots], settings: { ...settings }, savedAt: Date.now() }
-                    : t
-            )
-        );
+    const handleOverwriteTemplate = async (templateId: string, templateName: string) => {
+        if (await confirm({ title: "テンプレート上書き", message: `現在の設定でテンプレート「${templateName}」を上書きしますか？`, danger: true })) {
+            setTemplates(prev => prev.map(t => t.id === templateId ? { ...t, slots: [...slots], settings: { ...settings }, savedAt: Date.now() } : t));
+        }
     };
 
-    const handleDeleteTemplate = (templateId: string) => {
-        const t = templates.find((x) => x.id === templateId);
-        if (!t) return;
-        if (!window.confirm(`テンプレート「${t.name}」を削除しますか？`)) return;
-        setTemplates((prev) => prev.filter((x) => x.id !== templateId));
+    const handleDeleteTemplate = async (templateId: string) => {
+        const name = templates.find(t => t.id === templateId)?.name;
+        if (await confirm({ title: "テンプレート削除", message: `テンプレート「${name}」を削除しますか？`, danger: true })) {
+            setTemplates(prev => prev.filter(t => t.id !== templateId));
+        }
     };
 
     const { glassBorder } = useGlassStyle(isLightMode);
@@ -168,12 +162,20 @@ export default function RouletteContent({
                     resultLabel={engine.resultIndex !== null ? (slots[engine.resultIndex] ?? null) : null}
                     resultZone={settings.predictorMode === "highLow" && engine.resultIndex !== null ? getHighLowZone(engine.resultIndex, slots.length) : null}
                     predictorMode={settings.predictorMode} isLightMode={isLightMode} hitHistory={hitHistory}
-                    onViewPredictorHistory={sidebar.setPredictorHistoryId} onRequestClearHitHistory={() => setShowClearHitHistoryConfirm(true)}
+                    onViewPredictorHistory={sidebar.setPredictorHistoryId} onRequestClearHitHistory={async () => {
+                        if (await confirm({ title: "確認", message: "記録をリセットしますか？予想のあたり履歴のみクリアされます。", danger: true })) {
+                            setHitHistory([]);
+                        }
+                    }}
                 />
             )}
             {sidebar.sidebarTab === "stats" && (
                 <RouletteStatsPanel
-                    history={history} slots={slots} onClear={() => setShowClearHistoryConfirm(true)}
+                    history={history} slots={slots} onClear={async () => {
+                        if (await confirm({ title: "確認", message: "記録をリセットしますか？", danger: true })) {
+                            handleClearHistory();
+                        }
+                    }}
                     isLightMode={isLightMode} accentColor={accentColor}
                     showBarChart={settings.statsShowBarChart !== false} showPieChart={settings.statsShowPieChart === true}
                 />
@@ -298,8 +300,6 @@ export default function RouletteContent({
                 ) : null;
             })()}
 
-            <ConfirmDialog open={showClearHistoryConfirm} title="確認" message="記録をリセットしますか？" confirmLabel="リセットする" cancelLabel="キャンセル" onConfirm={() => { handleClearHistory(); setShowClearHistoryConfirm(false); }} onCancel={() => setShowClearHistoryConfirm(false)} />
-            <ConfirmDialog open={showClearHitHistoryConfirm} title="確認" message="記録をリセットしますか？予想のあたり履歴のみクリアされます。" confirmLabel="リセットする" cancelLabel="キャンセル" onConfirm={() => { setHitHistory([]); setShowClearHitHistoryConfirm(false); }} onCancel={() => setShowClearHitHistoryConfirm(false)} />
         </div>
     );
 }

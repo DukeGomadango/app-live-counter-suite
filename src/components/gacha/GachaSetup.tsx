@@ -14,7 +14,7 @@ import {
     Pencil,
     Check,
     } from "lucide-react";
-import type { GachaPool, GachaItem, RarityTier, IntegrationConfig } from "@/lib/gacha";
+import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, getRarityProbabilities, getGlobalProbabilities } from "@/lib/gacha";
 import {
     DndContext,
@@ -35,8 +35,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
-
-import ConfirmDialog from "@/components/ConfirmDialog";
+import { useConfirm } from "@/context/ConfirmContext";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 interface GachaSetupProps {
@@ -95,7 +94,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const [newItemProb, setNewItemProb] = useState("1");
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editName, setEditName] = useState("");
-    const [pendingDelete, setPendingDelete] = useState<{ type: "rarity"; id: string } | { type: "item"; id: string } | null>(null);
+    const { confirm } = useConfirm();
     const [pullCountInput, setPullCountInput] = useState<string | null>(null);
     const [pityThresholdInput, setPityThresholdInput] = useState<string | null>(null);
     const [rarityProbInputs, setRarityProbInputs] = useState<Record<string, string>>({});
@@ -528,7 +527,11 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         rarityProbInputs={rarityProbInputs}
                                                         updateRarity={updateRarity}
                                                         setRarityProbInputs={setRarityProbInputs}
-                                                        setPendingDelete={setPendingDelete}
+                                                        onRequestDeleteRarity={async (id) => {
+                                                            if (await confirm({ title: "レア度削除", message: "このレア度を削除しますか？紐付いているアイテムも削除されます。", danger: true })) {
+                                                                removeRarity(id);
+                                                            }
+                                                        }}
                                                         isRemovable={pool.rarities.length > 1}
                                                         formatProb={formatProb}
                                                     />
@@ -674,7 +677,11 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         finishEditing={finishEditing}
                                                         updateItem={updateItem}
                                                         onProbabilityBlur={applyProbabilityEdit}
-                                                        onRequestRemoveItem={(id) => setPendingDelete({ type: "item", id })}
+                                                        onRequestRemoveItem={async (id) => {
+                                                            if (await confirm({ title: "アイテム削除", message: "このアイテムを削除しますか？", danger: true })) {
+                                                                removeItem(id);
+                                                            }
+                                                        }}
                                                         globalProb={gPt}
                                                         isSelected={selectedItemIds.has(item.id)}
                                                         onToggleSelect={toggleItemSelected}
@@ -845,20 +852,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                 </div>
             )}
 
-            <ConfirmDialog
-                open={pendingDelete !== null}
-                message="本当に削除しますか？"
-                confirmLabel="削除する"
-                cancelLabel="キャンセル"
-                onConfirm={() => {
-                    if (pendingDelete) {
-                        if (pendingDelete.type === "rarity") removeRarity(pendingDelete.id);
-                        else removeItem(pendingDelete.id);
-                        setPendingDelete(null);
-                    }
-                }}
-                onCancel={() => setPendingDelete(null)}
-            />
         </div>
     );
 }
@@ -920,7 +913,6 @@ function SortableItem({
     const rarity = pool.rarities.find(r => r.id === item.rarityId);
     const [probInput, setProbInput] = useState<string | null>(null);
     const probDisplay = probInput !== null ? probInput : formatProb(item.weight);
-    const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
 
     const isPartOfDraggingSelection = draggingSelectionIds?.has(item.id) ?? false;
     const isTheDraggedItem = activeDragId === item.id;
@@ -1101,7 +1093,7 @@ interface SortableRarityItemProps {
     rarityProbInputs: Record<string, string>;
     updateRarity: (id: string, updates: Partial<RarityTier>) => void;
     setRarityProbInputs: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-    setPendingDelete: (val: { type: "rarity"; id: string } | null) => void;
+    onRequestDeleteRarity: (id: string) => void;
     isRemovable: boolean;
     formatProb: (prob: number) => string;
 }
@@ -1117,7 +1109,7 @@ function SortableRarityItem({
     rarityProbInputs,
     updateRarity,
     setRarityProbInputs,
-    setPendingDelete,
+    onRequestDeleteRarity,
     isRemovable,
     formatProb,
 }: SortableRarityItemProps) {
@@ -1203,7 +1195,7 @@ function SortableRarityItem({
             </span>
             {isRemovable && (
                 <button
-                    onClick={() => setPendingDelete({ type: "rarity", id: rarity.id })}
+                    onClick={() => onRequestDeleteRarity(rarity.id)}
                     className="p-1 rounded hover:bg-red-500/20 text-red-400 transition-colors shrink-0"
                     aria-label="このレア度を削除"
                 >

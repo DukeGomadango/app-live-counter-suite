@@ -121,12 +121,31 @@ export function useGachaEngine({
   }, [players, setPlayers, activePlayerId, setActivePlayerId, pool, integrationConfig]);
 
   const resetPlayer = useCallback((id: string) => {
-    setPlayers((players || []).map(p => p.id === id ? { ...p, results: [], runHistory: [], inventory: {}, totalPulls: 0, pityCounter: 0, pityReachCount: 0 } : p));
-  }, [players, setPlayers]);
+    setPlayers((players || []).map(p => {
+      if (p.id !== id) return p;
+      return {
+        ...p,
+        results: [],
+        runHistory: (p.runHistory || []).filter(r => r.poolId !== pool.id),
+        poolStates: {
+          ...(p.poolStates || {}),
+          [pool.id]: { totalPulls: 0, pityCounter: 0, pityReachCount: 0, inventory: {} }
+        }
+      };
+    }));
+  }, [players, setPlayers, pool.id]);
 
   const resetAllPlayers = useCallback(() => {
-    setPlayers((players || []).map(p => ({ ...p, results: [], runHistory: [], inventory: {}, totalPulls: 0, pityCounter: 0, pityReachCount: 0 })));
-  }, [players, setPlayers]);
+    setPlayers((players || []).map(p => ({
+      ...p,
+      results: [],
+      runHistory: (p.runHistory || []).filter(r => r.poolId !== pool.id),
+      poolStates: {
+        ...(p.poolStates || {}),
+        [pool.id]: { totalPulls: 0, pityCounter: 0, pityReachCount: 0, inventory: {} }
+      }
+    })));
+  }, [players, setPlayers, pool.id]);
 
   const renamePlayer = useCallback((id: string, newName: string) => {
     setPlayers((players || []).map(p => p.id === id ? { ...p, name: newName } : p));

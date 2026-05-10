@@ -70,6 +70,7 @@ export const metadata: Metadata = {
 };
 
 import { ThemeProvider } from "@/context/ThemeContext";
+import { ConfirmProvider } from "@/context/ConfirmContext";
 
 export default function RootLayout({
   children,
@@ -112,16 +113,18 @@ export default function RootLayout({
           <JsonLd />
           <SplitModuleProvider>
             <ToastProvider>
-            <AnalyticsSender />
-            <div className="h-screen overflow-y-auto scroll-touch">
-              {children}
-            </div>
-            <HelpButton />
-            <footer className="fixed bottom-2 right-2 pointer-events-none z-[5]">
-            <span className="text-[10px] text-zinc-500 dark:text-zinc-600 opacity-70">
-              ごまだんご伯爵
-            </span>
-          </footer>
+              <ConfirmProvider>
+                <AnalyticsSender />
+                <div className="h-screen overflow-y-auto scroll-touch">
+                  {children}
+                </div>
+                <HelpButton />
+              </ConfirmProvider>
+              <footer className="fixed bottom-2 right-2 pointer-events-none z-[5]">
+                <span className="text-[10px] text-zinc-500 dark:text-zinc-600 opacity-70">
+                  ごまだんご伯爵
+                </span>
+              </footer>
             </ToastProvider>
           </SplitModuleProvider>
         </ThemeProvider>

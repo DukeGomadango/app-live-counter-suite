@@ -6,7 +6,7 @@ import { UserPlus, Trash2, RotateCcw, ChevronRight, User, Link, Pencil, Check, G
 import type { Player, GachaPool } from "@/lib/gacha";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
-import ConfirmDialog from "@/components/ConfirmDialog";
+import { useConfirm } from "@/context/ConfirmContext";
 import PlayerLinkCollectionModal from "@/components/gacha/PlayerLinkCollectionModal";
 
 interface GachaPlayerManagerProps {
@@ -46,12 +46,9 @@ export default function GachaPlayerManager({
     onUpdatePlayers,
 }: GachaPlayerManagerProps) {
     const [newPlayerName, setNewPlayerName] = useState("");
-    const [playerToDelete, setPlayerToDelete] = useState<string | null>(null);
-    const [bulkDeleteTargets, setBulkDeleteTargets] = useState<string[] | null>(null);
-    const [playerToReset, setPlayerToReset] = useState<string | null>(null);
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
     const [linkCollectionPlayerId, setLinkCollectionPlayerId] = useState<string | null>(null);
-    const [showBulkResetConfirm, setShowBulkResetConfirm] = useState(false);
+    const { confirm } = useConfirm();
     const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null);
     const [editPlayerName, setEditPlayerName] = useState("");
     const editInputRef = useRef<HTMLInputElement>(null);
@@ -91,9 +88,6 @@ export default function GachaPlayerManager({
         onAddPlayer(newPlayerName.trim());
         setNewPlayerName("");
     };
-
-    const handleRequestDelete = (id: string) => setPlayerToDelete(id);
-    const handleRequestReset = (id: string) => setPlayerToReset(id);
 
     const startEditingPlayer = (player: Player) => {
         setEditingPlayerId(player.id);
@@ -163,7 +157,11 @@ export default function GachaPlayerManager({
                         {onResetAllPlayers && players.length > 0 && (
                             <button
                                 type="button"
-                                onClick={() => setShowBulkResetConfirm(true)}
+                                onClick={async () => {
+                                    if (await confirm({ title: "一括リセット", message: "記録をリセットしますか？全プレイヤーの記録がクリアされます。" })) {
+                                        onResetAllPlayers?.();
+                                    }
+                                }}
                                 className={`text-[10px] px-2 py-1 rounded-lg transition-colors ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/70 hover:bg-white/10"}`}
                             >
                                 一括リセット
@@ -172,7 +170,12 @@ export default function GachaPlayerManager({
                         {someSelected && (
                             <button
                                 type="button"
-                                onClick={() => setBulkDeleteTargets(Array.from(selectedPlayerIds))}
+                                onClick={async () => {
+                                    if (await confirm({ title: "一括削除", message: `選択した ${selectedPlayerIds.size} 人を削除しますか？`, danger: true })) {
+                                        selectedPlayerIds.forEach(id => onRemovePlayer(id));
+                                        setSelectedPlayerIds(new Set());
+                                    }
+                                }}
                                 className="text-[10px] px-2 py-1 rounded-lg bg-red-500/20 text-red-600 dark:text-red-400 hover:bg-red-500/30 transition-colors"
                             >
                                 選択を削除
@@ -250,11 +253,16 @@ export default function GachaPlayerManager({
                                                 )}
                                             </div>
                                         )}
-                                        <p className={`text-[10px] ${textMuted}`}>
-                                            {player.totalPulls.toLocaleString()}連
-                                            {pool.pityEnabled && ` • 天井: ${player.pityCounter}/${pool.pityThreshold}`}
-                                            {pool.pityEnabled && (player.pityReachCount ?? 0) > 0 && ` • 到達${player.pityReachCount}回`}
-                                        </p>
+                                        {(() => {
+                                            const st = player.poolStates?.[pool.id] || { totalPulls: 0, pityCounter: 0, pityReachCount: 0 };
+                                            return (
+                                                <p className={`text-[10px] ${textMuted}`}>
+                                                    {st.totalPulls.toLocaleString()}連
+                                                    {pool.pityEnabled && ` • 天井: ${st.pityCounter}/${pool.pityThreshold}`}
+                                                    {pool.pityEnabled && (st.pityReachCount ?? 0) > 0 && ` • 到達${st.pityReachCount}回`}
+                                                </p>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* 操作ボタン */}
@@ -281,14 +289,24 @@ export default function GachaPlayerManager({
                                             </button>
                                         )}
                                         <button
-                                            onClick={e => { e.stopPropagation(); handleRequestReset(player.id); }}
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (await confirm({ title: "リセット", message: "記録をリセットしますか？" })) {
+                                                    onResetPlayer(player.id);
+                                                }
+                                            }}
                                             className={`p-1 rounded text-[10px] transition-all ${isLightMode ? "text-gray-700 hover:bg-gray-100" : "text-white/30 hover:bg-white/5"}`}
                                             title="リセット"
                                         >
                                             <RotateCcw size={11} />
                                         </button>
                                         <button
-                                            onClick={e => { e.stopPropagation(); handleRequestDelete(player.id); }}
+                                            onClick={async (e) => {
+                                                e.stopPropagation();
+                                                if (await confirm({ title: "削除", message: "本当に削除しますか？", danger: true })) {
+                                                    onRemovePlayer(player.id);
+                                                }
+                                            }}
                                             className={`p-1 rounded text-[10px] transition-all ${isLightMode ? "text-gray-700 hover:bg-gray-100" : "text-white/30 hover:bg-white/5"}`}
                                             title="削除"
                                         >
@@ -302,60 +320,7 @@ export default function GachaPlayerManager({
                 )}
             </div>
 
-            <ConfirmDialog
-                open={playerToDelete !== null}
-                message="本当に削除しますか？"
-                confirmLabel="削除する"
-                cancelLabel="キャンセル"
-                onConfirm={() => {
-                    if (playerToDelete) {
-                        onRemovePlayer(playerToDelete);
-                        setPlayerToDelete(null);
-                    }
-                }}
-                onCancel={() => setPlayerToDelete(null)}
-            />
-            <ConfirmDialog
-                open={bulkDeleteTargets !== null}
-                title="一括削除"
-                message={bulkDeleteTargets?.length ? `選択した ${bulkDeleteTargets.length} 人を削除しますか？` : ""}
-                confirmLabel="削除する"
-                cancelLabel="キャンセル"
-                onConfirm={() => {
-                    if (bulkDeleteTargets) {
-                        bulkDeleteTargets.forEach(id => onRemovePlayer(id));
-                        setSelectedPlayerIds(new Set());
-                        setBulkDeleteTargets(null);
-                    }
-                }}
-                onCancel={() => setBulkDeleteTargets(null)}
-            />
-            <ConfirmDialog
-                open={playerToReset !== null}
-                message="記録をリセットしますか？"
-                confirmLabel="リセットする"
-                cancelLabel="キャンセル"
-                onConfirm={() => {
-                    if (playerToReset) {
-                        onResetPlayer(playerToReset);
-                        setPlayerToReset(null);
-                    }
-                }}
-                onCancel={() => setPlayerToReset(null)}
-                danger={false}
-            />
-            <ConfirmDialog
-                open={showBulkResetConfirm}
-                message="記録をリセットしますか？全プレイヤーの記録がクリアされます。"
-                confirmLabel="リセットする"
-                cancelLabel="キャンセル"
-                onConfirm={() => {
-                    onResetAllPlayers?.();
-                    setShowBulkResetConfirm(false);
-                }}
-                onCancel={() => setShowBulkResetConfirm(false)}
-                danger={false}
-            />
+
 
             {linkCollectionPlayerId && (() => {
                 const player = players.find((p) => p.id === linkCollectionPlayerId);

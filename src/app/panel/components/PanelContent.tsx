@@ -2,37 +2,24 @@
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { 
-  X, 
-  PanelLeft, 
-  Pencil, 
-  Eye 
+  X
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 
 // Types & Libs
 import { 
   type PanelOverlay, 
-  type SavedPanel, 
   type PartitionStroke, 
-  type PanelEditStep,
-  type CustomPart,
   type FilterType,
   OverlayShape,
-  createDefaultOverlay,
-  createCustomOverlay,
   createImageOverlay,
   defaultPanelState
 } from "../lib/panelTypes";
 import { 
-  saveImage, 
-  deleteImage,
-  isIdbKey
+  saveImage
 } from "../lib/panelImageStore";
 import { 
-  getImageBoundsPct, 
-  snapToGrid, 
-  collectIdbImageRefsFromPanelState, 
-  panelStateReferencesImageRef 
+  getImageBoundsPct
 } from "../lib/panelUtils";
 
 // Hooks
@@ -49,7 +36,7 @@ import { PanelHeader } from "./sub/PanelHeader";
 import { PanelMenu } from "./sub/PanelMenu";
 import { PanelCanvas } from "./sub/PanelCanvas";
 import PanelEditSidebar from "./PanelEditSidebar";
-import ConfirmDialog from "@/components/ConfirmDialog";
+import { useConfirm } from "@/context/ConfirmContext";
 import ImageCropModal from "@/components/ImageCropModal";
 import CustomShapeEditorModal from "@/components/CustomShapeEditorModal";
 import ShareModal from "@/components/ShareModal";
@@ -72,7 +59,7 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     imageDataUrl, imageAspectRatio,
     resolvedBgUrl, resolvedOverlayUrls,
     savedPanels, setSavedPanels,
-    savedCustomShapes, setSavedCustomShapes,
+    setSavedCustomShapes,
     isEditMode, panelEditStep,
     activeFilters, filterIntensity, filterShowLabel,
     editSidebarWidthPx, setEditSidebarWidthPx,
@@ -93,9 +80,7 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
   const [selectedOverlayId, setSelectedOverlayId] = useState<string | null>(null);
   const [targetNumberDraft, setTargetNumberDraft] = useState<{ overlayId: string; value: string } | null>(null);
   const [pendingCropDataUrl, setPendingCropDataUrl] = useState<string | null>(null);
-  const [achievedOverlayId, setAchievedOverlayId] = useState<string | null>(null);
-  const [allAchieveConfirmOpen, setAllAchieveConfirmOpen] = useState(false);
-  const [panelToDeleteId, setPanelToDeleteId] = useState<string | null>(null);
+  const { confirm } = useConfirm();
   const [renamePanelId, setRenamePanelId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [customShapeModalOpen, setCustomShapeModalOpen] = useState(false);
@@ -186,13 +171,15 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     setPanelState(s => ({ ...s, imageDataUrl: idbRef, imageAspectRatio: undefined }));
   }, [setPanelState]);
 
-  const handleOverlayTap = useCallback((overlay: PanelOverlay) => {
+  const handleOverlayTap = useCallback(async (overlay: PanelOverlay) => {
     if (overlay.targetType === "text" || overlay.count >= overlay.target) {
-      setAchievedOverlayId(overlay.id);
+      if (await confirm({ message: "達成しますか？" })) {
+        setOverlays(prev => prev.filter(o => o.id === overlay.id));
+      }
     } else {
       setOverlays(prev => prev.map(o => o.id === overlay.id ? { ...o, count: o.count + 1 } : o));
     }
-  }, [setOverlays]);
+  }, [setOverlays, confirm]);
 
   const handlePointerUpWithTap = useCallback((overlay: PanelOverlay, e: React.PointerEvent) => {
     interaction.handleOverlayPointerUp();
@@ -209,12 +196,7 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     setPendingCropDataUrl(null);
   }, [setPanelState]);
 
-  const handleDeleteSavedPanel = useCallback(() => {
-    if (!panelToDeleteId) return;
-    const next = savedPanels.filter(p => p.id !== panelToDeleteId);
-    setSavedPanels(next);
-    setPanelToDeleteId(null);
-  }, [panelToDeleteId, savedPanels, setSavedPanels]);
+
 
   const handleRenameSubmit = useCallback(() => {
     if (!renamePanelId || !renameValue.trim()) { setRenamePanelId(null); return; }
@@ -335,7 +317,13 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
         isEditMode={isEditMode} setIsEditMode={v => setPanelState(s => ({ ...s, isEditMode: v }))}
         isSplitMode={isSplitMode} isEditSidebarNarrow={isEditSidebarNarrow}
         setEditSidebarOverlayOpen={setEditSidebarOverlayOpen}
-        setAllAchieveConfirmOpen={setAllAchieveConfirmOpen}
+        setAllAchieveConfirmOpen={async (open) => {
+          if (open) {
+            if (await confirm({ message: "すべての覆いを開けますか？" })) {
+              setOverlays(() => []);
+            }
+          }
+        }}
         handleShare={actions.handleShare} isSharing={actions.isSharing}
         setIsMenuOpen={setIsMenuOpen} isMenuOpen={isMenuOpen}
       />
@@ -346,13 +334,26 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
         savedPanels={savedPanels} renamePanelId={renamePanelId} setRenamePanelId={setRenamePanelId}
         renameValue={renameValue} setRenameValue={setRenameValue}
         handleRenameSubmit={handleRenameSubmit} handleRenameSavedPanel={s => { setRenamePanelId(s.id); setRenameValue(s.name); }}
-        handleLoadPanel={s => { 
-          const newState = { ...defaultPanelState, ...s.state };
-          setPanelState(newState); 
-          setSelectedOverlayIdAndClearDraft(null); 
-          setIsMenuOpen(false); 
+        handleLoadPanel={async (s) => { 
+          if (await confirm({
+            title: "パネルの読み込み",
+            message: "保存されたパネルを読み込むと、現在の編集内容が上書きされます。よろしいですか？",
+            danger: true
+          })) {
+            const newState = { ...defaultPanelState, ...s.state };
+            setPanelState(newState); 
+            setSelectedOverlayIdAndClearDraft(null); 
+            setIsMenuOpen(false); 
+          }
         }}
-        setPanelToDeleteId={setPanelToDeleteId}
+        setPanelToDeleteId={async (id) => {
+          if (id) {
+            if (await confirm({ message: "本当に削除しますか？", danger: true })) {
+              const next = savedPanels.filter(p => p.id !== id);
+              setSavedPanels(next);
+            }
+          }
+        }}
       />
 
       <main className={`relative z-10 flex-1 flex flex-col min-h-0 overflow-auto scroll-touch p-0`}>
@@ -434,9 +435,7 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
         </div>
       </main>
 
-      <ConfirmDialog open={achievedOverlayId !== null} message="達成しますか？" onConfirm={() => { setOverlays(prev => prev.filter(o => o.id !== achievedOverlayId)); setAchievedOverlayId(null); }} onCancel={() => setAchievedOverlayId(null)} />
-      <ConfirmDialog open={allAchieveConfirmOpen} message="すべての覆いを開けますか？" onConfirm={() => { setOverlays(() => []); setAllAchieveConfirmOpen(false); }} onCancel={() => setAllAchieveConfirmOpen(false)} />
-      <ConfirmDialog open={panelToDeleteId !== null} message="本当に削除しますか？" onConfirm={handleDeleteSavedPanel} onCancel={() => setPanelToDeleteId(null)} danger />
+
       <ImageCropModal open={pendingCropDataUrl !== null} imageDataUrl={pendingCropDataUrl!} onConfirm={handleCropConfirm} onCancel={() => setPendingCropDataUrl(null)} isLightMode={isLightMode} />
       <CustomShapeEditorModal open={customShapeModalOpen} initialParts={customShapeEditingId ? (overlays.find(o => o.id === customShapeEditingId)?.parts ?? []) : []} savedTemplates={state.savedCustomShapes} onConfirm={actions.handleCustomShapeConfirm} onCancel={() => { setCustomShapeModalOpen(false); setCustomShapeEditingId(null); }} onSaveTemplate={actions.handleSaveCustomTemplate} isLightMode={isLightMode} />
       <ShareModal 

@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Trash2, Pencil, Check, X, Save, Download, FileStack, Copy } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
+import { useConfirm } from "@/context/ConfirmContext";
 import { MAX_SLOTS, ROULETTE_PALETTE_COLORS, type RouletteTemplate, type RouletteSettings } from "@/lib/roulette";
 import { Palette } from "lucide-react";
 
@@ -40,6 +41,7 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
     const [openColorIndex, setOpenColorIndex] = useState<number | null>(null);
     const selectAllCheckboxRef = useRef<HTMLInputElement>(null);
     const colorPopoverRef = useRef<HTMLDivElement>(null);
+    const { confirm } = useConfirm();
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
@@ -69,11 +71,18 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
         if (editingIndex !== null && editingIndex >= slots.length - n) setEditingIndex(null);
     };
 
-    const handleRemove = (index: number) => {
-        onSlotsChange(slots.filter((_, i) => i !== index));
-        setSelectedIndices((prev) => new Set([...prev].filter((i) => i !== index).map((i) => (i > index ? i - 1 : i))));
-        if (editingIndex === index) setEditingIndex(null);
-        else if (editingIndex !== null && editingIndex > index) setEditingIndex(editingIndex - 1);
+    const handleRemove = async (index: number) => {
+        const label = slots[index] || "項目";
+        if (await confirm({
+            title: "スロットの削除",
+            message: `「${label}」を削除しますか？`,
+            danger: true
+        })) {
+            onSlotsChange(slots.filter((_, i) => i !== index));
+            setSelectedIndices((prev) => new Set([...prev].filter((i) => i !== index).map((i) => (i > index ? i - 1 : i))));
+            if (editingIndex === index) setEditingIndex(null);
+            else if (editingIndex !== null && editingIndex > index) setEditingIndex(editingIndex - 1);
+        }
     };
 
     const toggleSlotSelect = (index: number) => {
@@ -81,11 +90,20 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
     };
     const selectAllSlots = () => setSelectedIndices(new Set(slots.map((_, i) => i)));
     const clearSlotSelection = () => setSelectedIndices(new Set());
-    const removeSelectedSlots = () => {
+    const removeSelectedSlots = async () => {
         if (selectedIndices.size === 0) return;
-        onSlotsChange(slots.filter((_, i) => !selectedIndices.has(i)));
-        setEditingIndex(null);
-        setSelectedIndices(new Set());
+        const count = selectedIndices.size;
+        const isAll = count === slots.length;
+
+        if (await confirm({
+            title: isAll ? "全てのスロットを削除" : "選択したスロットを削除",
+            message: isAll ? "全てのスロットを削除しますか？" : `${count} 件のスロットを削除しますか？`,
+            danger: true
+        })) {
+            onSlotsChange(slots.filter((_, i) => !selectedIndices.has(i)));
+            setEditingIndex(null);
+            setSelectedIndices(new Set());
+        }
     };
 
     const addSelectedSlotsToWheel = () => {

@@ -117,6 +117,14 @@ export interface InventoryItem {
     rarityId: string;
 }
 
+/** ガチャ（プール）ごとの進行状況 */
+export interface PlayerPoolState {
+    totalPulls: number;
+    pityCounter: number;
+    pityReachCount: number;
+    inventory?: Record<string, InventoryItem>;
+}
+
 /** 1回のガチャの要約（品目と数だけ。履歴用のコンパクト保存） */
 export interface RunSummary {
     runIndex: number;
@@ -133,11 +141,18 @@ export interface Player {
     results: GachaResult[];
     /** 過去のガチャ回ごとの要約（直近1回の生結果は results に保持） */
     runHistory?: RunSummary[];
+    /** ガチャごとの進行状況（累計、天井など） */
+    poolStates: Record<string, PlayerPoolState>;
+    
+    /** @deprecated use poolStates[poolId].inventory */
     inventory?: Record<string, InventoryItem>;
+    /** @deprecated use poolStates[poolId].totalPulls */
     totalPulls: number;
-    pityCounter: number; // 天井カウント (最高レア出たらリセット)
-    /** 天井に到達した回数（天井発動のたびに+1） */
+    /** @deprecated use poolStates[poolId].pityCounter */
+    pityCounter: number; 
+    /** @deprecated use poolStates[poolId].pityReachCount */
     pityReachCount?: number;
+
     /** ファイル配布連携: 発行済みの Claim URL（ローカル保持） */
     issuedClaimUrl?: string;
     /** ファイル配布連携: 発行時のキャンペーンID */
@@ -282,6 +297,7 @@ export function createDefaultPlayer(name: string): Player {
         name,
         results: [],
         runHistory: [],
+        poolStates: {},
         totalPulls: 0,
         pityCounter: 0,
         pityReachCount: 0,
@@ -393,9 +409,17 @@ export function performGachaPull(
     // 天井確定レア度のアイテム
     const pityRarityItems = pool.items.filter(item => item.rarityId === pool.pityGuaranteedRarityId);
 
+    // 現在のプールのステートを取得または初期化
+    const poolState: PlayerPoolState = player.poolStates?.[pool.id] || {
+        totalPulls: 0,
+        pityCounter: 0,
+        pityReachCount: 0,
+        inventory: {}
+    };
+
     const results: GachaResult[] = [];
-    const inventory: Record<string, InventoryItem> = player.inventory ? { ...player.inventory } : {};
-    let pityCounter = player.pityCounter;
+    const inventory: Record<string, InventoryItem> = poolState.inventory ? { ...poolState.inventory } : {};
+    let pityCounter = poolState.pityCounter;
     let pityTriggered = false;
     const now = Date.now();
     const baseId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
@@ -460,10 +484,20 @@ export function performGachaPull(
         ...player,
         results: resultsToStore,
         runHistory: trimmedRunHistory,
-        inventory,
+        poolStates: {
+            ...(player.poolStates || {}),
+            [pool.id]: {
+                totalPulls: poolState.totalPulls + count,
+                pityCounter,
+                pityReachCount: (poolState.pityReachCount ?? 0) + (pityTriggered ? 1 : 0),
+                inventory,
+            }
+        },
+        // レガシーフィールドも一応更新（古いUIが参照している可能性を考慮）
         totalPulls: player.totalPulls + count,
         pityCounter,
         pityReachCount: (player.pityReachCount ?? 0) + (pityTriggered ? 1 : 0),
+        inventory: inventory // 全体のインベントリとしても残す（オプション）
     };
 
     return { results, updatedPlayer, pityTriggered };
@@ -661,6 +695,7 @@ export function ensureResultIds(results: GachaResult[]): GachaResult[] {
 }
 
 // Playerのresultsに対してresultIdを付与し、inventoryを初期化する。runHistoryがない既存データは1回分のRunSummaryにまとめる。
+// さらに、レガシーデータを poolStates に移行する。
 export function migratePlayerData(players: Player[]): Player[] {
     return players.map(p => {
         const inventory: Record<string, InventoryItem> = p.inventory ? { ...p.inventory } : {};
@@ -687,10 +722,42 @@ export function migratePlayerData(players: Player[]): Player[] {
                 runHistory = [];
             }
         }
+
+        // poolStates の初期化・移行
+        const poolStates = p.poolStates || {};
+        
+        // もし poolStates が空でレガシーデータがある場合、runHistory を走査して振り分ける
+        if (Object.keys(poolStates).length === 0 && runHistory.length > 0) {
+            for (const run of runHistory) {
+                const pid = run.poolId || "legacy-default";
+                if (!poolStates[pid]) {
+                    poolStates[pid] = { totalPulls: 0, pityCounter: 0, pityReachCount: 0, inventory: {} };
+                }
+                const st = poolStates[pid]!;
+                st.totalPulls += run.pullCount;
+                // 天井カウントの正確な復元は履歴からは難しいため、現在の値を仮に割り当てるか、0にする
+                // ここではレガシーの pityCounter を "legacy-default" に割り当てる
+                if (pid === "legacy-default" || pid === run.poolId) {
+                    st.pityCounter = p.pityCounter || 0;
+                    st.pityReachCount = p.pityReachCount || 0;
+                }
+                
+                // インベントリの集計
+                for (const it of run.items) {
+                    if (!st.inventory) st.inventory = {};
+                    if (!st.inventory[it.itemId]) {
+                        st.inventory[it.itemId] = { count: 0, name: it.itemName, rarityId: it.rarityId };
+                    }
+                    st.inventory[it.itemId]!.count += it.count;
+                }
+            }
+        }
+
         return {
             ...p,
             results,
             runHistory,
+            poolStates,
             inventory,
             pityReachCount: p.pityReachCount ?? 0,
         };

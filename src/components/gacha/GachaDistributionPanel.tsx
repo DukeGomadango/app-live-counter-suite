@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     FiGift, 
     FiPlus, 
     FiRefreshCw, 
     FiExternalLink, 
-    FiAlertCircle, 
     FiUpload, 
     FiCheck, 
     FiLoader, 
@@ -16,7 +15,7 @@ import {
 } from "react-icons/fi";
 import { fetchExternalCampaigns, createExternalCampaign, type ExternalCampaign, issueClaimForPlayer, type ExternalAsset, fetchExternalAssets, uploadAssetAndRegister, fetchExternalGachaConfig } from "@/lib/gachaDistribution";
 import type { GachaPool, IntegrationConfig, GachaItem, Player, RarityTier } from "@/lib/gacha";
-import ConfirmDialog from "@/components/ConfirmDialog";
+import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/components/Toast";
 
 interface GachaDistributionPanelProps {
@@ -45,20 +44,15 @@ export default function GachaDistributionPanel({
         error?: string;
     }
     const [assets, setAssets] = useState<ExternalAsset[]>([]);
-    const [loading, setLoading] = useState(false);
     const [isCreating, setIsCreating] = useState(false);
     const [syncing, setSyncing] = useState(false);
-    const [createError, setCreateError] = useState<string | null>(null);
     
     // Mapping state
     const [mapping, setMapping] = useState<Record<string, string>>({});
     const [uploads, setUploads] = useState<Record<string, UploadStatus>>({});
     const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
+    const { confirm } = useConfirm();
     const [isDraggingGlobal, setIsDraggingGlobal] = useState(false);
-    const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
-
-    const [showChangeConfirm, setShowChangeConfirm] = useState(false);
-    const [pendingCampaignId, setPendingCampaignId] = useState<string | undefined>(undefined);
 
     const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-500" : "text-white/60";
@@ -132,14 +126,14 @@ export default function GachaDistributionPanel({
 
     const handleCreateCampaign = async () => {
         setIsCreating(true);
-        setCreateError(null);
         try {
             const newCamp = await createExternalCampaign(pool.conceptName || "新ガチャ配布キャンペーン", integrationConfig);
             const updatedList = await fetchExternalCampaigns(integrationConfig);
             setCampaigns(updatedList);
             onPoolChange({ ...pool, linkedCampaignId: newCamp.id });
         } catch (e) {
-            setCreateError(e instanceof Error ? e.message : "作成に失敗しました");
+            console.error(e);
+            showToast("作成に失敗しました", "error");
         } finally {
             setIsCreating(false);
         }
@@ -296,14 +290,22 @@ export default function GachaDistributionPanel({
                     <div className="flex items-center gap-3">
                         <select
                             value={pool.linkedCampaignId || ""}
-                            onChange={(e) => {
+                            onChange={async (e) => {
                                 const nextId = e.target.value;
                                 if (pool.linkedCampaignId && nextId !== pool.linkedCampaignId) {
-                                    setPendingCampaignId(nextId || undefined);
-                                    setShowChangeConfirm(true);
-                                } else {
-                                    onPoolChange({ ...pool, linkedCampaignId: nextId || undefined });
+                                    const ok = await confirm({
+                                        title: "配布キャンペーンの変更",
+                                        message: "キャンペーンを変更すると、これまでの景品との紐付け設定がすべてリセットされます。よろしいですか？",
+                                        confirmLabel: "変更してリセット",
+                                        danger: true
+                                    });
+                                    if (!ok) return;
                                 }
+                                onPoolChange({ 
+                                    ...pool, 
+                                    linkedCampaignId: nextId || undefined,
+                                    items: pool.items.map(it => ({ ...it, linkedAssetId: undefined }))
+                                });
                             }}
                             className={`px-4 py-2 rounded-xl text-sm font-medium border-2 focus:ring-2 focus:ring-purple-500 outline-none transition-all ${bgCard} ${borderCard} ${textPrimary}`}
                         >
@@ -431,7 +433,7 @@ export default function GachaDistributionPanel({
                                                 <input
                                                     type="file"
                                                     className="hidden"
-                                                    ref={el => { fileInputRefs.current[item.id] = el }}
+                                                    id={`file-input-${item.id}`}
                                                     onChange={(e) => {
                                                         const file = e.target.files?.[0];
                                                         if (file) handleFileChange(item.id, file);
@@ -449,9 +451,9 @@ export default function GachaDistributionPanel({
                                                         <span>同期完了</span>
                                                     </div>
                                                 ) : (
-                                                    <button
-                                                        onClick={() => fileInputRefs.current[item.id]?.click()}
-                                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+                                                    <label
+                                                        htmlFor={`file-input-${item.id}`}
+                                                        className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                                                             isDraggingGlobal 
                                                                 ? "text-purple-600 animate-bounce" 
                                                                 : `${textSecondary} ${isLightMode ? "hover:text-purple-600" : "hover:text-purple-400"}`
@@ -465,7 +467,7 @@ export default function GachaDistributionPanel({
                                                                 <span>ファイルを登録</span>
                                                             </>
                                                         )}
-                                                    </button>
+                                                    </label>
                                                 )}
                                             </div>
                                         </td>
@@ -492,22 +494,7 @@ export default function GachaDistributionPanel({
                 )}
             </AnimatePresence>
 
-            <ConfirmDialog
-                open={showChangeConfirm}
-                title="配布キャンペーンの変更"
-                message="キャンペーンを変更すると、これまでの景品との紐付け設定がすべてリセットされます。よろしいですか？"
-                confirmLabel="変更してリセット"
-                danger={true}
-                onConfirm={() => {
-                    onPoolChange({ 
-                        ...pool, 
-                        linkedCampaignId: pendingCampaignId,
-                        items: pool.items.map(it => ({ ...it, linkedAssetId: undefined }))
-                    });
-                    setShowChangeConfirm(false);
-                }}
-                onCancel={() => setShowChangeConfirm(false)}
-            />
+
         </div>
     );
 }

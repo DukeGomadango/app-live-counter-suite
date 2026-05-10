@@ -16,7 +16,6 @@ type Props = {
     totalCount: number;
     totalTarget: number;
     onOpenSettings: () => void;
-    confirmReset: boolean;
     onResetClick: () => void;
     hideThemeToggle: boolean;
     onToggleTheme: () => void;
@@ -35,7 +34,6 @@ export function HamburgerMenuHeader({
     totalCount,
     totalTarget,
     onOpenSettings,
-    confirmReset,
     onResetClick,
     hideThemeToggle,
     onToggleTheme,
