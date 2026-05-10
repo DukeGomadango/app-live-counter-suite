@@ -71,18 +71,11 @@ export default function RouletteSetup({ slots, onSlotsChange, isLightMode, templ
         if (editingIndex !== null && editingIndex >= slots.length - n) setEditingIndex(null);
     };
 
-    const handleRemove = async (index: number) => {
-        const label = slots[index] || "項目";
-        if (await confirm({
-            title: "スロットの削除",
-            message: `「${label}」を削除しますか？`,
-            danger: true
-        })) {
-            onSlotsChange(slots.filter((_, i) => i !== index));
-            setSelectedIndices((prev) => new Set([...prev].filter((i) => i !== index).map((i) => (i > index ? i - 1 : i))));
-            if (editingIndex === index) setEditingIndex(null);
-            else if (editingIndex !== null && editingIndex > index) setEditingIndex(editingIndex - 1);
-        }
+    const handleRemove = (index: number) => {
+        onSlotsChange(slots.filter((_, i) => i !== index));
+        setSelectedIndices((prev) => new Set([...prev].filter((i) => i !== index).map((i) => (i > index ? i - 1 : i))));
+        if (editingIndex === index) setEditingIndex(null);
+        else if (editingIndex !== null && editingIndex > index) setEditingIndex(editingIndex - 1);
     };
 
     const toggleSlotSelect = (index: number) => {
