@@ -149,7 +149,7 @@ export default function SplitPage() {
                 </div>
                 {/* 2行目: モード切替（SPLIT等）＋ペイン内モジュール切り替え＋テーマ（同一行） */}
                 <div className="flex shrink-0 items-center justify-between gap-2 py-2 px-2 border-b border-white/10">
-                    <ModeSelector isLightMode={isLightMode} />
+                    <ModeSelector isLightMode={isLightMode} accentColor="#10b981" />
                     <div className="relative flex items-center gap-1.5 p-1.5 rounded-xl shadow-md bg-black/40 border border-white/10">
                         <LayoutGrid size={14} className="text-white/50" />
                         <select
@@ -197,7 +197,7 @@ export default function SplitPage() {
                 className="flex items-center justify-between gap-3 shrink-0 py-1.5 px-3 border-b border-white/10 md:flex-row min-h-0 bg-[#0a051e]"
             >
                 <div className="flex items-center shrink-0">
-                    <ModeSelector isLightMode={isLightMode} />
+                    <ModeSelector isLightMode={isLightMode} accentColor="#10b981" />
                 </div>
                 <div className="flex items-center gap-3 md:gap-4 shrink-0">
                     <div className="flex items-center gap-1.5">

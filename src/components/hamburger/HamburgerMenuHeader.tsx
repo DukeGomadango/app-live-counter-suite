@@ -22,6 +22,7 @@ type Props = {
     onToggleTheme: () => void;
     leftContent?: React.ReactNode;
     rightContent?: React.ReactNode;
+    accentColor?: string;
 };
 
 export function HamburgerMenuHeader({
@@ -40,6 +41,7 @@ export function HamburgerMenuHeader({
     onToggleTheme,
     leftContent,
     rightContent,
+    accentColor,
 }: Props) {
     const {
         headerBarBg,
@@ -70,7 +72,7 @@ export function HamburgerMenuHeader({
                         <Menu className={`w-4 h-4 sm:w-5 sm:h-5 ${textPrimary}`} />
                     )}
                 </button>
-                {!hideModeSelector && <ModeSelector isLightMode={isLightMode} />}
+                {!hideModeSelector && <ModeSelector isLightMode={isLightMode} accentColor={accentColor} />}
                 {leftContent && (
                     <>
                         <div className="hidden sm:block h-6 w-px bg-white/10 mx-1" />

@@ -173,6 +173,7 @@ export default function HamburgerMenu({
                 onToggleTheme={onToggleTheme}
                 leftContent={leftContent}
                 rightContent={rightContent}
+                accentColor={accentColor}
             />
 
             <HamburgerMenuSidebar

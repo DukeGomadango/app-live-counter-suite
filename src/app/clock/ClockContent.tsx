@@ -122,7 +122,7 @@ export default function ClockContent({
         }}
       >
         <div className="flex items-center gap-2">
-          {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
+          {!isSplitMode && <ModeSelector isLightMode={isLightMode} accentColor={accentColor} />}
         </div>
         <div className="flex items-center gap-2">
           <button

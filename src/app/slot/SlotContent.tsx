@@ -208,7 +208,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
               <Menu size={20} />
             </button>
           )}
-          {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
+          {!isSplitMode && <ModeSelector isLightMode={isLightMode} accentColor={accentColor} />}
           <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
           <h1 className="text-sm font-bold tracking-tight opacity-80">スロット</h1>
         </div>

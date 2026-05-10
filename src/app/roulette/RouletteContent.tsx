@@ -194,7 +194,7 @@ export default function RouletteContent({
                     {showHamburger && (
                         <button onClick={() => sidebar.setSidebarOpen(!sidebar.sidebarOpen)} className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`} title="メニュー" aria-label="メニュー"><Menu size={18} /></button>
                     )}
-                    {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
+                    {!isSplitMode && <ModeSelector isLightMode={isLightMode} accentColor={accentColor} />}
                 </div>
                 <div className="flex items-center gap-2">
                     <button onClick={toggleTheme} className={`p-2 rounded-xl transition-all ${isLightMode ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}>

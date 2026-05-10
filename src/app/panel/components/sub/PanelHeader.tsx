@@ -55,7 +55,7 @@ export function PanelHeader({
       }}
     >
       <div className="flex items-center gap-2">
-        {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
+        {!isSplitMode && <ModeSelector isLightMode={isLightMode} accentColor={accentColor} />}
         {isEditMode && isEditSidebarNarrow && (
           <button
             onClick={() => setEditSidebarOverlayOpen(true)}

@@ -178,7 +178,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     style={{ background: headerBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${glassBorder}`, zIndex: Z_INDEX.HEADER }}
                 >
                     <div className="flex items-center gap-2">
-                        {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
+                        {!isSplitMode && <ModeSelector isLightMode={isLightMode} accentColor={gachaSettings.accentColor ?? "#a855f7"} />}
                         {activePlayer && (
                             <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${displayLight ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
                                 <Users size={12} />
@@ -316,7 +316,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                             <Menu size={18} />
                         </button>
                     )}
-                    {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
+                    {!isSplitMode && <ModeSelector isLightMode={isLightMode} accentColor={gachaSettings.accentColor ?? "#a855f7"} />}
                     {activePlayer && (
                         <div className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${displayLight ? "bg-purple-50 text-purple-700" : "bg-purple-500/10 text-purple-400"}`}>
                             <Users size={12} />

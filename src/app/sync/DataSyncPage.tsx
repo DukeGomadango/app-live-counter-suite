@@ -410,7 +410,7 @@ export default function DataSyncPage() {
         }`}
       >
         <div className="flex items-center gap-2 min-w-0">
-          <ModeSelector isLightMode={isLightMode} />
+          <ModeSelector isLightMode={isLightMode} accentColor="#10b981" />
           <Link
             href="/"
             className={`text-xs font-medium shrink-0 ${textSec} hover:underline`}
