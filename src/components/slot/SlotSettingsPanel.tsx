@@ -1,7 +1,7 @@
  "use client";
 
 import { motion } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Users } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { type SlotSettings } from "@/lib/slot";
 
@@ -21,6 +21,7 @@ interface SlotSettingsPanelProps {
   onSettingsChange: (s: SlotSettings) => void;
   isLightMode: boolean;
   onClose: () => void;
+  onOpenPlayerManager?: () => void;
 }
 
 export default function SlotSettingsPanel({
@@ -28,6 +29,7 @@ export default function SlotSettingsPanel({
   onSettingsChange,
   isLightMode,
   onClose,
+  onOpenPlayerManager,
 }: SlotSettingsPanelProps) {
   const { glassBg, glassBorder } = useGlassStyle(isLightMode);
   const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
@@ -157,6 +159,23 @@ export default function SlotSettingsPanel({
               演出（フラッシュ・紙吹雪）を表示する
             </label>
           </div>
+
+          {onOpenPlayerManager && (
+            <div className="mt-4 pt-4 border-t" style={{ borderColor: glassBorder }}>
+              <button
+                onClick={onOpenPlayerManager}
+                className="w-full py-3 rounded-xl font-bold flex items-center justify-center gap-2 dango-btn-tier2 shadow-lg"
+                style={{ 
+                  background: isLightMode ? "white" : "rgba(255,255,255,0.05)",
+                  color: isLightMode ? settings.accentColor : "white",
+                  "--btn-glow-color": settings.accentColor
+                } as any}
+              >
+                <Users size={18} />
+                プレイヤー名簿（設定）を開く
+              </button>
+            </div>
+          )}
         </div>
       </motion.div>
     </motion.div>

@@ -198,15 +198,33 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
       >
         <div className="flex items-center gap-3">
           {(isSplitMode || !isDesktop) && (
-            <button onClick={() => setSidebarOpen(!sidebarOpen)} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors"><Menu size={20} /></button>
+            <button 
+              onClick={() => setSidebarOpen(!sidebarOpen)} 
+              className="p-2 rounded-xl dango-btn-tier3"
+              style={{ "--btn-glow-color": accentColor } as any}
+            >
+              <Menu size={20} />
+            </button>
           )}
           {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
           <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
           <h1 className="text-sm font-bold tracking-tight opacity-80">スロット</h1>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={toggleTheme} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors">{isLightMode ? <Moon size={18} /> : <Sun size={18} />}</button>
-          <button onClick={() => setShowSettingsPanel(true)} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors"><Settings size={18} /></button>
+          <button 
+            onClick={toggleTheme} 
+            className="p-2 rounded-xl dango-btn-tier3"
+            style={{ "--btn-glow-color": accentColor } as any}
+          >
+            {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
+          </button>
+          <button 
+            onClick={() => setShowSettingsPanel(true)} 
+            className="p-2 rounded-xl dango-btn-tier3"
+            style={{ "--btn-glow-color": accentColor } as any}
+          >
+            <Settings size={18} />
+          </button>
         </div>
       </header>
 
@@ -222,9 +240,18 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
                 className={`flex flex-col bg-bg-sidebar backdrop-blur-xl border-r border-border-subtle z-50 ${isDesktop && !isSplitMode ? "relative" : "absolute inset-y-0 left-0"}`}
                 style={{ width: sidebarWidthPx }}
               >
-                <div className="flex p-2 gap-1 border-b border-border-subtle">
+                <div className="flex p-2 gap-1.5 border-b border-border-subtle bg-black/5 dark:bg-white/5">
                   {(["reel", "players", "templates", "stats"] as const).map((tab) => (
-                    <button key={tab} onClick={() => setSidebarTab(tab)} className={`flex-1 py-2 px-1 rounded-lg text-[10px] font-bold transition-all ${sidebarTab === tab ? "bg-black/5 dark:bg-white/10" : "opacity-40 hover:opacity-100"}`}>
+                    <button 
+                      key={tab} 
+                      onClick={() => setSidebarTab(tab)} 
+                      className={`flex-1 py-2 px-1 rounded-xl text-[11px] font-bold transition-all dango-btn-tier3 ${
+                        sidebarTab === tab 
+                          ? "bg-white dark:bg-white/20 shadow-sm opacity-100" 
+                          : "opacity-60 hover:opacity-100"
+                      }`}
+                      style={{ "--btn-glow-color": accentColor } as any}
+                    >
                       {tab === "reel" ? "リール" : tab === "players" ? "名簿" : tab === "templates" ? "保存" : "統計"}
                     </button>
                   ))}
@@ -289,7 +316,17 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
 
       <AnimatePresence>
         {showSettingsPanel && (
-          <SlotSettingsPanel settings={settings} onSettingsChange={setSettings} isLightMode={isLightMode} onClose={() => setShowSettingsPanel(false)} />
+          <SlotSettingsPanel 
+            settings={settings} 
+            onSettingsChange={setSettings} 
+            isLightMode={isLightMode} 
+            onClose={() => setShowSettingsPanel(false)} 
+            onOpenPlayerManager={() => {
+              setSidebarTab("players");
+              setSidebarOpen(true);
+              setShowSettingsPanel(false);
+            }}
+          />
         )}
       </AnimatePresence>
       <AnimatePresence>
