@@ -2,6 +2,7 @@
 
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
+import GenericShareCard from "@/components/GenericShareCard";
 
 interface SlotShareSummaryProps {
   /** プレイヤー名（省略可） */
@@ -26,38 +27,26 @@ export default function SlotShareSummary({
   const trimmedName = playerName?.trim();
 
   return (
-    <div
-      className="w-full min-h-0 flex justify-center px-4 py-6"
-      style={{ background: isLightMode ? "#f5f3ff" : "#0f0a1e" }}
-    >
-      <div
-        className="w-full max-w-sm rounded-3xl shadow-xl px-5 py-4 flex flex-col gap-3"
-        style={{
-          background: glassBg,
-          border: `1px solid ${glassBorder}`,
-          backdropFilter: "blur(18px)",
-        }}
-      >
-        {/* プレイヤー名 */}
-        {trimmedName && (
-          <div className={`text-sm font-semibold ${textSecondary}`}>{trimmedName}</div>
+    <GenericShareCard isLightMode={isLightMode} maxWidth="max-w-sm">
+      {/* プレイヤー名 */}
+      {trimmedName && (
+        <div className={`text-sm font-semibold ${textSecondary}`}>{trimmedName}</div>
+      )}
+      {/* スロット結果：図柄並び */}
+      <div className={`text-xl font-bold ${textPrimary} flex justify-center gap-2 flex-wrap`}>
+        {reelLabels.length > 0 ? (
+          reelLabels.map((label, i) => (
+            <span key={i} className="tabular-nums inline-flex items-center justify-center">
+              <EmojiGlyph emoji={label} size={22} />
+            </span>
+          ))
+        ) : (
+          <span>—</span>
         )}
-        {/* スロット結果：図柄並び */}
-        <div className={`text-xl font-bold ${textPrimary} flex justify-center gap-2 flex-wrap`}>
-          {reelLabels.length > 0 ? (
-            reelLabels.map((label, i) => (
-              <span key={i} className="tabular-nums inline-flex items-center justify-center">
-                <EmojiGlyph emoji={label} size={22} />
-              </span>
-            ))
-          ) : (
-            <span>—</span>
-          )}
-        </div>
-        {/* 役の文言 */}
-        <div className={`text-base font-bold text-center ${textPrimary}`}>{resultLine}</div>
-        <div className={`text-xs text-center ${textMuted}`}>#だんごツール</div>
       </div>
-    </div>
+      {/* 役の文言 */}
+      <div className={`text-base font-bold text-center ${textPrimary}`}>{resultLine}</div>
+      <div className={`text-xs text-center ${textMuted}`}>#だんごツール</div>
+    </GenericShareCard>
   );
 }

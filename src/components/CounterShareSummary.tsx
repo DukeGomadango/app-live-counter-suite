@@ -3,6 +3,7 @@
 import { coerceStoredEmojiToDisplay } from "@/lib/constants";
 import type { CounterItem } from "@/lib/templates";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
+import GenericShareCard from "@/components/GenericShareCard";
 
 interface CounterShareSummaryProps {
     items: CounterItem[];
@@ -33,25 +34,15 @@ export default function CounterShareSummary({
     const borderColor = isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.1)";
 
     return (
-        <div
-            className="rounded-2xl p-5 shadow-xl min-w-[280px] max-w-[360px]"
-            style={{
-                background: bg,
-                border: `1px solid ${borderColor}`,
-            }}
+        <GenericShareCard
+            isLightMode={isLightMode}
+            maxWidth="max-w-[360px]"
+            title={showProjectName && projectName ? projectName : undefined}
+            footerLeft={<span>合計</span>}
+            footerRight={<span>{totalTarget > 0 ? `${totalCount} / ${totalTarget}` : totalCount}</span>}
+            hashtag="" // カウンターはハッシュタグを表示しない仕様なので空にする
         >
-            {showProjectName && projectName && (
-                <div
-                    className="text-lg font-bold mb-4 pb-2 border-b"
-                    style={{
-                        color: accentColor,
-                        borderColor,
-                    }}
-                >
-                    {projectName}
-                </div>
-            )}
-            <div className="space-y-2 mb-4">
+            <div className="space-y-2 mb-2">
                 {items.map((item) => (
                     <div
                         key={item.id}
@@ -70,15 +61,6 @@ export default function CounterShareSummary({
                     </div>
                 ))}
             </div>
-            <div
-                className={`flex items-center justify-between pt-3 border-t ${textSecondary}`}
-                style={{ borderColor }}
-            >
-                <span className="text-sm font-medium">合計</span>
-                <span className={`text-lg font-bold tabular-nums ${textPrimary}`}>
-                    {totalTarget > 0 ? `${totalCount} / ${totalTarget}` : totalCount}
-                </span>
-            </div>
-        </div>
+        </GenericShareCard>
     );
 }
