@@ -18,6 +18,8 @@ export interface ToolDef {
   colorClass: string;
   activeBg: string;
   activeBorder: string;
+  hoverBg: string;
+  hoverText: string;
   /** LP のカード・アクセントライン用 */
   accentHex: string;
   /** ホーム・LP のセクション分け用 */
@@ -42,6 +44,8 @@ export const TOOLS: ToolDef[] = [
     colorClass: "text-purple-400",
     activeBg: "bg-purple-500/20",
     activeBorder: "border-purple-500/40",
+    hoverBg: "hover:bg-purple-500/10",
+    hoverText: "group-hover:text-purple-400",
     accentHex: "#a855f7",
     category: "tools",
     lpPriority: 1,
@@ -58,6 +62,8 @@ export const TOOLS: ToolDef[] = [
     colorClass: "text-blue-400",
     activeBg: "bg-blue-500/20",
     activeBorder: "border-blue-500/40",
+    hoverBg: "hover:bg-blue-500/10",
+    hoverText: "group-hover:text-blue-400",
     accentHex: "#60a5fa",
     category: "tools",
     lpPriority: 2,
@@ -74,6 +80,8 @@ export const TOOLS: ToolDef[] = [
     colorClass: "text-violet-400",
     activeBg: "bg-violet-500/20",
     activeBorder: "border-violet-500/40",
+    hoverBg: "hover:bg-violet-500/10",
+    hoverText: "group-hover:text-violet-400",
     accentHex: "#8b5cf6",
     category: "tools",
     lpPriority: 4,
@@ -90,6 +98,8 @@ export const TOOLS: ToolDef[] = [
     colorClass: "text-cyan-400",
     activeBg: "bg-cyan-500/20",
     activeBorder: "border-cyan-500/40",
+    hoverBg: "hover:bg-cyan-500/10",
+    hoverText: "group-hover:text-cyan-400",
     accentHex: "#22d3ee",
     category: "tools",
     lpPriority: 4,
@@ -106,6 +116,8 @@ export const TOOLS: ToolDef[] = [
     colorClass: "text-orange-400",
     activeBg: "bg-orange-500/20",
     activeBorder: "border-orange-500/40",
+    hoverBg: "hover:bg-orange-500/10",
+    hoverText: "group-hover:text-orange-400",
     accentHex: "#f97316",
     category: "tools",
     lpPriority: 4,
@@ -122,6 +134,8 @@ export const TOOLS: ToolDef[] = [
     colorClass: "text-emerald-400",
     activeBg: "bg-emerald-500/20",
     activeBorder: "border-emerald-500/40",
+    hoverBg: "hover:bg-emerald-500/10",
+    hoverText: "group-hover:text-emerald-400",
     accentHex: "#34d399",
     category: "tools",
     lpPriority: 4,
@@ -138,6 +152,8 @@ export const TOOLS: ToolDef[] = [
     colorClass: "text-yellow-400",
     activeBg: "bg-yellow-500/20",
     activeBorder: "border-yellow-500/40",
+    hoverBg: "hover:bg-yellow-500/10",
+    hoverText: "group-hover:text-yellow-400",
     accentHex: "#facc15",
     category: "games",
     lpPriority: 1,
@@ -154,6 +170,8 @@ export const TOOLS: ToolDef[] = [
     colorClass: "text-amber-400",
     activeBg: "bg-amber-500/20",
     activeBorder: "border-amber-500/40",
+    hoverBg: "hover:bg-amber-500/10",
+    hoverText: "group-hover:text-amber-400",
     accentHex: "#fbbf24",
     category: "games",
     lpPriority: 3,
@@ -170,6 +188,8 @@ export const TOOLS: ToolDef[] = [
     colorClass: "text-teal-400",
     activeBg: "bg-teal-500/20",
     activeBorder: "border-teal-500/40",
+    hoverBg: "hover:bg-teal-500/10",
+    hoverText: "group-hover:text-teal-400",
     accentHex: "#14b8a6",
     category: "games",
     lpPriority: 3,

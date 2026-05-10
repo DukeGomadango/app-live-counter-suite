@@ -22,6 +22,8 @@ const TOP_ENTRY = {
     color: "text-gray-400",
     activeBg: "bg-gray-500/20",
     activeBorder: "border-gray-500/40",
+    hoverBg: "hover:bg-gray-500/10",
+    hoverText: "group-hover:text-gray-400",
 };
 
 type ModeEntry = typeof TOP_ENTRY & { id: string; path: string; label: string };
@@ -34,6 +36,8 @@ const SYNC_ENTRY: ModeEntry = {
     color: "text-emerald-400",
     activeBg: "bg-emerald-500/20",
     activeBorder: "border-emerald-500/40",
+    hoverBg: "hover:bg-emerald-500/10",
+    hoverText: "group-hover:text-emerald-400",
 };
 
 const ALL_MODES: ModeEntry[] = [
@@ -47,6 +51,8 @@ const ALL_MODES: ModeEntry[] = [
         color: t.colorClass,
         activeBg: t.activeBg,
         activeBorder: t.activeBorder,
+        hoverBg: t.hoverBg,
+        hoverText: t.hoverText,
     })),
 ];
 
@@ -132,12 +138,12 @@ export default function ModeSelector({ isLightMode: isLightModeProp, accentColor
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg dango-btn-tier3 text-sm transition-all duration-200 ${
                                         currentMode.id === TOP_ENTRY.id 
                                             ? `${TOP_ENTRY.activeBg} ${TOP_ENTRY.color} font-medium` 
-                                            : `${textColor} hover:${TOP_ENTRY.activeBg.replace('/20', '/10')} group`
+                                            : `${textColor} ${TOP_ENTRY.hoverBg} group`
                                     }`}
                                     style={{ "--btn-glow-color": "rgba(148,163,184,0.3)" } as any}
                                 >
-                                    <TOP_ENTRY.icon size={16} className={`transition-colors duration-200 ${currentMode.id === TOP_ENTRY.id ? TOP_ENTRY.color : `${isLightMode ? "text-gray-400" : "text-white/40"} group-hover:${TOP_ENTRY.color}`}`} />
-                                    <span className={`transition-colors duration-200 ${currentMode.id === TOP_ENTRY.id ? "" : `group-hover:${TOP_ENTRY.color}`}`}>{TOP_ENTRY.label}</span>
+                                    <TOP_ENTRY.icon size={16} className={`transition-colors duration-200 ${currentMode.id === TOP_ENTRY.id ? TOP_ENTRY.color : `${isLightMode ? "text-gray-400" : "text-white/40"} ${TOP_ENTRY.hoverText}`}`} />
+                                    <span className={`transition-colors duration-200 ${currentMode.id === TOP_ENTRY.id ? "" : TOP_ENTRY.hoverText}`}>{TOP_ENTRY.label}</span>
                                     {currentMode.id === TOP_ENTRY.id && (
                                         <motion.div layoutId="active-indicator" className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "currentColor" }} />
                                     )}
@@ -148,12 +154,12 @@ export default function ModeSelector({ isLightMode: isLightModeProp, accentColor
                                     className={`flex items-center gap-3 px-3 py-2.5 rounded-lg dango-btn-tier3 text-sm transition-all duration-200 ${
                                         currentMode.id === SYNC_ENTRY.id 
                                             ? `${SYNC_ENTRY.activeBg} ${SYNC_ENTRY.color} font-medium` 
-                                            : `${textColor} hover:${SYNC_ENTRY.activeBg.replace('/20', '/10')} group`
+                                            : `${textColor} ${SYNC_ENTRY.hoverBg} group`
                                     }`}
                                     style={{ "--btn-glow-color": "rgba(16,185,129,0.3)" } as any}
                                 >
-                                    <SYNC_ENTRY.icon size={16} className={`transition-colors duration-200 ${currentMode.id === SYNC_ENTRY.id ? SYNC_ENTRY.color : `${isLightMode ? "text-gray-400" : "text-white/40"} group-hover:${SYNC_ENTRY.color}`}`} />
-                                    <span className={`transition-colors duration-200 ${currentMode.id === SYNC_ENTRY.id ? "" : `group-hover:${SYNC_ENTRY.color}`}`}>データ連携</span>
+                                    <SYNC_ENTRY.icon size={16} className={`transition-colors duration-200 ${currentMode.id === SYNC_ENTRY.id ? SYNC_ENTRY.color : `${isLightMode ? "text-gray-400" : "text-white/40"} ${SYNC_ENTRY.hoverText}`}`} />
+                                    <span className={`transition-colors duration-200 ${currentMode.id === SYNC_ENTRY.id ? "" : SYNC_ENTRY.hoverText}`}>データ連携</span>
                                     {currentMode.id === SYNC_ENTRY.id && (
                                         <motion.div layoutId="active-indicator" className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "currentColor" }} />
                                     )}
@@ -176,12 +182,12 @@ export default function ModeSelector({ isLightMode: isLightModeProp, accentColor
                                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg dango-btn-tier3 text-sm transition-all duration-200 ${
                                                 isActive 
                                                     ? `${mode.activeBg} ${mode.color} font-medium` 
-                                                    : `${textColor} hover:${mode.activeBg.replace('/20', '/10')} group`
+                                                    : `${textColor} ${mode.hoverBg} group`
                                             }`}
                                             style={{ "--btn-glow-color": "currentColor" } as any}
                                         >
-                                            <Icon size={16} className={`transition-colors duration-200 ${isActive ? mode.color : `${isLightMode ? "text-gray-400" : "text-white/40"} group-hover:${mode.color}`}`} />
-                                            <span className={`transition-colors duration-200 ${isActive ? "" : `group-hover:${mode.color}`}`}>{mode.label}</span>
+                                            <Icon size={16} className={`transition-colors duration-200 ${isActive ? mode.color : `${isLightMode ? "text-gray-400" : "text-white/40"} ${mode.hoverText}`}`} />
+                                            <span className={`transition-colors duration-200 ${isActive ? "" : mode.hoverText}`}>{mode.label}</span>
                                             {isActive && (
                                                 <motion.div layoutId="active-indicator" className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "currentColor" }} />
                                             )}
@@ -206,12 +212,12 @@ export default function ModeSelector({ isLightMode: isLightModeProp, accentColor
                                             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg dango-btn-tier3 text-sm transition-all duration-200 ${
                                                 isActive 
                                                     ? `${mode.activeBg} ${mode.color} font-medium` 
-                                                    : `${textColor} hover:${mode.activeBg.replace('/20', '/10')} group`
+                                                    : `${textColor} ${mode.hoverBg} group`
                                             }`}
                                             style={{ "--btn-glow-color": "currentColor" } as any}
                                         >
-                                            <Icon size={16} className={`transition-colors duration-200 ${isActive ? mode.color : `${isLightMode ? "text-gray-400" : "text-white/40"} group-hover:${mode.color}`}`} />
-                                            <span className={`transition-colors duration-200 ${isActive ? "" : `group-hover:${mode.color}`}`}>{mode.label}</span>
+                                            <Icon size={16} className={`transition-colors duration-200 ${isActive ? mode.color : `${isLightMode ? "text-gray-400" : "text-white/40"} ${mode.hoverText}`}`} />
+                                            <span className={`transition-colors duration-200 ${isActive ? "" : mode.hoverText}`}>{mode.label}</span>
                                             {isActive && (
                                                 <motion.div layoutId="active-indicator" className="ml-auto w-1.5 h-1.5 rounded-full" style={{ backgroundColor: "currentColor" }} />
                                             )}
