@@ -107,7 +107,23 @@ export function FractionPanel({ isLightMode, accentColor }: FractionPanelProps) 
                                 <span className={`text-[10px] ${labelClass}`}>演算子</span>
                                 <div className="grid grid-cols-2 gap-1">
                                     {(["+", "-", "*", "/"] as const).map((o) => (
-                                        <button key={o} type="button" onClick={() => setOperator(i, o)} className={`w-7 h-7 rounded-md font-mono font-bold text-xs ${operators[i] === o ? "text-white border-0" : "border"}`} style={{ ...(operators[i] === o ? { background: accentColor } : { borderColor: isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)", background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)" }) }} aria-label={`${i + 1}つ目と${i + 2}つ目の間の演算子 ${o}`}>{o}</button>
+                                        <button
+                                            key={o}
+                                            type="button"
+                                            onClick={() => setOperator(i, o)}
+                                            className={`w-8 h-8 flex items-center justify-center rounded-lg text-xs font-bold border dango-btn-tier3 ${
+                                                operators[i] === o 
+                                                    ? "text-white border-transparent shadow-lg" 
+                                                    : isLightMode ? "text-gray-600 border-gray-200" : "text-white/60 border-white/10"
+                                            }`}
+                                            style={{ 
+                                                ...(operators[i] === o ? { background: accentColor } : { borderColor: isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)", background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)" }),
+                                                "--btn-glow-color": accentColor
+                                            } as any} 
+                                            aria-label={`${i + 1}つ目と${i + 2}つ目の間の演算子 ${o}`}
+                                        >
+                                            {o}
+                                        </button>
                                     ))}
                                 </div>
                             </div>
@@ -116,8 +132,24 @@ export function FractionPanel({ isLightMode, accentColor }: FractionPanelProps) 
                 ))}
             </div>
             <div className="flex flex-wrap justify-center gap-2">
-                <button type="button" onClick={addFraction} className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${isLightMode ? "text-gray-700 border-gray-300 hover:bg-gray-100" : "text-white/90 border-white/30 hover:bg-white/10"}`}>分数を追加</button>
-                {fractions.length > 2 && (<button type="button" onClick={removeLastFraction} className={`px-3 py-1.5 rounded-lg text-sm font-medium border ${isLightMode ? "text-red-600 border-red-200 hover:bg-red-50" : "text-red-400 border-red-400/40 hover:bg-red-500/10"}`}>最後の分数を削除</button>)}
+                <button 
+                    type="button" 
+                    onClick={addFraction} 
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium border dango-btn-tier3 ${isLightMode ? "text-gray-700 border-gray-300" : "text-white/90 border-white/30"}`}
+                    style={{ "--btn-glow-color": accentColor } as any}
+                >
+                    分数を追加
+                </button>
+                {fractions.length > 2 && (
+                    <button 
+                        type="button" 
+                        onClick={removeLastFraction} 
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium border dango-btn-tier3 ${isLightMode ? "text-red-600 border-red-200" : "text-red-400 border-red-400/40"}`}
+                        style={{ "--btn-glow-color": "rgba(239,68,68,0.3)" } as any}
+                    >
+                        最後の分数を削除
+                    </button>
+                )}
             </div>
             <div className="p-4 rounded-2xl border text-center" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)", background: isLightMode ? "rgba(255,255,255,0.6)" : "rgba(255,255,255,0.08)" }}>
                 <span className={`text-xs ${labelClass}`}>結果（既約）</span>

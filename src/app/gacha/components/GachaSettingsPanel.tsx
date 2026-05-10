@@ -70,8 +70,13 @@ export function GachaSettingsPanel({
             <EmojiGlyph emoji="⚙️" size={14} />
             ガチャ設定
           </span>
-          <button onClick={onClose} className={`p-1 rounded-lg ${isLightMode ? "hover:bg-gray-100" : "hover:bg-white/10"}`}>
-            <X size={16} className={textSecondary} />
+          <button
+            onClick={onClose}
+            className={`p-1.5 rounded-lg dango-btn-tier3 ${isLightMode ? "text-gray-500 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
+            style={{ "--btn-glow-color": "currentColor" } as any}
+            aria-label="閉じる"
+          >
+            <X size={18} />
           </button>
         </div>
 

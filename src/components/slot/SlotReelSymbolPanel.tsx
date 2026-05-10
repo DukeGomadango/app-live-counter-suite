@@ -256,6 +256,7 @@ export default function SlotReelSymbolPanel({
   isLightMode,
 }: SlotReelSymbolPanelProps) {
   const [symbolEditId, setSymbolEditId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"reels" | "symbols">("reels");
   const [reelTab, setReelTab] = useState(0);
 
   const { glassBg, glassBorder } = useGlassStyle(isLightMode);
@@ -293,13 +294,14 @@ export default function SlotReelSymbolPanel({
               key={n}
               type="button"
               onClick={() => onSettingsChange({ ...settings, reelCount: n })}
-              className={`min-w-[2.5rem] py-2 rounded-lg text-sm font-medium transition ${
+              className={`min-w-[2.5rem] py-2 rounded-lg text-sm font-medium dango-btn-tier3 ${
                 settings.reelCount === n
                   ? (isLightMode ? "bg-teal-500 text-white shadow-sm" : "bg-teal-500/30 text-teal-200 border border-teal-500/50")
                   : isLightMode
-                    ? "bg-black/5 text-gray-600 border border-black/10 hover:bg-black/10"
-                    : "bg-white/10 text-white/70 border border-white/10 hover:bg-white/15"
+                    ? "bg-black/5 text-gray-600 border border-black/10"
+                    : "bg-white/10 text-white/70 border border-white/10"
               }`}
+              style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
             >
               {n}
             </button>
@@ -420,13 +422,14 @@ export default function SlotReelSymbolPanel({
                       : normalizePaylines(settings.paylines, reelCount, n),
                 })
               }
-              className={`min-w-[4rem] py-2 rounded-lg text-sm font-medium transition ${
+              className={`min-w-[4rem] py-2 rounded-lg text-sm font-medium dango-btn-tier3 ${
                 (settings.visibleRows ?? 1) === n
                   ? (isLightMode ? "bg-teal-500 text-white shadow-sm" : "bg-teal-500/30 text-teal-200 border border-teal-500/50")
                   : isLightMode
-                    ? "bg-black/5 text-gray-600 border border-black/10 hover:bg-black/10"
-                    : "bg-white/10 text-white/70 border border-white/10 hover:bg-white/15"
+                    ? "bg-black/5 text-gray-600 border border-black/10"
+                    : "bg-white/10 text-white/70 border border-white/10"
               }`}
+              style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
             >
               {n}段
             </button>
@@ -477,6 +480,32 @@ export default function SlotReelSymbolPanel({
         </div>
       )}
 
+      <div className="flex gap-2">
+          <button
+              onClick={() => setActiveTab("reels")}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl border dango-btn-tier3 ${
+                  activeTab === "reels"
+                      ? "bg-teal-500/20 border-teal-500/40 text-teal-400 shadow-lg"
+                      : `bg-black/5 border-transparent ${textSecondary}`
+              }`}
+              style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as any}
+          >
+              リール配列
+          </button>
+          <button
+              onClick={() => setActiveTab("symbols")}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl border dango-btn-tier3 ${
+                  activeTab === "symbols"
+                      ? "bg-teal-500/20 border-teal-500/40 text-teal-400 shadow-lg"
+                      : `bg-black/5 border-transparent ${textSecondary}`
+              }`}
+              style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as any}
+          >
+              図柄マスタ
+          </button>
+      </div>
+
+      {activeTab === "symbols" ? (
       <div className="border-t pt-4" style={{ borderColor: glassBorder }}>
         <label
           className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}
@@ -491,11 +520,12 @@ export default function SlotReelSymbolPanel({
                 symbolMaster.map((s) => ({ ...s, enabled: true }))
               )
             }
-            className={`px-2 py-1 rounded text-xs font-medium ${
+            className={`px-2 py-1 rounded text-xs font-medium dango-btn-tier3 ${
               isLightMode
-                ? "bg-black/5 text-gray-700 border border-black/10 hover:bg-black/10"
-                : "bg-white/10 text-white/80 border border-white/10 hover:bg-white/15"
+                ? "bg-black/5 text-gray-700 border border-black/10"
+                : "bg-white/10 text-white/80 border border-white/10"
             }`}
+            style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as any}
             title="全図柄をオンにする"
           >
             すべてオン
@@ -511,11 +541,12 @@ export default function SlotReelSymbolPanel({
               );
             }}
             disabled={symbolMaster.filter((s) => s.enabled !== false).length <= 1}
-            className={`px-2 py-1 rounded text-xs font-medium disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`px-2 py-1 rounded text-xs font-medium dango-btn-tier3 disabled:opacity-40 disabled:cursor-not-allowed ${
               isLightMode
-                ? "bg-black/5 text-gray-700 border border-black/10 hover:bg-black/10"
-                : "bg-white/10 text-white/80 border border-white/10 hover:bg-white/15"
+                ? "bg-black/5 text-gray-700 border border-black/10"
+                : "bg-white/10 text-white/80 border border-white/10"
             }`}
+            style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as any}
             title="1種類だけオンにして他をオフにする（最低1種類は必要）"
           >
             すべてオフ（1種類残す）
@@ -583,11 +614,12 @@ export default function SlotReelSymbolPanel({
                     <button
                       type="button"
                       onClick={() => setSymbolEditId(sym.id)}
-                      className={`p-1 rounded ${
+                      className={`p-1 rounded dango-btn-tier3 ${
                         isLightMode
-                          ? "hover:bg-gray-200 text-gray-600"
-                          : "hover:bg-white/10 text-white/70"
+                          ? "text-gray-600"
+                          : "text-white/70"
                       }`}
+                      style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
                       aria-label="編集"
                     >
                       <Pencil size={12} />
@@ -604,11 +636,12 @@ export default function SlotReelSymbolPanel({
                         );
                       }}
                       disabled={used}
-                      className={`p-1 rounded disabled:opacity-40 ${
+                      className={`p-1 rounded dango-btn-tier3 disabled:opacity-40 ${
                         isLightMode
-                          ? "hover:bg-gray-200 text-gray-600"
-                          : "hover:bg-white/10 text-white/70"
+                          ? "text-gray-600"
+                          : "text-white/70"
                       }`}
+                      style={{ "--btn-glow-color": "rgba(239,68,68,0.5)" } as any}
                       title={
                         used ? "リールで使用中のため削除できません" : "削除"
                       }
@@ -633,16 +666,17 @@ export default function SlotReelSymbolPanel({
             ]);
             setSymbolEditId(id);
           }}
-          className={`text-xs px-2 py-1.5 rounded-lg flex items-center gap-1 ${
+          className={`text-xs px-2 py-1.5 rounded-lg flex items-center gap-1 dango-btn-tier3 ${
             isLightMode
-              ? "bg-teal-100 text-teal-700 hover:bg-teal-200"
-              : "bg-teal-500/20 text-teal-400 hover:bg-teal-500/30"
+              ? "bg-teal-100 text-teal-700"
+              : "bg-teal-500/20 text-teal-400"
           }`}
+          style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
         >
           <Plus size={12} /> 図柄を追加
         </button>
       </div>
-
+    ) : (
       <div className="border-t pt-4" style={{ borderColor: glassBorder }}>
         <label
           className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}
@@ -655,13 +689,14 @@ export default function SlotReelSymbolPanel({
               key={i}
               type="button"
               onClick={() => setReelTab(i)}
-              className={`px-2 py-1 rounded text-xs font-medium transition-all ${
+              className={`px-2 py-1 rounded text-xs font-medium dango-btn-tier3 transition-all ${
                 reelTab === i
                   ? (isLightMode ? "bg-teal-500 text-white shadow-sm" : "bg-teal-500/30 text-teal-200 border border-teal-500/50")
                   : isLightMode
-                    ? "bg-black/5 text-gray-600 border border-black/10 hover:bg-black/10"
-                    : "bg-white/10 text-white/70 border border-white/10 hover:bg-white/15"
+                    ? "bg-black/5 text-gray-600 border border-black/10"
+                    : "bg-white/10 text-white/70 border border-white/10"
               }`}
+              style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
             >
               リール{i + 1}
             </button>
@@ -681,6 +716,7 @@ export default function SlotReelSymbolPanel({
           }}
         />
       </div>
+    )}
     </div>
   );
 }

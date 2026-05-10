@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Sun, Moon, LayoutGrid, List, Check } from "lucide-react";
+import { Sun, Moon, LayoutGrid, List, Check, ArrowRight } from "lucide-react";
 import ModeSelector from "@/components/ModeSelector";
 import DataLinkModal from "@/components/DataLinkModal";
 import PwaInstallChip from "@/components/PwaInstallChip";
@@ -55,7 +55,28 @@ export default function LandingPage() {
         <ModeSelector isLightMode={effectiveLight} />
         <div className="flex items-center gap-2">
           <Link href="/counter" className={`rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-300 ${lp.showHeaderCta ? "opacity-100 translate-y-0 pointer-events-auto" : "opacity-0 -translate-y-1 pointer-events-none"} ${effectiveLight ? "bg-purple-600 text-white hover:bg-purple-500" : "bg-purple-500 text-white hover:bg-purple-400"}`}>今すぐ使う</Link>
-          <button type="button" onClick={toggleTheme} className={`p-2 rounded-xl transition-colors shrink-0 ${effectiveLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`} title={effectiveLight ? "ダークモードに切替" : "ライトモードに切替"} aria-label={effectiveLight ? "ダークモードに切替" : "ライトモードに切替"}>{effectiveLight ? <Moon size={20} /> : <Sun size={20} className="text-amber-400" />}</button>
+          <button
+                onClick={toggleTheme}
+                className={`p-3 rounded-2xl border flex items-center gap-2 dango-btn-tier3 ${
+                    isLightMode
+                        ? "bg-white border-gray-200 text-gray-700"
+                        : "bg-white/5 border-white/10 text-white"
+                }`}
+                style={{ "--btn-glow-color": isLightMode ? "rgba(234,179,8,0.3)" : "rgba(168,85,247,0.3)" } as any}
+                aria-label="テーマ切り替え"
+            >
+                {isLightMode ? (
+                    <>
+                        <Sun size={20} className="text-yellow-500" />
+                        <span className="text-sm font-medium">ライト</span>
+                    </>
+                ) : (
+                    <>
+                        <Moon size={20} className="text-purple-400" />
+                        <span className="text-sm font-medium">ダーク</span>
+                    </>
+                )}
+            </button>
         </div>
       </header>
 
@@ -72,9 +93,30 @@ export default function LandingPage() {
               <h1 className="mt-2 text-3xl sm:text-4xl md:text-4xl font-black leading-tight" style={{ color: LP_ACCENT, textShadow: `0 0 24px ${LP_ACCENT}50` }}>あなたの配信を、<br />もっと面白く、もっと直感的に。</h1>
               <p className={`mt-3 text-sm sm:text-base font-medium max-w-xl ${effectiveLight ? "text-neutral-600" : "text-white/75"}`}>完全無料・登録不要。人数管理、抽選演出、進行管理をブラウザだけで今すぐ始められます。</p>
               <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-2">
-                <Link href="/counter" className={`inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition-colors ${effectiveLight ? "bg-purple-600 text-white hover:bg-purple-500" : "bg-purple-500 text-white hover:bg-purple-400"}`}>今すぐブラウザで使う</Link>
-                <Link href="#lp-tools" className={`inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${effectiveLight ? "bg-black/8 hover:bg-black/12 text-neutral-800" : "bg-white/10 hover:bg-white/15 text-white"}`}>ツールを見る</Link>
-                <button type="button" onClick={() => lp.setDataLinkOpen(true)} className={`inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition-colors ${effectiveLight ? "bg-black/8 hover:bg-black/12 text-neutral-800" : "bg-white/10 hover:bg-white/15 text-white"}`}>データを連携</button>
+                <button
+                    onClick={() => {
+                        const target = document.getElementById("use-cases");
+                        target?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className="px-8 py-4 rounded-2xl bg-teal-500 text-white font-bold text-lg shadow-xl shadow-teal-500/20 flex items-center gap-2 dango-btn-tier1"
+                    style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
+                >
+                    無料で使ってみる <ArrowRight size={20} />
+                </button>
+                <button
+                    onClick={() => {
+                        const target = document.getElementById("features");
+                        target?.scrollIntoView({ behavior: "smooth" });
+                    }}
+                    className={`px-8 py-4 rounded-2xl font-bold text-lg border dango-btn-tier3 ${
+                        isLightMode
+                            ? "bg-white/80 border-gray-200 text-gray-700"
+                            : "bg-white/5 border-white/10 text-white"
+                    }`}
+                    style={{ "--btn-glow-color": "rgba(255,255,255,0.2)" } as any}
+                >
+                    機能を見る
+                </button>
               </div>
             </div>
             <div className="rounded-2xl p-3 sm:p-4 bg-transparent">
@@ -98,7 +140,17 @@ export default function LandingPage() {
                   <h3 className={`text-sm font-bold ${effectiveLight ? "text-neutral-900" : "text-white"}`}>{useCase.title}</h3>
                   <p className={`text-xs leading-relaxed max-w-[20rem] ${effectiveLight ? "text-neutral-600" : "text-white/70"}`}>{useCase.body}</p>
                 </div>
-                <Link href={useCase.toolPath} className={`mt-3 inline-flex items-center justify-center rounded-lg py-1 px-2 text-xs font-medium transition-colors ${effectiveLight ? "text-neutral-700 hover:bg-black/7" : "text-white/80 hover:bg-white/10"}`}>{useCase.toolLabel}を見る →</Link>
+                <Link
+                    href={useCase.toolPath}
+                    className={`mt-3 inline-flex items-center justify-center rounded-lg py-1 px-2 text-xs font-medium dango-btn-tier3 ${
+                        effectiveLight
+                            ? "text-neutral-700 hover:bg-black/7"
+                            : "text-white/80 hover:bg-white/10"
+                    }`}
+                    style={{ "--btn-glow-color": "currentColor" } as any}
+                >
+                    {useCase.toolLabel}を見る →
+                </Link>
               </article>
             ))}
           </div>
@@ -148,8 +200,8 @@ export default function LandingPage() {
 
         <div className="w-full max-w-5xl mx-auto mt-8">
           <div className={`mx-auto w-fit flex items-center justify-center gap-1 rounded-xl p-1 ${effectiveLight ? "bg-black/6" : "bg-white/5"}`} role="tablist" aria-label="ツールの表示">
-            <button type="button" onClick={() => lp.setLayoutMode("cards")} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 ${lp.effectiveLayout === "cards" ? (effectiveLight ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (effectiveLight ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`} aria-pressed={lp.effectiveLayout === "cards"} aria-label="カード表示"><LayoutGrid size={14} />カード</button>
-            <button type="button" onClick={() => lp.setLayoutMode("strip")} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 ${lp.effectiveLayout === "strip" ? (effectiveLight ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (effectiveLight ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`} aria-pressed={lp.effectiveLayout === "strip"} aria-label="ストリップ表示"><List size={14} />ストリップ</button>
+            <button type="button" onClick={() => lp.setLayoutMode("cards")} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 dango-btn-tier3 ${lp.effectiveLayout === "cards" ? (effectiveLight ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (effectiveLight ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`} style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as any} aria-pressed={lp.effectiveLayout === "cards"} aria-label="カード表示"><LayoutGrid size={14} />カード</button>
+            <button type="button" onClick={() => lp.setLayoutMode("strip")} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 dango-btn-tier3 ${lp.effectiveLayout === "strip" ? (effectiveLight ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (effectiveLight ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`} style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as any} aria-pressed={lp.effectiveLayout === "strip"} aria-label="ストリップ表示"><List size={14} />ストリップ</button>
           </div>
           <div className="mt-3 flex justify-center"><PwaInstallChip effectiveLight={effectiveLight} /></div>
         </div>
