@@ -64,7 +64,8 @@ export function CounterTargetsTab({
                     <button
                         onClick={handleBulkTarget}
                         disabled={!bulkTarget.trim()}
-                        className="px-3 py-2 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center gap-1.5 hover:bg-purple-500/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-xs text-purple-400 font-medium"
+                        className="px-3 py-2 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center gap-1.5 dango-btn-tier3 disabled:opacity-30 disabled:cursor-not-allowed text-xs text-purple-400 font-medium"
+                        style={{ "--btn-glow-color": "rgba(168,85,247,0.4)" } as any}
                     >
                         <Target size={13} />
                         設定
@@ -77,11 +78,12 @@ export function CounterTargetsTab({
                 <button
                     type="button"
                     onClick={onRequestAchieveAllTargets}
-                    className={`px-2 py-1 rounded-lg text-[11px] border flex items-center gap-1 ${
+                    className={`px-2 py-1 rounded-lg text-[11px] border flex items-center gap-1 dango-btn-tier3 ${
                         items.length > 0 && items.every((it) => it.target > 0 && it.count >= it.target)
                             ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-400"
-                            : `${bgSubtle} ${borderSubtle} ${bgSubtleHover} ${textSecondary}`
+                            : `${bgSubtle} ${borderSubtle} ${textSecondary}`
                     }`}
+                    style={{ "--btn-glow-color": "rgba(16,185,129,0.4)" } as any}
                 >
                     <Check size={11} />
                     <span>全目標達成</span>
@@ -109,7 +111,8 @@ export function CounterTargetsTab({
                                     <button
                                         type="button"
                                         onClick={() => onRequestAchieveTarget?.(item.id)}
-                                        className="px-2 py-0.5 rounded text-[10px] border border-black/15 dark:border-white/20 text-xs text-gray-600 dark:text-white/70 bg-black/5 dark:bg-white/10 hover:bg-black/10 dark:hover:bg-white/15"
+                                        className="px-2 py-0.5 rounded text-[10px] border border-black/15 dark:border-white/20 text-xs text-gray-600 dark:text-white/70 bg-black/5 dark:bg-white/10 dango-btn-tier3"
+                                        style={{ "--btn-glow-color": item.color || "rgba(16,185,129,0.3)" } as any}
                                     >
                                         達成
                                     </button>

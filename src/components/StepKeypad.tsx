@@ -64,8 +64,8 @@ export function StepKeypad({
         "transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-violet-500/40";
 
     const rowPlus = isLightMode
-        ? "text-neutral-600/50 hover:text-neutral-800 hover:bg-black/[0.05] active:bg-black/[0.08] active:text-neutral-900"
-        : "text-white/40 hover:text-white/90 hover:bg-white/10 active:bg-white/[0.14] active:text-white";
+        ? "text-neutral-600/50"
+        : "text-white/40";
 
     const rowMinusDisabled = isLightMode
         ? "disabled:text-neutral-500/40 disabled:hover:bg-transparent disabled:hover:text-neutral-500/40 disabled:active:bg-transparent"
@@ -89,11 +89,12 @@ export function StepKeypad({
                         key={`plus-${col.plus}-${i}`}
                         type="button"
                         aria-label={`${col.plusLabel}する`}
-                        className={`${cellBase} ${rowPlus}`}
+                        className={`${cellBase} ${rowPlus} dango-btn-tier3`}
                         style={{
                             borderRight: i < n - 1 ? `1px solid ${lineColor}` : undefined,
                             borderBottom: `1px solid ${lineColor}`,
-                        }}
+                            "--btn-glow-color": "currentColor",
+                        } as any}
                         onClick={() => onAdjustBy(id, col.plus)}
                     >
                         {col.plusLabel}
@@ -105,10 +106,11 @@ export function StepKeypad({
                         type="button"
                         aria-label={`${col.minusLabel}する`}
                         disabled={col.disabledMinus}
-                        className={`${cellBase} ${rowPlus} ${rowMinusDisabled} disabled:cursor-not-allowed`}
+                        className={`${cellBase} ${rowPlus} ${rowMinusDisabled} dango-btn-tier3 disabled:cursor-not-allowed`}
                         style={{
                             borderRight: i < n - 1 ? `1px solid ${lineColor}` : undefined,
-                        }}
+                            "--btn-glow-color": "currentColor",
+                        } as any}
                         onClick={() => onAdjustBy(id, col.minus)}
                     >
                         {col.minusLabel}

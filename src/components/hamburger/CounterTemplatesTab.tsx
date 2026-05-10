@@ -41,11 +41,12 @@ export function CounterTemplatesTab({
                             onSelectTemplate?.(template);
                             onToggle();
                         }}
-                        className={`text-left p-3 rounded-xl transition-all duration-200 border ${
+                        className={`text-left p-3 rounded-xl border dango-btn-tier3 ${
                             currentTemplateId === template.id
                                 ? "bg-purple-500/20 border-purple-500/40 shadow-lg shadow-purple-500/10"
-                                : `${bgSubtle} ${borderSubtle} ${bgSubtleHover}`
+                                : `${bgSubtle} ${borderSubtle}`
                         }`}
+                        style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as any}
                     >
                         <div className="flex items-center justify-between">
                             <div>
@@ -71,7 +72,8 @@ export function CounterTemplatesTab({
                     setActiveTab("items");
                     onToggle();
                 }}
-                className={`w-full mt-3 flex items-center justify-center gap-2 p-3 rounded-xl transition-all duration-200 border-2 border-dashed ${borderSubtle} hover:border-purple-500/50 hover:bg-purple-500/10 text-purple-400 group`}
+                className={`w-full mt-3 flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-dashed dango-btn-tier3 ${borderSubtle} hover:border-purple-500/50 hover:bg-purple-500/10 text-purple-400 group`}
+                style={{ "--btn-glow-color": "rgba(168,85,247,0.5)" } as any}
             >
                 <div className="w-6 h-6 rounded-full border border-purple-400/50 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Plus size={14} />

@@ -156,7 +156,8 @@ export default function SettingsModal({
                         </h2>
                         <button
                             onClick={onClose}
-                            className={`w-8 h-8 rounded-xl ${bgSubtle} ${bgSubtleHover} flex items-center justify-center transition-colors`}
+                            className={`w-8 h-8 rounded-xl ${bgSubtle} dango-btn-tier3 flex items-center justify-center transition-colors`}
+                            style={{ "--btn-glow-color": "rgba(0,0,0,0.1)" } as any}
                         >
                             <X size={16} className={isLightMode ? "text-gray-500" : "text-white/50"} />
                         </button>
@@ -305,9 +306,9 @@ export default function SettingsModal({
                                             key={opt.value}
                                             type="button"
                                             onClick={() => setSettings((s) => ({ ...s, cardSize: opt.value, cardScale: presetScale }))}
-                                            className={`py-3 rounded-xl text-center transition-all duration-200 border ${isActive
+                                            className={`py-3 rounded-xl text-center border dango-btn-tier3 ${isActive
                                                 ? "shadow-lg"
-                                                : `${bgSubtle} ${inputBorder} ${bgSubtleHover}`
+                                                : `${bgSubtle} ${inputBorder}`
                                                 }`}
                                             style={
                                                 isActive
@@ -315,8 +316,9 @@ export default function SettingsModal({
                                                         background: `${accentColor}20`,
                                                         borderColor: `${accentColor}50`,
                                                         boxShadow: `0 0 12px ${accentColor}20`,
-                                                    }
-                                                    : undefined
+                                                        "--btn-glow-color": accentColor,
+                                                    } as any
+                                                    : { "--btn-glow-color": "currentColor" } as any
                                             }
                                         >
                                             <div
@@ -812,17 +814,19 @@ export default function SettingsModal({
                     >
                         <button
                             onClick={onClose}
-                            className={`flex-1 py-2.5 rounded-xl text-sm font-medium ${bgSubtle} ${textSecondary} ${bgSubtleHover} transition-colors border ${isLightMode ? "border-black/10" : "border-white/10"}`}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-medium ${bgSubtle} ${textSecondary} dango-btn-tier3 border ${isLightMode ? "border-black/10" : "border-white/10"}`}
+                            style={{ "--btn-glow-color": "rgba(0,0,0,0.1)" } as any}
                         >
                             キャンセル
                         </button>
                         <button
                             onClick={handleSave}
-                            className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg transition-all hover:scale-[1.02] active:scale-[0.98]"
+                            className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white shadow-lg dango-btn-tier1"
                             style={{
                                 background: `linear-gradient(135deg, ${accentColor}, ${accentColor}dd)`,
                                 boxShadow: `0 10px 20px ${accentColor}30`,
-                            }}
+                                "--btn-glow-color": accentColor,
+                            } as any}
                         >
                             保存
                         </button>

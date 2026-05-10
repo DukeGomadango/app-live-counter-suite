@@ -85,7 +85,8 @@ export default function ModeSelector({ isLightMode: isLightModeProp }: ModeSelec
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`flex items-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl transition-all duration-200 border ${isOpen ? currentMode.activeBorder : "border-transparent"} hover:${borderColor} ${isOpen ? currentMode.activeBg : bgHover}`}
+                className={`flex items-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-1 sm:py-1.5 rounded-xl border dango-btn-tier3 ${isOpen ? currentMode.activeBorder : "border-transparent"} hover:${borderColor} ${isOpen ? currentMode.activeBg : bgHover}`}
+                style={{ "--btn-glow-color": currentMode.color.includes("purple") ? "rgba(168,85,247,0.3)" : "rgba(20,184,166,0.3)" } as any}
             >
                 <CurrentIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${currentMode.color}`} />
                 <span className={`text-[10px] sm:text-sm font-semibold uppercase tracking-widest sm:tracking-wider ${textColor}`}>
@@ -122,7 +123,8 @@ export default function ModeSelector({ isLightMode: isLightModeProp }: ModeSelec
                                 <Link
                                     href={TOP_ENTRY.path}
                                     onClick={() => setIsOpen(false)}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${currentMode.id === TOP_ENTRY.id ? `${TOP_ENTRY.activeBg} ${TOP_ENTRY.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg dango-btn-tier3 text-sm ${currentMode.id === TOP_ENTRY.id ? `${TOP_ENTRY.activeBg} ${TOP_ENTRY.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                    style={{ "--btn-glow-color": "rgba(148,163,184,0.3)" } as any}
                                 >
                                     <TOP_ENTRY.icon size={16} className={currentMode.id === TOP_ENTRY.id ? TOP_ENTRY.color : isLightMode ? "text-gray-400" : "text-white/40"} />
                                     {TOP_ENTRY.label}
@@ -133,7 +135,8 @@ export default function ModeSelector({ isLightMode: isLightModeProp }: ModeSelec
                                 <Link
                                     href={SYNC_ENTRY.path}
                                     onClick={() => setIsOpen(false)}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${currentMode.id === SYNC_ENTRY.id ? `${SYNC_ENTRY.activeBg} ${SYNC_ENTRY.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-lg dango-btn-tier3 text-sm ${currentMode.id === SYNC_ENTRY.id ? `${SYNC_ENTRY.activeBg} ${SYNC_ENTRY.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                    style={{ "--btn-glow-color": "rgba(16,185,129,0.3)" } as any}
                                 >
                                     <SYNC_ENTRY.icon size={16} className={currentMode.id === SYNC_ENTRY.id ? SYNC_ENTRY.color : isLightMode ? "text-gray-400" : "text-white/40"} />
                                     データ連携
@@ -156,7 +159,8 @@ export default function ModeSelector({ isLightMode: isLightModeProp }: ModeSelec
                                             href={t.path}
                                             key={t.id}
                                             onClick={() => setIsOpen(false)}
-                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${isActive ? `${mode.activeBg} ${mode.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg dango-btn-tier3 text-sm ${isActive ? `${mode.activeBg} ${mode.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                            style={{ "--btn-glow-color": "currentColor" } as any}
                                         >
                                             <Icon size={16} className={isActive ? mode.color : isLightMode ? "text-gray-400" : "text-white/40"} />
                                             {mode.label}
@@ -181,7 +185,8 @@ export default function ModeSelector({ isLightMode: isLightModeProp }: ModeSelec
                                             href={t.path}
                                             key={t.id}
                                             onClick={() => setIsOpen(false)}
-                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-sm ${isActive ? `${mode.activeBg} ${mode.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg dango-btn-tier3 text-sm ${isActive ? `${mode.activeBg} ${mode.color} font-medium` : `${textColor} ${bgHover}`}`}
+                                            style={{ "--btn-glow-color": "currentColor" } as any}
                                         >
                                             <Icon size={16} className={isActive ? mode.color : isLightMode ? "text-gray-400" : "text-white/40"} />
                                             {mode.label}

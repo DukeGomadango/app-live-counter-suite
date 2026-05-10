@@ -59,7 +59,8 @@ export function HamburgerMenuHeader({
             <div className="flex-1 flex items-center gap-1.5 sm:gap-2.5 min-w-0 z-10">
                 <button
                     onClick={onToggle}
-                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border dango-btn-tier3 ${bgSubtle} ${borderSubtle}`}
+                    style={{ "--btn-glow-color": isOpen ? "rgba(239,68,68,0.3)" : "rgba(168,85,247,0.3)" } as any}
                 >
                     {isOpen ? (
                         <X className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
@@ -102,14 +103,16 @@ export function HamburgerMenuHeader({
                 {rightContent}
                 <button
                     onClick={onOpenSettings}
-                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border dango-btn-tier3 ${bgSubtle} ${borderSubtle}`}
+                    style={{ "--btn-glow-color": "currentColor" } as any}
                     title="設定"
                 >
                     <Settings className={`w-4 h-4 sm:w-5 sm:h-5 ${textSecondary}`} />
                 </button>
                 <button
                     onClick={onResetClick}
-                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover} hover:text-red-400`}
+                    className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border dango-btn-tier3 ${bgSubtle} ${borderSubtle} hover:text-red-400`}
+                    style={{ "--btn-glow-color": "rgba(239,68,68,0.5)" } as any}
                     title="リセット"
                 >
                     <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -117,7 +120,8 @@ export function HamburgerMenuHeader({
                 {!hideThemeToggle && (
                     <button
                         onClick={onToggleTheme}
-                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${bgSubtle} border ${borderSubtle} ${bgSubtleHover}`}
+                        className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border dango-btn-tier3 ${bgSubtle} ${borderSubtle}`}
+                        style={{ "--btn-glow-color": "rgba(234,179,8,0.3)" } as any}
                         title="テーマ切替"
                     >
                         {isLightMode ? (

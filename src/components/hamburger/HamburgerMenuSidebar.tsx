@@ -68,11 +68,12 @@ export function HamburgerMenuSidebar({
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                                        className={`flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg text-xs font-medium dango-btn-tier3 ${
                                             activeTab === tab.id
                                                 ? "bg-purple-500/20 text-purple-400 shadow-sm"
-                                                : `${textSecondary} ${bgSubtleHover}`
+                                                : `${textSecondary}`
                                         }`}
+                                        style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as any}
                                     >
                                         {tab.icon}
                                         {tab.label}
