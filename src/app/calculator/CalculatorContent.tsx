@@ -54,11 +54,11 @@ export default function CalculatorContent({
             <CalculatorOrbsBackground isLightMode={isLightMode} accentColor={accentColor} orbIntensity={orbIntensity} />
 
             <div
-                className={`shrink-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 ${isSplitMode ? "relative min-h-[56px]" : "fixed top-0"}`}
+                className={`relative shrink-0 z-50 flex items-center justify-between px-3 py-2 min-h-[52px]`}
                 style={{
                     background: isSplitMode ? splitTopBg : headerBgStrong,
                     backdropFilter: isSplitMode ? "none" : "blur(12px)",
-                    borderBottom: isSplitMode ? "none" : `1px solid ${isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)"}`,
+                    borderBottom: `1px solid ${isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)"}`,
                 }}
             >
                 <div className="flex items-center gap-2">
@@ -97,7 +97,7 @@ export default function CalculatorContent({
             </AnimatePresence>
 
             <main
-                className={`flex-1 min-h-0 flex flex-col overflow-auto scroll-touch ${!isSplitMode ? "pt-14 p-4" : "p-5"}`}
+                className={`flex-1 min-h-0 flex flex-col overflow-auto scroll-touch p-4 sm:p-5`}
             >
                 <div
                     className="flex gap-1 p-1 rounded-xl mb-4 shrink-0 border overflow-x-auto"

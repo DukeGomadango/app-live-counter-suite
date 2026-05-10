@@ -194,7 +194,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
     <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`} style={{ "--accent-color": accentColor } as React.CSSProperties}>
       <SlotOrbsBackground isLightMode={isLightMode} accentColor={accentColor} orbIntensity={orbIntensity} />
       <header
-        className={`${isSplitMode ? "relative" : "fixed top-0 left-0 right-0"} h-14 flex items-center justify-between px-4 z-[60] bg-bg-header backdrop-blur-md border-b border-border-subtle`}
+        className={`${isSplitMode ? "relative" : "relative"} h-14 shrink-0 flex items-center justify-between px-4 z-[60] bg-bg-header backdrop-blur-md border-b border-border-subtle`}
       >
         <div className="flex items-center gap-3">
           {(isSplitMode || !isDesktop) && (

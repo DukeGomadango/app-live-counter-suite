@@ -366,7 +366,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
 
 
 
-      <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 custom-scrollbar relative z-10 flex flex-col" style={{ paddingTop: '80px', paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}>
+      <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 custom-scrollbar relative z-10 flex flex-col" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}>
         <div className="mx-auto flex-1 flex flex-col items-center justify-center gap-6 w-full" style={{ maxWidth: isPositionedLayout ? "none" : `${gridMaxWidth}px` }}>
           {state.appSettings.showProjectName && (state.appSettings.projectName || "").trim() && (
             <div className="w-full flex justify-center mb-2"><h2 className={`font-black tracking-tighter ${state.appSettings.projectNameSize === "S" ? "text-xl" : state.appSettings.projectNameSize === "L" ? "text-4xl" : "text-2xl"}`} style={{ color: state.appSettings.projectNameColor }}>{state.appSettings.projectName}</h2></div>

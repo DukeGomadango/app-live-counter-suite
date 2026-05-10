@@ -168,7 +168,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     }, [isIntegrationEnabled, handleSetShowSettingsPanel]);
 
     if (isMobile) {
-        const mobileHeaderPosition = isSplitMode ? "sticky top-0" : "fixed top-0 left-0 right-0";
+        const mobileHeaderPosition = "relative";
         return (
             <div className="h-screen w-screen flex flex-col overflow-hidden relative z-10">
                 {orbsLayer}
@@ -221,7 +221,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
 
                 <div
                     ref={mobileTab === "setup" ? setupScrollRef : undefined}
-                    className={`flex-1 min-h-0 ${!isSplitMode ? "pt-12" : ""} relative z-10 custom-scrollbar ${mobileTab === "setup" ? "overflow-y-auto overflow-x-hidden scroll-smooth scroll-touch rounded-t-2xl mx-2 border border-t border-l border-r" : "overflow-hidden"}`}
+                    className={`flex-1 min-h-0 relative z-10 custom-scrollbar ${mobileTab === "setup" ? "overflow-y-auto overflow-x-hidden scroll-smooth scroll-touch rounded-t-2xl mx-2 border border-t border-l border-r" : "overflow-hidden"}`}
                     style={{
                         ...(mobileTab === "setup" ? { borderColor: glassBorder } : {}),
                         paddingBottom: "max(6rem, calc(4rem + env(safe-area-inset-bottom, 0px)))",
@@ -305,7 +305,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     return (
         <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`} style={{ "--accent-color": gachaSettings.accentColor ?? "#a855f7" } as React.CSSProperties}>
             {orbsLayer}
-            <div className={`${isSplitMode ? "absolute" : "fixed"} top-0 left-0 right-0 z-50 flex items-center justify-between px-3 py-2 ${isSplitMode ? "min-h-[56px]" : ""}`} style={{ background: headerBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${glassBorder}` }}>
+            <div className={`relative shrink-0 z-50 flex items-center justify-between px-3 py-2 min-h-[52px]`} style={{ background: headerBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${glassBorder}` }}>
                 <div className="flex items-center gap-2">
                     {isSplitMode && (
                         <button onClick={() => setSidebarOpen(!sidebarOpen)} className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}>
@@ -342,7 +342,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                 )}
             </AnimatePresence>
 
-            <div className="flex-1 flex overflow-hidden pt-12 relative z-10">
+            <div className="flex-1 flex overflow-hidden relative z-10">
                 {isSplitMode ? (
                     <AnimatePresence>
                         {sidebarOpen && (

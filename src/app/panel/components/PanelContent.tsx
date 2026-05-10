@@ -355,7 +355,7 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
         setPanelToDeleteId={setPanelToDeleteId}
       />
 
-      <main className={`relative z-10 flex-1 flex flex-col min-h-0 overflow-auto scroll-touch ${isSplitMode ? "pt-0" : "pt-[56px]"}`}>
+      <main className={`relative z-10 flex-1 flex flex-col min-h-0 overflow-auto scroll-touch p-0`}>
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
         <input ref={imageOverlayInputRef} type="file" accept="image/*" className="hidden" onChange={async (e) => {
           const file = e.target.files?.[0];

@@ -53,7 +53,7 @@ export function HamburgerMenuHeader({
 
     return (
         <header
-            className={`h-[52px] w-full absolute top-0 left-0 z-50 flex items-center px-1.5 sm:px-3 border-b transition-colors duration-300 ${headerBarBg} ${borderSubtle} backdrop-blur-md`}
+            className={`h-[52px] w-full relative shrink-0 z-50 flex items-center px-1.5 sm:px-3 border-b transition-colors duration-300 ${headerBarBg} ${borderSubtle} backdrop-blur-md`}
         >
             {/* Left Area: Flex-1 to push center */}
             <div className="flex-1 flex items-center gap-1.5 sm:gap-2.5 min-w-0 z-10">
