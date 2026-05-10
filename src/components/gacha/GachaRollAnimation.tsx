@@ -349,28 +349,19 @@ export default function GachaRollAnimation({
                 <motion.button
                     onClick={onRollStart}
                     disabled={disabled}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="relative group disabled:opacity-30 disabled:cursor-not-allowed"
+                    className="relative group disabled:opacity-30 disabled:cursor-not-allowed dango-btn-tier1"
+                    style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
                 >
                     <div
                         className="px-10 sm:px-16 py-3 sm:py-4 rounded-2xl font-bold text-lg sm:text-xl tracking-widest text-white relative z-10 flex items-center gap-3"
                         style={{
                             background: `linear-gradient(135deg, ${accentColor}, ${accentColor}cc, ${accentColor}99)`,
-                            boxShadow: `0 0 30px ${accentColor}66, 0 4px 15px rgba(0,0,0,0.3)`,
+                            boxShadow: `0 4px 15px rgba(0,0,0,0.3)`,
                         }}
                     >
                         <Zap size={20} />
                         PULL ×{pool.pullCount.toLocaleString()}
                     </div>
-                    <div
-                        className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity"
-                        style={{
-                            background: `linear-gradient(135deg, ${accentColor}, ${accentColor}cc)`,
-                            filter: "blur(15px)",
-                            transform: "translateY(5px)",
-                        }}
-                    />
                 </motion.button>
 
                 {pool.items.length === 0 && (
@@ -404,7 +395,8 @@ export default function GachaRollAnimation({
                 </motion.p>
                 <button
                     onClick={handleSkip}
-                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${textLight ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/15 text-white/90 hover:bg-white/25"}`}
+                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg dango-btn-tier3 ${textLight ? "bg-white/60 text-gray-800" : "bg-white/15 text-white/90"}`}
+                    style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
                 >
                     <SkipForward size={12} /> スキップ
                 </button>
@@ -547,7 +539,8 @@ export default function GachaRollAnimation({
                 {/* スキップボタン */}
                 <button
                     onClick={handleSkip}
-                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition-all ${textLight ? "bg-white/60 text-gray-800 hover:bg-white/70" : "bg-white/15 text-white/90 hover:bg-white/25"}`}
+                    className={`absolute bottom-6 right-16 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg dango-btn-tier3 ${textLight ? "bg-white/60 text-gray-800" : "bg-white/15 text-white/90"}`}
+                    style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
                 >
                     <SkipForward size={12} /> スキップ
                 </button>
@@ -567,7 +560,8 @@ export default function GachaRollAnimation({
                     </span>
                     <button
                         onClick={handleSkip}
-                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${textLight ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/15 text-white/90 hover:bg-white/25"}`}
+                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg dango-btn-tier3 ${textLight ? "bg-gray-100 text-gray-800" : "bg-white/15 text-white/90"}`}
+                        style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
                     >
                         <SkipForward size={12} /> スキップ
                     </button>
@@ -686,7 +680,8 @@ export default function GachaRollAnimation({
                     </span>
                     <button
                         onClick={handleSkip}
-                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg transition-all ${textLight ? "bg-gray-100 text-gray-800 hover:bg-gray-200" : "bg-white/15 text-white/90 hover:bg-white/25"}`}
+                        className={`flex items-center gap-1 text-xs px-3 py-1 rounded-lg dango-btn-tier3 ${textLight ? "bg-gray-100 text-gray-800" : "bg-white/15 text-white/90"}`}
+                        style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
                     >
                         <SkipForward size={12} /> スキップ
                     </button>

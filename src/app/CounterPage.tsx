@@ -23,6 +23,7 @@ import EditItemModal from "@/components/EditItemModal";
 import SettingsModal, { type CardSize } from "@/components/SettingsModal";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ModeSelector from "@/components/ModeSelector";
+import ShareModal from "@/components/ShareModal";
 import { TEMPLATES, type Template } from "@/lib/templates";
 
 // Hooks
@@ -63,7 +64,16 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   });
   const drag = useCounterDrag(state.items, state.setItems);
   const { isLightMode, toggleTheme } = useTheme();
-  const { handleShareAsImage, isCapturingShareImage, shareAreaRef, captureDims } = useCounterShare(isLightMode, state.currentTemplateId);
+  const { 
+    handleShareAsImage, 
+    isCapturingShareImage, 
+    shareAreaRef, 
+    captureDims,
+    isShareModalOpen,
+    setIsShareModalOpen,
+    capturedDataUrl,
+    tweetText
+  } = useCounterShare(isLightMode, state.currentTemplateId);
 
   const [addPanelExpanded, setAddPanelExpanded] = useState(false);
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -425,6 +435,15 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
         onDecrement={(idx) => { const id = state.items[idx]?.id; if (id) actions.handleDecrement(id); }}
       />
       
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        dataUrl={capturedDataUrl}
+        initialText={tweetText}
+        toolId="counter"
+        isLightMode={isLightMode}
+      />
+
       <ConfirmDialog open={!!itemToDelete} title="削除の確認" message="この項目を削除してもよろしいですか？" confirmLabel="削除する" cancelLabel="キャンセル" onConfirm={() => { if (itemToDelete) actions.handleDeleteItem(itemToDelete); setItemToDelete(null); }} onCancel={() => setItemToDelete(null)} danger />
     </div>
   );

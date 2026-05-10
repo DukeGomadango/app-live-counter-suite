@@ -1,0 +1,42 @@
+﻿
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\gacha\GachaContent.tsx
+   92:43  error  Compilation Skipped: Existing memoization could not be preserved
+
+React Compiler has skipped optimizing this component because the existing manual memoization could not be preserved. The inferred dependencies did not match the manually specified dependencies, which could cause the value to change more or less frequently than expected. The inferred dependency was `state`, but the source dependencies were [presets, sampleTemplates, state.setPool]. Inferred less specific property than source.
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\gacha\GachaContent.tsx:92:43
+   90 |     const sampleTemplates = useMemo(() => getSampleTemplates(), []);
+   91 |
+>  92 |     const handleGachaSwitch = useCallback((value: string) => {
+      |                                           ^^^^^^^^^^^^^^^^^^^^
+>  93 |         if (!value) return;
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+>  94 |         if (value.startsWith("sample:")) {
+      窶ｦ
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 102 |         }
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 103 |     }, [presets, sampleTemplates, state.setPool]);
+      | ^^^^^^ Could not preserve existing manual memoization
+  104 |
+  105 |     const { glassBorder } = useGlassStyle(state.isLightMode);
+  106 |     const displayLight = state.isLightMode;  react-hooks/preserve-manual-memoization
+  154:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\gacha\GachaContent.tsx:154:13
+  152 |         const u = new URL(window.location.href);
+  153 |         if (u.searchParams.get("integration_token")) {
+> 154 |             handleSetShowSettingsPanel(true);
+      |             ^^^^^^^^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  155 |         }
+  156 |     }, [isIntegrationEnabled, handleSetShowSettingsPanel]);
+  157 |                                                                                                                                           react-hooks/set-state-in-effect
+
+笨・2 problems (2 errors, 0 warnings)
+

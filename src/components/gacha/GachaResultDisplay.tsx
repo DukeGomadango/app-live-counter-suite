@@ -20,6 +20,7 @@ import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import GachaShareSummary from "@/components/gacha/GachaShareSummary";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
+import ShareModal from "@/components/ShareModal";
 
 interface GachaResultDisplayProps {
     results: GachaResult[];
@@ -59,6 +60,8 @@ export default function GachaResultDisplay({
     const [filterMode, setFilterMode] = useState<FilterMode>("all");
     const [copied, setCopied] = useState(false);
     const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
 
     const { glassBg: _glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textLight = isLightMode || textContrastLight;
@@ -91,8 +94,6 @@ export default function GachaResultDisplay({
     };
 
     const handleShareAsImage = () => {
-        const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
-        tweetUrlAfterDownloadRef.current = generateShareUrl(headerText, { toolId: "gacha" });
         setIsCapturingShareImage(true);
     };
 
@@ -111,23 +112,21 @@ export default function GachaResultDisplay({
                 });
                 const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
                 const filename = `gacha-result-${getTimestampForFilename()}.png`;
-                // PCでは共有シート（モーダル）を出さず、ダウンロード＋ツイートURLを開く
-                if (isMobile) {
+                
+                // モバイル判定
+                const mobileMode = isMobile || (typeof window !== "undefined" && window.innerWidth < 1024);
+
+                if (mobileMode) {
                     const shared = await shareImageWithText(dataUrl, headerText, filename);
                     if (shared) {
-                        tweetUrlAfterDownloadRef.current = null;
+                        setIsCapturingShareImage(false);
                         return;
                     }
                 }
-                const a = document.createElement("a");
-                a.href = dataUrl;
-                a.download = filename;
-                a.click();
-                const urlToOpen = tweetUrlAfterDownloadRef.current;
-                if (urlToOpen) {
-                    tweetUrlAfterDownloadRef.current = null;
-                    window.open(urlToOpen, "_blank", "noopener,noreferrer");
-                }
+                
+                // PCまたは共有失敗時はモーダルを開く
+                setCapturedDataUrl(dataUrl);
+                setIsShareModalOpen(true);
             } catch (err) {
                 console.warn("Image export failed:", err);
             } finally {
@@ -364,7 +363,15 @@ export default function GachaResultDisplay({
                 </div>
             </div>
             </div>
-        </div>
+            </div>
+            <ShareModal
+                isOpen={isShareModalOpen}
+                onClose={() => setIsShareModalOpen(false)}
+                dataUrl={capturedDataUrl}
+                initialText={formatResultsHeaderForShare(pool, shareHashtags, playerName)}
+                toolId="gacha"
+                isLightMode={isLightMode}
+            />
         </>
     );
 }

@@ -136,7 +136,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                     <button
                         onClick={handleAdd}
                         disabled={!label.trim()}
-                        className="w-full py-3.5 rounded-xl text-base font-bold bg-purple-500/20 border border-purple-500/40 text-[rgba(168,85,247,0.9)] hover:bg-purple-500/30 transition-colors disabled:opacity-30 disabled:border-transparent flex items-center justify-center gap-2"
+                        className="w-full py-3.5 rounded-xl text-base font-bold bg-purple-500/20 border border-purple-500/40 text-[rgba(168,85,247,0.9)] dango-btn-tier1 btn-glow-purple disabled:opacity-30 disabled:border-transparent flex items-center justify-center gap-2"
                     >
                         <Plus size={20} />
                         追加する
@@ -232,7 +232,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                         <button
                             onClick={handleAdd}
                             disabled={!label.trim()}
-                            className="flex-1 py-1 rounded-lg text-xs font-medium bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 transition-colors disabled:opacity-30"
+                            className="flex-1 py-1 rounded-lg text-xs font-medium bg-purple-500/20 text-purple-400 dango-btn-tier1 btn-glow-purple disabled:opacity-30"
                         >
                             追加
                         </button>
@@ -281,7 +281,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
             <button
                 onClick={() => { setIsEditing(true); onExpand(); }}
                 aria-label="新しい項目の入力を開始"
-                className="w-full h-full rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors duration-200"
+                className="w-full h-full rounded-2xl flex flex-col items-center justify-center gap-2 cursor-pointer dango-btn-tier2 btn-glow-purple"
                 style={{
                     border: `2px dashed ${hoverBorderColor}`,
                     background: isLightMode

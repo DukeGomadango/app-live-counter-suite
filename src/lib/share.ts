@@ -102,9 +102,9 @@ export function shouldOpenShareTweetFirst(isMobile: boolean): boolean {
 }
 
 /**
- * data: URL (base64) を File に変換する。fetch(dataUrl) は CSP でブロックされやすいため使用しない。
+ * data: URL (base64) を Blob に変換する。
  */
-function dataUrlToFile(dataUrl: string, filename: string): File | null {
+export function dataUrlToBlob(dataUrl: string): Blob | null {
   const match = /^data:([^;]+);base64,(.+)$/.exec(dataUrl);
   if (!match) return null;
   const mime = match[1]?.trim() || "image/png";
@@ -115,10 +115,39 @@ function dataUrlToFile(dataUrl: string, filename: string): File | null {
     const len = bin.length;
     const bytes = new Uint8Array(len);
     for (let i = 0; i < len; i++) bytes[i] = bin.charCodeAt(i);
-    const blob = new Blob([bytes], { type: mime });
-    return new File([blob], filename, { type: mime });
+    return new Blob([bytes], { type: mime });
   } catch {
     return null;
+  }
+}
+
+/**
+ * data: URL (base64) を File に変換する。fetch(dataUrl) は CSP でブロックされやすいため使用しない。
+ */
+function dataUrlToFile(dataUrl: string, filename: string): File | null {
+  const blob = dataUrlToBlob(dataUrl);
+  if (!blob) return null;
+  return new File([blob], filename, { type: blob.type });
+}
+
+/**
+ * 画像をクリップボードにコピーする。
+ */
+export async function copyImageToClipboard(dataUrl: string): Promise<boolean> {
+  const tag = "[copy]";
+  if (typeof navigator === "undefined" || !navigator.clipboard || !window.ClipboardItem) {
+    console.warn(tag, "Clipboard API not available");
+    return false;
+  }
+  try {
+    const blob = dataUrlToBlob(dataUrl);
+    if (!blob) return false;
+    const item = new ClipboardItem({ [blob.type]: blob });
+    await navigator.clipboard.write([item]);
+    return true;
+  } catch (err) {
+    console.error(tag, "Failed to copy image:", err);
+    return false;
   }
 }
 

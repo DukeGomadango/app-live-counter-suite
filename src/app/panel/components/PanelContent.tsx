@@ -52,6 +52,7 @@ import PanelEditSidebar from "./PanelEditSidebar";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import ImageCropModal from "@/components/ImageCropModal";
 import CustomShapeEditorModal from "@/components/CustomShapeEditorModal";
+import ShareModal from "@/components/ShareModal";
 
 interface PanelContentProps {
   isSplitMode?: boolean;
@@ -438,6 +439,14 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
       <ConfirmDialog open={panelToDeleteId !== null} message="本当に削除しますか？" onConfirm={handleDeleteSavedPanel} onCancel={() => setPanelToDeleteId(null)} danger />
       <ImageCropModal open={pendingCropDataUrl !== null} imageDataUrl={pendingCropDataUrl!} onConfirm={handleCropConfirm} onCancel={() => setPendingCropDataUrl(null)} isLightMode={isLightMode} />
       <CustomShapeEditorModal open={customShapeModalOpen} initialParts={customShapeEditingId ? (overlays.find(o => o.id === customShapeEditingId)?.parts ?? []) : []} savedTemplates={state.savedCustomShapes} onConfirm={actions.handleCustomShapeConfirm} onCancel={() => { setCustomShapeModalOpen(false); setCustomShapeEditingId(null); }} onSaveTemplate={actions.handleSaveCustomTemplate} isLightMode={isLightMode} />
+      <ShareModal 
+        isOpen={actions.isShareModalOpen} 
+        onClose={() => actions.setIsShareModalOpen(false)} 
+        dataUrl={actions.capturedDataUrl} 
+        initialText="パネル開け進捗" 
+        toolId="panel" 
+        isLightMode={isLightMode} 
+      />
     </div>
   );
 }

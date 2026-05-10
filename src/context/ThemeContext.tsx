@@ -25,34 +25,38 @@ const LEGACY_KEYS = [
 ];
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<ThemeMode>(() => {
-    if (typeof window === "undefined") return "dark";
+  const [theme, setThemeState] = useState<ThemeMode>("dark");
+  const [mounted, setMounted] = useState(false);
+
+  // Initial load side effects
+  useEffect(() => {
+    setMounted(true);
     
     // 1. Check unified key
     const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    if (saved === "light" || saved === "dark") return saved as ThemeMode;
-    
-    // 2. Migration from legacy keys
-    for (const key of LEGACY_KEYS) {
-      const legacyVal = localStorage.getItem(key);
-      if (legacyVal === "true") {
-        localStorage.setItem(THEME_STORAGE_KEY, "light");
-        return "light";
+    if (saved === "light" || saved === "dark") {
+      setThemeState(saved as ThemeMode);
+    } else {
+      // 2. Migration from legacy keys
+      let foundLegacy = false;
+      for (const key of LEGACY_KEYS) {
+        const legacyVal = localStorage.getItem(key);
+        if (legacyVal === "true") {
+          setThemeState("light");
+          localStorage.setItem(THEME_STORAGE_KEY, "light");
+          foundLegacy = true;
+          break;
+        }
+      }
+      
+      // 3. System preference fallback
+      if (!foundLegacy && window.matchMedia("(prefers-color-scheme: light)").matches) {
+        setThemeState("light");
       }
     }
-    
-    // 3. System preference fallback
-    if (window.matchMedia("(prefers-color-scheme: light)").matches) return "light";
-    
-    return "dark";
-  });
 
-  // Initial load side effects (cleanup only)
-  useEffect(() => {
     // Clean up legacy keys
-    if (typeof window !== "undefined") {
-      LEGACY_KEYS.forEach(key => localStorage.removeItem(key));
-    }
+    LEGACY_KEYS.forEach(key => localStorage.removeItem(key));
   }, []);
 
   // Apply theme class to document element
@@ -80,8 +84,8 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   };
 
   const value = {
-    isLightMode: theme === "light",
-    theme,
+    isLightMode: mounted ? theme === "light" : false,
+    theme: mounted ? theme : "dark",
     toggleTheme,
     setTheme,
   };

@@ -460,10 +460,8 @@ export default function CounterPanel({
                                         onPointerLeave={handleIncrementPointerUp}
                                         onPointerCancel={handleIncrementPointerUp}
                                         aria-label={`${label}を1増やす（長押しで連続）`}
-                                        className={`${ARROW_BTN_SIZE_CLASS[effectiveCardSizeForButtons]} rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
-                                        style={{ background: arrowBg }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
+                                        className={`${ARROW_BTN_SIZE_CLASS[effectiveCardSizeForButtons]} rounded flex items-center justify-center cursor-pointer dango-btn-tier2 select-none ${arrowColor}`}
+                                        style={{ background: arrowBg, "--btn-glow-color": color } as React.CSSProperties}
                                     >
                                         <ChevronUp size={ARROW_ICON_SIZE[effectiveCardSizeForButtons]} />
                                     </button>
@@ -475,10 +473,8 @@ export default function CounterPanel({
                                         onPointerLeave={handleDecrementPointerUp}
                                         onPointerCancel={handleDecrementPointerUp}
                                         aria-label={`${label}を1減らす（長押しで連続）`}
-                                        className={`${ARROW_BTN_SIZE_CLASS[effectiveCardSizeForButtons]} rounded flex items-center justify-center cursor-pointer transition-colors select-none ${arrowColor}`}
-                                        style={{ background: arrowBg }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.background = arrowHoverBg; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.background = arrowBg; }}
+                                        className={`${ARROW_BTN_SIZE_CLASS[effectiveCardSizeForButtons]} rounded flex items-center justify-center cursor-pointer dango-btn-tier2 select-none ${arrowColor}`}
+                                        style={{ background: arrowBg, "--btn-glow-color": color } as React.CSSProperties}
                                     >
                                         <ChevronDown size={ARROW_ICON_SIZE[effectiveCardSizeForButtons]} />
                                     </button>
@@ -635,26 +631,22 @@ export default function CounterPanel({
                             <button
                                 onClick={(e) => { e.stopPropagation(); onEditItem(id); }}
                                 aria-label={`${label}を編集`}
-                                className="w-6 h-6 rounded-full flex items-center justify-center transition-colors touch-manipulation"
+                                className="w-6 h-6 rounded-full flex items-center justify-center dango-btn-tier3 btn-glow-purple touch-manipulation"
                                 style={{
                                     background: isLightMode ? "rgba(139,92,246,0.1)" : "rgba(139,92,246,0.15)",
                                     border: isLightMode ? "1px solid rgba(139,92,246,0.2)" : "1px solid rgba(139,92,246,0.25)",
                                 }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = isLightMode ? "rgba(139,92,246,0.25)" : "rgba(139,92,246,0.3)"; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.background = isLightMode ? "rgba(139,92,246,0.1)" : "rgba(139,92,246,0.15)"; }}
                             >
                                 <Pencil size={10} className="text-purple-400" />
                             </button>
                             <button
                                 onClick={(e) => { e.stopPropagation(); onDeleteItem(id); }}
                                 aria-label={`${label}を削除`}
-                                className="w-6 h-6 rounded-full flex items-center justify-center transition-colors touch-manipulation"
+                                className="w-6 h-6 rounded-full flex items-center justify-center dango-btn-tier3 btn-glow-red touch-manipulation"
                                 style={{
                                     background: isLightMode ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.15)",
                                     border: isLightMode ? "1px solid rgba(239,68,68,0.2)" : "1px solid rgba(239,68,68,0.25)",
                                 }}
-                                onMouseEnter={(e) => { e.currentTarget.style.background = isLightMode ? "rgba(239,68,68,0.2)" : "rgba(239,68,68,0.3)"; }}
-                                onMouseLeave={(e) => { e.currentTarget.style.background = isLightMode ? "rgba(239,68,68,0.1)" : "rgba(239,68,68,0.15)"; }}
                             >
                                 <Trash2 size={11} className="text-red-400" />
                             </button>

@@ -1,0 +1,129 @@
+﻿
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\CounterPage.tsx
+  230:28  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\CounterPage.tsx:230:28
+  228 |             <button onClick={() => setIsPrefectureRankingOpen(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 transition-all"><span className="text-xs font-bold">繝ｩ繝ｳ繧ｭ繝ｳ繧ｰ</span></button>
+  229 |           )}
+> 230 |           <button onClick={share.handleShareAsImage} className="p-2 sm:p-2.5 rounded-xl bg-white/10 dark:bg-white/5 hover:bg-white/20 dark:hover:bg-white/10 backdrop-blur-md transition-all border border-white/10"><ImageDown className="w-5 h-5 sm:w-6 sm:h-6" /></button>
+      |                            ^^^^^^^^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  231 |         </div>
+  232 |       </header>
+  233 |  react-hooks/refs
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\counter\hooks\useCounterState.ts
+  70:63  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\panel\components\PanelContent.tsx
+  189:7   error  Error: This value cannot be modified
+
+Modifying a value returned from a hook is not allowed. Consider moving the modification into the hook where the value is constructed.
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\panel\components\PanelContent.tsx:189:7
+  187 |     if (el.closest("button") || el.closest("input")) return;
+  188 |     if (interaction.tapPendingRef.current) {
+> 189 |       interaction.tapPendingRef.current = false;
+      |       ^^^^^^^^^^^^^^^^^^^^^^^^^ `interaction` cannot be modified
+  190 |       if (!isEditMode) handleOverlayTap(overlay);
+  191 |     }
+  192 |   }, [interaction, isEditMode, handleOverlayTap]);                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react-hooks/immutability
+  219:43  error  Error: Cannot access variable before it is declared
+
+`handleResizeEnd` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\panel\components\PanelContent.tsx:219:43
+  217 |   const handleResizeEnd = useCallback(() => {
+  218 |     window.removeEventListener("mousemove", handleSidebarResize);
+> 219 |     window.removeEventListener("mouseup", handleResizeEnd);
+      |                                           ^^^^^^^^^^^^^^^ `handleResizeEnd` accessed before it is declared
+  220 |     window.removeEventListener("touchmove", handleSidebarResize);
+  221 |     window.removeEventListener("touchend", handleResizeEnd);
+  222 |   }, [handleSidebarResize]);
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\panel\components\PanelContent.tsx:217:3
+  215 |   }, [setEditSidebarWidthPx]);
+  216 |
+> 217 |   const handleResizeEnd = useCallback(() => {
+      |   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 218 |     window.removeEventListener("mousemove", handleSidebarResize);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 219 |     window.removeEventListener("mouseup", handleResizeEnd);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 220 |     window.removeEventListener("touchmove", handleSidebarResize);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 221 |     window.removeEventListener("touchend", handleResizeEnd);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 222 |   }, [handleSidebarResize]);
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ `handleResizeEnd` is declared here
+  223 |
+  224 |   const handleResizeStart = useCallback(() => {
+  225 |     window.addEventListener("mousemove", handleSidebarResize);  react-hooks/immutability
+  255:38  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\panel\hooks\useOverlayInteraction.ts
+  102:31  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\roulette\hooks\useRouletteEngine.ts
+  50:91  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\slot\SlotContent.tsx
+  125:37   error  A `require()` style import is forbidden                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    @typescript-eslint/no-require-imports
+  220:91   error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\slot\SlotContent.tsx:220:91
+  218 |           </motion.button>
+  219 |           {!engine.isSpinning && engine.allStopped && (
+> 220 |             <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={share.handleShare} className={`p-4 rounded-2xl border transition-all ${displayLight ? "bg-white border-gray-200 text-gray-600 hover:bg-gray-50" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"}`} title="邨先棡繧貞・譛・>
+      |                                                                                           ^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  221 |               <ImageDown size={24} />
+  222 |             </motion.button>
+  223 |           )}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        react-hooks/refs
+  321:8    error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\slot\SlotContent.tsx:321:8
+  319 |       </AnimatePresence>
+  320 |       {showHitEffect && <RouletteHitEffect text={engine.lastWin?.isReplay ? "REPLAY!" : engine.lastWin?.label ?? "WIN!"} color={accentColor} />}
+> 321 |       {share.isCapturing && createPortal(
+      |        ^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  322 |         <div className="fixed inset-0 z-[-1] pointer-events-none opacity-0 overflow-hidden"><div ref={share.shareAreaRef} className="w-[1200px] h-[630px] flex items-center justify-center bg-[#0f0a1e]"><SlotShareSummary activePlayerName={activePlayer?.name} reelLabels={slotSharePayload.reelLabels} resultLine={slotSharePayload.resultLine} isLightMode={state.isLightMode} /></div></div>,
+  323 |         document.body
+  324 |       )}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    react-hooks/refs
+  321:8    error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\slot\SlotContent.tsx:321:8
+  319 |       </AnimatePresence>
+  320 |       {showHitEffect && <RouletteHitEffect text={engine.lastWin?.isReplay ? "REPLAY!" : engine.lastWin?.label ?? "WIN!"} color={accentColor} />}
+> 321 |       {share.isCapturing && createPortal(
+      |        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 322 |         <div className="fixed inset-0 z-[-1] pointer-events-none opacity-0 overflow-hidden"><div ref={share.shareAreaRef} className="w-[1200px] h-[630px] flex items-center justify-center bg-[#0f0a1e]"><SlotShareSummary activePlayerName={activePlayer?.name} reelLabels={slotSharePayload.reelLabels} resultLine={slotSharePayload.resultLine} isLightMode={state.isLightMode} /></div></div>,
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 323 |         document.body
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 324 |       )}
+      | ^^^^^^^^ Cannot access ref value during render
+  325 |     </div>
+  326 |   );
+  327 | }  react-hooks/refs
+  322:103  error  Error: Cannot access refs during render
+
+React refs are values that are not needed for rendering. Refs should only be accessed outside of render, such as in event handlers or effects. Accessing a ref value (the `current` property) during render can cause your component not to update as expected (https://react.dev/reference/react/useRef).
+
+C:\Users\furup\Documents\莠ｺ謨ｰ繧ｫ繧ｦ繝ｳ繝医い繝励Μ\src\app\slot\SlotContent.tsx:322:103
+  320 |       {showHitEffect && <RouletteHitEffect text={engine.lastWin?.isReplay ? "REPLAY!" : engine.lastWin?.label ?? "WIN!"} color={accentColor} />}
+  321 |       {share.isCapturing && createPortal(
+> 322 |         <div className="fixed inset-0 z-[-1] pointer-events-none opacity-0 overflow-hidden"><div ref={share.shareAreaRef} className="w-[1200px] h-[630px] flex items-center justify-center bg-[#0f0a1e]"><SlotShareSummary activePlayerName={activePlayer?.name} reelLabels={slotSharePayload.reelLabels} resultLine={slotSharePayload.resultLine} isLightMode={state.isLightMode} /></div></div>,
+      |                                                                                                       ^^^^^^^^^^^^^^^^^^ Cannot access ref value during render
+  323 |         document.body
+  324 |       )}
+  325 |     </div>                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                react-hooks/refs
+
+笨・12 problems (12 errors, 0 warnings)
+

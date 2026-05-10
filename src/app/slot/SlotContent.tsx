@@ -4,6 +4,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sun, Moon, Menu, Settings, ImageDown, X } from "lucide-react";
 import ModeSelector from "@/components/ModeSelector";
+import ShareModal from "@/components/ShareModal";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -21,8 +22,12 @@ import { useSlotEngine } from "./hooks/useSlotEngine";
 import { useSlotSidebar } from "./hooks/useSlotSidebar";
 import { SlotOrbsBackground } from "./components/SlotOrbsBackground";
 import { resolveReelStrips, SlotPlayer } from "@/lib/slot";
+import { toPng } from "html-to-image";
 import { 
-  handleExportSlotResultAsImage, 
+  getTimestampForFilename, 
+  shareImageWithText 
+} from "@/lib/share";
+import { 
   handleApplyNumbers17Preset,
   handleApplyDefaultSymbolsPreset,
   handleLoadSlotTemplate,
@@ -52,6 +57,9 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
 
   const isDesktop = useMediaQuery("(min-width: 1024px)");
   const [showSettingsPanel, setShowSettingsPanel] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
+  const [shareText, setShareText] = useState("");
 
   // リール配列をシンボルオブジェクトに解決
   const resolvedStrips = useMemo(() => 
@@ -75,8 +83,33 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
 
   const handleShare = useCallback(async () => {
     if (!engine.lastWin) return;
-    await handleExportSlotResultAsImage(engine.lastWin, activePlayer?.name ?? "ゲスト");
-  }, [engine.lastWin, activePlayer]);
+    const el = document.querySelector(".slot-reel-container") as HTMLElement;
+    if (!el) return;
+
+    try {
+      const dataUrl = await toPng(el, { 
+        backgroundColor: "transparent",
+        pixelRatio: 2,
+        skipFonts: true
+      });
+      
+      const text = `🎰 ${activePlayer?.name ?? "ゲスト"}の結果: ${engine.lastWin.label || "WIN!"}\n#だんごツール`;
+      const filename = `slot-result-${getTimestampForFilename()}.png`;
+      
+      const isMobile = !isDesktop || isSplitMode;
+
+      if (isMobile) {
+        const shared = await shareImageWithText(dataUrl, text, filename);
+        if (shared) return;
+      }
+
+      setCapturedDataUrl(dataUrl);
+      setShareText(text);
+      setIsShareModalOpen(true);
+    } catch (err) {
+      console.error("Failed to export slot image:", err);
+    }
+  }, [engine.lastWin, activePlayer, isDesktop, isSplitMode]);
 
   const addPlayer = useCallback((name: string) => {
     setPlayers(prev => [...prev, {
@@ -121,15 +154,24 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
       <div className="flex flex-col items-center gap-4 w-full max-w-sm">
         <div className="flex items-center gap-4">
           <motion.button
-            whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} onClick={engine.handleSpin}
+            onClick={engine.handleSpin}
             disabled={engine.isSpinning || (!engine.replayFreeSpin && engine.bonusGamesRemaining <= 0 && (activePlayer?.balance ?? 0) < (activePlayer?.defaultBet ?? 1))}
-            className={`px-12 py-4 rounded-2xl font-bold text-lg shadow-xl transition-all ${engine.isSpinning ? "opacity-50 grayscale" : "hover:shadow-purple-500/20"}`}
-            style={{ background: `linear-gradient(135deg, ${accentColor}, ${accentColor}dd)`, color: "white" }}
+            className={`px-12 py-4 rounded-2xl font-bold text-lg shadow-xl dango-btn-tier1 ${engine.isSpinning ? "opacity-50 grayscale" : ""}`}
+            style={{ 
+              background: `linear-gradient(135deg, ${accentColor}, ${accentColor}dd)`, 
+              color: "white",
+              "--btn-glow-color": accentColor
+            } as React.CSSProperties}
           >
             {engine.replayFreeSpin ? "REPLAY!" : engine.bonusGamesRemaining > 0 ? `BONUS (${engine.bonusGamesRemaining})` : "SPIN"}
           </motion.button>
           {!engine.isSpinning && engine.allStopped && (
-            <motion.button whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} onClick={handleShare} className={`p-4 rounded-2xl border transition-all ${displayLight ? "bg-white border-gray-200 text-gray-600 hover:bg-gray-50" : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10"}`} title="結果を共有">
+            <motion.button 
+              onClick={handleShare} 
+              className={`p-4 rounded-2xl border dango-btn-tier2 ${displayLight ? "bg-white border-gray-200 text-gray-600" : "bg-white/5 border-white/10 text-white/70"}`} 
+              style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
+              title="結果を共有"
+            >
               <ImageDown size={24} />
             </motion.button>
           )}
@@ -271,6 +313,14 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
         )}
       </AnimatePresence>
       {engine.showHitEffect && <RouletteHitEffect show={engine.showHitEffect} text={engine.lastWin?.isReplay ? "REPLAY!" : engine.lastWin?.label ?? "WIN!"} accentColor={accentColor} onComplete={() => engine.setShowHitEffect(false)} />}
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        dataUrl={capturedDataUrl}
+        initialText={shareText}
+        toolId="slot"
+        isLightMode={isLightMode}
+      />
     </div>
   );
 }

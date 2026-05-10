@@ -25,14 +25,14 @@ export function useSlotShare({
   isLightMode
 }: SlotShareProps) {
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
+  const [tweetText, setTweetText] = useState("");
   const shareAreaRef = useRef<HTMLDivElement | null>(null);
-  const tweetUrlAfterDownloadRef = useRef<string | null>(null);
 
   const handleShare = useCallback(() => {
-    const text = formatSlotShareText(activePlayerName, reelLabels, resultLine);
-    tweetUrlAfterDownloadRef.current = generateShareUrl(text, { toolId: "slot" });
     setIsCapturing(true);
-  }, [activePlayerName, reelLabels, resultLine]);
+  }, []);
 
   useEffect(() => {
     if (!isCapturing) return;
@@ -50,22 +50,21 @@ export function useSlotShare({
         const shareText = formatSlotShareText(activePlayerName, reelLabels, resultLine);
         const filename = `slot-result-${getTimestampForFilename()}.png`;
         
-        const shared = await shareImageWithText(dataUrl, shareText, filename);
-        if (shared) {
-          tweetUrlAfterDownloadRef.current = null;
-          return;
+        // モバイル判定
+        const isMobile = window.innerWidth < 1024;
+
+        if (isMobile) {
+          const shared = await shareImageWithText(dataUrl, shareText, filename);
+          if (shared) {
+            setIsCapturing(false);
+            return;
+          }
         }
         
-        const a = document.createElement("a");
-        a.href = dataUrl;
-        a.download = filename;
-        a.click();
-        
-        const urlToOpen = tweetUrlAfterDownloadRef.current;
-        if (urlToOpen) {
-          tweetUrlAfterDownloadRef.current = null;
-          window.open(urlToOpen, "_blank", "noopener,noreferrer");
-        }
+        // PCまたは共有失敗時はモーダルを開く
+        setCapturedDataUrl(dataUrl);
+        setTweetText(shareText);
+        setIsShareModalOpen(true);
       } catch (err) {
         console.warn("Slot image export failed:", err);
       } finally {
@@ -78,6 +77,10 @@ export function useSlotShare({
   return {
     isCapturing,
     shareAreaRef,
-    handleShare
+    handleShare,
+    isShareModalOpen,
+    setIsShareModalOpen,
+    capturedDataUrl,
+    tweetText
   };
 }

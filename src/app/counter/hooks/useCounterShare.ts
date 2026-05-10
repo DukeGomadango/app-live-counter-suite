@@ -8,6 +8,9 @@ import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 export function useCounterShare(isLightMode: boolean, currentTemplateId: string) {
   const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
   const [captureDims, setCaptureDims] = useState<{ w: number; h: number } | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
+  const [tweetText, setTweetText] = useState("");
   const shareAreaRef = useRef<HTMLDivElement>(null);
 
   const handleShareAsImage = useCallback(() => {
@@ -28,18 +31,24 @@ export function useCounterShare(isLightMode: boolean, currentTemplateId: string)
       try {
         const backgroundColor = isLightMode ? "#f5f3ff" : "#0f0a1e";
         const dataUrl = await toPng(el, { backgroundColor, pixelRatio: 3 });
-        const tweetText = `進捗状況\n\n${DEFAULT_SHARE_HASHTAG}`;
+        const text = `進捗状況\n\n${DEFAULT_SHARE_HASHTAG}`;
         const filename = `counter-progress-${getTimestampForFilename()}.png`;
-        const shared = await shareImageWithText(dataUrl, tweetText, filename);
-        if (shared) {
-          setIsCapturingShareImage(false);
-          return;
+        
+        // モバイル判定（簡易的な幅判定または navigator.userAgent）
+        const isMobile = window.innerWidth < 1024;
+        
+        if (isMobile) {
+          const shared = await shareImageWithText(dataUrl, text, filename);
+          if (shared) {
+            setIsCapturingShareImage(false);
+            return;
+          }
         }
-        const a = document.createElement("a");
-        a.href = dataUrl;
-        a.download = filename;
-        a.click();
-        window.open(generateShareUrl(tweetText, { toolId: "counter" }), "_blank", "noopener,noreferrer");
+
+        // PCまたは共有失敗時はモーダルを開く
+        setCapturedDataUrl(dataUrl);
+        setTweetText(text);
+        setIsShareModalOpen(true);
       } catch (err) {
         console.warn("Image export failed:", err);
       } finally {
@@ -53,6 +62,10 @@ export function useCounterShare(isLightMode: boolean, currentTemplateId: string)
     isCapturingShareImage,
     shareAreaRef,
     captureDims,
-    handleShareAsImage
+    handleShareAsImage,
+    isShareModalOpen,
+    setIsShareModalOpen,
+    capturedDataUrl,
+    tweetText
   };
 }

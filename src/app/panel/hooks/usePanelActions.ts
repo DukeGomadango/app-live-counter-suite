@@ -67,6 +67,8 @@ export function usePanelActions({
   showToast
 }: PanelActionsProps) {
   const [isSharing, setIsSharing] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
 
   const handleGenerateRegions = useCallback(() => {
     const segments = getPartitionSegments(panelState);
@@ -149,7 +151,6 @@ export function usePanelActions({
 
     setIsSharing(true);
     const shareText = "パネル開け進捗";
-    const tweetUrl = generateShareUrl(shareText, { toolId: "panel" });
     try {
       // 1. まず全体のキャプチャを取得
       const fullDataUrl = await toPng(el, {
@@ -174,11 +175,9 @@ export function usePanelActions({
         }
       }
 
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = filename;
-      a.click();
-      window.open(tweetUrl, "_blank", "noopener,noreferrer");
+      // PCまたは共有失敗時はモーダルを開く
+      setCapturedDataUrl(dataUrl);
+      setIsShareModalOpen(true);
     } catch (err) {
       console.warn("Panel image export failed:", err);
       showToast("画像の書き出しに失敗しました。", "error");
@@ -245,7 +244,10 @@ export function usePanelActions({
     handleShare,
     handleCustomShapeConfirm,
     handleSaveCustomTemplate,
-    isSharing
+    isSharing,
+    isShareModalOpen,
+    setIsShareModalOpen,
+    capturedDataUrl
   };
 }
 

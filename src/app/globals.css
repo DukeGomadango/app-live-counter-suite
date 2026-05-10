@@ -237,38 +237,129 @@ body::before {
     animation: none !important;
     opacity: 0 !important;
     box-shadow: none !important;
-}
+  }
 }
 
+/* 
+   ===== DANGO DESIGN SYSTEM 2026: MULTI-TIER INTERACTIVE TOKENS ===== 
+*/
+
+@keyframes dango-sweep-fast {
+  0% { transform: translateX(-150%) skewX(-25deg); }
+  35%, 100% { transform: translateX(150%) skewX(-25deg); }
+}
+
+@keyframes dango-sweep-std {
+  0% { transform: translateX(-150%) skewX(-25deg); }
+  50%, 100% { transform: translateX(150%) skewX(-25deg); }
+}
+
+/* Base Styles */
+.dango-btn-tier1, .dango-btn-tier2, .dango-btn-tier3 {
+  position: relative !important;
+  overflow: hidden !important;
+  transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1) !important;
+  isolation: isolate;
+}
+
+/* --- Tier 1: Ultimate Glow (Core Actions) --- */
+.dango-btn-tier1:hover {
+  transform: scale(1.05) !important;
+}
+.dango-btn-tier1:active {
+  transform: scale(0.96) !important;
+}
+.dango-btn-tier1::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: -2px !important;
+  background: color-mix(in srgb, var(--btn-glow-color, var(--accent-color, #a855f7)) 50%, transparent) !important;
+  opacity: 0 !important;
+  transition: opacity 0.3s ease !important;
+  z-index: -1 !important;
+  filter: blur(20px) !important;
+  border-radius: inherit !important;
+}
+.dango-btn-tier1:hover::before {
+  opacity: 1 !important;
+}
+.dango-btn-tier1::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 0; left: 0; width: 80%; height: 100%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--btn-glow-color, var(--accent-color, #a855f7)) 30%, white 25%), transparent) !important;
+  transform: translateX(-150%) skewX(-25deg);
+  z-index: 1; pointer-events: none;
+}
+.dango-btn-tier1:hover::after {
+  animation: dango-sweep-fast 1.2s infinite !important;
+}
+
+/* --- Tier 2: Glass Glow (Secondary Actions) --- */
+.dango-btn-tier2:hover {
+  transform: scale(1.02) !important;
+}
+.dango-btn-tier2:active {
+  transform: scale(0.98) !important;
+}
+.dango-btn-tier2::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: -1px !important;
+  background: color-mix(in srgb, var(--btn-glow-color, var(--accent-color, #a855f7)) 35%, transparent) !important;
+  opacity: 0 !important;
+  transition: opacity 0.3s ease !important;
+  z-index: -1 !important;
+  filter: blur(12px) !important;
+  border-radius: inherit !important;
+}
+.dango-btn-tier2:hover::before {
+  opacity: 1 !important;
+}
+.dango-btn-tier2::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 0; left: 0; width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--btn-glow-color, var(--accent-color, #a855f7)) 20%, white 15%), transparent) !important;
+  transform: translateX(-150%) skewX(-25deg);
+  z-index: 1; pointer-events: none;
+}
+.dango-btn-tier2:hover::after {
+  animation: dango-sweep-std 1.8s infinite !important;
+}
+
+/* --- Tier 3: Quiet Response (Utility) --- */
+.dango-btn-tier3:hover {
+  transform: scale(1.1) !important;
+}
+.dango-btn-tier3:active {
+  transform: scale(0.9) !important;
+}
+.dango-btn-tier3:hover {
+  color: var(--btn-glow-color, var(--accent-color, #a855f7)) !important;
+  text-shadow: 0 0 10px color-mix(in srgb, var(--btn-glow-color, var(--accent-color, #a855f7)) 40%, transparent) !important;
+}
+
+/* Legacy Support & Colors */
+.btn-dango-glow { @extend .dango-btn-tier2; }
+.btn-glow-purple { --btn-glow-color: #a855f7; }
+.btn-glow-cyan { --btn-glow-color: #06b6d4; }
+.btn-glow-pink { --btn-glow-color: #ec4899; }
+.btn-glow-green { --btn-glow-color: #22c55e; }
+.btn-glow-red { --btn-glow-color: #ef4444; }
+
+/* Scrollbar Enhanced */
 * {
-  /* Firefox */
   scrollbar-width: thin;
   scrollbar-color: color-mix(in srgb, var(--accent-color, #a855f7) 30%, transparent) transparent;
 }
-
-/* Chrome, Edge, Safari */
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+*::-webkit-scrollbar { width: 8px; height: 8px; }
 *::-webkit-scrollbar-thumb {
-  /* "Floating Glass" effect: use transparent border + background-clip to create a gap */
   background-color: color-mix(in srgb, var(--accent-color, #a855f7) 25%, transparent);
-  border: 2px solid transparent;
-  background-clip: padding-box;
-  border-radius: 100px;
-  transition: background-color 0.2s ease;
+  border: 2px solid transparent; background-clip: padding-box; border-radius: 100px;
 }
-
 *::-webkit-scrollbar-thumb:hover {
   background-color: color-mix(in srgb, var(--accent-color, #a855f7) 50%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent-color, #a855f7) 30%, transparent);
 }
-
-*::-webkit-scrollbar-corner {
-  background: transparent;
-}
+
