@@ -95,7 +95,7 @@ export default function LandingPage() {
               <div className="mt-4 flex flex-wrap justify-center md:justify-start gap-2">
                 <button
                     onClick={() => {
-                        const target = document.getElementById("use-cases");
+                        const target = document.getElementById("features");
                         target?.scrollIntoView({ behavior: "smooth" });
                     }}
                     className="px-8 py-4 rounded-2xl bg-teal-500 text-white font-bold text-lg shadow-xl shadow-teal-500/20 flex items-center gap-2 dango-btn-tier1"
@@ -105,7 +105,7 @@ export default function LandingPage() {
                 </button>
                 <button
                     onClick={() => {
-                        const target = document.getElementById("features");
+                        const target = document.getElementById("use-cases");
                         target?.scrollIntoView({ behavior: "smooth" });
                     }}
                     className={`px-8 py-4 rounded-2xl font-bold text-lg border dango-btn-tier3 ${
@@ -130,7 +130,7 @@ export default function LandingPage() {
           </div>
         </header>
 
-        <section className="w-full max-w-5xl mx-auto mt-14 md:mt-20" aria-labelledby="lp-usecase-heading">
+        <section id="use-cases" className="w-full max-w-5xl mx-auto mt-14 md:mt-20 scroll-mt-20" aria-labelledby="lp-usecase-heading">
           <h2 id="lp-usecase-heading" className={`text-sm font-bold uppercase tracking-wider mb-3 ${effectiveLight ? "text-neutral-500" : "text-white/50"}`}>ユースケース</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
             {USE_CASES.map((useCase) => (
@@ -158,7 +158,7 @@ export default function LandingPage() {
 
         <div className="w-full max-w-5xl mx-auto mt-16 md:mt-24 h-[1px] opacity-40" style={{ background: `linear-gradient(90deg, transparent, ${LP_ACCENT}, transparent)` }} aria-hidden />
 
-        <div id="lp-tools" className="w-full max-w-4xl mx-auto mt-14 md:mt-16 py-6 md:py-8 space-y-10">
+        <div id="features" className="w-full max-w-4xl mx-auto mt-14 md:mt-16 py-6 md:py-8 space-y-10 scroll-mt-20">
           {(["tools", "games"] as const).map((cat) => (
             <section key={cat} aria-labelledby={`${lp.effectiveLayout}-heading-${cat}`}>
               <h2 id={`${lp.effectiveLayout}-heading-${cat}`} className={`text-sm font-bold uppercase tracking-wider mb-3 ${effectiveLight ? "text-neutral-500" : "text-white/50"}`}>{cat === "tools" ? "ツール" : "ゲーム"}</h2>
