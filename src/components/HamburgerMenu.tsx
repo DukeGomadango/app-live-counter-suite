@@ -183,6 +183,7 @@ export default function HamburgerMenu({
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 tabs={tabs}
+                accentColor={accentColor}
             >
                 {activeTab === "templates" && (
                     <CounterTemplatesTab

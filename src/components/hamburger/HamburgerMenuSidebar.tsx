@@ -17,6 +17,7 @@ type Props = {
     setActiveTab: (id: HamburgerTabId) => void;
     tabs: TabDef[];
     children: ReactNode;
+    accentColor?: string;
 };
 
 export function HamburgerMenuSidebar({
@@ -28,6 +29,7 @@ export function HamburgerMenuSidebar({
     setActiveTab,
     tabs,
     children,
+    accentColor,
 }: Props) {
     const { panelBg, borderColor, textPrimary, textSecondary, bgSubtle, bgSubtleHover } = tokens;
 
@@ -70,12 +72,16 @@ export function HamburgerMenuSidebar({
                                     <button
                                         key={tab.id}
                                         onClick={() => setActiveTab(tab.id)}
-                                        className={`flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg text-xs font-medium dango-btn-tier3 ${
+                                        className={`flex-1 flex items-center justify-center gap-1 px-1.5 py-1.5 rounded-lg text-xs font-medium dango-btn-tier3 transition-all duration-200 ${
                                             activeTab === tab.id
-                                                ? "bg-purple-500/20 text-purple-400 shadow-sm"
-                                                : `${textSecondary}`
+                                                ? "shadow-sm"
+                                                : `${textSecondary} hover:bg-black/5 dark:hover:bg-white/5`
                                         }`}
-                                        style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as any}
+                                        style={{ 
+                                            background: activeTab === tab.id ? `${accentColor}33` : undefined,
+                                            color: activeTab === tab.id ? accentColor : undefined,
+                                            "--btn-glow-color": `${accentColor}4D`,
+                                        } as any}
                                     >
                                         {tab.icon}
                                         {tab.label}
