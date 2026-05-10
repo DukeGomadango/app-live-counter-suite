@@ -136,9 +136,10 @@ export function useSlotEngine({
       setReplayFreeSpin(false);
     }
 
-    const pendingResults = strips.slice(0, reelCount).map((strip) => pickSymbolByWeight(strip));
+    const actualReelCount = Math.min(reelCount, strips.length);
+    const pendingResults = strips.slice(0, actualReelCount).map((strip) => pickSymbolByWeight(strip));
     pendingReelResultsRef.current = pendingResults;
-    setReelResults(Array(reelCount).fill(null));
+    setReelResults(Array(actualReelCount).fill(null));
     setIsSpinning(true);
     setLastWin(null);
     playSlotSound("spin", settings.soundEnabled);
@@ -181,9 +182,14 @@ export function useSlotEngine({
 
   // Win calculation effect
   useEffect(() => {
-    if (!allStopped || !isSpinning || !activePlayer) return;
+    if (!allStopped || !isSpinning) return;
     if (appliedWinRef.current) return;
     appliedWinRef.current = true;
+
+    if (!activePlayer) {
+      setIsSpinning(false);
+      return;
+    }
     const wasInBonus = bonusGamesRemaining > 0;
     const results = reelResults as number[];
     const visibleRows = settings.visibleRows ?? 1;

@@ -711,7 +711,12 @@ export default function SlotReelSymbolPanel({
           textPrimary={textPrimary}
           textSecondary={textSecondary}
           onStripChange={(ids) => {
-            const next = reelStripIds.map((s, j) => (j === reelTab ? ids : s));
+            const next = [...reelStripIds];
+            // 足りない場合は空配列で埋める（本来 useSlotState で同期されるが念の為）
+            while (next.length <= reelTab) {
+              next.push([]);
+            }
+            next[reelTab] = ids;
             onReelStripIdsChange(next);
           }}
         />

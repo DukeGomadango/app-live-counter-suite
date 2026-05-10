@@ -51,6 +51,36 @@ export function useSlotState() {
   );
 
   const slotMigratedRef = useRef(false);
+  const lastReelCountRef = useRef(settings.reelCount);
+
+  // プレイヤーの自動選択（未選択時）
+  useEffect(() => {
+    if (!activePlayerId && players.length > 0) {
+      setActivePlayerId(players[0]!.id);
+    }
+  }, [activePlayerId, players, setActivePlayerId]);
+
+  // リール数とリール配列の同期
+  useEffect(() => {
+    if (lastReelCountRef.current === settings.reelCount) return;
+    lastReelCountRef.current = settings.reelCount;
+
+    const currentCount = reelStrips.length;
+    const targetCount = settings.reelCount;
+
+    if (currentCount < targetCount) {
+      // 不足分をシンボルマスタの全IDで埋める
+      const ids = symbolMaster.map((s) => s.id);
+      const next = [...reelStrips];
+      while (next.length < targetCount) {
+        next.push([...ids]);
+      }
+      setReelStrips(next as any);
+    } else if (currentCount > targetCount) {
+      // 過剰分をカット（データは保持したい気もするが、現状のロジックに合わせる）
+      setReelStrips(reelStrips.slice(0, targetCount));
+    }
+  }, [settings.reelCount, reelStrips, symbolMaster, setReelStrips]);
 
   // Migration effects
   useEffect(() => {
