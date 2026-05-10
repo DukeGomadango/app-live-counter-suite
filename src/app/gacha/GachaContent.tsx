@@ -6,6 +6,7 @@ import { Settings, Users, Sparkles, BarChart3, Sun, Moon, Menu, X, Package, Chev
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import ModeSelector from "@/components/ModeSelector";
 import { useTheme } from "@/context/ThemeContext";
+import { Z_INDEX } from "@/lib/layoutConstants";
 import GachaSetup from "@/components/gacha/GachaSetup";
 import GachaPresetsPanel from "@/components/gacha/GachaPresetsPanel";
 import GachaRollAnimation from "@/components/gacha/GachaRollAnimation";
@@ -173,8 +174,8 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             <div className="h-screen w-screen flex flex-col overflow-hidden relative z-10">
                 {orbsLayer}
                 <div
-                    className={`${mobileHeaderPosition} left-0 right-0 z-50 flex items-center justify-between px-3 py-2 shrink-0`}
-                    style={{ background: headerBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${glassBorder}` }}
+                    className={`${mobileHeaderPosition} left-0 right-0 flex items-center justify-between px-3 py-2 shrink-0`}
+                    style={{ background: headerBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${glassBorder}`, zIndex: Z_INDEX.HEADER }}
                 >
                     <div className="flex items-center gap-2">
                         {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
@@ -211,7 +212,10 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     const player = players.find(p => p.id === playerHistoryViewId);
                     if (!player) return null;
                     return (
-                        <div className={`fixed inset-0 z-[60] flex flex-col overflow-hidden ${displayLight ? "bg-[#f8f9fa]/98" : "bg-[#0a051e]/95"}`}>
+                        <div 
+                            className={`fixed inset-0 flex flex-col overflow-hidden ${displayLight ? "bg-[#f8f9fa]/98" : "bg-[#0a051e]/95"}`}
+                            style={{ zIndex: Z_INDEX.MODAL }}
+                        >
                             <div className="flex-1 min-h-0 overflow-y-auto scroll-touch p-4 pt-14 custom-scrollbar">
                                 <PlayerHistoryCard player={player} pool={pool} isLightMode={isLightMode} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} onClose={() => setPlayerHistoryViewId(null)} />
                             </div>
@@ -229,7 +233,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     onScroll={mobileTab === "setup" ? (e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowScrollHint(false); } : undefined}
                 >
                     {mobileTab === "setup" && showScrollHint && (
-                        <div className="fixed left-0 right-0 z-40 flex items-center justify-center gap-1.5 py-2 pointer-events-none" style={{ bottom: "3.25rem", background: isLightMode ? "linear-gradient(to top, rgba(255,255,255,0.95) 0%, transparent 100%)" : "linear-gradient(to top, rgba(10,5,30,0.92) 0%, transparent 100%)" }}>
+                        <div className="fixed left-0 right-0 flex items-center justify-center gap-1.5 py-2 pointer-events-none" style={{ bottom: "3.25rem", background: isLightMode ? "linear-gradient(to top, rgba(255,255,255,0.95) 0%, transparent 100%)" : "linear-gradient(to top, rgba(10,5,30,0.92) 0%, transparent 100%)", zIndex: Z_INDEX.CONTENT }}>
                             <ChevronDown size={14} className={`animate-bounce ${displayLight ? "text-gray-600" : "text-white/70"}`} />
                         </div>
                     )}
@@ -279,7 +283,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     </AnimatePresence>
                 </div>
 
-                <div className="fixed left-0 right-0 z-50 flex items-center justify-around px-1 py-1.5" style={{ bottom: 0, paddingBottom: "max(0.375rem, env(safe-area-inset-bottom, 0px))", background: headerBg, backdropFilter: "blur(12px)", borderTop: `1px solid ${glassBorder}` }}>
+                <div className="fixed left-0 right-0 flex items-center justify-around px-1 py-1.5" style={{ bottom: 0, paddingBottom: "max(0.375rem, env(safe-area-inset-bottom, 0px))", background: headerBg, backdropFilter: "blur(12px)", borderTop: `1px solid ${glassBorder}`, zIndex: Z_INDEX.HEADER }}>
                     {([
                         { id: "setup" as MobileTab, icon: Settings, label: "設定" },
                         { id: "gacha" as MobileTab, icon: Sparkles, label: "ガチャ" },
@@ -305,7 +309,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     return (
         <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`} style={{ "--accent-color": gachaSettings.accentColor ?? "#a855f7" } as React.CSSProperties}>
             {orbsLayer}
-            <div className={`relative shrink-0 z-50 flex items-center justify-between px-3 py-2 min-h-[52px]`} style={{ background: headerBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${glassBorder}` }}>
+            <div className={`relative shrink-0 flex items-center justify-between px-3 py-2 min-h-[52px]`} style={{ background: headerBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${glassBorder}`, zIndex: Z_INDEX.HEADER }}>
                 <div className="flex items-center gap-2">
                     {isSplitMode && (
                         <button onClick={() => setSidebarOpen(!sidebarOpen)} className={`p-1.5 rounded-lg transition-all shrink-0 ${displayLight ? "text-gray-600 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}>
@@ -347,8 +351,8 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     <AnimatePresence>
                         {sidebarOpen && (
                             <>
-                                <motion.div key="sidebar-backdrop" aria-hidden initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-40" style={{ top: 48, background: isLightMode ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.5)" }} onClick={() => setSidebarOpen(false)} />
-                                <motion.aside key="sidebar-panel" initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ type: "tween", duration: 0.2 }} className="absolute left-0 top-12 bottom-0 z-50 w-80 flex flex-col overflow-hidden shadow-xl" style={{ background: headerBg, borderRight: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
+                                <motion.div key="sidebar-backdrop" aria-hidden initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0" style={{ top: 48, background: isLightMode ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.5)", zIndex: Z_INDEX.SIDEBAR_BACKDROP }} onClick={() => setSidebarOpen(false)} />
+                                <motion.aside key="sidebar-panel" initial={{ x: "-100%" }} animate={{ x: 0 }} exit={{ x: "-100%" }} transition={{ type: "tween", duration: 0.2 }} className="absolute left-0 top-12 bottom-0 w-80 flex flex-col overflow-hidden shadow-xl" style={{ background: headerBg, borderRight: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)", zIndex: Z_INDEX.SIDEBAR }}>
                                     <div className="flex items-center justify-between px-3 pt-3 pb-2 shrink-0">
                                         <span className={`text-xs font-bold ${displayLight ? "text-gray-700" : "text-white/80"}`}>メニュー</span>
                                         <button onClick={() => setSidebarOpen(false)} className={`p-1.5 rounded-lg ${displayLight ? "hover:bg-gray-200 text-gray-600" : "hover:bg-white/10 text-white/70"}`}><X size={18} /></button>

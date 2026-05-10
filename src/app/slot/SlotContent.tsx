@@ -7,6 +7,7 @@ import ModeSelector from "@/components/ModeSelector";
 import ShareModal from "@/components/ShareModal";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { useTheme } from "@/context/ThemeContext";
+import { Z_INDEX } from "@/lib/layoutConstants";
 
 import SlotReel from "@/components/slot/SlotReel";
 import SlotSettingsPanel from "@/components/slot/SlotSettingsPanel";
@@ -194,7 +195,8 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
     <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`} style={{ "--accent-color": accentColor } as React.CSSProperties}>
       <SlotOrbsBackground isLightMode={isLightMode} accentColor={accentColor} orbIntensity={orbIntensity} />
       <header
-        className={`${isSplitMode ? "relative" : "relative"} h-14 shrink-0 flex items-center justify-between px-4 z-[60] bg-bg-header backdrop-blur-md border-b border-border-subtle`}
+        className={`${isSplitMode ? "relative" : "relative"} h-14 shrink-0 flex items-center justify-between px-4 bg-bg-header backdrop-blur-md border-b border-border-subtle`}
+        style={{ zIndex: Z_INDEX.HEADER }}
       >
         <div className="flex items-center gap-3">
           {(isSplitMode || !isDesktop) && (
@@ -233,12 +235,12 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
           {showSidebar && (
             <>
               {(!isDesktop || isSplitMode) && (
-                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSidebarOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm z-40" />
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSidebarOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" style={{ zIndex: Z_INDEX.SIDEBAR_BACKDROP }} />
               )}
               <motion.aside
                 initial={isDesktop && !isSplitMode ? false : { x: -sidebarWidthPx }} animate={{ x: 0 }} exit={{ x: -sidebarWidthPx }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                className={`flex flex-col bg-bg-sidebar backdrop-blur-xl border-r border-border-subtle z-50 ${isDesktop && !isSplitMode ? "relative" : "absolute inset-y-0 left-0"}`}
-                style={{ width: sidebarWidthPx }}
+                className={`flex flex-col bg-bg-sidebar backdrop-blur-xl border-r border-border-subtle ${isDesktop && !isSplitMode ? "relative" : "absolute inset-y-0 left-0"}`}
+                style={{ width: sidebarWidthPx, zIndex: Z_INDEX.SIDEBAR }}
               >
                 <div className="flex p-2 gap-1.5 border-b border-border-subtle bg-black/5 dark:bg-white/5">
                   {(["reel", "players", "templates", "stats"] as const).map((tab) => (
@@ -303,7 +305,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
                 </div>
               </motion.aside>
               {isDesktop && !isSplitMode && (
-                <div onMouseDown={handleSidebarResizeStart} onTouchStart={handleSidebarResizeTouchStart} className="w-1.5 cursor-col-resize hover:bg-purple-500/30 transition-colors z-50" />
+                <div onMouseDown={handleSidebarResizeStart} onTouchStart={handleSidebarResizeTouchStart} className="w-1.5 cursor-col-resize hover:bg-purple-500/30 transition-colors" style={{ zIndex: Z_INDEX.SIDEBAR }} />
               )}
             </>
           )}
@@ -331,8 +333,11 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
       </AnimatePresence>
       <AnimatePresence>
         {playerHistoryViewId && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPlayerHistoryViewId(null)} className="absolute inset-0 bg-black/60 backdrop-blur-md" />
+          <div 
+            className="fixed inset-0 flex items-center justify-center p-4"
+            style={{ zIndex: Z_INDEX.MODAL }}
+          >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPlayerHistoryViewId(null)} className="absolute inset-0 bg-black/60 backdrop-blur-md" style={{ zIndex: Z_INDEX.MODAL_BACKDROP }} />
             <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-2xl max-h-[80vh] overflow-hidden bg-bg-sidebar backdrop-blur-2xl rounded-3xl shadow-2xl flex flex-col border border-border-subtle">
               <div className="flex items-center justify-between p-4 border-b border-border-subtle">
                 <h3 className="font-bold">履歴詳細</h3>

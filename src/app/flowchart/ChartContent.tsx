@@ -25,7 +25,6 @@ import {
 } from "@xyflow/react";
 import { ChartFitViewPanel } from "@/components/chart/ChartFitViewPanel";
 import "@xyflow/react/dist/style.css";
-import ModeSelector from "@/components/ModeSelector";
 import LineNode from "@/components/chart/LineNode";
 import TotalNode from "@/components/chart/TotalNode";
 import { ChartNodeEnvProvider, type ChartNodeEnv } from "@/components/chart/ChartNodeEnvContext";
@@ -405,44 +404,37 @@ function ChartContentInner({
                 </div>
             )}
 
-            <div className="absolute top-0 left-0 right-0 z-[30] flex items-center justify-between px-3 py-2 pointer-events-none">
-                <div className="flex items-center gap-2 pointer-events-auto">
-                    <div className="w-12 h-10" />
-                    {!isSplitMode && <ModeSelector isLightMode={isLightMode} />}
-                </div>
-
-                <AnimatePresence>
-                    {!isSplitMode && appSettings.showProjectName && appSettings.projectName && (
-                        <motion.div
-                            drag
-                            dragMomentum={false}
-                            initial={{ opacity: 0, y: -20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -20 }}
-                            transition={{ duration: 0.3 }}
-                            className="absolute left-1/2 top-[72px] -translate-x-1/2 z-40 px-6 py-2 rounded-2xl backdrop-blur-md font-black cursor-grab active:cursor-grabbing border whitespace-nowrap shadow-xl pointer-events-auto"
-                            style={{
-                                color: appSettings.projectNameColor,
-                                background: isLightMode ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.6)",
-                                borderColor: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)",
-                                fontSize:
-                                    appSettings.projectNameSize === "XL"
-                                        ? "2.5rem"
-                                        : appSettings.projectNameSize === "L"
-                                          ? "1.75rem"
-                                          : appSettings.projectNameSize === "S"
-                                            ? "1rem"
-                                            : "1.25rem",
-                                writingMode:
-                                    appSettings.projectNameOrientation === "vertical" ? "vertical-rl" : "horizontal-tb",
-                                margin: appSettings.projectNameOrientation === "vertical" ? "0 auto" : undefined,
-                            }}
-                        >
-                            {appSettings.projectName}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
+            <AnimatePresence>
+                {!isSplitMode && appSettings.showProjectName && appSettings.projectName && (
+                    <motion.div
+                        drag
+                        dragMomentum={false}
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                        className="absolute left-1/2 top-[72px] -translate-x-1/2 z-40 px-6 py-2 rounded-2xl backdrop-blur-md font-black cursor-grab active:cursor-grabbing border whitespace-nowrap shadow-xl pointer-events-auto"
+                        style={{
+                            color: appSettings.projectNameColor,
+                            background: isLightMode ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.6)",
+                            borderColor: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.05)",
+                            fontSize:
+                                appSettings.projectNameSize === "XL"
+                                    ? "2.5rem"
+                                    : appSettings.projectNameSize === "L"
+                                      ? "1.75rem"
+                                      : appSettings.projectNameSize === "S"
+                                        ? "1rem"
+                                        : "1.25rem",
+                            writingMode:
+                                appSettings.projectNameOrientation === "vertical" ? "vertical-rl" : "horizontal-tb",
+                            margin: appSettings.projectNameOrientation === "vertical" ? "0 auto" : undefined,
+                        }}
+                    >
+                        {appSettings.projectName}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             <ChartNodeEnvProvider value={chartNodeEnv}>
                 <main

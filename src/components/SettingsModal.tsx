@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Check, Type, Palette, Maximize, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { Z_INDEX } from "@/lib/layoutConstants";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -128,8 +129,12 @@ export default function SettingsModal({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[100] flex items-center justify-center p-4"
-                style={{ background: bgOverlay, backdropFilter: "blur(8px)" }}
+                className={`fixed inset-0 flex items-center justify-center p-4`}
+                style={{ 
+                    zIndex: Z_INDEX.MODAL, 
+                    background: bgOverlay, 
+                    backdropFilter: "blur(8px)" 
+                }}
                 onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
             >
                 <motion.div

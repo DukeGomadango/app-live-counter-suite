@@ -15,6 +15,7 @@ import {
   copyImageToClipboard, 
   getTimestampForFilename 
 } from "@/lib/share";
+import { Z_INDEX } from "@/lib/layoutConstants";
 import ShareReplyToField from "./ShareReplyToField";
 
 interface ShareModalProps {
@@ -229,7 +230,10 @@ export default function ShareModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center p-2 sm:p-6 overflow-hidden">
+      <div 
+        className={`fixed inset-0 flex items-center justify-center p-2 sm:p-6 overflow-hidden`}
+        style={{ zIndex: Z_INDEX.MODAL }}
+      >
         {/* Deep Glass Overlay */}
         <motion.div 
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} 

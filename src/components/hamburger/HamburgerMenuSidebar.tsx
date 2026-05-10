@@ -1,5 +1,6 @@
 "use client";
 
+import { Z_INDEX } from "@/lib/layoutConstants";
 import { AnimatePresence, motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import type { ReactNode } from "react";
@@ -39,8 +40,8 @@ export function HamburgerMenuSidebar({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onToggle}
-                        className="absolute inset-0 bg-black/30 backdrop-blur-sm z-40"
-                        style={{ top: `${topPx}px` }}
+                        className={`absolute inset-0 bg-black/30 backdrop-blur-sm`}
+                        style={{ top: `${topPx}px`, zIndex: Z_INDEX.SIDEBAR_BACKDROP }}
                     />
 
                     <motion.div
@@ -48,13 +49,14 @@ export function HamburgerMenuSidebar({
                         animate={{ x: 0, opacity: 1 }}
                         exit={{ x: "-100%", opacity: 0 }}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                        className="absolute left-0 bottom-0 w-[320px] z-50 overflow-y-auto scroll-touch"
+                        className={`absolute left-0 bottom-0 w-[320px] overflow-y-auto scroll-touch`}
                         style={{
                             top: `${topPx}px`,
                             background: panelBg,
                             backdropFilter: "blur(20px)",
                             borderRight: `1px solid ${borderColor}`,
                             boxShadow: "10px 0 40px rgba(0,0,0,0.3)",
+                            zIndex: Z_INDEX.SIDEBAR,
                         }}
                     >
                         <div className="p-4">

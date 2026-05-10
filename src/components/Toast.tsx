@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertCircle, CheckCircle, Info, X } from "lucide-react";
+import { Z_INDEX } from "@/lib/layoutConstants";
 
 // ---------- 型定義 ----------
 
@@ -53,8 +54,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       {/* トースト表示レイヤー */}
       <div
-        className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-2 items-center pointer-events-none"
-        style={{ maxWidth: "min(90vw, 420px)", width: "100%" }}
+        className={`fixed bottom-4 left-1/2 -translate-x-1/2 flex flex-col gap-2 items-center pointer-events-none`}
+        style={{ zIndex: Z_INDEX.TOAST, maxWidth: "min(90vw, 420px)", width: "100%" }}
       >
         <AnimatePresence>
           {toasts.map((t) => (

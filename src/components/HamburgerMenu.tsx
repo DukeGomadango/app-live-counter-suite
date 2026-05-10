@@ -6,7 +6,7 @@ import type { Template, CounterItem } from "@/lib/templates";
 import ChartHamburgerSection from "@/components/ChartHamburgerSection";
 import type { SavedChart, ChartNodeForMenu } from "@/lib/chartTypes";
 import { getMenuThemeTokens } from "@/components/hamburger/menuTokens";
-import { HAMBURGER_HEADER_HEIGHT_PX } from "@/components/hamburger/constants";
+import { UI_HEADER_HEIGHT_PX } from "@/lib/layoutConstants";
 import { HamburgerMenuHeader } from "@/components/hamburger/HamburgerMenuHeader";
 import { CounterTemplatesTab } from "@/components/hamburger/CounterTemplatesTab";
 import { CounterItemsTab } from "@/components/hamburger/CounterItemsTab";
@@ -179,7 +179,7 @@ export default function HamburgerMenu({
                 isOpen={isOpen}
                 onToggle={onToggle}
                 tokens={tokens}
-                topPx={HAMBURGER_HEADER_HEIGHT_PX}
+                topPx={UI_HEADER_HEIGHT_PX}
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
                 tabs={tabs}

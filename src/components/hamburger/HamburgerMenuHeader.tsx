@@ -2,6 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Sun, Moon, RotateCcw, Settings } from "lucide-react";
+import { UI_HEADER_HEIGHT_CLS, Z_INDEX } from "@/lib/layoutConstants";
 import ModeSelector from "@/components/ModeSelector";
 import type { MenuThemeTokens } from "./types";
 
@@ -53,7 +54,8 @@ export function HamburgerMenuHeader({
 
     return (
         <header
-            className={`h-[52px] w-full relative shrink-0 z-50 flex items-center px-1.5 sm:px-3 border-b transition-colors duration-300 ${headerBarBg} ${borderSubtle} backdrop-blur-md`}
+            className={`${UI_HEADER_HEIGHT_CLS} w-full relative shrink-0 flex items-center px-1.5 sm:px-3 border-b transition-colors duration-300 ${headerBarBg} ${borderSubtle} backdrop-blur-md`}
+            style={{ zIndex: Z_INDEX.HEADER }}
         >
             {/* Left Area: Flex-1 to push center */}
             <div className="flex-1 flex items-center gap-1.5 sm:gap-2.5 min-w-0 z-10">

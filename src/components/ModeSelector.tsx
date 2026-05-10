@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, CloudUpload, Home } from "lucide-react";
+import { Z_INDEX } from "@/lib/layoutConstants";
 import { TOOLS, TOOLS_BY_CATEGORY } from "@/lib/tools";
 import { useTheme } from "@/context/ThemeContext";
 
@@ -104,8 +105,9 @@ export default function ModeSelector({ isLightMode: isLightModeProp }: ModeSelec
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 5, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full left-0 mt-2 w-48 rounded-xl border overflow-hidden z-[100] shadow-xl"
+                        className={`absolute top-full left-0 mt-2 w-48 rounded-xl border overflow-hidden shadow-xl`}
                         style={{
+                            zIndex: Z_INDEX.DROPDOWN,
                             background: dropdownBg,
                             borderColor: isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
                             backdropFilter: "blur(12px)",

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, X } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { Z_INDEX, BREAKPOINT_MD } from "@/lib/layoutConstants";
 import { DEFAULT_ITEM_EMOJI, EMOJI_OPTIONS } from "@/lib/constants";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
@@ -29,7 +30,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
         // Use microtask to avoid "setState synchronously within an effect" lint error
         Promise.resolve().then(() => setMounted(true));
 
-        const checkMobile = () => setIsMobile(window.innerWidth <= 768);
+        const checkMobile = () => setIsMobile(window.innerWidth <= BREAKPOINT_MD);
         checkMobile();
         window.addEventListener('resize', checkMobile);
         return () => window.removeEventListener('resize', checkMobile);
@@ -77,9 +78,9 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+                className={`fixed inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4`}
+                style={{ zIndex: Z_INDEX.MODAL_BACKDROP }}
                 onClick={handleCancel}
-                style={{ touchAction: "none" }}
             >
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -87,11 +88,12 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                     exit={{ scale: 0.9, opacity: 0, y: 20 }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
                     onClick={(e) => e.stopPropagation()}
-                    className="relative w-full max-w-sm rounded-[24px] p-5 shadow-2xl"
+                    className={`relative w-full max-w-sm rounded-[24px] p-5 shadow-2xl`}
                     style={{
                         background: isLightMode ? "rgba(255,255,255,0.95)" : "rgba(20,10,40,0.95)",
                         border: isLightMode ? "1px solid rgba(168,85,247,0.3)" : "1px solid rgba(168,85,247,0.3)",
                         boxShadow: "0 20px 40px rgba(0,0,0,0.3), 0 0 20px rgba(168,85,247,0.2)",
+                        zIndex: Z_INDEX.MODAL,
                     }}
                 >
                     <div className="flex justify-between items-center mb-4">
