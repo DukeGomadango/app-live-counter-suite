@@ -47,7 +47,6 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         integrationConfig, setIntegrationConfig,
         latestResults, setLatestResults,
         gachaSettings, setGachaSettings,
-        hasMigrated, setHasMigrated
     } = useGachaState();
     const { isLightMode, toggleTheme } = useTheme();
 
@@ -83,7 +82,9 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     const [isMobile, setIsMobile] = useState(false);
     const [showSettingsPanel, setShowSettingsPanel] = useState(false);
     const handleSetShowSettingsPanel = useCallback((val: boolean) => setShowSettingsPanel(val), []);
-    const presets = useLocalStorage<GachaPoolPreset[]>("gacha-presets", [])[0] || [];
+    
+    const [presetsRaw] = useLocalStorage<GachaPoolPreset[]>("gacha-presets", []);
+    const presets = useMemo(() => presetsRaw || [], [presetsRaw]);
 
     // Update engine isMobile
     useEffect(() => {

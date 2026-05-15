@@ -608,8 +608,7 @@ export default function DataSyncPage() {
           </section>
         )}
 
-          </section>
-        )}
+
       </main>
     </div>
   );

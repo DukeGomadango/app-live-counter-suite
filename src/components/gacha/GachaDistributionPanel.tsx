@@ -46,6 +46,8 @@ export default function GachaDistributionPanel({
     const [assets, setAssets] = useState<ExternalAsset[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [syncing, setSyncing] = useState(false);
+    const [loading, setLoading] = useState(false);
+
     
     // Mapping state
     const [mapping, setMapping] = useState<Record<string, string>>({});

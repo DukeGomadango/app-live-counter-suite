@@ -144,6 +144,8 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   
   const windowWidth = useWindowWidth();
   const [winH, setWinH] = useState(800);
+  const [positionedContainerSize, setPositionedContainerSize] = useState({ w: 0, h: 0 });
+
   useEffect(() => {
     const id = setTimeout(() => setWinH(window.innerHeight), 0);
     return () => clearTimeout(id);

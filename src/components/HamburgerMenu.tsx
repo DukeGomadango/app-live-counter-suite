@@ -99,10 +99,17 @@ export default function HamburgerMenu({
     rightContent,
 }: HamburgerMenuProps) {
     const [activeTab, setActiveTab] = useState<HamburgerTabId>(viewMode === "counter" ? "templates" : "actions");
+    const [confirmReset, setConfirmReset] = useState(false);
 
     const handleReset = useCallback(() => {
+        if (viewMode === "chart" && !confirmReset) {
+            setConfirmReset(true);
+            setTimeout(() => setConfirmReset(false), 3000);
+            return;
+        }
         onReset();
-    }, [onReset]);
+        setConfirmReset(false);
+    }, [onReset, viewMode, confirmReset]);
 
     const tokens = getMenuThemeTokens(isLightMode);
     const groupedChartNodes = useGroupedChartNodes(viewMode, chartNodes);
@@ -135,6 +142,7 @@ export default function HamburgerMenu({
         inputBg,
         inputBorder,
         bgSubtleHover,
+        confirmReset,
         onResetClick: handleReset,
         globalTarget,
         onSetGlobalTarget,

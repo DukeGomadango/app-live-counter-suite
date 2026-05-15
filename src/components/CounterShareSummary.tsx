@@ -37,12 +37,21 @@ export default function CounterShareSummary({
         <GenericShareCard
             isLightMode={isLightMode}
             maxWidth="max-w-[360px]"
-            title={showProjectName && projectName ? projectName : undefined}
-            footerLeft={<span>合計</span>}
-            footerRight={<span>{totalTarget > 0 ? `${totalCount} / ${totalTarget}` : totalCount}</span>}
-            hashtag="" // カウンターはハッシュタグを表示しない仕様なので空にする
         >
-            <div className="space-y-2 mb-2">
+            {/* ヘッダー（プロジェクト名） */}
+            {showProjectName && projectName && (
+                <div className={`text-xs font-semibold ${textSecondary} mb-1`}>
+                    {projectName}
+                </div>
+            )}
+            
+            <div className={`text-lg font-bold ${textPrimary} inline-flex items-center gap-1 mb-1`}>
+                <EmojiGlyph emoji="📊" size={18} />
+                <span>進捗サマリー</span>
+            </div>
+
+            {/* 項目リスト */}
+            <div className="space-y-2 mb-1">
                 {items.map((item) => (
                     <div
                         key={item.id}
@@ -61,6 +70,15 @@ export default function CounterShareSummary({
                     </div>
                 ))}
             </div>
+
+            {/* フッター */}
+            <div className={`flex items-center justify-between border-t ${borderColor} pt-2 mt-1`}>
+                <span className={`text-xs font-bold ${textSecondary}`}>合計</span>
+                <span className={`text-sm font-black ${textPrimary}`}>
+                    {totalTarget > 0 ? `${totalCount} / ${totalTarget}` : totalCount}
+                </span>
+            </div>
         </GenericShareCard>
     );
+
 }

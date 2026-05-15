@@ -30,34 +30,40 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   // Initial load side effects
   useEffect(() => {
-    setMounted(true);
-    
-    // 1. Check unified key
-    const saved = localStorage.getItem(THEME_STORAGE_KEY);
-    if (saved === "light" || saved === "dark") {
-      setThemeState(saved as ThemeMode);
-    } else {
-      // 2. Migration from legacy keys
-      let foundLegacy = false;
-      for (const key of LEGACY_KEYS) {
-        const legacyVal = localStorage.getItem(key);
-        if (legacyVal === "true") {
+    // Avoid synchronous state updates in effect to satisfy strict lint rules
+    const initTimer = setTimeout(() => {
+      setMounted(true);
+      
+      // 1. Check unified key
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === "light" || saved === "dark") {
+        setThemeState(saved as ThemeMode);
+      } else {
+        // 2. Migration from legacy keys
+        let foundLegacy = false;
+        for (const key of LEGACY_KEYS) {
+          const legacyVal = localStorage.getItem(key);
+          if (legacyVal === "true") {
+            setThemeState("light");
+            localStorage.setItem(THEME_STORAGE_KEY, "light");
+            foundLegacy = true;
+            break;
+          }
+        }
+        
+        // 3. System preference fallback
+        if (!foundLegacy && window.matchMedia("(prefers-color-scheme: light)").matches) {
           setThemeState("light");
-          localStorage.setItem(THEME_STORAGE_KEY, "light");
-          foundLegacy = true;
-          break;
         }
       }
-      
-      // 3. System preference fallback
-      if (!foundLegacy && window.matchMedia("(prefers-color-scheme: light)").matches) {
-        setThemeState("light");
-      }
-    }
 
-    // Clean up legacy keys
-    LEGACY_KEYS.forEach(key => localStorage.removeItem(key));
+      // Clean up legacy keys
+      LEGACY_KEYS.forEach(key => localStorage.removeItem(key));
+    }, 0);
+
+    return () => clearTimeout(initTimer);
   }, []);
+
 
   // Apply theme class to document element
   useEffect(() => {
