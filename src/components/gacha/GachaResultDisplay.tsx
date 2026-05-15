@@ -55,7 +55,7 @@ export default function GachaResultDisplay({
 }: GachaResultDisplayProps) {
     const resultAreaRef = useRef<HTMLDivElement>(null);
     const shareAreaRef = useRef<HTMLDivElement | null>(null);
-    const tweetUrlAfterDownloadRef = useRef<string | null>(null);
+    const _tweetUrlAfterDownloadRef = useRef<string | null>(null);
     const [sortMode, setSortMode] = useState<SortMode>("rarity-asc");
     const [filterMode, setFilterMode] = useState<FilterMode>("all");
     const [copied, setCopied] = useState(false);

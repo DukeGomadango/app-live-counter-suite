@@ -6,7 +6,6 @@ import {
   formatSlotShareText, 
 } from "@/lib/slot";
 import { 
-  generateShareUrl, 
   shareImageWithText,
   getTimestampForFilename,
 } from "@/lib/share";

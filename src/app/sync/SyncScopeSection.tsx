@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect } from "react";
 import { ALL_SYNC_GROUP_IDS, SYNC_GROUPS, type SyncGroupId } from "@/lib/dataSync/storageKeys";
 
 export type GroupEnabledMap = Record<SyncGroupId, boolean>;

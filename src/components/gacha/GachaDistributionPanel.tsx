@@ -31,7 +31,7 @@ export default function GachaDistributionPanel({
     pool,
     onPoolChange,
     integrationConfig,
-    onIntegrationConfigChange,
+    onIntegrationConfigChange: _onIntegrationConfigChange,
     players,
     isLightMode
 }: GachaDistributionPanelProps) {
@@ -46,7 +46,7 @@ export default function GachaDistributionPanel({
     const [assets, setAssets] = useState<ExternalAsset[]>([]);
     const [isCreating, setIsCreating] = useState(false);
     const [syncing, setSyncing] = useState(false);
-    const [loading, setLoading] = useState(false);
+    const [_loading, setLoading] = useState(false);
 
     
     // Mapping state

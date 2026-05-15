@@ -31,7 +31,7 @@ export function HamburgerMenuSidebar({
     children,
     accentColor,
 }: Props) {
-    const { panelBg, borderColor, textPrimary, textSecondary, bgSubtle, bgSubtleHover } = tokens;
+    const { panelBg, borderColor, textPrimary, textSecondary, bgSubtle, bgSubtleHover: _bgSubtleHover } = tokens;
 
     return (
         <AnimatePresence>

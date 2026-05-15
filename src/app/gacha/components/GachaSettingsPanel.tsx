@@ -28,10 +28,10 @@ interface GachaSettingsPanelProps {
 export function GachaSettingsPanel({
   settings,
   onSettingsChange,
-  _pool,
-  _onPoolChange,
-  _integrationConfig,
-  _onIntegrationConfigChange,
+  pool: _pool,
+  onPoolChange: _onPoolChange,
+  integrationConfig: _integrationConfig,
+  onIntegrationConfigChange: _onIntegrationConfigChange,
   isLightMode,
   onClose,
 }: GachaSettingsPanelProps) {

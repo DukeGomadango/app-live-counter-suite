@@ -23,11 +23,11 @@ export default function CounterShareSummary({
     totalCount,
     totalTarget,
     isLightMode,
-    accentColor,
+    accentColor: _accentColor,
     showProjectName = false,
     projectName = "",
 }: CounterShareSummaryProps) {
-    const bg = isLightMode ? "#f5f3ff" : "#0f0a1e";
+    const _bg = isLightMode ? "#f5f3ff" : "#0f0a1e";
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-600" : "text-white/70";
     const cardBg = isLightMode ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.06)";

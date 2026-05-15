@@ -20,7 +20,7 @@ export default function SlotShareSummary({
   resultLine,
   isLightMode,
 }: SlotShareSummaryProps) {
-  const { glassBg, glassBorder } = useGlassStyle(isLightMode);
+  const { glassBg: _glassBg, glassBorder: _glassBorder } = useGlassStyle(isLightMode);
   const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
   const textSecondary = isLightMode ? "text-gray-700" : "text-white/75";
   const textMuted = isLightMode ? "text-gray-500" : "text-white/65";

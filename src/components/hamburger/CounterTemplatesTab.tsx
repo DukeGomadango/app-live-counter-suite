@@ -22,7 +22,7 @@ export function CounterTemplatesTab({
     onToggle,
     setActiveTab,
 }: Props) {
-    const { textPrimary, textMuted, bgSubtle, borderSubtle, bgSubtleHover } = tokens;
+    const { textPrimary, textMuted, bgSubtle, borderSubtle, bgSubtleHover: _bgSubtleHover } = tokens;
 
     return (
         <motion.div

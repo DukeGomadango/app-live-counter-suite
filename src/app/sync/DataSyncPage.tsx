@@ -9,7 +9,6 @@ import QRCode from "qrcode";
 import jsQR from "jsqr";
 import ModeSelector from "@/components/ModeSelector";
 import { useConfirm } from "@/context/ConfirmContext";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { LOCAL_DRIVE_FILE_ID_KEY } from "@/lib/dataSync/constants";
 import {
   applySyncBundle,

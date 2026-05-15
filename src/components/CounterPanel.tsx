@@ -312,7 +312,7 @@ export default function CounterPanel({
 
     // Arrow button styles
     const arrowBg = isLightMode ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)";
-    const arrowHoverBg = isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.18)";
+    const _arrowHoverBg = isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.18)";
     const arrowColor = isLightMode ? "text-gray-500" : "text-white/60";
 
     const stepKeypadColumns = useMemo((): StepKeypadColumn[] => {

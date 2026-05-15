@@ -116,10 +116,10 @@ export function FractionPanel({ isLightMode, accentColor }: FractionPanelProps) 
                                                     ? "text-white border-transparent shadow-lg" 
                                                     : isLightMode ? "text-gray-600 border-gray-200" : "text-white/60 border-white/10"
                                             }`}
-                                            style={{ 
+                                            style={{
                                                 ...(operators[i] === o ? { background: accentColor } : { borderColor: isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)", background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)" }),
                                                 "--btn-glow-color": accentColor
-                                            } as React.CSSProperties} 
+                                            } as unknown as React.CSSProperties} 
                                             aria-label={`${i + 1}つ目と${i + 2}つ目の間の演算子 ${o}`}
                                         >
                                             {o}

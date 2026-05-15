@@ -27,7 +27,7 @@ export function CounterTargetsTab({
     onRequestAchieveTarget,
     onRequestAchieveAllTargets,
 }: Props) {
-    const { textSecondary, textMuted, bgSubtle, borderSubtle, bgSubtleHover, inputBg, inputBorder, textPrimary } =
+    const { textSecondary, textMuted, bgSubtle, borderSubtle, bgSubtleHover: _bgSubtleHover, inputBg, inputBorder, textPrimary } =
         tokens;
     const [bulkTarget, setBulkTarget] = useState("");
 

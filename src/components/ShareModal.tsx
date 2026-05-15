@@ -59,10 +59,12 @@ export default function ShareModal({
   const lastIsOpen = useRef(false);
   useEffect(() => {
     if (isOpen && !lastIsOpen.current) {
-      setCropRect(null);
-      setAspectRatio("free");
-      setCopied(false);
-      setIsXOpening(false);
+      setTimeout(() => {
+        setCropRect(null);
+        setAspectRatio("free");
+        setCopied(false);
+        setIsXOpening(false);
+      }, 0);
     }
     lastIsOpen.current = isOpen;
   }, [isOpen]);

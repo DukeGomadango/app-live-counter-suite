@@ -1,6 +1,5 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
 import { Menu, X, Sun, Moon, RotateCcw, Settings } from "lucide-react";
 import { UI_HEADER_HEIGHT_CLS, Z_INDEX } from "@/lib/layoutConstants";
 import ModeSelector from "@/components/ModeSelector";
@@ -43,10 +42,10 @@ export function HamburgerMenuHeader({
 }: Props) {
     const {
         headerBarBg,
-        borderColor,
+        borderColor: _borderColor,
         bgSubtle,
         borderSubtle,
-        bgSubtleHover,
+        bgSubtleHover: _bgSubtleHover,
         textMuted,
         textPrimary,
         textSecondary,

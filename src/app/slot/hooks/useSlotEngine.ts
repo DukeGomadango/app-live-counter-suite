@@ -187,7 +187,7 @@ export function useSlotEngine({
     appliedWinRef.current = true;
 
     if (!activePlayer) {
-      setIsSpinning(false);
+      queueMicrotask(() => setIsSpinning(false));
       return;
     }
     const wasInBonus = bonusGamesRemaining > 0;

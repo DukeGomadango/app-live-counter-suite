@@ -9,7 +9,6 @@ import {
   type SlotTemplate,
   type SlotSpinRecord,
   createDefaultSymbols,
-  createDefaultReelStrips,
   createDefaultReelStripIds,
   createDefaultSettings,
   createDefaultPlayers,

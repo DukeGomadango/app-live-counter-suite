@@ -8,7 +8,7 @@ import {
     type ExternalAsset 
 } from "@/lib/gachaDistribution";
 import type { GachaPool, IntegrationConfig, GachaItem } from "@/lib/gacha";
-import { FiX, FiUpload, FiCheck, FiLoader, FiAlertCircle, FiFile } from "react-icons/fi";
+import { FiX, FiUpload, FiCheck, FiLoader, FiAlertCircle } from "react-icons/fi";
 import { useToast } from "@/components/Toast";
 
 interface GachaAssetMappingModalProps {
@@ -45,7 +45,7 @@ export default function GachaAssetMappingModal({
     const [isDraggingGlobal, setIsDraggingGlobal] = useState(false);
     const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
-    const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
+    const _textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-500" : "text-white/60";
 
     // 初期データロード
@@ -148,7 +148,7 @@ export default function GachaAssetMappingModal({
         if (file) handleFileChange(itemId, file);
     };
 
-    const [syncing, setSyncing] = useState(false);
+    const [_syncing, setSyncing] = useState(false);
 
     const handleSave = async () => {
         setSyncing(true);
