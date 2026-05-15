@@ -133,6 +133,8 @@ export interface RunSummary {
     items: { itemId: string; itemName: string; rarityId: string; count: number }[];
     /** どのガチャ（プール）の結果か。ガチャごとに履歴を分けるために使用 */
     poolId?: string;
+    /** ガチャ名。削除されたガチャの履歴でも名称を表示するために保持 */
+    poolName?: string;
 }
 
 export interface Player {
@@ -468,6 +470,7 @@ export function performGachaPull(
         pullCount: count,
         items: summaryItems.map(o => ({ itemId: o.itemId, itemName: o.itemName, rarityId: o.rarityId, count: o.count })),
         poolId: pool.id,
+        poolName: pool.conceptName,
     };
 
     // localStorage の容量制限を避けるため、件数が多すぎる場合は生結果を保存しない（runHistory に集計は残る）

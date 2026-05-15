@@ -115,6 +115,21 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         }
     }, [presets, sampleTemplates, setPool]);
 
+    const handleDeleteHistoryForPool = useCallback((poolId: string) => {
+        if (!playerHistoryViewId) return;
+        setPlayers(prev => prev.map(p => {
+            if (p.id !== playerHistoryViewId) return p;
+            return {
+                ...p,
+                runHistory: (p.runHistory || []).filter(r => r.poolId !== poolId),
+                poolStates: {
+                    ...(p.poolStates || {}),
+                    [poolId]: { totalPulls: 0, pityCounter: 0, pityReachCount: 0, inventory: {} }
+                }
+            };
+        }));
+    }, [playerHistoryViewId, setPlayers]);
+
     const { glassBorder } = useGlassStyle(isLightMode);
     const displayLight = isLightMode;
     const headerBg = displayLight ? "rgba(255,255,255,0.7)" : "rgba(10,5,30,0.5)";
@@ -217,7 +232,14 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                             style={{ zIndex: Z_INDEX.MODAL }}
                         >
                             <div className="flex-1 min-h-0 overflow-y-auto scroll-touch p-4 pt-14 custom-scrollbar">
-                                <PlayerHistoryCard player={player} pool={pool} isLightMode={isLightMode} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} onClose={() => setPlayerHistoryViewId(null)} />
+                                <PlayerHistoryCard 
+                                    player={player} 
+                                    pool={pool} 
+                                    isLightMode={isLightMode} 
+                                    shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} 
+                                    onClose={() => setPlayerHistoryViewId(null)} 
+                                    onDeleteHistoryForPool={handleDeleteHistoryForPool}
+                                />
                             </div>
                         </div>
                     );
@@ -430,7 +452,14 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                             if (!player) return null;
                             return (
                                 <motion.div key="player-history" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full p-4">
-                                    <PlayerHistoryCard player={player} pool={pool} isLightMode={isLightMode} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} onClose={() => setPlayerHistoryViewId(null)} />
+                                    <PlayerHistoryCard 
+                                        player={player} 
+                                        pool={pool} 
+                                        isLightMode={isLightMode} 
+                                        shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} 
+                                        onClose={() => setPlayerHistoryViewId(null)} 
+                                        onDeleteHistoryForPool={handleDeleteHistoryForPool}
+                                    />
                                 </motion.div>
                             );
                         })() : engine.isRolling ? (
