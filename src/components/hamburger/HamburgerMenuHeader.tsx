@@ -62,7 +62,7 @@ export function HamburgerMenuHeader({
                 <button
                     onClick={onToggle}
                     className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border dango-btn-tier3 ${bgSubtle} ${borderSubtle}`}
-                    style={{ "--btn-glow-color": isOpen ? "rgba(239,68,68,0.3)" : "rgba(168,85,247,0.3)" } as any}
+                    style={{ "--btn-glow-color": isOpen ? "rgba(239,68,68,0.3)" : "rgba(168,85,247,0.3)" } as React.CSSProperties}
                 >
                     {isOpen ? (
                         <X className="w-4 h-4 sm:w-5 sm:h-5 text-red-400" />
@@ -106,7 +106,7 @@ export function HamburgerMenuHeader({
                 <button
                     onClick={onOpenSettings}
                     className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border dango-btn-tier3 ${bgSubtle} ${borderSubtle}`}
-                    style={{ "--btn-glow-color": "currentColor" } as any}
+                    style={{ "--btn-glow-color": "currentColor" } as React.CSSProperties}
                     title="設定"
                 >
                     <Settings className={`w-4 h-4 sm:w-5 sm:h-5 ${textSecondary}`} />
@@ -114,7 +114,7 @@ export function HamburgerMenuHeader({
                 <button
                     onClick={onResetClick}
                     className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border dango-btn-tier3 ${bgSubtle} ${borderSubtle} hover:text-red-400`}
-                    style={{ "--btn-glow-color": "rgba(239,68,68,0.5)" } as any}
+                    style={{ "--btn-glow-color": "rgba(239,68,68,0.5)" } as React.CSSProperties}
                     title="リセット"
                 >
                     <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -123,7 +123,7 @@ export function HamburgerMenuHeader({
                     <button
                         onClick={onToggleTheme}
                         className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border dango-btn-tier3 ${bgSubtle} ${borderSubtle}`}
-                        style={{ "--btn-glow-color": "rgba(234,179,8,0.3)" } as any}
+                        style={{ "--btn-glow-color": "rgba(234,179,8,0.3)" } as React.CSSProperties}
                         title="テーマ切替"
                     >
                         {isLightMode ? (

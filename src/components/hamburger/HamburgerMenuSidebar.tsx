@@ -81,7 +81,7 @@ export function HamburgerMenuSidebar({
                                             background: activeTab === tab.id ? `${accentColor}33` : undefined,
                                             color: activeTab === tab.id ? accentColor : undefined,
                                             "--btn-glow-color": `${accentColor}4D`,
-                                        } as any}
+                                        } as React.CSSProperties}
                                     >
                                         {tab.icon}
                                         {tab.label}

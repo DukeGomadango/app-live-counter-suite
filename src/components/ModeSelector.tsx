@@ -97,7 +97,7 @@ export default function ModeSelector({ isLightMode: isLightModeProp, accentColor
                 style={{ 
                     "--btn-glow-color": accentColor || "currentColor",
                     "--tw-ring-color": isOpen ? (accentColor || "rgba(168,85,247,0.3)") : undefined
-                } as any}
+                } as React.CSSProperties}
             >
                 <CurrentIcon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${currentMode.color}`} />
                 <span className={`text-[10px] sm:text-sm font-semibold uppercase tracking-widest sm:tracking-wider ${textColor}`}>
@@ -140,7 +140,7 @@ export default function ModeSelector({ isLightMode: isLightModeProp, accentColor
                                             ? `${TOP_ENTRY.activeBg} ${TOP_ENTRY.color} font-medium` 
                                             : `${textColor} ${TOP_ENTRY.hoverBg} group`
                                     }`}
-                                    style={{ "--btn-glow-color": "rgba(148,163,184,0.3)" } as any}
+                                    style={{ "--btn-glow-color": "rgba(148,163,184,0.3)" } as React.CSSProperties}
                                 >
                                     <TOP_ENTRY.icon size={16} className={`transition-colors duration-200 ${currentMode.id === TOP_ENTRY.id ? TOP_ENTRY.color : `${isLightMode ? "text-gray-400" : "text-white/40"} ${TOP_ENTRY.hoverText}`}`} />
                                     <span className={`transition-colors duration-200 ${currentMode.id === TOP_ENTRY.id ? "" : TOP_ENTRY.hoverText}`}>{TOP_ENTRY.label}</span>
@@ -156,7 +156,7 @@ export default function ModeSelector({ isLightMode: isLightModeProp, accentColor
                                             ? `${SYNC_ENTRY.activeBg} ${SYNC_ENTRY.color} font-medium` 
                                             : `${textColor} ${SYNC_ENTRY.hoverBg} group`
                                     }`}
-                                    style={{ "--btn-glow-color": "rgba(16,185,129,0.3)" } as any}
+                                    style={{ "--btn-glow-color": "rgba(16,185,129,0.3)" } as React.CSSProperties}
                                 >
                                     <SYNC_ENTRY.icon size={16} className={`transition-colors duration-200 ${currentMode.id === SYNC_ENTRY.id ? SYNC_ENTRY.color : `${isLightMode ? "text-gray-400" : "text-white/40"} ${SYNC_ENTRY.hoverText}`}`} />
                                     <span className={`transition-colors duration-200 ${currentMode.id === SYNC_ENTRY.id ? "" : SYNC_ENTRY.hoverText}`}>データ連携</span>
@@ -184,7 +184,7 @@ export default function ModeSelector({ isLightMode: isLightModeProp, accentColor
                                                     ? `${mode.activeBg} ${mode.color} font-medium` 
                                                     : `${textColor} ${mode.hoverBg} group`
                                             }`}
-                                            style={{ "--btn-glow-color": "currentColor" } as any}
+                                            style={{ "--btn-glow-color": "currentColor" } as React.CSSProperties}
                                         >
                                             <Icon size={16} className={`transition-colors duration-200 ${isActive ? mode.color : `${isLightMode ? "text-gray-400" : "text-white/40"} ${mode.hoverText}`}`} />
                                             <span className={`transition-colors duration-200 ${isActive ? "" : mode.hoverText}`}>{mode.label}</span>
@@ -214,7 +214,7 @@ export default function ModeSelector({ isLightMode: isLightModeProp, accentColor
                                                     ? `${mode.activeBg} ${mode.color} font-medium` 
                                                     : `${textColor} ${mode.hoverBg} group`
                                             }`}
-                                            style={{ "--btn-glow-color": "currentColor" } as any}
+                                            style={{ "--btn-glow-color": "currentColor" } as React.CSSProperties}
                                         >
                                             <Icon size={16} className={`transition-colors duration-200 ${isActive ? mode.color : `${isLightMode ? "text-gray-400" : "text-white/40"} ${mode.hoverText}`}`} />
                                             <span className={`transition-colors duration-200 ${isActive ? "" : mode.hoverText}`}>{mode.label}</span>

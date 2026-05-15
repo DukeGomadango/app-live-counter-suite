@@ -80,7 +80,7 @@ export function CounterItemsTab({ tokens, isLightMode, items, onAddItem, onEditI
                             type="button"
                             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                             className={`w-9 h-9 rounded-xl ${bgSubtle} border ${borderSubtle} flex items-center justify-center text-lg dango-btn-tier3 transition-colors`}
-                            style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as any}
+                            style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as React.CSSProperties}
                         >
                             <EmojiGlyph emoji={newEmoji} size={20} />
                         </button>
@@ -119,7 +119,7 @@ export function CounterItemsTab({ tokens, isLightMode, items, onAddItem, onEditI
                         onClick={handleAddItem}
                         disabled={!newLabel.trim()}
                         className="w-9 h-9 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center dango-btn-tier3 disabled:opacity-30 disabled:cursor-not-allowed"
-                        style={{ "--btn-glow-color": "rgba(168,85,247,0.5)" } as any}
+                        style={{ "--btn-glow-color": "rgba(168,85,247,0.5)" } as React.CSSProperties}
                     >
                         <Plus size={16} className="text-purple-400" />
                     </button>
@@ -143,7 +143,7 @@ export function CounterItemsTab({ tokens, isLightMode, items, onAddItem, onEditI
                                             type="button"
                                             onClick={() => setShowEditEmojiPicker(!showEditEmojiPicker)}
                                             className={`w-8 h-8 rounded-lg ${bgSubtle} flex items-center justify-center text-base dango-btn-tier3 transition-colors`}
-                                            style={{ "--btn-glow-color": editColor || "rgba(168,85,247,0.3)" } as any}
+                                            style={{ "--btn-glow-color": editColor || "rgba(168,85,247,0.3)" } as React.CSSProperties}
                                         >
                                             <EmojiGlyph emoji={editEmoji} size={16} />
                                         </button>
@@ -218,14 +218,14 @@ export function CounterItemsTab({ tokens, isLightMode, items, onAddItem, onEditI
                                             setShowEditEmojiPicker(false);
                                         }}
                                         className={`px-2 py-1 rounded-lg text-xs ${bgSubtle} border ${borderSubtle} ${textSecondary} dango-btn-tier3 transition-colors`}
-                                        style={{ "--btn-glow-color": "rgba(0,0,0,0.1)" } as any}
+                                        style={{ "--btn-glow-color": "rgba(0,0,0,0.1)" } as React.CSSProperties}
                                     >
                                         キャンセル
                                     </button>
                                     <button
                                         onClick={handleSaveEdit}
                                         className="px-2 py-1 rounded-lg text-xs bg-green-500/20 border border-green-500/30 text-green-400 dango-btn-tier3 flex items-center gap-1"
-                                        style={{ "--btn-glow-color": "rgba(34,197,94,0.5)" } as any}
+                                        style={{ "--btn-glow-color": "rgba(34,197,94,0.5)" } as React.CSSProperties}
                                     >
                                         <Check size={10} />
                                         保存
@@ -249,14 +249,14 @@ export function CounterItemsTab({ tokens, isLightMode, items, onAddItem, onEditI
                                 <button
                                     onClick={() => handleStartEdit(item)}
                                     className={`w-6 h-6 rounded-lg ${bgSubtle} border ${borderSubtle} flex items-center justify-center dango-btn-tier3 transition-colors`}
-                                    style={{ "--btn-glow-color": item.color || "currentColor" } as any}
+                                    style={{ "--btn-glow-color": item.color || "currentColor" } as React.CSSProperties}
                                 >
                                     <Pencil size={10} className={textMuted} />
                                 </button>
                                 <button
                                     onClick={() => onDeleteItem?.(item.id)}
                                     className="w-6 h-6 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center dango-btn-tier3"
-                                    style={{ "--btn-glow-color": "rgba(239,68,68,0.4)" } as any}
+                                    style={{ "--btn-glow-color": "rgba(239,68,68,0.4)" } as React.CSSProperties}
                                 >
                                     <Trash2 size={10} className="text-red-400/60" />
                                 </button>

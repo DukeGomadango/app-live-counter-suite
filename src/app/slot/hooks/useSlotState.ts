@@ -75,7 +75,7 @@ export function useSlotState() {
       while (next.length < targetCount) {
         next.push([...ids]);
       }
-      setReelStrips(next as any);
+      setReelStrips(next as string[][] | SlotSymbol[][]);
     } else if (currentCount > targetCount) {
       // 過剰分をカット（データは保持したい気もするが、現状のロジックに合わせる）
       setReelStrips(reelStrips.slice(0, targetCount));

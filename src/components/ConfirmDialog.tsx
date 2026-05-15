@@ -135,7 +135,7 @@ export default function ConfirmDialog({
                                         ? "bg-black/5 border-black/5 text-gray-500 hover:bg-black/10" 
                                         : "bg-white/5 border-white/5 text-white/40 hover:bg-white/10"
                                 }`}
-                                style={{ "--btn-glow-color": "rgba(0,0,0,0.1)" } as any}
+                                style={{ "--btn-glow-color": "rgba(0,0,0,0.1)" } as React.CSSProperties}
                             >
                                 {cancelLabel}
                             </button>
@@ -147,7 +147,7 @@ export default function ConfirmDialog({
                                         ? "bg-red-500/20 border-red-500/40 text-red-400 hover:bg-red-500/30 shadow-red-500/10"
                                         : "bg-purple-500/20 border-purple-500/40 text-purple-400 hover:bg-purple-500/30 shadow-purple-500/10"
                                 }`}
-                                style={{ "--btn-glow-color": danger ? "rgba(239,68,68,0.5)" : "rgba(168,85,247,0.5)" } as any}
+                                style={{ "--btn-glow-color": danger ? "rgba(239,68,68,0.5)" : "rgba(168,85,247,0.5)" } as React.CSSProperties}
                             >
                                 {confirmLabel}
                             </button>

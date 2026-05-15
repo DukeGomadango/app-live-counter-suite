@@ -119,7 +119,7 @@ export function FractionPanel({ isLightMode, accentColor }: FractionPanelProps) 
                                             style={{ 
                                                 ...(operators[i] === o ? { background: accentColor } : { borderColor: isLightMode ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.15)", background: isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)" }),
                                                 "--btn-glow-color": accentColor
-                                            } as any} 
+                                            } as React.CSSProperties} 
                                             aria-label={`${i + 1}つ目と${i + 2}つ目の間の演算子 ${o}`}
                                         >
                                             {o}
@@ -136,7 +136,7 @@ export function FractionPanel({ isLightMode, accentColor }: FractionPanelProps) 
                     type="button" 
                     onClick={addFraction} 
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium border dango-btn-tier3 ${isLightMode ? "text-gray-700 border-gray-300" : "text-white/90 border-white/30"}`}
-                    style={{ "--btn-glow-color": accentColor } as any}
+                    style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
                 >
                     分数を追加
                 </button>
@@ -145,7 +145,7 @@ export function FractionPanel({ isLightMode, accentColor }: FractionPanelProps) 
                         type="button" 
                         onClick={removeLastFraction} 
                         className={`px-3 py-1.5 rounded-lg text-sm font-medium border dango-btn-tier3 ${isLightMode ? "text-red-600 border-red-200" : "text-red-400 border-red-400/40"}`}
-                        style={{ "--btn-glow-color": "rgba(239,68,68,0.3)" } as any}
+                        style={{ "--btn-glow-color": "rgba(239,68,68,0.3)" } as React.CSSProperties}
                     >
                         最後の分数を削除
                     </button>

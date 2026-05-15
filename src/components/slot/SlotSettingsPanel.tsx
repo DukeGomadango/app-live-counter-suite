@@ -169,7 +169,7 @@ export default function SlotSettingsPanel({
                   background: isLightMode ? "white" : "rgba(255,255,255,0.05)",
                   color: isLightMode ? settings.accentColor : "white",
                   "--btn-glow-color": settings.accentColor
-                } as any}
+                } as React.CSSProperties}
               >
                 <Users size={18} />
                 プレイヤー名簿（設定）を開く

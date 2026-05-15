@@ -62,7 +62,7 @@ export default function LandingPage() {
                         ? "bg-white border-gray-200 text-gray-700"
                         : "bg-white/5 border-white/10 text-white"
                 }`}
-                style={{ "--btn-glow-color": isLightMode ? "rgba(234,179,8,0.3)" : "rgba(168,85,247,0.3)" } as any}
+                style={{ "--btn-glow-color": isLightMode ? "rgba(234,179,8,0.3)" : "rgba(168,85,247,0.3)" } as React.CSSProperties}
                 aria-label="テーマ切り替え"
             >
                 {isLightMode ? (
@@ -99,7 +99,7 @@ export default function LandingPage() {
                         target?.scrollIntoView({ behavior: "smooth" });
                     }}
                     className="px-8 py-4 rounded-2xl bg-teal-500 text-white font-bold text-lg shadow-xl shadow-teal-500/20 flex items-center gap-2 dango-btn-tier1"
-                    style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
+                    style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as React.CSSProperties}
                 >
                     無料で使ってみる <ArrowRight size={20} />
                 </button>
@@ -113,7 +113,7 @@ export default function LandingPage() {
                             ? "bg-white/80 border-gray-200 text-gray-700"
                             : "bg-white/5 border-white/10 text-white"
                     }`}
-                    style={{ "--btn-glow-color": "rgba(255,255,255,0.2)" } as any}
+                    style={{ "--btn-glow-color": "rgba(255,255,255,0.2)" } as React.CSSProperties}
                 >
                     機能を見る
                 </button>
@@ -147,7 +147,7 @@ export default function LandingPage() {
                             ? "text-neutral-700 hover:bg-black/7"
                             : "text-white/80 hover:bg-white/10"
                     }`}
-                    style={{ "--btn-glow-color": "currentColor" } as any}
+                    style={{ "--btn-glow-color": "currentColor" } as React.CSSProperties}
                 >
                     {useCase.toolLabel}を見る →
                 </Link>
@@ -200,8 +200,8 @@ export default function LandingPage() {
 
         <div className="w-full max-w-5xl mx-auto mt-8">
           <div className={`mx-auto w-fit flex items-center justify-center gap-1 rounded-xl p-1 ${effectiveLight ? "bg-black/6" : "bg-white/5"}`} role="tablist" aria-label="ツールの表示">
-            <button type="button" onClick={() => lp.setLayoutMode("cards")} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 dango-btn-tier3 ${lp.effectiveLayout === "cards" ? (effectiveLight ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (effectiveLight ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`} style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as any} aria-pressed={lp.effectiveLayout === "cards"} aria-label="カード表示"><LayoutGrid size={14} />カード</button>
-            <button type="button" onClick={() => lp.setLayoutMode("strip")} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 dango-btn-tier3 ${lp.effectiveLayout === "strip" ? (effectiveLight ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (effectiveLight ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`} style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as any} aria-pressed={lp.effectiveLayout === "strip"} aria-label="ストリップ表示"><List size={14} />ストリップ</button>
+            <button type="button" onClick={() => lp.setLayoutMode("cards")} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 dango-btn-tier3 ${lp.effectiveLayout === "cards" ? (effectiveLight ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (effectiveLight ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`} style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as React.CSSProperties} aria-pressed={lp.effectiveLayout === "cards"} aria-label="カード表示"><LayoutGrid size={14} />カード</button>
+            <button type="button" onClick={() => lp.setLayoutMode("strip")} className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors flex items-center gap-1.5 dango-btn-tier3 ${lp.effectiveLayout === "strip" ? (effectiveLight ? "bg-white text-neutral-800 shadow-sm" : "bg-white/15 text-white") : (effectiveLight ? "text-neutral-500 hover:bg-black/8" : "text-white/50 hover:bg-white/10")}`} style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as React.CSSProperties} aria-pressed={lp.effectiveLayout === "strip"} aria-label="ストリップ表示"><List size={14} />ストリップ</button>
           </div>
           <div className="mt-3 flex justify-center"><PwaInstallChip effectiveLight={effectiveLight} /></div>
         </div>

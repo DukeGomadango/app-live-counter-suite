@@ -203,7 +203,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
             <button 
               onClick={() => setSidebarOpen(!sidebarOpen)} 
               className="p-2 rounded-xl dango-btn-tier3"
-              style={{ "--btn-glow-color": accentColor } as any}
+              style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
             >
               <Menu size={20} />
             </button>
@@ -216,14 +216,14 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
           <button 
             onClick={toggleTheme} 
             className="p-2 rounded-xl dango-btn-tier3"
-            style={{ "--btn-glow-color": accentColor } as any}
+            style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
           >
             {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
           </button>
           <button 
             onClick={() => setShowSettingsPanel(true)} 
             className="p-2 rounded-xl dango-btn-tier3"
-            style={{ "--btn-glow-color": accentColor } as any}
+            style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
           >
             <Settings size={18} />
           </button>
@@ -252,7 +252,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
                           ? "bg-white dark:bg-white/20 shadow-sm opacity-100" 
                           : "opacity-60 hover:opacity-100"
                       }`}
-                      style={{ "--btn-glow-color": accentColor } as any}
+                      style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
                     >
                       {tab === "reel" ? "リール" : tab === "players" ? "名簿" : tab === "templates" ? "保存" : "統計"}
                     </button>

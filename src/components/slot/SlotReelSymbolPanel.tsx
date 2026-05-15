@@ -77,7 +77,7 @@ function SymbolEditRow({
       />
       <select
         value={role}
-        onChange={(e) => setRole(e.target.value as SlotSymbolRole)}
+        onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setRole(e.target.value as SlotSymbolRole)}
         className={`px-2 py-1 rounded text-sm ${textPrimary}`}
         style={{ background: _inputBg, border: `1px solid ${_inputBorder}` }}
       >
@@ -301,7 +301,7 @@ export default function SlotReelSymbolPanel({
                     ? "bg-black/5 text-gray-600 border border-black/10"
                     : "bg-white/10 text-white/70 border border-white/10"
               }`}
-              style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
+              style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as React.CSSProperties}
             >
               {n}
             </button>
@@ -429,7 +429,7 @@ export default function SlotReelSymbolPanel({
                     ? "bg-black/5 text-gray-600 border border-black/10"
                     : "bg-white/10 text-white/70 border border-white/10"
               }`}
-              style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
+              style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as React.CSSProperties}
             >
               {n}段
             </button>
@@ -488,7 +488,7 @@ export default function SlotReelSymbolPanel({
                       ? "bg-teal-500/20 border-teal-500/40 text-teal-400 shadow-lg"
                       : `bg-black/5 border-transparent ${textSecondary}`
               }`}
-              style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as any}
+              style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as React.CSSProperties}
           >
               リール配列
           </button>
@@ -499,7 +499,7 @@ export default function SlotReelSymbolPanel({
                       ? "bg-teal-500/20 border-teal-500/40 text-teal-400 shadow-lg"
                       : `bg-black/5 border-transparent ${textSecondary}`
               }`}
-              style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as any}
+              style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as React.CSSProperties}
           >
               図柄マスタ
           </button>
@@ -525,7 +525,7 @@ export default function SlotReelSymbolPanel({
                 ? "bg-black/5 text-gray-700 border border-black/10"
                 : "bg-white/10 text-white/80 border border-white/10"
             }`}
-            style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as any}
+            style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as React.CSSProperties}
             title="全図柄をオンにする"
           >
             すべてオン
@@ -546,7 +546,7 @@ export default function SlotReelSymbolPanel({
                 ? "bg-black/5 text-gray-700 border border-black/10"
                 : "bg-white/10 text-white/80 border border-white/10"
             }`}
-            style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as any}
+            style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as React.CSSProperties}
             title="1種類だけオンにして他をオフにする（最低1種類は必要）"
           >
             すべてオフ（1種類残す）
@@ -619,7 +619,7 @@ export default function SlotReelSymbolPanel({
                           ? "text-gray-600"
                           : "text-white/70"
                       }`}
-                      style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
+                      style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as React.CSSProperties}
                       aria-label="編集"
                     >
                       <Pencil size={12} />
@@ -641,7 +641,7 @@ export default function SlotReelSymbolPanel({
                           ? "text-gray-600"
                           : "text-white/70"
                       }`}
-                      style={{ "--btn-glow-color": "rgba(239,68,68,0.5)" } as any}
+                      style={{ "--btn-glow-color": "rgba(239,68,68,0.5)" } as React.CSSProperties}
                       title={
                         used ? "リールで使用中のため削除できません" : "削除"
                       }
@@ -671,7 +671,7 @@ export default function SlotReelSymbolPanel({
               ? "bg-teal-100 text-teal-700"
               : "bg-teal-500/20 text-teal-400"
           }`}
-          style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
+          style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as React.CSSProperties}
         >
           <Plus size={12} /> 図柄を追加
         </button>
@@ -696,7 +696,7 @@ export default function SlotReelSymbolPanel({
                     ? "bg-black/5 text-gray-600 border border-black/10"
                     : "bg-white/10 text-white/70 border border-white/10"
               }`}
-              style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as any}
+              style={{ "--btn-glow-color": "rgba(20,184,166,0.5)" } as React.CSSProperties}
             >
               リール{i + 1}
             </button>

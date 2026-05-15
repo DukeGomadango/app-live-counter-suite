@@ -64,7 +64,7 @@ export function CounterCustomTab({
                         onClick={handleSaveTemplate}
                         disabled={!newTemplateName.trim()}
                         className="px-3 py-2 rounded-xl bg-purple-500/20 border border-purple-500/30 flex items-center gap-1.5 dango-btn-tier3 disabled:opacity-30 disabled:cursor-not-allowed text-xs text-purple-400 font-medium"
-                        style={{ "--btn-glow-color": "rgba(168,85,247,0.4)" } as any}
+                        style={{ "--btn-glow-color": "rgba(168,85,247,0.4)" } as React.CSSProperties}
                     >
                         <Save size={13} />
                         保存
@@ -102,7 +102,7 @@ export function CounterCustomTab({
                                         onToggle();
                                     }}
                                     className="p-1.5 rounded-lg text-teal-400 dango-btn-tier3"
-                                    style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as any}
+                                    style={{ "--btn-glow-color": "rgba(20,184,166,0.3)" } as React.CSSProperties}
                                     title="読み込み"
                                 >
                                     <Download size={14} />
@@ -111,7 +111,7 @@ export function CounterCustomTab({
                                     <button
                                         onClick={() => onOverwriteCustomTemplate(t.id)}
                                         className="p-1.5 rounded-lg text-amber-400 dango-btn-tier3"
-                                        style={{ "--btn-glow-color": "rgba(245,158,11,0.3)" } as any}
+                                        style={{ "--btn-glow-color": "rgba(245,158,11,0.3)" } as React.CSSProperties}
                                         title="現在の項目で上書き保存"
                                     >
                                         <Save size={14} />
@@ -120,7 +120,7 @@ export function CounterCustomTab({
                                 <button
                                     onClick={() => onDeleteCustomTemplate?.(t.id)}
                                     className="p-1.5 rounded-lg text-red-400/60 dango-btn-tier3"
-                                    style={{ "--btn-glow-color": "rgba(239,68,68,0.3)" } as any}
+                                    style={{ "--btn-glow-color": "rgba(239,68,68,0.3)" } as React.CSSProperties}
                                     title="削除"
                                 >
                                     <Trash2 size={14} />

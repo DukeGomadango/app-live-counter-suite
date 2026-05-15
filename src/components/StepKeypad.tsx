@@ -94,7 +94,7 @@ export function StepKeypad({
                             borderRight: i < n - 1 ? `1px solid ${lineColor}` : undefined,
                             borderBottom: `1px solid ${lineColor}`,
                             "--btn-glow-color": "currentColor",
-                        } as any}
+                        } as React.CSSProperties}
                         onClick={() => onAdjustBy(id, col.plus)}
                     >
                         {col.plusLabel}
@@ -110,7 +110,7 @@ export function StepKeypad({
                         style={{
                             borderRight: i < n - 1 ? `1px solid ${lineColor}` : undefined,
                             "--btn-glow-color": "currentColor",
-                        } as any}
+                        } as React.CSSProperties}
                         onClick={() => onAdjustBy(id, col.minus)}
                     >
                         {col.minusLabel}

@@ -162,7 +162,7 @@ export default function SettingsModal({
                         <button
                             onClick={onClose}
                             className={`w-8 h-8 rounded-xl ${bgSubtle} dango-btn-tier3 flex items-center justify-center transition-colors`}
-                            style={{ "--btn-glow-color": "rgba(0,0,0,0.1)" } as any}
+                            style={{ "--btn-glow-color": "rgba(0,0,0,0.1)" } as React.CSSProperties}
                         >
                             <X size={16} className={isLightMode ? "text-gray-500" : "text-white/50"} />
                         </button>
@@ -322,8 +322,8 @@ export default function SettingsModal({
                                                         borderColor: `${accentColor}50`,
                                                         boxShadow: `0 0 12px ${accentColor}20`,
                                                         "--btn-glow-color": accentColor,
-                                                    } as any
-                                                    : { "--btn-glow-color": "currentColor" } as any
+                                                    } as React.CSSProperties
+                                                    : { "--btn-glow-color": "currentColor" } as React.CSSProperties
                                             }
                                         >
                                             <div
@@ -820,7 +820,7 @@ export default function SettingsModal({
                         <button
                             onClick={onClose}
                             className={`flex-1 py-2.5 rounded-xl text-sm font-medium ${bgSubtle} ${textSecondary} dango-btn-tier3 border ${isLightMode ? "border-black/10" : "border-white/10"}`}
-                            style={{ "--btn-glow-color": "rgba(0,0,0,0.1)" } as any}
+                            style={{ "--btn-glow-color": "rgba(0,0,0,0.1)" } as React.CSSProperties}
                         >
                             キャンセル
                         </button>
@@ -831,7 +831,7 @@ export default function SettingsModal({
                                 background: `linear-gradient(135deg, ${accentColor}, ${accentColor}dd)`,
                                 boxShadow: `0 10px 20px ${accentColor}30`,
                                 "--btn-glow-color": accentColor,
-                            } as any}
+                            } as React.CSSProperties}
                         >
                             保存
                         </button>

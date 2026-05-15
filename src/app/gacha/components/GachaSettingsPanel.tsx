@@ -10,8 +10,7 @@ import {
   type GachaSettings, 
   type IntegrationConfig, 
   type GachaPool,
-  GACHA_ACCENT_COLORS,
-  createDefaultSettings
+  GACHA_ACCENT_COLORS
 } from "@/lib/gacha";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 
@@ -29,10 +28,10 @@ interface GachaSettingsPanelProps {
 export function GachaSettingsPanel({
   settings,
   onSettingsChange,
-  pool,
-  onPoolChange,
-  integrationConfig,
-  onIntegrationConfigChange,
+  _pool,
+  _onPoolChange,
+  _integrationConfig,
+  _onIntegrationConfigChange,
   isLightMode,
   onClose,
 }: GachaSettingsPanelProps) {
@@ -73,12 +72,13 @@ export function GachaSettingsPanel({
           <button
             onClick={onClose}
             className={`p-1.5 rounded-lg dango-btn-tier3 ${isLightMode ? "text-gray-500 hover:bg-gray-100" : "text-white/60 hover:bg-white/10"}`}
-            style={{ "--btn-glow-color": "currentColor" } as any}
+            style={{ "--btn-glow-color": "currentColor" } as React.CSSProperties}
             aria-label="閉じる"
           >
             <X size={18} />
           </button>
         </div>
+
 
         <div
           className="px-4 py-3 flex flex-col gap-4 min-h-0 flex-1 overflow-y-auto overflow-x-hidden scroll-touch custom-scrollbar"
