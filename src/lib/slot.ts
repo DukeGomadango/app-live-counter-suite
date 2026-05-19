@@ -48,6 +48,12 @@ export interface SlotSettings {
   artEnabled?: boolean;
   /** ART で加算するゲーム数（artEnabled 時のみ有効） */
   artAddGames?: number;
+  /** オートストップ（自動停止）を有効にするか */
+  autoStopEnabled?: boolean;
+  /** 最初のストップまでの時間 (ms) */
+  autoStopInitialDelay?: number;
+  /** 2番目以降のストップ間隔 (ms) */
+  autoStopInterval?: number;
 }
 
 /** 1ライン分の成立情報 */
@@ -305,6 +311,9 @@ export function createDefaultSettings(): SlotSettings {
     paylines: [[1, 1, 1]],
     artEnabled: false,
     artAddGames: 3,
+    autoStopEnabled: false,
+    autoStopInitialDelay: 1000,
+    autoStopInterval: 600,
   };
 }
 

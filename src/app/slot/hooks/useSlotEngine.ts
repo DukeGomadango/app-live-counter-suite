@@ -36,6 +36,17 @@ export function useSlotEngine({
   setPlayers,
   reelCount
 }: SlotEngineProps) {
+  const [guestBalance, setGuestBalance] = useState(1000);
+  
+  const currentPlayer = useMemo(() => {
+    return activePlayer || {
+      id: "guest",
+      name: "ゲストプレイ",
+      balance: guestBalance,
+      defaultBet: 1,
+    } as SlotPlayer;
+  }, [activePlayer, guestBalance]);
+
   const [isSpinning, setIsSpinning] = useState(false);
   const [reelResults, setReelResults] = useState<(number | null)[]>([]);
   const [ceilingCount, setCeilingCount] = useState(0);
@@ -45,6 +56,26 @@ export function useSlotEngine({
   const [lastWin, setLastWin] = useState<{ label: string; payout: number; isReplay: boolean } | null>(null);
   const [showFlash, setShowFlash] = useState(false);
   const [showHitEffect, setShowHitEffect] = useState(false);
+
+  const [autoSpinRemaining, setAutoSpinRemaining] = useState(0);
+  const [autoSpinStats, setAutoSpinStats] = useState<{ spins: number; bet: number; payout: number; bonuses: number; net: number; nearMisses: number; hitSymbols: Record<string, { symbol: SlotSymbol; count: number; totalPayout: number }> } | null>(null);
+  const [isTurboMode, setIsTurboMode] = useState(false);
+  const autoSpinTimerRef = useRef<number | null>(null);
+  const isFirstAutoSpinRef = useRef(false);
+
+  const startAutoSpin = useCallback((count: number) => {
+    setAutoSpinRemaining(count);
+    setAutoSpinStats({ spins: 0, bet: 0, payout: 0, bonuses: 0, net: 0, nearMisses: 0, hitSymbols: {} });
+    isFirstAutoSpinRef.current = true;
+  }, []);
+
+  const stopAutoSpin = useCallback(() => {
+    setAutoSpinRemaining(0);
+    if (autoSpinTimerRef.current) {
+      clearTimeout(autoSpinTimerRef.current);
+      autoSpinTimerRef.current = null;
+    }
+  }, []);
 
   const appliedWinRef = useRef(false);
   const reachSoundPlayedRef = useRef(false);
@@ -70,7 +101,7 @@ export function useSlotEngine({
 
   const handleSpin = useCallback(() => {
     if (strips.some((s) => s.length === 0)) return;
-    const player = activePlayer;
+    const player = currentPlayer;
     if (!player) return;
     const bet = player.defaultBet;
     const inBonus = bonusGamesRemaining > 0;
@@ -92,11 +123,17 @@ export function useSlotEngine({
           payout,
           isReplay: winResult.isReplay,
         });
-        setPlayers((prev) =>
-          prev.map((p) =>
-            p.id === player.id ? { ...p, balance: p.balance - deduct + payout } : p
-          )
-        );
+        
+        if (player.id === "guest") {
+          setGuestBalance(prev => prev - deduct + payout);
+        } else {
+          setPlayers((prev) =>
+            prev.map((p) =>
+              p.id === player.id ? { ...p, balance: p.balance - deduct + payout } : p
+            )
+          );
+        }
+        
         if (replayFreeSpin) setReplayFreeSpin(false);
         if (winResult.isReplay) setReplayFreeSpin(true);
         const bonusCount = settings.bonusGamesCount ?? 15;
@@ -115,23 +152,30 @@ export function useSlotEngine({
           ceilingTriggered: true,
           winLabels: winResult.wins.map((w) => w.symbol.label),
         };
-        setPlayers((prev) =>
-          prev.map((p) =>
-            p.id === player.id
-              ? { ...p, spinHistory: appendSpinRecord(p.spinHistory ?? [], ceilingRecord) }
-              : p
-          )
-        );
+        
+        if (player.id !== "guest") {
+          setPlayers((prev) =>
+            prev.map((p) =>
+              p.id === player.id
+                ? { ...p, spinHistory: appendSpinRecord(p.spinHistory ?? [], ceilingRecord) }
+                : p
+            )
+          );
+        }
       }
       return;
     }
 
     if (!replayFreeSpin && !inBonus) {
-      setPlayers((prev) =>
-        prev.map((p) =>
-          p.id === player.id ? { ...p, balance: p.balance - bet } : p
-        )
-      );
+      if (player.id === "guest") {
+        setGuestBalance(prev => prev - bet);
+      } else {
+        setPlayers((prev) =>
+          prev.map((p) =>
+            p.id === player.id ? { ...p, balance: p.balance - bet } : p
+          )
+        );
+      }
     } else {
       setReplayFreeSpin(false);
     }
@@ -155,7 +199,7 @@ export function useSlotEngine({
     });
   }, [
     strips,
-    activePlayer,
+    currentPlayer,
     replayFreeSpin,
     bonusGamesRemaining,
     ceilingReached,
@@ -180,13 +224,91 @@ export function useSlotEngine({
     [canStop, settings.soundEnabled]
   );
 
+  // Auto-stop effect
+  useEffect(() => {
+    const shouldAutoStop = settings.autoStopEnabled || autoSpinRemaining > 0;
+    if (!shouldAutoStop || !isSpinning) {
+      return;
+    }
+    if (nextStoppableIndex >= reelCount) {
+      return;
+    }
+
+    let initialDelay = settings.autoStopInitialDelay ?? 1000;
+    let interval = settings.autoStopInterval ?? 600;
+    if (isTurboMode) {
+      initialDelay = 300;
+      interval = 150;
+    }
+    const delay = nextStoppableIndex === 0 ? initialDelay : interval;
+
+    const timer = setTimeout(() => {
+      if (canStop(nextStoppableIndex)) {
+        handleStop(nextStoppableIndex);
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  }, [
+    isSpinning,
+    nextStoppableIndex,
+    reelCount,
+    settings.autoStopEnabled,
+    settings.autoStopInitialDelay,
+    settings.autoStopInterval,
+    autoSpinRemaining,
+    isTurboMode,
+    canStop,
+    handleStop
+  ]);
+
+  // Auto-spin chain effect
+  useEffect(() => {
+    if (isSpinning || autoSpinRemaining <= 0) return;
+    if (autoSpinTimerRef.current) clearTimeout(autoSpinTimerRef.current);
+
+    const player = currentPlayer;
+    if (!player) {
+      setTimeout(stopAutoSpin, 0);
+      return;
+    }
+    const bet = player.defaultBet;
+    const inBonus = bonusGamesRemaining > 0;
+    
+    // Safety stop: out of balance
+    if (!replayFreeSpin && !inBonus && player.balance < bet) {
+      setTimeout(stopAutoSpin, 0);
+      return;
+    }
+    // Safety stop: Bonus triggered
+    if (lastWin && lastWin.label.includes("ボーナス") && !isFirstAutoSpinRef.current) {
+      setTimeout(stopAutoSpin, 0);
+      return;
+    }
+
+    let waitTime = isTurboMode ? (lastWin ? 600 : 150) : (lastWin ? 1800 : 600);
+    if (isFirstAutoSpinRef.current) {
+      waitTime = 0;
+      isFirstAutoSpinRef.current = false;
+    }
+    
+    autoSpinTimerRef.current = window.setTimeout(() => {
+      setAutoSpinRemaining(prev => prev === Infinity ? Infinity : prev - 1);
+      handleSpin();
+    }, waitTime);
+
+    return () => {
+      if (autoSpinTimerRef.current) clearTimeout(autoSpinTimerRef.current);
+    };
+  }, [isSpinning, autoSpinRemaining, isTurboMode, lastWin, currentPlayer, replayFreeSpin, bonusGamesRemaining, stopAutoSpin, handleSpin]);
+
   // Win calculation effect
   useEffect(() => {
     if (!allStopped || !isSpinning) return;
     if (appliedWinRef.current) return;
     appliedWinRef.current = true;
 
-    if (!activePlayer) {
+    if (!currentPlayer) {
       queueMicrotask(() => setIsSpinning(false));
       return;
     }
@@ -195,7 +317,7 @@ export function useSlotEngine({
     const visibleRows = settings.visibleRows ?? 1;
     const paylines = normalizePaylines(settings.paylines, strips.length, visibleRows);
     const winResult = checkPaylines(results, strips, paylines, visibleRows);
-    const bet = activePlayer.defaultBet;
+    const bet = currentPlayer.defaultBet;
     let payout = bet * winResult.multiplier;
     if (winResult.isReplay) {
       payout += bet;
@@ -207,7 +329,7 @@ export function useSlotEngine({
         : null;
     const record: Omit<SlotSpinRecord, "id"> = {
       timestamp: Date.now(),
-      playerId: activePlayer.id,
+      playerId: currentPlayer.id,
       bet,
       reelResults: results,
       payout,
@@ -227,12 +349,62 @@ export function useSlotEngine({
       setShowHitEffect(!!(winInfo && (winInfo.isReplay || (winResult.symbol?.role === "bonus") || payout >= 10)));
       if (winResult.win) playSlotSound("win", settings.soundEnabled);
       if (winResult.win && (payout > 0 || winResult.isReplay)) {
-        setPlayers((prev) =>
-          prev.map((p) =>
-            p.id === activePlayer.id ? { ...p, balance: p.balance + payout } : p
-          )
-        );
+        if (currentPlayer.id === "guest") {
+          setGuestBalance(prev => prev + payout);
+        } else {
+          setPlayers((prev) =>
+            prev.map((p) =>
+              p.id === currentPlayer.id ? { ...p, balance: p.balance + payout } : p
+            )
+          );
+        }
       }
+      setAutoSpinStats(prev => {
+        if (!prev) return prev;
+        const actualBetPaid = (!winResult.isReplay && !wasInBonus) ? bet : 0;
+        
+        let isNearMiss = false;
+        if (!winResult.win && results.length >= 3) {
+          const r0 = results[0];
+          const r1 = results[1];
+          const r2 = results[2];
+          if (r0 != null && r1 != null && r2 != null) {
+            const s0 = strips[0]?.[r0]?.id;
+            const s1 = strips[1]?.[r1]?.id;
+            const s2 = strips[2]?.[r2]?.id;
+            if (s0 && s1 && s2) {
+              isNearMiss = (s0 === s1) || (s1 === s2) || (s0 === s2);
+            }
+          }
+        }
+        
+        const newHitSymbols = { ...prev.hitSymbols };
+        if (winResult.win && winResult.wins.length > 0) {
+          winResult.wins.forEach(w => {
+            const sym = w.symbol;
+            const existing = newHitSymbols[sym.id] || { symbol: sym, count: 0, totalPayout: 0 };
+            
+            let linePayout = bet * w.multiplier;
+            if (w.isReplay) linePayout += bet; // リプレイの場合はベット額が返る
+            
+            newHitSymbols[sym.id] = {
+              ...existing,
+              count: existing.count + 1,
+              totalPayout: existing.totalPayout + linePayout
+            };
+          });
+        }
+        
+        return {
+          spins: prev.spins + 1,
+          bet: prev.bet + actualBetPaid,
+          payout: prev.payout + payout,
+          bonuses: prev.bonuses + (winResult.win && winResult.symbol?.role === "bonus" ? 1 : 0),
+          net: prev.net + (payout - actualBetPaid),
+          nearMisses: prev.nearMisses + (isNearMiss ? 1 : 0),
+          hitSymbols: newHitSymbols
+        };
+      });
       if (wasInBonus) {
         setBonusGamesRemaining((prev) => {
           const next = Math.max(0, prev - 1);
@@ -243,17 +415,19 @@ export function useSlotEngine({
           return next + artAdd;
         });
       }
-      setPlayers((prev) =>
-        prev.map((p) =>
-          p.id === activePlayer.id
-            ? { ...p, spinHistory: appendSpinRecord(p.spinHistory ?? [], record) }
-            : p
-        )
-      );
+      if (currentPlayer.id !== "guest") {
+        setPlayers((prev) =>
+          prev.map((p) =>
+            p.id === currentPlayer.id
+              ? { ...p, spinHistory: appendSpinRecord(p.spinHistory ?? [], record) }
+              : p
+          )
+        );
+      }
       pendingReelResultsRef.current = null;
       setIsSpinning(false);
     });
-  }, [allStopped, isSpinning, activePlayer, reelResults, strips, setPlayers, settings, bonusGamesRemaining]);
+  }, [allStopped, isSpinning, currentPlayer, reelResults, strips, setPlayers, settings, bonusGamesRemaining]);
 
   useEffect(() => {
     if (!isSpinning) {
@@ -281,6 +455,7 @@ export function useSlotEngine({
   }, [isReach, settings.soundEnabled]);
 
   return {
+    currentPlayer,
     isSpinning,
     reelResults,
     ceilingCount,
@@ -291,6 +466,13 @@ export function useSlotEngine({
     showFlash,
     showHitEffect,
     setShowHitEffect,
+    autoSpinRemaining,
+    autoSpinStats,
+    setAutoSpinStats,
+    isTurboMode,
+    setIsTurboMode,
+    startAutoSpin,
+    stopAutoSpin,
     handleSpin,
     handleStop,
     canStop,

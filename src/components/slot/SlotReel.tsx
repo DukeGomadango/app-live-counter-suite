@@ -27,6 +27,7 @@ interface SlotReelProps {
   isReach?: boolean;
   /** 表示行数（1＝1段、3＝3段） */
   visibleRows?: 1 | 3;
+  isTurboMode?: boolean;
 }
 
 export default function SlotReel({
@@ -39,6 +40,7 @@ export default function SlotReel({
   accentColor = "#a855f7",
   isReach = false,
   visibleRows = 1,
+  isTurboMode = false,
 }: SlotReelProps) {
   const y = useMotionValue(0);
   const displayY = useTransform(y, (v) => -v);
@@ -48,6 +50,7 @@ export default function SlotReel({
   const rafRef = useRef<number | null>(null);
   const lastTimeRef = useRef<number>(0);
   const animateStopRef = useRef<ReturnType<typeof animate> | null>(null);
+  const currentSpinSpeed = isTurboMode ? SPIN_SPEED * 3 : SPIN_SPEED;
 
   useEffect(() => {
     if (symbols.length === 0) return;
@@ -56,7 +59,7 @@ export default function SlotReel({
       const dt = (t - lastTimeRef.current) / 1000;
       lastTimeRef.current = t;
       const prev = y.get();
-      let next = prev + SPIN_SPEED * dt;
+      let next = prev + currentSpinSpeed * dt;
       if (next >= stripLen) next -= stripLen;
       y.set(next);
       rafRef.current = requestAnimationFrame(step);
@@ -66,7 +69,7 @@ export default function SlotReel({
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [isSpinning, stoppedIndex, symbols.length, stripLen, y]);
+  }, [isSpinning, stoppedIndex, symbols.length, stripLen, y, currentSpinSpeed]);
 
   useEffect(() => {
     if (symbols.length === 0 || stoppedIndex === null) return;
@@ -90,9 +93,9 @@ export default function SlotReel({
       dist = to - currentY;
     }
     // ストップ初速が回転速度と同じになるよう duration を決める（慣性で自然に減速）
-    const duration = Math.min(
+    const duration = isTurboMode ? 0.15 : Math.min(
       STOP_DURATION_MAX,
-      Math.max(STOP_DURATION_MIN, (dist / SPIN_SPEED) * EASE_INITIAL_SLOPE)
+      Math.max(STOP_DURATION_MIN, (dist / currentSpinSpeed) * EASE_INITIAL_SLOPE)
     );
     animateStopRef.current = animate(currentY, to, {
       type: "tween",
@@ -103,7 +106,7 @@ export default function SlotReel({
     return () => {
       animateStopRef.current?.stop();
     };
-  }, [stoppedIndex, symbols.length, rows, stripLen, y]);
+  }, [stoppedIndex, symbols.length, rows, stripLen, y, currentSpinSpeed, isTurboMode]);
 
   if (symbols.length === 0) {
     return (

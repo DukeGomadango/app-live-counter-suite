@@ -160,6 +160,61 @@ export default function SlotSettingsPanel({
             </label>
           </div>
 
+          <div className="flex flex-col gap-3 pt-4 border-t" style={{ borderColor: glassBorder }}>
+            <div className="flex items-center gap-2">
+              <input
+                id="slot-auto-stop"
+                type="checkbox"
+                checked={settings.autoStopEnabled ?? false}
+                onChange={(e) =>
+                  onSettingsChange({
+                    ...settings,
+                    autoStopEnabled: e.target.checked,
+                  })
+                }
+                className="rounded accent-teal-500 cursor-pointer"
+              />
+              <label htmlFor="slot-auto-stop" className={`text-sm font-bold ${textPrimary} cursor-pointer`}>
+                自動停止 (オートストップ) を有効にする
+              </label>
+            </div>
+            
+            {(settings.autoStopEnabled ?? false) && (
+              <div className="pl-6 flex flex-col gap-3">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className={`text-xs ${textSecondary}`}>最初の停止までの時間</label>
+                    <span className={`text-xs ${textSecondary}`}>{settings.autoStopInitialDelay ?? 1000} ms</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={500}
+                    max={2000}
+                    step={100}
+                    value={settings.autoStopInitialDelay ?? 1000}
+                    onChange={(e) => onSettingsChange({ ...settings, autoStopInitialDelay: Number(e.target.value) })}
+                    className="w-full h-1.5 rounded-full accent-teal-500"
+                  />
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className={`text-xs ${textSecondary}`}>2番目以降の停止間隔</label>
+                    <span className={`text-xs ${textSecondary}`}>{settings.autoStopInterval ?? 600} ms</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={200}
+                    max={1500}
+                    step={100}
+                    value={settings.autoStopInterval ?? 600}
+                    onChange={(e) => onSettingsChange({ ...settings, autoStopInterval: Number(e.target.value) })}
+                    className="w-full h-1.5 rounded-full accent-teal-500"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
           {onOpenPlayerManager && (
             <div className="mt-4 pt-4 border-t" style={{ borderColor: glassBorder }}>
               <button
