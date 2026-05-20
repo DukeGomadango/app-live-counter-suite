@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     X,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, distributePercentagesProportionally } from "@/lib/gacha";
+import GachaProfitChart, { SimDataPoint } from "./GachaProfitChart";
 
 // ============================================================
 // 型定義
@@ -276,6 +277,15 @@ function fmtPrice(val: number): string {
     return val.toLocaleString("ja-JP", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 }
 
+// mulberry32 シード付き疑似乱数生成用の純粋な遷移関数 (React 19 Pure Render対応)
+function nextRandom(state: number): { value: number; nextState: number } {
+    const nextState = (state + 0x6D2B79F5) | 0;
+    let t = Math.imul(nextState ^ (nextState >>> 15), 1 | nextState);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    const value = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    return { value, nextState };
+}
+
 // ============================================================
 // RarityWeightInput：レア度確率入力コンポーネント
 // ============================================================
@@ -369,6 +379,9 @@ export default function GachaBulkSetupModal({
     /** ガチャ1回あたりの販売価格 */
     const [pullPrice, setPullPrice] = useState<number>(300);
 
+    /** スマホ用アクティブタブ ("grid" | "chart") */
+    const [activeTab, setActiveTab] = useState<"grid" | "chart">("grid");
+
     const activeRarities = rarities.length > 0 ? rarities : pool.rarities;
     const sortedRarities = [...activeRarities].sort((a, b) => a.sortOrder - b.sortOrder);
 
@@ -393,6 +406,7 @@ export default function GachaBulkSetupModal({
             setLockedRarityIds(new Set());
             setIsRaritiesExpanded(true);
             setPullPrice(pool.pullPrice ?? 300);
+            setActiveTab("grid");
         }
     }
 
@@ -614,10 +628,168 @@ export default function GachaBulkSetupModal({
     }, [rows, rarities, pool.rarities, pullPrice, onApply, onClose]);
 
     // ============================================================
+    // 期待値・シミュレーション計算ブロック
+    // ============================================================
+    const currentRarities = rarities.length > 0 ? rarities : pool.rarities;
+
+    const simulatorData = useMemo(() => {
+        if (!showCostSimulator) {
+            return {
+                expectedCost: 0,
+                expectedProfitMargin: 0,
+                deficitRisk: 0,
+                chartData: [] as SimDataPoint[],
+            };
+        }
+
+        const activeRaritiesWithItems = new Set<string>();
+        for (const r of rows) activeRaritiesWithItems.add(r.rarityId);
+
+        let totalRarityWeight = 0;
+        for (const r of currentRarities) {
+            if (!activeRaritiesWithItems.has(r.id)) continue;
+            totalRarityWeight += (r.defaultWeight ?? 1);
+        }
+
+        const rarityProbs = new Map<string, number>();
+        for (const r of currentRarities) {
+            if (!activeRaritiesWithItems.has(r.id)) {
+                rarityProbs.set(r.id, 0);
+                continue;
+            }
+            rarityProbs.set(r.id, totalRarityWeight === 0 ? 0 : (((r.defaultWeight ?? 1) / totalRarityWeight) * 100));
+        }
+
+        const rarityWeightSums = new Map<string, number>();
+        for (const r of rows) {
+            rarityWeightSums.set(r.rarityId, (rarityWeightSums.get(r.rarityId) || 0) + r.weight);
+        }
+
+        const withinRarityProbs = new Map<string, number>();
+        for (const r of rows) {
+            const totalInRarity = rarityWeightSums.get(r.rarityId) || 0;
+            if (totalInRarity === 0) continue;
+            withinRarityProbs.set(r.id, (r.weight / totalInRarity) * 100);
+        }
+
+        // 1. 期待原価の計算
+        let expectedCost = 0;
+        const itemGlobalProbs = new Map<string, number>();
+        for (const r of rows) {
+            const rp = rarityProbs.get(r.rarityId) || 0;
+            const wp = withinRarityProbs.get(r.id) || 0;
+            const globalProb = (rp / 100) * (wp / 100);
+            itemGlobalProbs.set(r.id, globalProb);
+            expectedCost += globalProb * r.costPrice;
+        }
+
+        const expectedProfitMargin = pullPrice > 0 ? ((pullPrice - expectedCost) / pullPrice) * 100 : 0;
+
+        // 2. モンテカルロシミュレーション用の準備
+        const limits: number[] = [];
+        const costPrices: number[] = [];
+        let accum = 0;
+        for (const r of rows) {
+            const globalProb = itemGlobalProbs.get(r.id) || 0;
+            accum += globalProb;
+            limits.push(accum);
+            costPrices.push(r.costPrice);
+        }
+
+        const totalSum = accum;
+        if (totalSum > 0) {
+            for (let i = 0; i < limits.length; i++) {
+                limits[i] = (limits[i] ?? 0) / totalSum;
+            }
+        }
+
+        // 3. モンテカルロ赤字リスクの計算 (100回 × 1,000回抽選)
+        let deficitTrials = 0;
+        const trialsCount = 100;
+        const pullsPerTrial = 1000;
+        const revenuePerTrial = pullsPerTrial * pullPrice;
+
+        let seedState = 12345;
+
+        if (totalSum > 0 && rows.length > 0) {
+            for (let t = 0; t < trialsCount; t++) {
+                let trialCost = 0;
+                for (let p = 0; p < pullsPerTrial; p++) {
+                    const { value: rand, nextState } = nextRandom(seedState);
+                    seedState = nextState;
+                    // limitsが小さいことを前提とした高速な線形探索
+                    for (let i = 0; i < limits.length; i++) {
+                        const limit = limits[i];
+                        if (limit !== undefined && rand <= limit) {
+                            trialCost += costPrices[i] ?? 0;
+                            break;
+                        }
+                    }
+                }
+                if (trialCost > revenuePerTrial) {
+                    deficitTrials++;
+                }
+            }
+        }
+        const deficitRisk = totalSum > 0 && rows.length > 0 ? (deficitTrials / trialsCount) * 100 : 0;
+
+        // 4. グラフ用プロットデータ作成 (単一パスの1,000回シミュレーション)
+        const chartData: SimDataPoint[] = [{
+            pulls: 0,
+            revenue: 0,
+            expectedCost: 0,
+            simulatedCost: 0,
+            expectedProfit: 0,
+            simulatedProfit: 0
+        }];
+
+        let accumulatedSimCost = 0;
+        const sampleInterval = 20;
+
+        if (totalSum > 0 && rows.length > 0) {
+            for (let p = 1; p <= 1000; p++) {
+                const { value: rand, nextState } = nextRandom(seedState);
+                seedState = nextState;
+                let cost = 0;
+                for (let i = 0; i < limits.length; i++) {
+                    const limit = limits[i];
+                    if (limit !== undefined && rand <= limit) {
+                        cost = costPrices[i] ?? 0;
+                        break;
+                    }
+                }
+                accumulatedSimCost += cost;
+
+                if (p % sampleInterval === 0) {
+                    const currentRevenue = p * pullPrice;
+                    const currentExpectedCost = p * expectedCost;
+                    const currentExpectedProfit = currentRevenue - currentExpectedCost;
+                    const currentSimulatedProfit = currentRevenue - accumulatedSimCost;
+
+                    chartData.push({
+                        pulls: p,
+                        revenue: currentRevenue,
+                        expectedCost: currentExpectedCost,
+                        simulatedCost: accumulatedSimCost,
+                        expectedProfit: currentExpectedProfit,
+                        simulatedProfit: currentSimulatedProfit,
+                    });
+                }
+            }
+        }
+
+        return {
+            expectedCost,
+            expectedProfitMargin,
+            deficitRisk,
+            chartData,
+        };
+    }, [rows, currentRarities, pullPrice, showCostSimulator]);
+
+    // ============================================================
     // 描画
     // ============================================================
 
-    const currentRarities = rarities.length > 0 ? rarities : pool.rarities;
     const validation = validate(rows, currentRarities);
     const displayRows = filterRarityId === "all"
         ? rows
@@ -655,7 +827,7 @@ export default function GachaBulkSetupModal({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.92, y: 24 }}
                     transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                    className="relative w-full max-w-5xl flex flex-col rounded-3xl shadow-2xl overflow-hidden"
+                    className={`relative w-full ${showCostSimulator ? "max-w-7xl" : "max-w-5xl"} flex flex-col rounded-3xl shadow-2xl overflow-hidden`}
                     style={{
                         background: bgMain,
                         border: `1px solid ${borderColor}`,
@@ -696,9 +868,42 @@ export default function GachaBulkSetupModal({
                         </button>
                     </div>
 
+                    {/* スマホ用セグメントタブ (シミュレーションモードONかつモバイル表示時のみ) */}
+                    {showCostSimulator && (
+                        <div className="px-6 py-2 md:hidden border-b flex shrink-0" style={{ borderColor, background: bgHeader }}>
+                            <div className="grid grid-cols-2 w-full p-1 rounded-xl bg-black/10 dark:bg-white/5">
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab("grid")}
+                                    className={`py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                        activeTab === "grid"
+                                            ? "bg-purple-600 text-white shadow-md"
+                                            : "text-gray-400 hover:text-white"
+                                    }`}
+                                >
+                                    📝 設定グリッド
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setActiveTab("chart")}
+                                    className={`py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                        activeTab === "chart"
+                                            ? "bg-purple-600 text-white shadow-md"
+                                            : "text-gray-400 hover:text-white"
+                                    }`}
+                                >
+                                    📊 収益シミュレータ
+                                    {simulatorData.deficitRisk > 20 && (
+                                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-ping" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
                     {/* ━━━━━ レア度確率設定パネル ━━━━━ */}
                     <div
-                        className="px-6 py-4 shrink-0"
+                        className={`px-6 py-4 shrink-0 ${showCostSimulator && activeTab === "chart" ? "hidden md:block" : ""}`}
                         style={{
                             borderBottom: `1px solid ${borderColor}`,
                             background: isLightMode ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.015)",
@@ -852,7 +1057,7 @@ export default function GachaBulkSetupModal({
 
                     {/* ━━━━━ ツールバー ━━━━━ */}
                     <div
-                        className="flex flex-wrap items-center gap-3 px-6 py-3 shrink-0"
+                        className={`flex flex-wrap items-center gap-3 px-6 py-3 shrink-0 ${showCostSimulator && activeTab === "chart" ? "hidden md:flex" : "flex"}`}
                         style={{ borderBottom: `1px solid ${borderColor}`, background: isLightMode ? "rgba(139,92,246,0.02)" : "rgba(139,92,246,0.05)" }}
                     >
                         {/* レア度フィルタ */}
@@ -957,322 +1162,340 @@ export default function GachaBulkSetupModal({
                         </div>
                     </div>
 
-                    {/* ━━━━━ グリッドテーブル ━━━━━ */}
-                    <div className="flex-1 overflow-auto">
-                        <table className="w-full text-xs border-collapse" style={{ minWidth: 700 }}>
-                            <thead className="sticky top-0 z-10" style={{ background: bgHeader }}>
-                                <tr style={{ borderBottom: `1px solid ${borderColor}` }}>
-                                    <th className="px-3 py-2.5 text-left font-semibold w-24" style={{ color: textMuted }}>レア度</th>
-                                    <th className="px-3 py-2.5 text-left font-semibold" style={{ color: textMuted }}>景品名</th>
-                                    <th className="px-3 py-2.5 text-center font-semibold w-8" style={{ color: textMuted }} title="ロック中は均等割り・比例配分から除外">
-                                        <Lock size={10} />
-                                    </th>
-                                    <th className="px-3 py-2.5 text-right font-semibold w-28" style={{ color: textMuted }}>
-                                        確率（レア度内%）
-                                    </th>
-                                    <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
-                                        全体確率
-                                    </th>
-                                    {showCostSimulator && (
-                                        <>
-                                            <th className="px-3 py-2.5 text-right font-semibold w-28" style={{ color: textMuted }}>
-                                                原価
-                                            </th>
-                                            <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
-                                                期待原価
-                                            </th>
-                                            <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
-                                                単体損益
-                                            </th>
-                                        </>
-                                    )}
-                                    <th className="px-3 py-2.5 text-center font-semibold w-10" style={{ color: textMuted }}>削除</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <AnimatePresence initial={false}>
-                                    {displayRows.map((row, idx) => {
-                                        const rarity = sortedRarities.find(r => r.id === row.rarityId);
-                                        const total = validation.rarityTotals.get(row.rarityId) ?? 0;
-                                        const totalOk = Math.abs(total - 100) < 0.5;
-                                        const hasEmptyName = validation.emptyNames.has(row.id);
+                    {/* ━━━━━ メインコンテンツエリア (2カラム/タブ切り替え対応) ━━━━━ */}
+                    <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+                        {/* 左カラム / テーブルエリア */}
+                        <div
+                            className={`flex-1 flex flex-col overflow-auto min-w-0 ${
+                                showCostSimulator && activeTab === "chart" ? "hidden md:flex" : "flex"
+                            }`}
+                        >
+                            {/* スマホ用簡易ステータスバー (モバイル表示＆グリッド選択中のみ) */}
+                            {showCostSimulator && activeTab === "grid" && (
+                                <div className="px-6 py-2.5 md:hidden border-b flex items-center justify-between text-[11px] font-bold"
+                                     style={{ background: isLightMode ? "rgba(0,0,0,0.01)" : "rgba(255,255,255,0.01)", borderColor }}>
+                                    <span style={{ color: textMuted }}>簡易ステータス:</span>
+                                    <div className="flex items-center gap-2">
+                                        <span className={`px-2 py-0.5 rounded-full ${
+                                            simulatorData.expectedProfitMargin >= 0
+                                                ? (isLightMode ? "bg-emerald-100 text-emerald-700" : "bg-emerald-500/10 text-emerald-400")
+                                                : (isLightMode ? "bg-rose-100 text-rose-700" : "bg-rose-500/10 text-rose-400")
+                                        }`}>
+                                            期待利益: {simulatorData.expectedProfitMargin.toFixed(1)}%
+                                        </span>
+                                        <span className={`px-2 py-0.5 rounded-full ${
+                                            simulatorData.deficitRisk > 20
+                                                ? (isLightMode ? "bg-rose-100 text-rose-700 animate-pulse" : "bg-rose-500/10 text-rose-400 animate-pulse")
+                                                : (isLightMode ? "bg-emerald-100 text-emerald-700" : "bg-emerald-500/10 text-emerald-400")
+                                        }`}>
+                                            リスク: {simulatorData.deficitRisk.toFixed(0)}%
+                                        </span>
+                                    </div>
+                                </div>
+                            )}
 
-                                        const rarityProb = rarity?.defaultWeight ?? 0;
-                                        const globalProb = (rarityProb * row.weight) / 100;
+                            <table className="w-full text-xs border-collapse" style={{ minWidth: 700 }}>
+                                <thead className="sticky top-0 z-10" style={{ background: bgHeader }}>
+                                    <tr style={{ borderBottom: `1px solid ${borderColor}` }}>
+                                        <th className="px-3 py-2.5 text-left font-semibold w-24" style={{ color: textMuted }}>レア度</th>
+                                        <th className="px-3 py-2.5 text-left font-semibold" style={{ color: textMuted }}>景品名</th>
+                                        <th className="px-3 py-2.5 text-center font-semibold w-8" style={{ color: textMuted }} title="ロック中は均等割り・比例配分から除外">
+                                            <Lock size={10} />
+                                        </th>
+                                        <th className="px-3 py-2.5 text-right font-semibold w-28" style={{ color: textMuted }}>
+                                            確率（レア度内%）
+                                        </th>
+                                        <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
+                                            全体確率
+                                        </th>
+                                        {showCostSimulator && (
+                                            <>
+                                                <th className="px-3 py-2.5 text-right font-semibold w-28" style={{ color: textMuted }}>
+                                                    原価
+                                                </th>
+                                                <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
+                                                    期待原価
+                                                </th>
+                                                <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
+                                                    単体損益
+                                                </th>
+                                            </>
+                                        )}
+                                        <th className="px-3 py-2.5 text-center font-semibold w-10" style={{ color: textMuted }}>削除</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <AnimatePresence initial={false}>
+                                        {displayRows.map((row, idx) => {
+                                            const rarity = sortedRarities.find(r => r.id === row.rarityId);
+                                            const total = validation.rarityTotals.get(row.rarityId) ?? 0;
+                                            const totalOk = Math.abs(total - 100) < 0.5;
+                                            const hasEmptyName = validation.emptyNames.has(row.id);
 
-                                        return (
-                                            <motion.tr
-                                                key={row.id}
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: "auto" }}
-                                                exit={{ opacity: 0, height: 0 }}
-                                                transition={{ duration: 0.15 }}
-                                                className="group"
-                                                style={{
-                                                    borderBottom: `1px solid ${borderColor}`,
-                                                    background: idx % 2 === 0
+                                            const rarityProb = rarity?.defaultWeight ?? 0;
+                                            const globalProb = (rarityProb * row.weight) / 100;
+
+                                            return (
+                                                <motion.tr
+                                                    key={row.id}
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: "auto" }}
+                                                    exit={{ opacity: 0, height: 0 }}
+                                                    transition={{ duration: 0.15 }}
+                                                    className="group"
+                                                    style={{
+                                                        borderBottom: `1px solid ${borderColor}`,
+                                                        background: idx % 2 === 0
+                                                            ? "transparent"
+                                                            : isLightMode ? "rgba(0,0,0,0.015)" : "rgba(255,255,255,0.015)",
+                                                    }}
+                                                    onMouseOver={e => (e.currentTarget.style.background = rowHoverBg)}
+                                                    onMouseOut={e => (e.currentTarget.style.background = idx % 2 === 0
                                                         ? "transparent"
-                                                        : isLightMode ? "rgba(0,0,0,0.015)" : "rgba(255,255,255,0.015)",
-                                                }}
-                                                onMouseOver={e => (e.currentTarget.style.background = rowHoverBg)}
-                                                onMouseOut={e => (e.currentTarget.style.background = idx % 2 === 0
-                                                    ? "transparent"
-                                                    : isLightMode ? "rgba(0,0,0,0.015)" : "rgba(255,255,255,0.015)")}
-                                            >
-                                                {/* レア度プルダウン */}
-                                                <td className="px-3 py-2">
-                                                    <select
-                                                        value={row.rarityId}
-                                                        onChange={e => handleRarityChange(row.id, e.target.value)}
-                                                        className="text-[11px] font-bold px-1.5 py-0.5 rounded cursor-pointer outline-none w-full"
-                                                        style={{
-                                                            color: rarity?.color ?? "#6b7280",
-                                                            background: rarity?.bgColor ?? inputBg,
-                                                            border: `1px solid ${rarity?.glowColor ?? "rgba(107,114,128,0.3)"}`,
-                                                        }}
-                                                    >
-                                                        {sortedRarities.map(r => (
-                                                            <option key={r.id} value={r.id} style={selectOptionStyle}>{r.name || "（名称なし）"}</option>
-                                                        ))}
-                                                    </select>
-                                                </td>
+                                                        : isLightMode ? "rgba(0,0,0,0.015)" : "rgba(255,255,255,0.015)")}
+                                                >
+                                                    {/* レア度プルダウン */}
+                                                    <td className="px-3 py-2">
+                                                        <select
+                                                            value={row.rarityId}
+                                                            onChange={e => handleRarityChange(row.id, e.target.value)}
+                                                            className="text-[11px] font-bold px-1.5 py-0.5 rounded cursor-pointer outline-none w-full"
+                                                            style={{
+                                                                color: rarity?.color ?? "#6b7280",
+                                                                background: rarity?.bgColor ?? inputBg,
+                                                                border: `1px solid ${rarity?.glowColor ?? "rgba(107,114,128,0.3)"}`,
+                                                            }}
+                                                        >
+                                                            {sortedRarities.map(r => (
+                                                                <option key={r.id} value={r.id} style={selectOptionStyle}>{r.name || "（名称なし）"}</option>
+                                                            ))}
+                                                        </select>
+                                                    </td>
 
-                                                {/* 景品名 */}
-                                                <td className="px-3 py-2">
-                                                    <input
-                                                        type="text"
-                                                        value={row.name}
-                                                        onChange={e => handleNameChange(row.id, e.target.value)}
-                                                        placeholder="景品名を入力"
-                                                        className="w-full px-2 py-1 rounded-lg outline-none text-xs transition-all"
-                                                        style={{
-                                                            background: inputBg,
-                                                            border: `1px solid ${hasEmptyName ? "rgba(239,68,68,0.5)" : inputBorder}`,
-                                                            color: textPrimary,
-                                                        }}
-                                                    />
-                                                </td>
+                                                    {/* 景品名 */}
+                                                    <td className="px-3 py-2">
+                                                        <input
+                                                            type="text"
+                                                            value={row.name}
+                                                            onChange={e => handleNameChange(row.id, e.target.value)}
+                                                            placeholder="景品名を入力"
+                                                            className="w-full px-2 py-1 rounded-lg outline-none text-xs transition-all"
+                                                            style={{
+                                                                background: inputBg,
+                                                                border: `1px solid ${hasEmptyName ? "rgba(239,68,68,0.5)" : inputBorder}`,
+                                                                color: textPrimary,
+                                                            }}
+                                                        />
+                                                    </td>
 
-                                                {/* ロックボタン */}
-                                                <td className="px-2 py-2 text-center">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleToggleLock(row.id)}
-                                                        className="w-6 h-6 inline-flex items-center justify-center rounded transition-all cursor-pointer"
-                                                        style={{
-                                                            color: row.locked
-                                                                ? (isLightMode ? "#d97706" : "#fbbf24")
-                                                                : textMuted,
-                                                            background: row.locked
-                                                                ? (isLightMode ? "rgba(217,119,6,0.1)" : "rgba(251,191,36,0.1)")
-                                                                : "transparent",
-                                                        }}
-                                                        title={row.locked ? "ロック中（クリックして解除）" : "クリックしてロック"}
-                                                        aria-pressed={row.locked}
-                                                        aria-label={row.locked ? "確率ロックを解除" : "確率をロック"}
-                                                    >
-                                                        {row.locked ? <Lock size={10} /> : <Unlock size={10} />}
-                                                    </button>
-                                                </td>
+                                                    {/* ロックボタン */}
+                                                    <td className="px-2 py-2 text-center">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleToggleLock(row.id)}
+                                                            className="w-6 h-6 inline-flex items-center justify-center rounded transition-all cursor-pointer"
+                                                            style={{
+                                                                color: row.locked
+                                                                    ? (isLightMode ? "#d97706" : "#fbbf24")
+                                                                    : textMuted,
+                                                                background: row.locked
+                                                                    ? (isLightMode ? "rgba(217,119,6,0.1)" : "rgba(251,191,36,0.1)")
+                                                                    : "transparent",
+                                                            }}
+                                                            title={row.locked ? "ロック中（クリックして解除）" : "クリックしてロック"}
+                                                            aria-pressed={row.locked}
+                                                            aria-label={row.locked ? "確率ロックを解除" : "確率をロック"}
+                                                        >
+                                                            {row.locked ? <Lock size={10} /> : <Unlock size={10} />}
+                                                        </button>
+                                                    </td>
 
-                                                {/* 確率入力 */}
-                                                <td className="px-3 py-2">
-                                                    <WeightCell
-                                                        row={row}
-                                                        totalOk={totalOk}
-                                                        total={total}
-                                                        isLightMode={isLightMode}
-                                                        textPrimary={textPrimary}
-                                                        textMuted={textMuted}
-                                                        inputBg={inputBg}
-                                                        inputBorder={inputBorder}
-                                                        onWeightChange={handleWeightChange}
-                                                    />
-                                                </td>
+                                                    {/* 確率入力 */}
+                                                    <td className="px-3 py-2">
+                                                        <WeightCell
+                                                            row={row}
+                                                            totalOk={totalOk}
+                                                            total={total}
+                                                            isLightMode={isLightMode}
+                                                            textPrimary={textPrimary}
+                                                            textMuted={textMuted}
+                                                            inputBg={inputBg}
+                                                            inputBorder={inputBorder}
+                                                            onWeightChange={handleWeightChange}
+                                                        />
+                                                    </td>
 
-                                                {/* 全体確率 */}
-                                                <td className="px-3 py-2 text-right font-semibold tabular-nums text-xs" style={{ color: textMuted }}>
-                                                    {fmtW(globalProb)}%
-                                                </td>
+                                                    {/* 全体確率 */}
+                                                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-xs" style={{ color: textMuted }}>
+                                                        {fmtW(globalProb)}%
+                                                    </td>
 
-                                                {/* 原価・期待原価・単体損益 */}
-                                                {showCostSimulator && (
-                                                    <>
-                                                        <td className="px-3 py-2">
-                                                            <CostCell
-                                                                row={row}
-                                                                textPrimary={textPrimary}
-                                                                textMuted={textMuted}
-                                                                inputBg={inputBg}
-                                                                inputBorder={inputBorder}
-                                                                onCostChange={handleCostChange}
-                                                            />
-                                                        </td>
+                                                    {/* 原価・期待原価・単体損益 */}
+                                                    {showCostSimulator && (
+                                                        <>
+                                                            <td className="px-3 py-2">
+                                                                <CostCell
+                                                                    row={row}
+                                                                    textPrimary={textPrimary}
+                                                                    textMuted={textMuted}
+                                                                    inputBg={inputBg}
+                                                                    inputBorder={inputBorder}
+                                                                    onCostChange={handleCostChange}
+                                                                />
+                                                            </td>
 
-                                                        <td className="px-3 py-2 text-right font-semibold tabular-nums text-xs" style={{ color: textMuted }}>
-                                                            {fmtPrice((globalProb * row.costPrice) / 100)}円
-                                                        </td>
+                                                            <td className="px-3 py-2 text-right font-semibold tabular-nums text-xs" style={{ color: textMuted }}>
+                                                                {fmtPrice((globalProb * row.costPrice) / 100)}円
+                                                            </td>
 
-                                                        <td className={`px-3 py-2 text-right font-semibold tabular-nums text-xs ${
-                                                            (pullPrice - row.costPrice) >= 0
-                                                                ? (isLightMode ? "text-emerald-600" : "text-emerald-400 font-semibold")
-                                                                : (isLightMode ? "text-rose-600" : "text-rose-400 font-semibold")
-                                                        }`}>
-                                                            {(pullPrice - row.costPrice) >= 0 ? "+" : ""}{fmtPrice(pullPrice - row.costPrice)}円
-                                                        </td>
-                                                    </>
-                                                )}
+                                                            <td className={`px-3 py-2 text-right font-semibold tabular-nums text-xs ${
+                                                                (pullPrice - row.costPrice) >= 0
+                                                                    ? (isLightMode ? "text-emerald-600" : "text-emerald-400 font-semibold")
+                                                                    : (isLightMode ? "text-rose-600" : "text-rose-400 font-semibold")
+                                                            }`}>
+                                                                {(pullPrice - row.costPrice) >= 0 ? "+" : ""}{fmtPrice(pullPrice - row.costPrice)}円
+                                                            </td>
+                                                        </>
+                                                    )}
 
-                                                {/* 削除ボタン */}
-                                                <td className="px-2 py-2 text-center">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleDeleteRow(row.id)}
-                                                        className="w-6 h-6 inline-flex items-center justify-center rounded transition-colors text-red-400 opacity-0 group-hover:opacity-100 cursor-pointer"
-                                                        style={{ background: "transparent" }}
-                                                        onMouseOver={e => (e.currentTarget.style.background = "rgba(239,68,68,0.12)")}
-                                                        onMouseOut={e => (e.currentTarget.style.background = "transparent")}
-                                                        title="この行を削除"
-                                                        aria-label="行を削除"
-                                                    >
-                                                        <Trash2 size={12} />
-                                                    </button>
-                                                </td>
-                                            </motion.tr>
-                                        );
-                                    })}
-                                </AnimatePresence>
+                                                    {/* 削除ボタン */}
+                                                    <td className="px-2 py-2 text-center">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => handleDeleteRow(row.id)}
+                                                            className="w-6 h-6 inline-flex items-center justify-center rounded transition-colors text-red-400 opacity-0 group-hover:opacity-100 cursor-pointer"
+                                                            style={{ background: "transparent" }}
+                                                            onMouseOver={e => (e.currentTarget.style.background = "rgba(239,68,68,0.12)")}
+                                                            onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+                                                            title="この行を削除"
+                                                            aria-label="行を削除"
+                                                        >
+                                                            <Trash2 size={12} />
+                                                        </button>
+                                                    </td>
+                                                </motion.tr>
+                                            );
+                                        })}
+                                    </AnimatePresence>
 
-                                {/* 空の場合のメッセージ */}
-                                                                {displayRows.length === 0 && (
-                                                                    <tr>
-                                                                        <td colSpan={showCostSimulator ? 9 : 6} className="px-6 py-12 text-center" style={{ color: textMuted }}>
-                                                                            <div className="flex flex-col items-center gap-2">
-                                                                                <Sliders size={28} style={{ color: textMuted, opacity: 0.4 }} />
-                                                                                <p className="text-xs">
-                                                                                    {filterRarityId === "all"
-                                                                                        ? "景品がありません。「行を追加」で追加してください。"
-                                                                                        : "このレア度に景品がありません。"}
-                                                                                </p>
-                                                                            </div>
-                                                                        </td>
-                                                                    </tr>
-                                                                )}
-                            </tbody>
-                        </table>
+                                    {/* 空の場合のメッセージ */}
+                                    {displayRows.length === 0 && (
+                                        <tr>
+                                            <td colSpan={showCostSimulator ? 9 : 6} className="px-6 py-12 text-center" style={{ color: textMuted }}>
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <Sliders size={28} style={{ color: textMuted, opacity: 0.4 }} />
+                                                    <p className="text-xs">
+                                                        {filterRarityId === "all"
+                                                            ? "景品がありません。「行を追加」で追加してください。"
+                                                            : "このレア度に景品がありません。"}
+                                                    </p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* 右カラム / シミュレータグラフエリア */}
+                        {showCostSimulator && (
+                            <div
+                                className={`w-full md:w-[420px] lg:w-[480px] shrink-0 border-t md:border-t-0 md:border-l p-6 overflow-y-auto flex flex-col min-h-[300px] md:min-h-0 ${
+                                    activeTab === "grid" ? "hidden md:flex" : "flex"
+                                }`}
+                                style={{
+                                    borderColor,
+                                    background: isLightMode ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.01)",
+                                }}
+                            >
+                                <div className="mb-4">
+                                    <h3 className="text-xs font-bold" style={{ color: textPrimary }}>
+                                        収益シミュレーション
+                                    </h3>
+                                    <p className="text-[10px]" style={{ color: textMuted }}>
+                                        確率と原価に基づき、ガチャ1回あたりの期待値をリアルタイム計算します
+                                    </p>
+                                </div>
+                                <GachaProfitChart
+                                    data={simulatorData.chartData}
+                                    isLightMode={isLightMode}
+                                    pullPrice={pullPrice}
+                                    expectedCost={simulatorData.expectedCost}
+                                    deficitRisk={simulatorData.deficitRisk}
+                                    expectedProfitMargin={simulatorData.expectedProfitMargin}
+                                />
+                            </div>
+                        )}
                     </div>
 
                     {/* ━━━━━ 期待値シミュレーションの計算 ━━━━━ */}
-                    {showCostSimulator && (() => {
-                        const activeRaritiesWithItems = new Set<string>();
-                        for (const r of rows) activeRaritiesWithItems.add(r.rarityId);
-
-                        let totalRarityWeight = 0;
-                        for (const r of currentRarities) {
-                            if (!activeRaritiesWithItems.has(r.id)) continue;
-                            totalRarityWeight += (r.defaultWeight ?? 1);
-                        }
-
-                        const rarityProbs = new Map<string, number>();
-                        for (const r of currentRarities) {
-                            if (!activeRaritiesWithItems.has(r.id)) {
-                                rarityProbs.set(r.id, 0);
-                                continue;
-                            }
-                            rarityProbs.set(r.id, totalRarityWeight === 0 ? 0 : (((r.defaultWeight ?? 1) / totalRarityWeight) * 100));
-                        }
-
-                        const rarityWeightSums = new Map<string, number>();
-                        for (const r of rows) {
-                            rarityWeightSums.set(r.rarityId, (rarityWeightSums.get(r.rarityId) || 0) + r.weight);
-                        }
-
-                        const withinRarityProbs = new Map<string, number>();
-                        for (const r of rows) {
-                            const totalInRarity = rarityWeightSums.get(r.rarityId) || 0;
-                            if (totalInRarity === 0) continue;
-                            withinRarityProbs.set(r.id, (r.weight / totalInRarity) * 100);
-                        }
-
-                        let expectedCost = 0;
-                        for (const r of rows) {
-                            const rp = rarityProbs.get(r.rarityId) || 0;
-                            const wp = withinRarityProbs.get(r.id) || 0;
-                            const globalProb = (rp / 100) * (wp / 100);
-                            expectedCost += globalProb * r.costPrice;
-                        }
-
-                        const expectedProfitMargin = pullPrice > 0 ? ((pullPrice - expectedCost) / pullPrice) * 100 : 0;
-                        const isDeficit = pullPrice < expectedCost;
-
-                        return (
-                            <div
-                                className="px-6 py-4 shrink-0 flex flex-wrap items-center justify-between gap-4 transition-all"
-                                style={{
-                                    borderTop: `1px solid ${borderColor}`,
-                                    background: isDeficit
-                                        ? (isLightMode ? "rgba(239,68,68,0.04)" : "rgba(239,68,68,0.06)")
-                                        : (isLightMode ? "rgba(16,185,129,0.02)" : "rgba(16,185,129,0.04)"),
-                                    borderColor: isDeficit
-                                        ? (isLightMode ? "rgba(239,68,68,0.2)" : "rgba(239,68,68,0.3)")
-                                        : borderColor,
-                                }}
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDeficit ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" : "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"}`}>
-                                        <Coins size={14} />
-                                    </div>
-                                    <div>
-                                        <h3 className="text-xs font-bold" style={{ color: textPrimary }}>
-                                            期待値シミュレーション
-                                        </h3>
-                                        <p className="text-[10px]" style={{ color: textMuted }}>
-                                            確率と原価に基づき、ガチャ1回あたりの期待値をリアルタイム計算します
-                                        </p>
-                                    </div>
+                    {showCostSimulator && (
+                        <div
+                            className="hidden md:flex px-6 py-4 shrink-0 flex-wrap items-center justify-between gap-4 transition-all"
+                            style={{
+                                borderTop: `1px solid ${borderColor}`,
+                                background: simulatorData.expectedCost > pullPrice
+                                    ? (isLightMode ? "rgba(239,68,68,0.04)" : "rgba(239,68,68,0.06)")
+                                    : (isLightMode ? "rgba(16,185,129,0.02)" : "rgba(16,185,129,0.04)"),
+                                borderColor: simulatorData.expectedCost > pullPrice
+                                    ? (isLightMode ? "rgba(239,68,68,0.2)" : "rgba(239,68,68,0.3)")
+                                    : borderColor,
+                            }}
+                        >
+                            <div className="flex items-center gap-3">
+                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${simulatorData.expectedCost > pullPrice ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" : "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"}`}>
+                                    <Coins size={14} />
                                 </div>
-
-                                <div className="flex flex-wrap items-center gap-6">
-                                    {/* 平均期待原価 */}
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px]" style={{ color: textMuted }}>平均期待原価</span>
-                                        <span className="text-base font-extrabold tabular-nums" style={{ color: textPrimary }}>
-                                            {fmtPrice(expectedCost)} <span className="text-xs font-medium">円</span>
-                                        </span>
-                                    </div>
-
-                                    {/* 期待利益率 */}
-                                    <div className="flex flex-col">
-                                        <span className="text-[10px]" style={{ color: textMuted }}>期待利益率</span>
-                                        <span className={`text-base font-extrabold tabular-nums flex items-center gap-1 ${
-                                            expectedProfitMargin >= 0
-                                                ? (isLightMode ? "text-emerald-600" : "text-emerald-400")
-                                                : (isLightMode ? "text-rose-600" : "text-rose-400")
-                                        }`}>
-                                            {expectedProfitMargin >= 0 ? "+" : ""}{expectedProfitMargin.toFixed(1)}%
-                                        </span>
-                                    </div>
-
-                                    {/* ステータスバッジ/警告アラート */}
-                                    {isDeficit ? (
-                                        <motion.div
-                                            animate={{ scale: [1, 1.02, 1] }}
-                                            transition={{ repeat: Infinity, duration: 2 }}
-                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-500/25 bg-rose-500/10 text-rose-500 font-bold text-xs"
-                                        >
-                                            <AlertCircle size={13} />
-                                            <span>⚠️ 期待値赤字状態です。確率または原価を見直してください。</span>
-                                        </motion.div>
-                                    ) : (
-                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 text-emerald-500 font-bold text-xs">
-                                            <CheckCircle2 size={13} />
-                                            <span>期待値黒字（安全）</span>
-                                        </div>
-                                    )}
+                                <div>
+                                    <h3 className="text-xs font-bold" style={{ color: textPrimary }}>
+                                        期待値シミュレーション
+                                    </h3>
+                                    <p className="text-[10px]" style={{ color: textMuted }}>
+                                        確率と原価に基づき、ガチャ1回あたりの期待値をリアルタイム計算します
+                                    </p>
                                 </div>
                             </div>
-                        );
-                    })()}
+
+                            <div className="flex flex-wrap items-center gap-6">
+                                {/* 平均期待原価 */}
+                                <div className="flex flex-col">
+                                    <span className="text-[10px]" style={{ color: textMuted }}>平均期待原価</span>
+                                    <span className="text-base font-extrabold tabular-nums" style={{ color: textPrimary }}>
+                                        {fmtPrice(simulatorData.expectedCost)} <span className="text-xs font-medium">円</span>
+                                    </span>
+                                </div>
+
+                                {/* 期待利益率 */}
+                                <div className="flex flex-col">
+                                    <span className="text-[10px]" style={{ color: textMuted }}>期待利益率</span>
+                                    <span className={`text-base font-extrabold tabular-nums flex items-center gap-1 ${
+                                        simulatorData.expectedProfitMargin >= 0
+                                            ? (isLightMode ? "text-emerald-600" : "text-emerald-400")
+                                            : (isLightMode ? "text-rose-600" : "text-rose-400")
+                                    }`}>
+                                        {simulatorData.expectedProfitMargin >= 0 ? "+" : ""}{simulatorData.expectedProfitMargin.toFixed(1)}%
+                                    </span>
+                                </div>
+
+                                {/* ステータスバッジ/警告アラート */}
+                                {simulatorData.expectedCost > pullPrice ? (
+                                    <motion.div
+                                        animate={{ scale: [1, 1.02, 1] }}
+                                        transition={{ repeat: Infinity, duration: 2 }}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-500/25 bg-rose-500/10 text-rose-500 font-bold text-xs"
+                                    >
+                                        <AlertCircle size={13} />
+                                        <span>⚠️ 期待値赤字状態です。確率または原価を見直してください。</span>
+                                    </motion.div>
+                                ) : (
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 text-emerald-500 font-bold text-xs">
+                                        <CheckCircle2 size={13} />
+                                        <span>期待値黒字（安全）</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* ━━━━━ バリデーションサマリ ━━━━━ */}
                     <div
