@@ -40,6 +40,7 @@ export const Z_INDEX = {
     MODAL: 110,        // モダル
     DROPDOWN: 120,     // 降下メニュー
     TOOLTIP: 130,      // ツールチップ
+    CONFIRM_DIALOG: 250,
     TOAST: 9999,       // 通知（最前面）
 } as const;
 

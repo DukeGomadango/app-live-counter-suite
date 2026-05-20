@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { AlertTriangle, X } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { Z_INDEX } from "@/lib/layoutConstants";
 
 interface ConfirmDialogProps {
     open: boolean;
@@ -58,8 +59,9 @@ export default function ConfirmDialog({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="fixed inset-0 z-[200] flex items-center justify-center p-4"
+                    className="fixed inset-0 flex items-center justify-center p-4"
                     style={{ 
+                        zIndex: Z_INDEX.CONFIRM_DIALOG,
                         background: overlayBg, 
                         backdropFilter: "blur(12px)",
                         WebkitBackdropFilter: "blur(12px)"
