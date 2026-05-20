@@ -9,7 +9,7 @@ const CounterPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
 );
 /** Chart は `/flowchart` と同じ page エントリ経由（単一のマウント経路に揃える） */
 const ChartPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
-  () => import("@/app/flowchart/page"),
+  () => import("@/app/flowchart/page") as unknown as Promise<import("react").ComponentType<{ isSplitMode?: boolean; isRightPane?: boolean }>>,
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
 const GachaPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
@@ -21,7 +21,7 @@ const RoulettePage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
 const SlotPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(
-  () => import("@/app/slot/page"),
+  () => import("@/app/slot/page") as unknown as Promise<import("react").ComponentType<{ isSplitMode?: boolean; isRightPane?: boolean }>>,
   { ssr: false, loading: () => <div className="flex items-center justify-center min-h-[200px] text-white/60">読み込み中…</div> }
 );
 const CalculatorPage = dynamic<{ isSplitMode?: boolean; isRightPane?: boolean }>(

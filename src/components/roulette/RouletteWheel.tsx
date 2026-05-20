@@ -204,7 +204,7 @@ export default function RouletteWheel({
                 const transition = {
                     duration,
                     times: [0, 0.94, 0.97, 1.0],
-                    ease: [[0.1, 0.78, 0.62, 0.98], "easeOut", "easeIn"] as any
+                    ease: [[0.1, 0.78, 0.62, 0.98], "easeOut", "easeIn"] as unknown as import("framer-motion").Easing[]
                 };
                 wheelControls
                     .start({ rotate: rotateKeyframes, transition })
