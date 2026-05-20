@@ -198,8 +198,8 @@ export default function SlotReel({
     }
     const offset =
       rows === 3
-        ? ((stoppedIndex - 1 + symbols.length) % symbols.length) * CELL_HEIGHT
-        : stoppedIndex * CELL_HEIGHT;
+        ? ((stoppedIndex + 2 + symbols.length) % symbols.length) * CELL_HEIGHT
+        : ((stoppedIndex + 1 + symbols.length) % symbols.length) * CELL_HEIGHT;
     const targetY = offset === 0 ? 0 : stripLen - offset;
     const currentY = y.get();
     const norm = (v: number) => ((v % stripLen) + stripLen) % stripLen;
