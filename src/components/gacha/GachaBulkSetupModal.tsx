@@ -14,9 +14,11 @@ import {
     Lock,
     Unlock,
     Coins,
+    Wand2,
 } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, distributePercentagesProportionally } from "@/lib/gacha";
+import { useConfirm } from "@/context/ConfirmContext";
 import GachaProfitChart, { SimDataPoint } from "./GachaProfitChart";
 import { GACHA_MOBILE_HEADER_HEIGHT, GACHA_MOBILE_TAB_BAR_HEIGHT } from "@/lib/layoutConstants";
 
@@ -154,6 +156,125 @@ function validate(rows: DraftRow[], rarities: RarityTier[]): ValidationResult {
     const isValid = allTotalsOk && emptyNames.size === 0 && isRaritiesSumOk && !hasEmptyRarityNames;
 
     return { rarityTotals, emptyNames, rarityWeightTotal, isRaritiesSumOk, hasEmptyRarityNames, isValid };
+}
+
+/** 一括修正で直せる項目があるか */
+function hasFixableValidationIssues(v: ValidationResult): boolean {
+    if (!v.isRaritiesSumOk || v.hasEmptyRarityNames || v.emptyNames.size > 0) return true;
+    return [...v.rarityTotals.values()].some(total => Math.abs(total - 100) >= 0.5);
+}
+
+function fixEmptyItemNames(rows: DraftRow[]): DraftRow[] {
+    let n = 1;
+    return rows.map(r => {
+        if (!r.name.trim()) {
+            return { ...r, name: `景品 ${n++}` };
+        }
+        return r;
+    });
+}
+
+function fixEmptyRarityNames(rarities: RarityTier[]): RarityTier[] {
+    return rarities.map((r, i) =>
+        !r.name.trim() ? { ...r, name: `Tier ${i + 1}` } : r,
+    );
+}
+
+function fixRarityWeightsTo100(rarities: RarityTier[], lockedIds: Set<string>): RarityTier[] {
+    const ratioItems = rarities.map(r => ({ id: r.id, value: r.defaultWeight ?? 0 }));
+    const distributed = distributePercentagesProportionally(ratioItems, lockedIds);
+    const valueMap = new Map(distributed.map(it => [it.id, it.value]));
+    return rarities.map(r => ({
+        ...r,
+        defaultWeight: valueMap.get(r.id) ?? r.defaultWeight,
+    }));
+}
+
+function fixRarityItemTotals(rows: DraftRow[], rarityTotals: Map<string, number>): DraftRow[] {
+    let next = rows;
+    for (const [rarityId, total] of rarityTotals) {
+        if (Math.abs(total - 100) >= 0.5) {
+            next = normalizeDraftForRarity(next, rarityId);
+        }
+    }
+    return next;
+}
+
+function applyBulkValidationFixes(
+    rows: DraftRow[],
+    rarities: RarityTier[],
+    lockedRarityIds: Set<string>,
+    validation: ValidationResult,
+): { rows: DraftRow[]; rarities: RarityTier[] } {
+    let nextRows = rows;
+    let nextRarities = rarities;
+
+    if (validation.hasEmptyRarityNames) {
+        nextRarities = fixEmptyRarityNames(nextRarities);
+    }
+    if (!validation.isRaritiesSumOk) {
+        nextRarities = fixRarityWeightsTo100(nextRarities, lockedRarityIds);
+    }
+    if (validation.emptyNames.size > 0) {
+        nextRows = fixEmptyItemNames(nextRows);
+    }
+    const afterRarityFix = validate(nextRows, nextRarities);
+    nextRows = fixRarityItemTotals(nextRows, afterRarityFix.rarityTotals);
+
+    return { rows: nextRows, rarities: nextRarities };
+}
+
+type DraftSnapshot = {
+    rows: Array<{
+        id: string;
+        name: string;
+        rarityId: string;
+        weight: number;
+        costPrice: number;
+        linkedAssetId?: string;
+    }>;
+    rarities: Array<{
+        id: string;
+        name: string;
+        defaultWeight: number;
+        sortOrder: number;
+    }>;
+    pullPrice: number;
+};
+
+function buildSnapshot(
+    rows: DraftRow[],
+    rarities: RarityTier[],
+    pullPrice: number,
+): DraftSnapshot {
+    return {
+        rows: rows.map(r => ({
+            id: r.id,
+            name: r.name,
+            rarityId: r.rarityId,
+            weight: r.weight,
+            costPrice: r.costPrice,
+            ...(r.linkedAssetId ? { linkedAssetId: r.linkedAssetId } : {}),
+        })),
+        rarities: rarities.map(r => ({
+            id: r.id,
+            name: r.name,
+            defaultWeight: r.defaultWeight ?? 0,
+            sortOrder: r.sortOrder,
+        })),
+        pullPrice,
+    };
+}
+
+function isDraftDirty(
+    rows: DraftRow[],
+    rarities: RarityTier[],
+    pullPrice: number,
+    snapshot: DraftSnapshot | null,
+): boolean {
+    if (!snapshot) return false;
+    const current = buildSnapshot(rows, rarities, pullPrice);
+    return JSON.stringify(current) !== JSON.stringify(snapshot);
 }
 
 // ============================================================
@@ -539,6 +660,9 @@ export default function GachaBulkSetupModal({
     showCostSimulator = false,
     onToggleCostSimulator,
 }: GachaBulkSetupModalProps) {
+    const { confirm } = useConfirm();
+    const [openSnapshot, setOpenSnapshot] = useState<DraftSnapshot | null>(null);
+
     /** 下書き行リスト */
     const [rows, setRows] = useState<DraftRow[]>([]);
     /** 選択レア度フィルタ（"all" or rarityId） */
@@ -586,6 +710,13 @@ export default function GachaBulkSetupModal({
             );
             setPullPrice(pool.pullPrice ?? 300);
             setActiveTab("grid");
+            setOpenSnapshot(buildSnapshot(
+                initial,
+                pool.rarities.map(r => ({ ...r })),
+                pool.pullPrice ?? 300,
+            ));
+        } else {
+            setOpenSnapshot(null);
         }
     }
 
@@ -803,8 +934,78 @@ export default function GachaBulkSetupModal({
         const items = draftToItems(rows);
         const finalRarities = rarities.length > 0 ? rarities : pool.rarities;
         onApply(items, finalRarities, pullPrice);
+        setOpenSnapshot(null);
         onClose();
     }, [rows, rarities, pool.rarities, pullPrice, onApply, onClose]);
+
+    const handleRequestClose = useCallback(async () => {
+        const activeRaritiesForDirty = rarities.length > 0 ? rarities : pool.rarities;
+        if (isDraftDirty(rows, activeRaritiesForDirty, pullPrice, openSnapshot)) {
+            const ok = await confirm({
+                title: "変更を破棄",
+                message: "保存していない変更があります。閉じてもよろしいですか？",
+                danger: true,
+            });
+            if (!ok) return;
+        }
+        setOpenSnapshot(null);
+        onClose();
+    }, [rows, rarities, pool.rarities, pullPrice, openSnapshot, confirm, onClose]);
+
+    const handleRequestDeleteRow = useCallback(async (id: string) => {
+        const row = rows.find(r => r.id === id);
+        const label = row?.name.trim() ? `「${row.name.trim()}」` : "この景品";
+        const ok = await confirm({
+            title: "景品削除",
+            message: `${label}を削除しますか？`,
+            danger: true,
+        });
+        if (!ok) return;
+        handleDeleteRow(id);
+    }, [rows, confirm, handleDeleteRow]);
+
+    const handleRequestDeleteRarity = useCallback(async (rarityId: string) => {
+        const rarity = sortedRarities.find(r => r.id === rarityId);
+        const name = rarity?.name.trim() || "このレア度";
+        const movedCount = rows.filter(r => r.rarityId === rarityId).length;
+        const message = movedCount > 0
+            ? `「${name}」を削除しますか？紐づく${movedCount}件の景品は別のレア度へ移動し、確率は再配分されます。`
+            : `「${name}」を削除しますか？`;
+        const ok = await confirm({
+            title: "レア度削除",
+            message,
+            danger: true,
+        });
+        if (!ok) return;
+        handleDeleteRarity(rarityId);
+    }, [rows, sortedRarities, confirm, handleDeleteRarity]);
+
+    const handleRequestApply = useCallback(async () => {
+        const activeRaritiesForValidation = rarities.length > 0 ? rarities : pool.rarities;
+        const currentValidation = validate(rows, activeRaritiesForValidation);
+        if (!currentValidation.isValid) {
+            const ok = await confirm({
+                title: "警告を無視して適用",
+                message: "確率や名称に問題があります。このまま適用しますか？",
+                danger: true,
+            });
+            if (!ok) return;
+        }
+        handleApply();
+    }, [rows, rarities, pool.rarities, confirm, handleApply]);
+
+    const handleBulkFix = useCallback(() => {
+        const activeRaritiesForFix = rarities.length > 0 ? rarities : pool.rarities;
+        const currentValidation = validate(rows, activeRaritiesForFix);
+        const { rows: fixedRows, rarities: fixedRarities } = applyBulkValidationFixes(
+            rows,
+            activeRaritiesForFix,
+            lockedRarityIds,
+            currentValidation,
+        );
+        setRows(fixedRows);
+        setRarities(fixedRarities);
+    }, [rows, rarities, pool.rarities, lockedRarityIds]);
 
     // ============================================================
     // 期待値・シミュレーション計算ブロック
@@ -970,6 +1171,7 @@ export default function GachaBulkSetupModal({
     // ============================================================
 
     const validation = validate(rows, currentRarities);
+    const canBulkFix = hasFixableValidationIssues(validation);
     const displayRows = filterRarityId === "all"
         ? rows
         : rows.filter(r => r.rarityId === filterRarityId);
@@ -1003,7 +1205,7 @@ export default function GachaBulkSetupModal({
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     className="absolute inset-0 bg-black/70 backdrop-blur-md"
-                    onClick={onClose}
+                    onClick={handleRequestClose}
                 />
 
                 {/* モーダル本体 */}
@@ -1041,7 +1243,7 @@ export default function GachaBulkSetupModal({
                         </div>
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleRequestClose}
                             className="min-h-11 min-w-11 rounded-full flex items-center justify-center transition-colors shrink-0"
                             style={{ color: textMuted }}
                             aria-label="閉じる"
@@ -1202,7 +1404,7 @@ export default function GachaBulkSetupModal({
                                                                 {sortedRarities.length > 1 && (
                                                                     <button
                                                                         type="button"
-                                                                        onClick={() => handleDeleteRarity(r.id)}
+                                                                        onClick={() => handleRequestDeleteRarity(r.id)}
                                                                         className="min-h-11 min-w-11 inline-flex items-center justify-center rounded text-red-400 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer shrink-0"
                                                                         title="このレア度を削除"
                                                                         aria-label="レア度を削除"
@@ -1436,7 +1638,7 @@ export default function GachaBulkSetupModal({
                                                     onToggleLock={handleToggleLock}
                                                     onWeightChange={handleWeightChange}
                                                     onCostChange={handleCostChange}
-                                                    onDeleteRow={handleDeleteRow}
+                                                    onDeleteRow={handleRequestDeleteRow}
                                                 />
                                             </motion.div>
                                         );
@@ -1624,7 +1826,7 @@ export default function GachaBulkSetupModal({
                                                     <td className="px-2 py-2 text-center">
                                                         <button
                                                             type="button"
-                                                            onClick={() => handleDeleteRow(row.id)}
+                                                            onClick={() => handleRequestDeleteRow(row.id)}
                                                             className="min-h-11 min-w-11 inline-flex items-center justify-center rounded transition-colors text-red-400 opacity-0 max-md:opacity-100 group-hover:opacity-100 cursor-pointer"
                                                             style={{ background: "transparent" }}
                                                             onMouseOver={e => (e.currentTarget.style.background = "rgba(239,68,68,0.12)")}
@@ -1742,6 +1944,21 @@ export default function GachaBulkSetupModal({
                                 レア度名が未入力のものがあります
                             </span>
                         )}
+                        {canBulkFix && (
+                            <button
+                                type="button"
+                                onClick={handleBulkFix}
+                                className="ml-auto max-md:ml-0 max-md:w-full flex items-center justify-center gap-1.5 min-h-11 px-3 py-1.5 rounded-xl text-[11px] font-bold transition-all cursor-pointer shrink-0"
+                                style={{
+                                    background: isLightMode ? "rgba(139,92,246,0.14)" : "rgba(139,92,246,0.22)",
+                                    color: isLightMode ? "#6d28d9" : "#ddd6fe",
+                                    border: `1px solid ${isLightMode ? "rgba(139,92,246,0.35)" : "rgba(139,92,246,0.45)"}`,
+                                }}
+                            >
+                                <Wand2 size={12} />
+                                一括で修正
+                            </button>
+                        )}
                     </div>
                     </div>
 
@@ -1838,7 +2055,7 @@ export default function GachaBulkSetupModal({
                             {/* キャンセル */}
                             <button
                                 type="button"
-                                onClick={onClose}
+                                onClick={handleRequestClose}
                                 className="min-h-11 px-5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
                                 style={{
                                     color: textMuted,
@@ -1852,7 +2069,7 @@ export default function GachaBulkSetupModal({
                             {/* 適用 */}
                             <button
                                 type="button"
-                                onClick={handleApply}
+                                onClick={handleRequestApply}
                                 disabled={rows.length === 0}
                                 className="flex items-center gap-2 min-h-11 px-6 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg cursor-pointer"
                                 style={{
