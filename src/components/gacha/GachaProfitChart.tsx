@@ -271,7 +271,7 @@ export default function GachaProfitChart({
 
             {/* ━━━━━ リアルタイムチャート ━━━━━ */}
             <div
-                className="flex-1 w-full p-4 rounded-3xl border relative min-h-[220px]"
+                className="w-full p-4 rounded-3xl border relative min-h-[220px] h-[220px] md:flex-1 md:h-auto"
                 style={{
                     background: isLightMode ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.01)",
                     borderColor: borderColor,

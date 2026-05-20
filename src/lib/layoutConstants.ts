@@ -7,6 +7,18 @@
 export const UI_HEADER_HEIGHT_PX = 52;
 export const UI_HEADER_HEIGHT_CLS = "h-[52px]";
 
+/**
+ * ガチャモバイル上部ヘッダー（GachaContent）の見込み高さ。
+ * デスクトップの min-h-[52px] / UI_HEADER_HEIGHT_PX と揃える。safe-area は別途加算。
+ */
+export const GACHA_MOBILE_HEADER_HEIGHT = "3.25rem";
+
+/**
+ * ガチャモバイル下部タブバー（GachaContent）の見込み高さ。
+ * アイコン16px + ラベル + py。scroll-hint の bottom: 3.25rem と一致。safe-area は別途加算。
+ */
+export const GACHA_MOBILE_TAB_BAR_HEIGHT = "3.25rem";
+
 /** ブレイクポイント (px) */
 export const BREAKPOINT_SM = 640;
 export const BREAKPOINT_MD = 768;

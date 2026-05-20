@@ -18,6 +18,7 @@ import {
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, distributePercentagesProportionally } from "@/lib/gacha";
 import GachaProfitChart, { SimDataPoint } from "./GachaProfitChart";
+import { GACHA_MOBILE_HEADER_HEIGHT, GACHA_MOBILE_TAB_BAR_HEIGHT } from "@/lib/layoutConstants";
 
 // ============================================================
 // 型定義
@@ -301,6 +302,182 @@ interface RarityWeightInputProps {
     onWeightChange: (id: string, val: string) => void;
 }
 
+// ============================================================
+// BulkSetupRowCard：スマホ用行カード
+// ============================================================
+
+interface BulkSetupRowCardProps {
+    row: DraftRow;
+    idx: number;
+    rarity: RarityTier | undefined;
+    total: number;
+    totalOk: boolean;
+    hasEmptyName: boolean;
+    globalProb: number;
+    showCostSimulator: boolean;
+    pullPrice: number;
+    sortedRarities: RarityTier[];
+    isLightMode: boolean;
+    textPrimary: string;
+    textMuted: string;
+    inputBg: string;
+    inputBorder: string;
+    borderColor: string;
+    selectOptionStyle: React.CSSProperties;
+    onRarityChange: (id: string, rarityId: string) => void;
+    onNameChange: (id: string, name: string) => void;
+    onToggleLock: (id: string) => void;
+    onWeightChange: (id: string, val: string) => void;
+    onCostChange: (id: string, val: string) => void;
+    onDeleteRow: (id: string) => void;
+}
+
+function BulkSetupRowCard({
+    row,
+    idx,
+    rarity,
+    total,
+    totalOk,
+    hasEmptyName,
+    globalProb,
+    showCostSimulator,
+    pullPrice,
+    sortedRarities,
+    isLightMode,
+    textPrimary,
+    textMuted,
+    inputBg,
+    inputBorder,
+    borderColor,
+    selectOptionStyle,
+    onRarityChange,
+    onNameChange,
+    onToggleLock,
+    onWeightChange,
+    onCostChange,
+    onDeleteRow,
+}: BulkSetupRowCardProps) {
+    const cardBg = idx % 2 === 0
+        ? "transparent"
+        : isLightMode ? "rgba(0,0,0,0.015)" : "rgba(255,255,255,0.015)";
+
+    return (
+        <div
+            className="rounded-xl border p-3 space-y-2.5"
+            style={{ background: cardBg, borderColor }}
+        >
+            <div className="flex items-start gap-2">
+                <select
+                    value={row.rarityId}
+                    onChange={e => onRarityChange(row.id, e.target.value)}
+                    className="flex-1 min-h-11 text-[11px] font-bold px-2 py-1.5 rounded-lg cursor-pointer outline-none"
+                    style={{
+                        color: rarity?.color ?? "#6b7280",
+                        background: rarity?.bgColor ?? inputBg,
+                        border: `1px solid ${rarity?.glowColor ?? "rgba(107,114,128,0.3)"}`,
+                    }}
+                >
+                    {sortedRarities.map(r => (
+                        <option key={r.id} value={r.id} style={selectOptionStyle}>{r.name || "（名称なし）"}</option>
+                    ))}
+                </select>
+                <button
+                    type="button"
+                    onClick={() => onDeleteRow(row.id)}
+                    className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg text-red-400 shrink-0"
+                    style={{ background: "rgba(239,68,68,0.08)" }}
+                    title="この行を削除"
+                    aria-label="行を削除"
+                >
+                    <Trash2 size={14} />
+                </button>
+            </div>
+
+            <input
+                type="text"
+                value={row.name}
+                onChange={e => onNameChange(row.id, e.target.value)}
+                placeholder="景品名を入力"
+                className="w-full min-h-11 px-3 py-2 rounded-lg outline-none text-xs"
+                style={{
+                    background: inputBg,
+                    border: `1px solid ${hasEmptyName ? "rgba(239,68,68,0.5)" : inputBorder}`,
+                    color: textPrimary,
+                }}
+            />
+
+            <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] font-semibold shrink-0" style={{ color: textMuted }}>確率（レア度内）</span>
+                <div className="flex items-center gap-2">
+                    <WeightCell
+                        row={row}
+                        totalOk={totalOk}
+                        total={total}
+                        isLightMode={isLightMode}
+                        textPrimary={textPrimary}
+                        textMuted={textMuted}
+                        inputBg={inputBg}
+                        inputBorder={inputBorder}
+                        onWeightChange={onWeightChange}
+                    />
+                    <button
+                        type="button"
+                        onClick={() => onToggleLock(row.id)}
+                        className="min-h-11 min-w-11 inline-flex items-center justify-center rounded-lg transition-all shrink-0"
+                        style={{
+                            color: row.locked
+                                ? (isLightMode ? "#d97706" : "#fbbf24")
+                                : textMuted,
+                            background: row.locked
+                                ? (isLightMode ? "rgba(217,119,6,0.1)" : "rgba(251,191,36,0.1)")
+                                : "transparent",
+                        }}
+                        title={row.locked ? "ロック中（クリックして解除）" : "クリックしてロック"}
+                        aria-pressed={row.locked}
+                        aria-label={row.locked ? "確率ロックを解除" : "確率をロック"}
+                    >
+                        {row.locked ? <Lock size={12} /> : <Unlock size={12} />}
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex items-center justify-between text-[10px]" style={{ color: textMuted }}>
+                <span>全体確率</span>
+                <span className="font-semibold tabular-nums">{fmtW(globalProb)}%</span>
+            </div>
+
+            {showCostSimulator && (
+                <div className="flex items-center justify-between gap-2 pt-1 border-t" style={{ borderColor }}>
+                    <span className="text-[10px] font-semibold shrink-0" style={{ color: textMuted }}>原価</span>
+                    <CostCell
+                        row={row}
+                        textPrimary={textPrimary}
+                        textMuted={textMuted}
+                        inputBg={inputBg}
+                        inputBorder={inputBorder}
+                        onCostChange={onCostChange}
+                    />
+                </div>
+            )}
+
+            {showCostSimulator && (
+                <div className="flex items-center justify-between text-[10px]">
+                    <span style={{ color: textMuted }}>単体損益</span>
+                    <span
+                        className={`font-semibold tabular-nums ${
+                            pullPrice - row.costPrice >= 0
+                                ? (isLightMode ? "text-emerald-600" : "text-emerald-400")
+                                : (isLightMode ? "text-rose-600" : "text-rose-400")
+                        }`}
+                    >
+                        {pullPrice - row.costPrice >= 0 ? "+" : ""}{fmtPrice(pullPrice - row.costPrice)}円
+                    </span>
+                </div>
+            )}
+        </div>
+    );
+}
+
 function RarityWeightInput({
     rarity,
     isLocked,
@@ -404,7 +581,9 @@ export default function GachaBulkSetupModal({
             setEqualizeTarget(sortedRarities[0]?.id ?? "");
             setRarities(pool.rarities.map(r => ({ ...r })));
             setLockedRarityIds(new Set());
-            setIsRaritiesExpanded(true);
+            setIsRaritiesExpanded(
+                typeof window !== "undefined" && window.matchMedia("(min-width: 768px)").matches,
+            );
             setPullPrice(pool.pullPrice ?? 300);
             setActiveTab("grid");
         }
@@ -811,7 +990,13 @@ export default function GachaBulkSetupModal({
     return (
         <AnimatePresence>
             {open && (
-                <div className="fixed inset-0 z-[200] flex items-center justify-center p-3 sm:p-6">
+                <div
+                    className="fixed inset-0 z-[200] flex items-end lg:items-center justify-center p-0 lg:p-6 max-lg:pt-[calc(var(--gacha-header-h)+env(safe-area-inset-top,0px))] max-lg:pb-[calc(var(--gacha-tab-bar-h)+env(safe-area-inset-bottom,0px))]"
+                    style={{
+                        "--gacha-header-h": GACHA_MOBILE_HEADER_HEIGHT,
+                        "--gacha-tab-bar-h": GACHA_MOBILE_TAB_BAR_HEIGHT,
+                    } as React.CSSProperties}
+                >
                 {/* オーバーレイ */}
                 <motion.div
                     initial={{ opacity: 0 }}
@@ -827,11 +1012,10 @@ export default function GachaBulkSetupModal({
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.92, y: 24 }}
                     transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                    className={`relative w-full ${showCostSimulator ? "max-w-7xl" : "max-w-5xl"} flex flex-col rounded-3xl shadow-2xl overflow-hidden`}
+                    className={`relative w-full ${showCostSimulator ? "sm:max-w-7xl" : "sm:max-w-5xl"} flex flex-col min-h-0 overflow-hidden rounded-t-3xl lg:rounded-3xl shadow-2xl max-lg:max-h-[min(90dvh,calc(100dvh-env(safe-area-inset-top,0px)-var(--gacha-header-h)-var(--gacha-tab-bar-h)-env(safe-area-inset-bottom,0px)),calc(100vh-env(safe-area-inset-top,0px)-var(--gacha-header-h)-var(--gacha-tab-bar-h)-env(safe-area-inset-bottom,0px)))] lg:max-h-[min(90dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)),calc(100vh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))]`}
                     style={{
                         background: bgMain,
                         border: `1px solid ${borderColor}`,
-                        maxHeight: "90vh",
                     }}
                     role="dialog"
                     aria-modal="true"
@@ -858,7 +1042,7 @@ export default function GachaBulkSetupModal({
                         <button
                             type="button"
                             onClick={onClose}
-                            className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
+                            className="min-h-11 min-w-11 rounded-full flex items-center justify-center transition-colors shrink-0"
                             style={{ color: textMuted }}
                             aria-label="閉じる"
                             onMouseOver={e => (e.currentTarget.style.background = isLightMode ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)")}
@@ -875,7 +1059,7 @@ export default function GachaBulkSetupModal({
                                 <button
                                     type="button"
                                     onClick={() => setActiveTab("grid")}
-                                    className={`py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    className={`min-h-11 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                         activeTab === "grid"
                                             ? "bg-purple-600 text-white shadow-md"
                                             : "text-gray-400 hover:text-white"
@@ -886,7 +1070,7 @@ export default function GachaBulkSetupModal({
                                 <button
                                     type="button"
                                     onClick={() => setActiveTab("chart")}
-                                    className={`py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                                    className={`min-h-11 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
                                         activeTab === "chart"
                                             ? "bg-purple-600 text-white shadow-md"
                                             : "text-gray-400 hover:text-white"
@@ -901,9 +1085,14 @@ export default function GachaBulkSetupModal({
                         </div>
                     )}
 
+                    {/* ━━━━━ スクロール領域（レア度・ツールバー・表・バリデーション） ━━━━━ */}
+                    <div
+                        className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden scroll-touch custom-scrollbar"
+                        style={{ WebkitOverflowScrolling: "touch", overscrollBehavior: "contain" }}
+                    >
                     {/* ━━━━━ レア度確率設定パネル ━━━━━ */}
                     <div
-                        className={`px-6 py-4 shrink-0 ${showCostSimulator && activeTab === "chart" ? "hidden md:block" : ""}`}
+                        className={`px-6 py-4 ${showCostSimulator && activeTab === "chart" ? "hidden md:block" : ""}`}
                         style={{
                             borderBottom: `1px solid ${borderColor}`,
                             background: isLightMode ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.015)",
@@ -914,11 +1103,14 @@ export default function GachaBulkSetupModal({
                             <button
                                 type="button"
                                 onClick={() => setIsRaritiesExpanded(prev => !prev)}
-                                className="flex items-center gap-1.5 text-xs font-bold outline-none cursor-pointer group"
+                                className="flex items-center gap-1.5 min-h-11 text-xs font-bold outline-none cursor-pointer group"
                                 style={{ color: textPrimary }}
                             >
-                                <Sliders size={13} className="text-purple-500 group-hover:scale-110 transition-transform" />
-                                レア度排出確率設定（合計100%になるよう自動調整されます）
+                                <Sliders size={13} className="text-purple-500 group-hover:scale-110 transition-transform shrink-0" />
+                                <span className="hidden md:inline">
+                                    レア度排出確率設定（合計100%になるよう自動調整されます）
+                                </span>
+                                <span className="md:hidden text-left">レア度排出確率</span>
                                 <ChevronDown
                                     size={12}
                                     className="transition-transform duration-200"
@@ -958,12 +1150,12 @@ export default function GachaBulkSetupModal({
                                     className="overflow-hidden"
                                 >
                                     <div
-                                        className="max-h-36 overflow-y-auto pr-1 space-y-3"
+                                        className="max-h-36 overflow-y-auto scroll-touch pr-1 space-y-3"
                                         style={{
                                             scrollbarWidth: "thin",
                                         }}
                                     >
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 py-1">
+                                        <div className="grid max-md:grid-cols-1 grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 py-1">
                                             {sortedRarities.map(r => {
                                                 const isLocked = lockedRarityIds.has(r.id);
                                                 return (
@@ -994,7 +1186,7 @@ export default function GachaBulkSetupModal({
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => handleToggleLockRarity(r.id)}
-                                                                    className="w-5 h-5 inline-flex items-center justify-center rounded transition-all shrink-0"
+                                                                    className="min-h-11 min-w-11 inline-flex items-center justify-center rounded transition-all shrink-0"
                                                                     style={{
                                                                         color: isLocked
                                                                             ? (isLightMode ? "#d97706" : "#fbbf24")
@@ -1011,7 +1203,7 @@ export default function GachaBulkSetupModal({
                                                                     <button
                                                                         type="button"
                                                                         onClick={() => handleDeleteRarity(r.id)}
-                                                                        className="w-5 h-5 inline-flex items-center justify-center rounded text-red-400 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer shrink-0"
+                                                                        className="min-h-11 min-w-11 inline-flex items-center justify-center rounded text-red-400 hover:text-red-500 hover:bg-red-500/10 transition-all cursor-pointer shrink-0"
                                                                         title="このレア度を削除"
                                                                         aria-label="レア度を削除"
                                                                     >
@@ -1057,12 +1249,12 @@ export default function GachaBulkSetupModal({
 
                     {/* ━━━━━ ツールバー ━━━━━ */}
                     <div
-                        className={`flex flex-wrap items-center gap-3 px-6 py-3 shrink-0 ${showCostSimulator && activeTab === "chart" ? "hidden md:flex" : "flex"}`}
+                        className={`px-6 py-3 gap-3 max-md:grid max-md:grid-cols-2 max-md:gap-x-3 max-md:gap-y-2 md:flex md:flex-wrap md:items-center ${showCostSimulator && activeTab === "chart" ? "hidden md:flex" : "max-md:grid md:flex"}`}
                         style={{ borderBottom: `1px solid ${borderColor}`, background: isLightMode ? "rgba(139,92,246,0.02)" : "rgba(139,92,246,0.05)" }}
                     >
                         {/* レア度フィルタ */}
-                        <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold" style={{ color: textMuted }}>表示:</span>
+                        <div className="flex items-center gap-2 max-md:min-w-0">
+                            <span className="text-xs font-semibold shrink-0" style={{ color: textMuted }}>表示:</span>
                             <select
                                 value={filterRarityId}
                                 onChange={e => setFilterRarityId(e.target.value)}
@@ -1081,7 +1273,7 @@ export default function GachaBulkSetupModal({
                             <button
                                 type="button"
                                 onClick={onToggleCostSimulator}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer`}
+                                className={`flex items-center justify-center gap-1.5 min-h-11 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer max-md:col-span-1`}
                                 style={{
                                     background: showCostSimulator
                                         ? isLightMode
@@ -1102,7 +1294,8 @@ export default function GachaBulkSetupModal({
                                 title="原価と期待値ベースの収益シミュレーションを切り替えます"
                             >
                                 <Coins size={13} className={showCostSimulator ? "animate-pulse" : ""} />
-                                <span>収益シミュレーション</span>
+                                <span className="hidden sm:inline">収益シミュレーション</span>
+                                <span className="sm:hidden">収益Sim</span>
                                 {showCostSimulator && (
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
                                 )}
@@ -1111,13 +1304,14 @@ export default function GachaBulkSetupModal({
 
                         {/* 販売単価設定 (シミュレーションモードON時のみ表示) */}
                         {showCostSimulator && (
-                            <div className="flex items-center gap-2 px-3 py-1 rounded-xl border transition-all"
+                            <div className="flex items-center gap-2 px-3 py-1 rounded-xl border transition-all max-md:col-span-2 max-md:w-full max-md:justify-between"
                                  style={{
                                      background: isLightMode ? "rgba(245,158,11,0.03)" : "rgba(245,158,11,0.06)",
                                      borderColor: isLightMode ? "rgba(245,158,11,0.2)" : "rgba(245,158,11,0.3)",
                                  }}>
-                                <Coins size={13} className="text-amber-500" />
-                                <span className="text-xs font-bold" style={{ color: textPrimary }}>ガチャ1回の販売単価:</span>
+                                <Coins size={13} className="text-amber-500 shrink-0" />
+                                <span className="text-xs font-bold max-md:hidden" style={{ color: textPrimary }}>ガチャ1回の販売単価:</span>
+                                <span className="text-xs font-bold md:hidden" style={{ color: textPrimary }}>販売単価:</span>
                                 <input
                                     type="text"
                                     inputMode="numeric"
@@ -1134,9 +1328,9 @@ export default function GachaBulkSetupModal({
                         )}
 
                         {/* 均等割りアシスト */}
-                        <div className="flex items-center gap-2 ml-auto">
-                            <SplitSquareHorizontal size={13} style={{ color: textMuted }} />
-                            <span className="text-xs" style={{ color: textMuted }}>均等割り:</span>
+                        <div className="flex items-center gap-2 ml-auto max-md:col-span-2 max-md:ml-0 max-md:w-full max-md:justify-end">
+                            <SplitSquareHorizontal size={13} className="shrink-0" style={{ color: textMuted }} />
+                            <span className="text-xs shrink-0" style={{ color: textMuted }}>均等:</span>
                             <select
                                 value={equalizeTarget}
                                 onChange={e => setEqualizeTarget(e.target.value)}
@@ -1150,7 +1344,7 @@ export default function GachaBulkSetupModal({
                             <button
                                 type="button"
                                 onClick={handleEqualize}
-                                className="text-xs px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer"
+                                className="min-h-11 text-xs px-3 py-1 rounded-lg font-semibold transition-all cursor-pointer"
                                 style={{
                                     background: isLightMode ? "rgba(139,92,246,0.12)" : "rgba(139,92,246,0.2)",
                                     color: isLightMode ? "#7c3aed" : "#c4b5fd",
@@ -1163,10 +1357,16 @@ export default function GachaBulkSetupModal({
                     </div>
 
                     {/* ━━━━━ メインコンテンツエリア (2カラム/タブ切り替え対応) ━━━━━ */}
-                    <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0">
+                    <div
+                        className={`flex flex-col md:flex-row min-h-0 ${
+                            showCostSimulator
+                                ? "md:flex-1 md:overflow-hidden max-md:flex-1"
+                                : ""
+                        }`}
+                    >
                         {/* 左カラム / テーブルエリア */}
                         <div
-                            className={`flex-1 flex flex-col overflow-auto min-w-0 ${
+                            className={`flex-1 flex flex-col min-w-0 overflow-x-auto md:overflow-auto scroll-touch ${
                                 showCostSimulator && activeTab === "chart" ? "hidden md:flex" : "flex"
                             }`}
                         >
@@ -1194,7 +1394,69 @@ export default function GachaBulkSetupModal({
                                 </div>
                             )}
 
-                            <table className="w-full text-xs border-collapse" style={{ minWidth: 700 }}>
+                            {/* スマホ: 行カード */}
+                            <div className="md:hidden px-4 py-3 space-y-3">
+                                <AnimatePresence initial={false}>
+                                    {displayRows.map((row, idx) => {
+                                        const rarity = sortedRarities.find(r => r.id === row.rarityId);
+                                        const total = validation.rarityTotals.get(row.rarityId) ?? 0;
+                                        const totalOk = Math.abs(total - 100) < 0.5;
+                                        const hasEmptyName = validation.emptyNames.has(row.id);
+                                        const rarityProb = rarity?.defaultWeight ?? 0;
+                                        const globalProb = (rarityProb * row.weight) / 100;
+
+                                        return (
+                                            <motion.div
+                                                key={row.id}
+                                                initial={{ opacity: 0, y: 8 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                exit={{ opacity: 0, y: -8 }}
+                                                transition={{ duration: 0.15 }}
+                                            >
+                                                <BulkSetupRowCard
+                                                    row={row}
+                                                    idx={idx}
+                                                    rarity={rarity}
+                                                    total={total}
+                                                    totalOk={totalOk}
+                                                    hasEmptyName={hasEmptyName}
+                                                    globalProb={globalProb}
+                                                    showCostSimulator={showCostSimulator}
+                                                    pullPrice={pullPrice}
+                                                    sortedRarities={sortedRarities}
+                                                    isLightMode={isLightMode}
+                                                    textPrimary={textPrimary}
+                                                    textMuted={textMuted}
+                                                    inputBg={inputBg}
+                                                    inputBorder={inputBorder}
+                                                    borderColor={borderColor}
+                                                    selectOptionStyle={selectOptionStyle}
+                                                    onRarityChange={handleRarityChange}
+                                                    onNameChange={handleNameChange}
+                                                    onToggleLock={handleToggleLock}
+                                                    onWeightChange={handleWeightChange}
+                                                    onCostChange={handleCostChange}
+                                                    onDeleteRow={handleDeleteRow}
+                                                />
+                                            </motion.div>
+                                        );
+                                    })}
+                                </AnimatePresence>
+                                {displayRows.length === 0 && (
+                                    <div className="py-12 text-center flex flex-col items-center gap-2" style={{ color: textMuted }}>
+                                        <Sliders size={28} style={{ opacity: 0.4 }} />
+                                        <p className="text-xs">
+                                            {filterRarityId === "all"
+                                                ? "景品がありません。「行を追加」で追加してください。"
+                                                : "このレア度に景品がありません。"}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* md以上: テーブル */}
+                            <div className="hidden md:block overflow-x-auto scroll-touch">
+                            <table className="w-full text-xs border-collapse min-w-[700px]">
                                 <thead className="sticky top-0 z-10" style={{ background: bgHeader }}>
                                     <tr style={{ borderBottom: `1px solid ${borderColor}` }}>
                                         <th className="px-3 py-2.5 text-left font-semibold w-24" style={{ color: textMuted }}>レア度</th>
@@ -1205,18 +1467,18 @@ export default function GachaBulkSetupModal({
                                         <th className="px-3 py-2.5 text-right font-semibold w-28" style={{ color: textMuted }}>
                                             確率（レア度内%）
                                         </th>
-                                        <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
+                                        <th className="hidden md:table-cell px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
                                             全体確率
                                         </th>
                                         {showCostSimulator && (
                                             <>
-                                                <th className="px-3 py-2.5 text-right font-semibold w-28" style={{ color: textMuted }}>
+                                                <th className="hidden md:table-cell px-3 py-2.5 text-right font-semibold w-28" style={{ color: textMuted }}>
                                                     原価
                                                 </th>
-                                                <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
+                                                <th className="hidden md:table-cell px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
                                                     期待原価
                                                 </th>
-                                                <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
+                                                <th className="hidden lg:table-cell px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
                                                     単体損益
                                                 </th>
                                             </>
@@ -1293,7 +1555,7 @@ export default function GachaBulkSetupModal({
                                                         <button
                                                             type="button"
                                                             onClick={() => handleToggleLock(row.id)}
-                                                            className="w-6 h-6 inline-flex items-center justify-center rounded transition-all cursor-pointer"
+                                                            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded transition-all cursor-pointer"
                                                             style={{
                                                                 color: row.locked
                                                                     ? (isLightMode ? "#d97706" : "#fbbf24")
@@ -1325,15 +1587,15 @@ export default function GachaBulkSetupModal({
                                                         />
                                                     </td>
 
-                                                    {/* 全体確率 */}
-                                                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-xs" style={{ color: textMuted }}>
+                                                    {/* 全体確率（md以上） */}
+                                                    <td className="hidden md:table-cell px-3 py-2 text-right font-semibold tabular-nums text-xs" style={{ color: textMuted }}>
                                                         {fmtW(globalProb)}%
                                                     </td>
 
                                                     {/* 原価・期待原価・単体損益 */}
                                                     {showCostSimulator && (
                                                         <>
-                                                            <td className="px-3 py-2">
+                                                            <td className="hidden md:table-cell px-3 py-2">
                                                                 <CostCell
                                                                     row={row}
                                                                     textPrimary={textPrimary}
@@ -1344,11 +1606,11 @@ export default function GachaBulkSetupModal({
                                                                 />
                                                             </td>
 
-                                                            <td className="px-3 py-2 text-right font-semibold tabular-nums text-xs" style={{ color: textMuted }}>
+                                                            <td className="hidden md:table-cell px-3 py-2 text-right font-semibold tabular-nums text-xs" style={{ color: textMuted }}>
                                                                 {fmtPrice((globalProb * row.costPrice) / 100)}円
                                                             </td>
 
-                                                            <td className={`px-3 py-2 text-right font-semibold tabular-nums text-xs ${
+                                                            <td className={`hidden lg:table-cell px-3 py-2 text-right font-semibold tabular-nums text-xs ${
                                                                 (pullPrice - row.costPrice) >= 0
                                                                     ? (isLightMode ? "text-emerald-600" : "text-emerald-400 font-semibold")
                                                                     : (isLightMode ? "text-rose-600" : "text-rose-400 font-semibold")
@@ -1363,7 +1625,7 @@ export default function GachaBulkSetupModal({
                                                         <button
                                                             type="button"
                                                             onClick={() => handleDeleteRow(row.id)}
-                                                            className="w-6 h-6 inline-flex items-center justify-center rounded transition-colors text-red-400 opacity-0 group-hover:opacity-100 cursor-pointer"
+                                                            className="min-h-11 min-w-11 inline-flex items-center justify-center rounded transition-colors text-red-400 opacity-0 max-md:opacity-100 group-hover:opacity-100 cursor-pointer"
                                                             style={{ background: "transparent" }}
                                                             onMouseOver={e => (e.currentTarget.style.background = "rgba(239,68,68,0.12)")}
                                                             onMouseOut={e => (e.currentTarget.style.background = "transparent")}
@@ -1395,12 +1657,13 @@ export default function GachaBulkSetupModal({
                                     )}
                                 </tbody>
                             </table>
+                            </div>
                         </div>
 
                         {/* 右カラム / シミュレータグラフエリア */}
                         {showCostSimulator && (
                             <div
-                                className={`w-full md:w-[420px] lg:w-[480px] shrink-0 border-t md:border-t-0 md:border-l p-6 overflow-y-auto flex flex-col min-h-[300px] md:min-h-0 ${
+                                className={`w-full md:w-[420px] lg:w-[480px] shrink-0 border-t md:border-t-0 md:border-l p-6 overflow-y-auto flex flex-col min-h-[300px] max-md:min-h-[min(52dvh,420px)] max-md:flex-1 md:min-h-0 ${
                                     activeTab === "grid" ? "hidden md:flex" : "flex"
                                 }`}
                                 style={{
@@ -1426,6 +1689,60 @@ export default function GachaBulkSetupModal({
                                 />
                             </div>
                         )}
+                    </div>
+
+                    {/* ━━━━━ バリデーションサマリ ━━━━━ */}
+                    <div
+                        className="px-6 py-3 flex flex-wrap gap-2 items-center max-md:max-h-24 max-md:overflow-y-auto scroll-touch"
+                        style={{ borderTop: `1px solid ${borderColor}`, background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)" }}
+                    >
+                        <span className="text-xs font-semibold shrink-0 max-md:w-full md:hidden" style={{ color: textMuted }}>
+                            {validation.isValid ? (
+                                <>合計チェック: <span className="text-emerald-500">OK</span></>
+                            ) : (
+                                <>合計チェック: <span className="text-red-500">要確認</span></>
+                            )}
+                            <span className="font-normal" style={{ color: textMuted }}>（下にスクロール）</span>
+                        </span>
+                        <span className="hidden md:inline text-xs font-semibold shrink-0" style={{ color: textMuted }}>レア度内合計:</span>
+                        {sortedRarities.map(r => {
+                            const total = validation.rarityTotals.get(r.id);
+                            if (total === undefined) return null;
+                            const ok = Math.abs(total - 100) < 0.5;
+                            return (
+                                <span
+                                    key={r.id}
+                                    className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold"
+                                    style={{
+                                        color: ok ? r.color : (isLightMode ? "#dc2626" : "#f87171"),
+                                        background: ok ? r.bgColor : (isLightMode ? "rgba(220,38,38,0.08)" : "rgba(248,113,113,0.1)"),
+                                        border: `1px solid ${ok ? r.glowColor : (isLightMode ? "rgba(220,38,38,0.2)" : "rgba(248,113,113,0.2)")}`,
+                                    }}
+                                >
+                                    {ok ? <CheckCircle2 size={9} /> : <AlertCircle size={9} />}
+                                    {(r.name || "（名称なし）")}: {fmtW(total)}%
+                                </span>
+                            );
+                        })}
+                        {validation.emptyNames.size > 0 && (
+                            <span className="text-[10px] text-red-500 flex items-center gap-1">
+                                <AlertCircle size={9} />
+                                {validation.emptyNames.size}件の景品名が未入力です
+                            </span>
+                        )}
+                        {!validation.isRaritiesSumOk && (
+                            <span className="text-[10px] text-red-500 flex items-center gap-1">
+                                <AlertCircle size={9} />
+                                レア度確率の合計が100%になっていません（現在 {fmtW(validation.rarityWeightTotal)}%）
+                            </span>
+                        )}
+                        {validation.hasEmptyRarityNames && (
+                            <span className="text-[10px] text-red-500 flex items-center gap-1">
+                                <AlertCircle size={9} />
+                                レア度名が未入力のものがあります
+                            </span>
+                        )}
+                    </div>
                     </div>
 
                     {/* ━━━━━ 期待値シミュレーションの計算 ━━━━━ */}
@@ -1497,61 +1814,16 @@ export default function GachaBulkSetupModal({
                         </div>
                     )}
 
-                    {/* ━━━━━ バリデーションサマリ ━━━━━ */}
-                    <div
-                        className="px-6 py-3 shrink-0 flex flex-wrap gap-2 items-center"
-                        style={{ borderTop: `1px solid ${borderColor}`, background: isLightMode ? "rgba(0,0,0,0.02)" : "rgba(255,255,255,0.02)" }}
-                    >
-                        <span className="text-xs font-semibold" style={{ color: textMuted }}>レア度内合計:</span>
-                        {sortedRarities.map(r => {
-                            const total = validation.rarityTotals.get(r.id);
-                            if (total === undefined) return null;
-                            const ok = Math.abs(total - 100) < 0.5;
-                            return (
-                                <span
-                                    key={r.id}
-                                    className="inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-bold"
-                                    style={{
-                                        color: ok ? r.color : (isLightMode ? "#dc2626" : "#f87171"),
-                                        background: ok ? r.bgColor : (isLightMode ? "rgba(220,38,38,0.08)" : "rgba(248,113,113,0.1)"),
-                                        border: `1px solid ${ok ? r.glowColor : (isLightMode ? "rgba(220,38,38,0.2)" : "rgba(248,113,113,0.2)")}`,
-                                    }}
-                                >
-                                    {ok ? <CheckCircle2 size={9} /> : <AlertCircle size={9} />}
-                                    {(r.name || "（名称なし）")}: {fmtW(total)}%
-                                </span>
-                            );
-                        })}
-                        {validation.emptyNames.size > 0 && (
-                            <span className="text-[10px] text-red-500 flex items-center gap-1">
-                                <AlertCircle size={9} />
-                                {validation.emptyNames.size}件の景品名が未入力です
-                            </span>
-                        )}
-                        {!validation.isRaritiesSumOk && (
-                            <span className="text-[10px] text-red-500 flex items-center gap-1">
-                                <AlertCircle size={9} />
-                                レア度確率の合計が100%になっていません（現在 {fmtW(validation.rarityWeightTotal)}%）
-                            </span>
-                        )}
-                        {validation.hasEmptyRarityNames && (
-                            <span className="text-[10px] text-red-500 flex items-center gap-1">
-                                <AlertCircle size={9} />
-                                レア度名が未入力のものがあります
-                            </span>
-                        )}
-                    </div>
-
                     {/* ━━━━━ フッター ━━━━━ */}
                     <div
-                        className="flex items-center justify-between gap-3 px-6 py-4 shrink-0"
+                        className="flex items-center justify-between gap-3 px-6 pt-4 pb-[max(1rem,env(safe-area-inset-bottom,0px))] shrink-0"
                         style={{ borderTop: `1px solid ${borderColor}`, background: bgHeader }}
                     >
                         {/* 行追加ボタン */}
                         <button
                             type="button"
                             onClick={handleAddRow}
-                            className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                            className="flex items-center gap-1.5 min-h-11 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
                             style={{
                                 background: isLightMode ? "rgba(139,92,246,0.1)" : "rgba(139,92,246,0.15)",
                                 color: isLightMode ? "#7c3aed" : "#c4b5fd",
@@ -1567,7 +1839,7 @@ export default function GachaBulkSetupModal({
                             <button
                                 type="button"
                                 onClick={onClose}
-                                className="px-5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                                className="min-h-11 px-5 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer"
                                 style={{
                                     color: textMuted,
                                     background: "transparent",
@@ -1582,7 +1854,7 @@ export default function GachaBulkSetupModal({
                                 type="button"
                                 onClick={handleApply}
                                 disabled={rows.length === 0}
-                                className="flex items-center gap-2 px-6 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg cursor-pointer"
+                                className="flex items-center gap-2 min-h-11 px-6 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg cursor-pointer"
                                 style={{
                                     background: validation.isValid
                                         ? "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)"
