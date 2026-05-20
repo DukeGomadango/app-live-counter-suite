@@ -14,9 +14,9 @@ const SlotContent = dynamic(() => import("./SlotContent"), {
 type PageProps = {
   params?: Promise<Record<string, string | string[]>>;
   searchParams?: Promise<Record<string, string | string[]>>;
-} & { isSplitMode?: boolean; isRightPane?: boolean };
+};
 
 export default function SlotPage(props: PageProps) {
-  const { isSplitMode, isRightPane } = props;
+  const { isSplitMode, isRightPane } = props as PageProps & { isSplitMode?: boolean; isRightPane?: boolean };
   return <SlotContent isSplitMode={isSplitMode} isRightPane={isRightPane} />;
 }
