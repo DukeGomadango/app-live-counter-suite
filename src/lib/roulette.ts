@@ -108,8 +108,8 @@ export function getSlotCenterAngleDeg(slotIndex: number, segmentAngleDeg: number
 }
 
 /** 針を12時に固定したとき、スロット slotIndex の中心を12時に持ってくるための盤の回転角（度・0〜360相当） */
-export function getWheelRotationForNeedle(slotIndex: number, segmentAngleDeg: number): number {
-    const v = 360 - (slotIndex + 0.5) * segmentAngleDeg;
+export function getWheelRotationForNeedle(slotIndex: number, segmentAngleDeg: number, offset: number = 0): number {
+    const v = 360 - (slotIndex + 0.5 + offset) * segmentAngleDeg;
     return ((v % 360) + 360) % 360;
 }
 
@@ -117,9 +117,10 @@ export function getWheelRotationForNeedle(slotIndex: number, segmentAngleDeg: nu
 export function getBallRotationForHole(
     holeIndex: number,
     holeSegmentAngleDeg: number,
-    wheelRestRotationDeg: number
+    wheelRestRotationDeg: number,
+    offset: number = 0
 ): number {
-    return wheelRestRotationDeg + (holeIndex + 0.5) * holeSegmentAngleDeg;
+    return wheelRestRotationDeg + (holeIndex + 0.5 + offset) * holeSegmentAngleDeg;
 }
 
 /** 盤の静止角。wheelOffsetIndex で指定したスロットの中心を6時に合わせる */
@@ -241,4 +242,11 @@ export const ROULETTE_HIT_HISTORY_MAX = 500;
 
 export function trimRouletteHitHistory(entries: RouletteHitHistoryEntry[]): RouletteHitHistoryEntry[] {
     return entries.length > ROULETTE_HIT_HISTORY_MAX ? entries.slice(0, ROULETTE_HIT_HISTORY_MAX) : entries;
+}
+
+/** オートスピンの統計データ */
+export interface RouletteAutoSpinStats {
+    spins: number;
+    hitSlots: Record<number, number>; // slotIndex -> count
+    hitPredictors: Record<string, number>; // predictorId -> count
 }

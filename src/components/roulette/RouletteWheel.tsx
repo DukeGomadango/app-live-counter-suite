@@ -16,8 +16,7 @@ const SPIN_DURATION_NEEDLE_LOW = 7;
 const SPIN_DURATION_NEEDLE_HIGH = 12;
 const SPIN_DURATION_CASINO_LOW = 7;
 const SPIN_DURATION_CASINO_HIGH = 12;
-/** 進みの8割を前半1/5で消化し、残り4/5でのんびり減速。終盤はじりじりしたひと伸び（慣性感）で止まる */
-const SPIN_EASE = [0.1, 0.78, 0.62, 0.98] as const;
+
 /** 0°=3時なので、12時を基準にするためのオフセット（度） */
 const DEG_12_O_CLOCK = -90;
 interface RouletteWheelProps {
@@ -52,11 +51,37 @@ interface RouletteWheelProps {
     slotColorOverrides?: Record<number, string>;
     /** ハイローモードで「中心」としてハイライトするスロットの 0-based インデックス。未設定時はハイライトなし */
     highlightCenterIndex?: number | null;
+    /** 高速回転モード（オートスピン時など演出を極めて短縮する） */
+    isTurboMode?: boolean;
+    /** 操作用のボタン類を非表示にし、親からカスタムUIで操作する */
+    hideControls?: boolean;
 }
 
 const DEFAULT_CUSTOM_SEGMENT_COLORS = ["#b91c1c", "#1f2937"];
 
 const DEFAULT_MAX_VISIBLE_LABELS = 80;
+
+function getBezelStyle(style: RouletteStyle, isLightMode: boolean) {
+    if (style === "classic" || style === "custom") {
+        return {
+            background: isLightMode
+                ? "conic-gradient(from 45deg, #d97706, #fcd34d 15%, #78350f 30%, #fbbf24 45%, #fef3c7 55%, #92400e 70%, #fcd34d 85%, #d97706 100%)"
+                : "conic-gradient(from 45deg, #b45309, #fbbf24 15%, #78350f 30%, #f59e0b 45%, #fef3c7 55%, #451a03 70%, #fbbf24 85%, #b45309 100%)",
+        };
+    } else if (style === "orbit") {
+        return {
+            background: isLightMode
+                ? "conic-gradient(from 45deg, #8b5a2b, #d4b896 20%, #4a2f13 40%, #b8956a 60%, #e8d5c4 80%, #351f0b 100%)"
+                : "conic-gradient(from 45deg, #5c3a1a, #a6845e 20%, #2b1808 40%, #805c38 60%, #b8956a 80%, #170d04 100%)",
+        };
+    } else {
+        return {
+            background: isLightMode
+                ? "conic-gradient(from 45deg, #cbd5e1, #ffffff 15%, #475569 30%, #e2e8f0 45%, #ffffff 55%, #334155 70%, #94a3b8 85%, #cbd5e1 100%)"
+                : "conic-gradient(from 45deg, #4b5563, #9ca3af 15%, #111827 30%, #6b7280 45%, #f3f4f6 55%, #030712 70%, #9ca3af 85%, #4b5563 100%)",
+        };
+    }
+}
 
 export default function RouletteWheel({
     slots,
@@ -78,11 +103,14 @@ export default function RouletteWheel({
     resultSlot,
     segmentColors,
     slotColorOverrides,
+    isTurboMode = false,
+    hideControls = false,
 }: RouletteWheelProps) {
     const effectiveMaxLabels = maxVisibleLabels ?? DEFAULT_MAX_VISIBLE_LABELS;
     const wheelControls = useAnimationControls();
     const ballControls = useAnimationControls();
     const dropControls = useAnimationControls();
+    const shadowControls = useAnimationControls();
     const hasCompletedRef = useRef(false);
     const lastSpinKeyRef = useRef<number | null>(null);
     /** カジノでアニメ開始時に確定した index を保持し、.then() で必ずそれを使う（表示と結果のずれ防止） */
@@ -96,6 +124,8 @@ export default function RouletteWheel({
     /** 前回の結果位置（針: 盤の角度 / ボール: ボールの角度）。ここから次回スピンを開始する */
     const lastWheelRotationRef = useRef<number | null>(null);
     const lastBallRotationRef = useRef<number | null>(null);
+    /** スピンごとのセクター内のランダムな停止位置オフセット（-0.42 〜 +0.42） */
+    const randomOffsetThisSpinRef = useRef<number>(0);
 
     const N = slots.length;
     const isNeedle = style === "minimal" || style === "classic" || style === "custom";
@@ -116,7 +146,7 @@ export default function RouletteWheel({
             const rotate =
                 resultIndex != null && N > 0
                     ? (lastFullTurnsForDisplayRef.current ?? REST_DISPLAY_TURNS) * 360 +
-                      getWheelRotationForNeedle(resultIndex, segmentAngle)
+                      getWheelRotationForNeedle(resultIndex, segmentAngle, randomOffsetThisSpinRef.current)
                     : restRotation;
             wheelControls.set({ rotate });
             lastWheelRotationRef.current = rotate;
@@ -134,39 +164,68 @@ export default function RouletteWheel({
         if (lastSpinKeyRef.current === spinKey) return;
         lastSpinKeyRef.current = spinKey;
         hasCompletedRef.current = false;
+
+        // セクター内（スロット幅内）の停止位置をランダム化 (最大で左右に約42%ずらす)
+        randomOffsetThisSpinRef.current = (Math.random() - 0.5) * 0.84;
+
         onSpinStart?.(isNeedle ? "wheel" : "ball");
 
         if (isNeedle) {
             const idx = targetIndex;
             const startFrom = lastWheelRotationRef.current ?? restRotation;
-            const targetBase = getWheelRotationForNeedle(idx, segmentAngle);
+            const targetBase = getWheelRotationForNeedle(idx, segmentAngle, randomOffsetThisSpinRef.current);
             fullTurnsThisSpinRef.current = 2 + Math.random();
             const fullTurns = fullTurnsThisSpinRef.current;
             const rawEnd = startFrom + fullTurns * 360;
             const delta = ((targetBase - (rawEnd % 360)) % 360 + 360) % 360;
             const finalDeg = rawEnd + delta;
             resolvedTargetRef.current = idx;
-            const duration = effectLevel === "high" ? SPIN_DURATION_NEEDLE_HIGH : SPIN_DURATION_NEEDLE_LOW;
-            const transition = { duration, ease: SPIN_EASE };
-            wheelControls
-                .start({ rotate: finalDeg, transition })
-                .then(() => {
-                    const reported = resolvedTargetRef.current;
-                    if (!hasCompletedRef.current && reported !== null) {
-                        hasCompletedRef.current = true;
-                        lastWheelRotationRef.current = finalDeg;
-                        lastFullTurnsForDisplayRef.current = (finalDeg - getWheelRotationForNeedle(reported, segmentAngle)) / 360;
-                        lastSpinKeyRef.current = null;
-                        onSpinEnd(reported);
-                        resolvedTargetRef.current = null;
-                    }
-                });
+            const duration = isTurboMode ? 0.15 : (effectLevel === "high" ? SPIN_DURATION_NEEDLE_HIGH : SPIN_DURATION_NEEDLE_LOW);
+
+            if (isTurboMode) {
+                const transition = { duration, ease: "easeOut" };
+                wheelControls
+                    .start({ rotate: finalDeg, transition })
+                    .then(() => {
+                        const reported = resolvedTargetRef.current;
+                        if (!hasCompletedRef.current && reported !== null) {
+                            hasCompletedRef.current = true;
+                            lastWheelRotationRef.current = finalDeg;
+                            lastFullTurnsForDisplayRef.current = (finalDeg - getWheelRotationForNeedle(reported, segmentAngle, randomOffsetThisSpinRef.current)) / 360;
+                            lastSpinKeyRef.current = null;
+                            onSpinEnd(reported);
+                            resolvedTargetRef.current = null;
+                        }
+                    });
+            } else {
+                // 停止直前の「揺り戻し・ばね感 (Elastic Settle)」をキーフレームで演出
+                // 目標値 finalDeg を 1.2度オーバーシュートし、0.3度戻って静止する
+                const rotateKeyframes = [startFrom, finalDeg + 1.2, finalDeg - 0.3, finalDeg];
+                const transition = {
+                    duration,
+                    times: [0, 0.94, 0.97, 1.0],
+                    ease: [[0.1, 0.78, 0.62, 0.98], "easeOut", "easeIn"]
+                };
+                wheelControls
+                    .start({ rotate: rotateKeyframes, transition })
+                    .then(() => {
+                        const reported = resolvedTargetRef.current;
+                        if (!hasCompletedRef.current && reported !== null) {
+                            hasCompletedRef.current = true;
+                            lastWheelRotationRef.current = finalDeg;
+                            lastFullTurnsForDisplayRef.current = (finalDeg - getWheelRotationForNeedle(reported, segmentAngle, randomOffsetThisSpinRef.current)) / 360;
+                            lastSpinKeyRef.current = null;
+                            onSpinEnd(reported);
+                            resolvedTargetRef.current = null;
+                        }
+                    });
+            }
         } else {
             const idx = targetIndex;
             const holeIndex = idx * holesPerNumber + Math.floor(Math.random() * holesPerNumber);
             resolvedHoleIndexRef.current = holeIndex;
             const startFrom = lastBallRotationRef.current ?? 0;
-            const targetHole = getBallRotationForHole(holeIndex, holeSegmentAngle, restRotation);
+            const targetHole = getBallRotationForHole(holeIndex, holeSegmentAngle, restRotation, randomOffsetThisSpinRef.current);
             const targetBase = ((targetHole % 360) + 360) % 360;
             fullTurnsThisSpinRef.current = 2 + Math.random();
             const fullTurns = fullTurnsThisSpinRef.current;
@@ -174,32 +233,93 @@ export default function RouletteWheel({
             const delta = ((targetBase - (rawEnd % 360)) % 360 + 360) % 360;
             const finalBallRot = rawEnd + delta;
             resolvedTargetRef.current = idx;
-            const duration = effectLevel === "high" ? SPIN_DURATION_CASINO_HIGH : SPIN_DURATION_CASINO_LOW;
-            const transition = { duration, ease: SPIN_EASE };
+            const duration = isTurboMode ? 0.15 : (effectLevel === "high" ? SPIN_DURATION_CASINO_HIGH : SPIN_DURATION_CASINO_LOW);
             const rO = wheelSize / 2 - 4;
             const rI = wheelSize / 2 - 11;
-            dropControls.set({ y: 0, scale: 1 });
-            wheelControls.set({ rotate: restRotation });
-            ballControls
-                .start({ rotate: finalBallRot, transition })
-                .then(() => {
-                    const reported = resolvedTargetRef.current;
-                    if (!hasCompletedRef.current && reported !== null) {
-                        hasCompletedRef.current = true;
-                        lastBallRotationRef.current = finalBallRot;
-                        lastSpinKeyRef.current = null;
-                        onSpinEnd(reported);
-                        resolvedTargetRef.current = null;
-                    }
-                    const dropDistance = rO - rI;
-                    dropControls.start({
-                        y: dropDistance,
-                        scale: 0.85,
-                        transition: { duration: 0.5, ease: "easeOut" },
+            const dropDistance = rO - rI;
+
+            if (isTurboMode) {
+                dropControls.set({ y: 0, scale: 1 });
+                shadowControls.set({ scale: 0.9, opacity: 0.75, filter: "blur(0.8px)" });
+                wheelControls.set({ rotate: restRotation });
+                ballControls
+                    .start({ rotate: finalBallRot, transition: { duration, ease: "easeOut" } })
+                    .then(() => {
+                        const reported = resolvedTargetRef.current;
+                        if (!hasCompletedRef.current && reported !== null) {
+                            hasCompletedRef.current = true;
+                            lastBallRotationRef.current = finalBallRot;
+                            lastSpinKeyRef.current = null;
+                            onSpinEnd(reported);
+                            resolvedTargetRef.current = null;
+                        }
+                        dropControls.set({ y: dropDistance, scale: 0.85 });
+                        shadowControls.set({ scale: 0.9, opacity: 0.75, filter: "blur(0.8px)" });
                     });
+            } else {
+                // ボールが隣接ポケットの仕切りにぶつかってバウンドするリアル演出
+                dropControls.set({ y: 0, scale: 1 });
+                wheelControls.set({ rotate: restRotation });
+
+                // ポケットの仕切り（壁）に衝突して跳ね返るリアルなバウンド演出
+                // 進行方向（正回転）の壁にぶつかり、逆方向（マイナス）へスロット幅の約25%だけ跳ね返り、再度落ち着く
+                const bounceOffset = holeSegmentAngle * 0.25;
+                const bouncePeak = finalBallRot - bounceOffset;
+
+                ballControls
+                    .start({
+                        rotate: [startFrom, finalBallRot, bouncePeak, finalBallRot],
+                        transition: {
+                            duration,
+                            times: [0, 0.90, 0.95, 1.0],
+                            ease: [[0.1, 0.78, 0.62, 0.98], "easeOut", "easeIn"]
+                        }
+                    })
+                    .then(() => {
+                        const reported = resolvedTargetRef.current;
+                        if (!hasCompletedRef.current && reported !== null) {
+                            hasCompletedRef.current = true;
+                            lastBallRotationRef.current = finalBallRot;
+                            lastSpinKeyRef.current = null;
+                            onSpinEnd(reported);
+                            resolvedTargetRef.current = null;
+                        }
+                    });
+
+                // ボールの落下（y軸）と縮小（奥方向への立体感）を、回転と並行して80%時点から開始
+                // 落下時のバウンドでポケットの外へ滑り出さないよう、動的なy軸移動（動径方向のブレ）は1.5pxに抑え、
+                // 縦方向のバウンド（高さ・スケール）を主役にすることで、極めて自然な3Dバウンド感を実現します。
+                dropControls.start({
+                    y: [0, 0, dropDistance, dropDistance - 1.5, dropDistance],
+                    scale: [1, 1, 0.85, 0.94, 0.85],
+                    transition: {
+                        duration,
+                        times: [0, 0.80, 0.90, 0.95, 1.0],
+                        ease: ["linear", "easeOut", "easeIn", "easeOut"]
+                    }
                 });
+
+                // 影のバウンド同期（ぼかし・不透明度・スケールの逆連動）
+                // ボールの高さ（スケール）と逆連動させ、浮き上がった際に影を大きく・薄く・ぼかします。
+                shadowControls.start({
+                    scale: [1.2, 1.2, 0.9, 1.08, 0.9],
+                    opacity: [0.25, 0.25, 0.75, 0.40, 0.75],
+                    filter: [
+                        "blur(5px)",
+                        "blur(5px)",
+                        "blur(0.8px)",
+                        "blur(3.5px)",
+                        "blur(0.8px)"
+                    ],
+                    transition: {
+                        duration,
+                        times: [0, 0.80, 0.90, 0.95, 1.0],
+                        ease: ["linear", "easeOut", "easeIn", "easeOut"]
+                    }
+                });
+            }
         }
-    }, [isSpinning, targetIndex, spinKey, N, segmentAngle, holesPerNumber, holeSegmentAngle, isNeedle, effectLevel, wheelControls, ballControls, dropControls, wheelSize, onSpinEnd, onSpinStart, restRotation]);
+    }, [isSpinning, targetIndex, spinKey, N, segmentAngle, holesPerNumber, holeSegmentAngle, isNeedle, effectLevel, wheelControls, ballControls, dropControls, shadowControls, wheelSize, onSpinEnd, onSpinStart, restRotation, isTurboMode]);
 
     // 回転演出スキップ: 即座に結果位置へ飛ばして onSpinEnd を呼ぶ（通常スピンと同じ式で角度を算出し set で適用）
     useEffect(() => {
@@ -212,12 +332,12 @@ export default function RouletteWheel({
         if (isNeedle) {
             wheelControls.stop();
             const startFrom = lastWheelRotationRef.current ?? restRotation;
-            const targetBase = getWheelRotationForNeedle(idx, segmentAngle);
+            const targetBase = getWheelRotationForNeedle(idx, segmentAngle, randomOffsetThisSpinRef.current);
             const fullTurns = fullTurnsThisSpinRef.current;
             const rawEnd = startFrom + fullTurns * 360;
             const delta = ((targetBase - (rawEnd % 360)) % 360 + 360) % 360;
             const finalDeg = rawEnd + delta;
-            lastFullTurnsForDisplayRef.current = (finalDeg - getWheelRotationForNeedle(idx, segmentAngle)) / 360;
+            lastFullTurnsForDisplayRef.current = (finalDeg - getWheelRotationForNeedle(idx, segmentAngle, randomOffsetThisSpinRef.current)) / 360;
             lastWheelRotationRef.current = finalDeg;
             wheelControls.set({ rotate: finalDeg });
             onSpinEnd(idx);
@@ -231,7 +351,7 @@ export default function RouletteWheel({
             const holeIndex = resolvedHoleIndexRef.current ?? idx * holesPerNumber;
             resolvedHoleIndexRef.current = null;
             const startFrom = lastBallRotationRef.current ?? 0;
-            const targetHole = getBallRotationForHole(holeIndex, holeSegmentAngle, restRotation);
+            const targetHole = getBallRotationForHole(holeIndex, holeSegmentAngle, restRotation, randomOffsetThisSpinRef.current);
             const targetBase = ((targetHole % 360) + 360) % 360;
             const fullTurns = fullTurnsThisSpinRef.current;
             const rawEnd = startFrom + fullTurns * 360;
@@ -241,16 +361,12 @@ export default function RouletteWheel({
             wheelControls.set({ rotate: restRotation });
             ballControls.set({ rotate: finalBallRot });
             const dropDistance = rO - rI;
-            dropControls.set({ y: 0, scale: 1 });
-            dropControls.start({
-                y: dropDistance,
-                scale: 0.85,
-                transition: { duration: 0.2, ease: "easeOut" },
-            });
+            dropControls.set({ y: dropDistance, scale: 0.85 });
+            shadowControls.set({ scale: 0.9, opacity: 0.75, filter: "blur(0.8px)" });
             onSpinEnd(idx);
             resolvedTargetRef.current = null;
         }
-    }, [skipRequested, isSpinning, targetIndex, spinKey, N, segmentAngle, holesPerNumber, holeSegmentAngle, isNeedle, restRotation, wheelControls, ballControls, dropControls, wheelSize, onSpinEnd]);
+    }, [skipRequested, isSpinning, targetIndex, spinKey, N, segmentAngle, holesPerNumber, holeSegmentAngle, isNeedle, restRotation, wheelControls, ballControls, dropControls, shadowControls, wheelSize, onSpinEnd]);
 
     const ballSize = !isNeedle && (N > 26 || H > 40) ? 12 : 20;
 
@@ -262,11 +378,30 @@ export default function RouletteWheel({
     return (
         <div className="flex flex-col items-center gap-4 max-md:gap-2">
             <div className="relative overflow-hidden" style={{ width: wheelSize + 48, height: wheelSize + 48 }}>
-                {/* 針（needle のときのみ・上部中央に固定） */}
+                {/* 金属光沢ベゼル */}
+                <div
+                    className="absolute pointer-events-none rounded-full"
+                    style={{
+                        width: wheelSize + 12,
+                        height: wheelSize + 12,
+                        left: 24 - 6,
+                        top: 24 - 6,
+                        zIndex: 15,
+                        border: "1px solid rgba(255, 255, 255, 0.45)",
+                        boxShadow: isLightMode
+                            ? "inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -2px 4px rgba(0,0,0,0.45), 0 4px 12px rgba(0,0,0,0.18)"
+                            : "inset 0 2px 4px rgba(255, 255, 255, 0.35), inset 0 -2px 4px rgba(0,0,0,0.75), 0 6px 16px rgba(0,0,0,0.5)",
+                        WebkitMaskImage: "radial-gradient(circle, transparent 92%, black 93%)",
+                        maskImage: "radial-gradient(circle, transparent 92%, black 93%)",
+                        ...getBezelStyle(style, isLightMode),
+                    }}
+                />
+
+                {/* 針（needle のときのみ・上部中央に固定・多層リアルシャドウ） */}
                 {isNeedle && (
                     <div
                         className="absolute left-1/2 top-0 z-20 -translate-x-1/2 -translate-y-1"
-                        style={{ filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.3))" }}
+                        style={{ filter: "drop-shadow(0 1px 2px rgba(0,0,0,0.45)) drop-shadow(0 6px 12px rgba(0,0,0,0.22))" }}
                     >
                         <svg width="24" height="32" viewBox="0 0 24 32" fill="none" className="pointer-events-none">
                             <path d="M12 0 L14 28 L12 32 L10 28 Z" fill={style === "classic" || style === "custom" ? "#ca8a04" : accentColor} stroke={style === "classic" || style === "custom" ? "#a16207" : strokeColor} strokeWidth="1" />
@@ -289,6 +424,22 @@ export default function RouletteWheel({
                         animate={ballControls}
                         initial={{ rotate: 0 }}
                     >
+                        {/* 2.5D 立体連動ボールシャドウ */}
+                        <motion.div
+                            className="absolute rounded-full bg-black/60"
+                            style={{
+                                left: (wheelSize - ballSize) / 2,
+                                top: (wheelSize - ballSize) / 2 - rOuter,
+                                width: ballSize,
+                                height: ballSize,
+                                transformOrigin: "center center",
+                                y: 7, // dropDistance = 7 固定でポケット底に影を配置
+                            }}
+                            animate={shadowControls}
+                            initial={{ scale: 0.9, opacity: 0.75, filter: "blur(0.8px)" }}
+                        />
+
+                        {/* ボール本体 */}
                         <motion.div
                             className="absolute rounded-full"
                             style={
@@ -374,6 +525,22 @@ export default function RouletteWheel({
                                 <stop offset="0" stopColor="#4a3728" stopOpacity="0.6" />
                                 <stop offset="0.5" stopColor="transparent" stopOpacity="0" />
                                 <stop offset="1" stopColor="#1a1209" stopOpacity="0.5" />
+                            </linearGradient>
+                            
+                            {/* 2.5D用 立体陰影（シャーディング）グラデーション */}
+                            <radialGradient id="wheel-shading-grad" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stopColor="#ffffff" stopOpacity={isLightMode ? 0.28 : 0.16} />
+                                <stop offset="42%" stopColor="#ffffff" stopOpacity="0" />
+                                <stop offset="78%" stopColor="#000000" stopOpacity="0" />
+                                <stop offset="94%" stopColor="#000000" stopOpacity={isLightMode ? 0.22 : 0.40} />
+                                <stop offset="100%" stopColor="#000000" stopOpacity={isLightMode ? 0.45 : 0.60} />
+                            </radialGradient>
+
+                            {/* 2.5D用 ガラスグレアグラデーション */}
+                            <linearGradient id="wheel-glazing-grad" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#ffffff" stopOpacity={isLightMode ? 0.16 : 0.09} />
+                                <stop offset="38%" stopColor="#ffffff" stopOpacity={isLightMode ? 0.05 : 0.02} />
+                                <stop offset="55%" stopColor="#ffffff" stopOpacity="0" />
                             </linearGradient>
                         </defs>
                         <g clipPath="url(#roulette-wheel-clip)">
@@ -473,6 +640,11 @@ export default function RouletteWheel({
                                                 </g>
                                             );
                                         })}
+
+                                        {/* 2.5D 立体陰影レイヤーをセクターの直上に被せる（テキストの可読性は邪魔しない） */}
+                                        {!isMinimal && (
+                                            <circle cx={cx} cy={cy} r={r} fill="url(#wheel-shading-grad)" pointerEvents="none" />
+                                        )}
                                     </>
                                 );
                             }
@@ -520,6 +692,9 @@ export default function RouletteWheel({
                                                 </g>
                                             );
                                         })}
+
+                                        {/* 木目盤の立体陰影 */}
+                                        <circle cx={cx} cy={cy} r={rOuterRing} fill="url(#wheel-shading-grad)" pointerEvents="none" />
                                     </>
                                 );
                             }
@@ -579,9 +754,15 @@ export default function RouletteWheel({
                                         const d = `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${xi2} ${yi2} A ${rInnerHole} ${rInnerHole} 0 ${large} 0 ${xi1} ${yi1} Z`;
                                         return <path key={`hole-${i}`} d={d} fill="transparent" stroke={strokeColor} strokeWidth={holeStrokeWidth} />;
                                     })}
+
+                                    {/* カジノ全体の立体陰影 */}
+                                    <circle cx={cx} cy={cy} r={r} fill="url(#wheel-shading-grad)" pointerEvents="none" />
                                 </>
                             );
                         })()}
+
+                        {/* ガラスドーム光沢（グレア）オーバーレイ */}
+                        <circle cx={wheelSize / 2} cy={wheelSize / 2} r={wheelSize / 2 - 2} fill="url(#wheel-glazing-grad)" pointerEvents="none" />
                         </g>
                     </svg>
                 </motion.div>
@@ -600,27 +781,29 @@ export default function RouletteWheel({
                 </p>
             )}
 
-            <div className="flex flex-wrap items-center justify-center gap-2">
-                <button
-                    type="button"
-                    onClick={onSpin}
-                    disabled={slots.length === 0 || isSpinning}
-                    className="px-6 py-3 rounded-xl font-bold text-white shadow-lg disabled:opacity-50 disabled:pointer-events-none transition-all hover:scale-105 active:scale-95"
-                    style={{ background: accentColor }}
-                >
-                    {isSpinning ? "回転中…" : "回す"}
-                </button>
-                {resultSlot != null && <span className="flex items-center min-h-[3rem]">{resultSlot}</span>}
-                {isSpinning && onSkipRequest && (
+            {!hideControls && (
+                <div className="flex flex-wrap items-center justify-center gap-2">
                     <button
                         type="button"
-                        onClick={onSkipRequest}
-                        className="px-4 py-3 rounded-xl font-medium text-white/90 bg-white/20 hover:bg-white/30 border border-white/30 transition-all"
+                        onClick={onSpin}
+                        disabled={slots.length === 0 || isSpinning}
+                        className="px-6 py-3 rounded-xl font-bold text-white shadow-lg disabled:opacity-50 disabled:pointer-events-none transition-all hover:scale-105 active:scale-95"
+                        style={{ background: accentColor }}
                     >
-                        スキップ
+                        {isSpinning ? "回転中…" : "回す"}
                     </button>
-                )}
-            </div>
+                    {resultSlot != null && <span className="flex items-center min-h-[3rem]">{resultSlot}</span>}
+                    {isSpinning && onSkipRequest && (
+                        <button
+                            type="button"
+                            onClick={onSkipRequest}
+                            className="px-4 py-3 rounded-xl font-medium text-white/90 bg-white/20 hover:bg-white/30 border border-white/30 transition-all"
+                        >
+                            スキップ
+                        </button>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
