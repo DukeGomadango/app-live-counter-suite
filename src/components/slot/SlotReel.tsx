@@ -16,11 +16,15 @@ const STOP_DURATION_MIN = 0.25;
 const STOP_DURATION_MAX = 2.2;
 
 function usePrefersReducedMotion() {
-  const [reduced, setReduced] = useState(false);
+  const [reduced, setReduced] = useState(() => {
+    if (typeof window !== "undefined") {
+      return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    }
+    return false;
+  });
   useEffect(() => {
     if (typeof window === "undefined") return;
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mediaQuery.matches);
     const listener = (e: MediaQueryListEvent) => setReduced(e.matches);
     mediaQuery.addEventListener("change", listener);
     return () => mediaQuery.removeEventListener("change", listener);
@@ -28,10 +32,12 @@ function usePrefersReducedMotion() {
   return reduced;
 }
 
+import type { MotionValue } from "framer-motion";
+
 interface ReelCellProps {
   symbol: SlotSymbol;
   index: number;
-  y: any; // MotionValue<number>
+  y: MotionValue<number>;
   stripLen: number;
   visibleRows: 1 | 3;
   isLightMode: boolean;
@@ -91,15 +97,17 @@ function ReelCell({
   );
 
   // アクセシビリティまたは1段表示時のフォールバック（シンプルな透明度グラデーションのみ）
+  const fallbackOpacity = useTransform(
+    offsetFromCenter,
+    [-CELL_HEIGHT * 1.5, -CELL_HEIGHT, 0, CELL_HEIGHT, CELL_HEIGHT * 1.5],
+    [0.4, 0.8, 1, 0.8, 0.4]
+  );
+
   const style = reducedMotion || visibleRows === 1
     ? {
         height: CELL_HEIGHT,
         opacity: visibleRows === 3 
-          ? useTransform(
-              offsetFromCenter,
-              [-CELL_HEIGHT * 1.5, -CELL_HEIGHT, 0, CELL_HEIGHT, CELL_HEIGHT * 1.5],
-              [0.4, 0.8, 1, 0.8, 0.4]
-            )
+          ? fallbackOpacity
           : 1,
       }
     : {

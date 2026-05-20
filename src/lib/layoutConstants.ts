@@ -21,9 +21,9 @@ export const Z_INDEX = {
     BASE: 0,
     ORBS: 0,           // 背景装飾
     CONTENT: 10,       // メインコンテンツ
-    HEADER: 50,        // ヘッダー
     SIDEBAR_BACKDROP: 60,
     SIDEBAR: 70,       // サイドバー
+    HEADER: 80,        // ヘッダー
     MODAL_BACKDROP: 100,
     MODAL: 110,        // モダル
     DROPDOWN: 120,     // 降下メニュー

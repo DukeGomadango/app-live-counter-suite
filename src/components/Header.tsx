@@ -3,6 +3,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, RotateCcw, Users } from "lucide-react";
 import { useState } from "react";
+import { Z_INDEX } from "@/lib/layoutConstants";
 
 interface HeaderProps {
     totalCount: number;
@@ -34,13 +35,14 @@ export default function Header({
         <motion.header
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative z-30 flex items-center justify-between px-4 py-2"
+            className="relative flex items-center justify-between px-4 py-2"
             onMouseEnter={() => setShowControls(true)}
             onMouseLeave={() => {
                 setShowControls(false);
                 setConfirmReset(false);
             }}
             style={{
+                zIndex: Z_INDEX.HEADER,
                 background: "rgba(10, 5, 30, 0.6)",
                 backdropFilter: "blur(12px)",
                 borderBottom: "1px solid rgba(255,255,255,0.05)",
