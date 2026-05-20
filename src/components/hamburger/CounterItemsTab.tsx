@@ -4,8 +4,9 @@ import { useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Plus, Pencil, Trash2, Check } from "lucide-react";
 import type { CounterItem } from "@/lib/templates";
-import { COLOR_OPTIONS, DEFAULT_ITEM_EMOJI, EMOJI_OPTIONS, coerceStoredEmojiToDisplay } from "@/lib/constants";
+import { COLOR_OPTIONS, DEFAULT_ITEM_EMOJI, coerceStoredEmojiToDisplay } from "@/lib/constants";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
+import SymbolPicker from "@/components/SymbolPicker";
 import type { MenuThemeTokens } from "./types";
 
 type Props = {
@@ -23,11 +24,8 @@ export function CounterItemsTab({ tokens, isLightMode, items, onAddItem, onEditI
         textMuted,
         bgSubtle,
         borderSubtle,
-        bgSubtleHover,
         inputBg,
         inputBorder,
-        popoverBg,
-        popoverBorder,
     } = tokens;
 
     const [newLabel, setNewLabel] = useState("");
@@ -78,35 +76,19 @@ export function CounterItemsTab({ tokens, isLightMode, items, onAddItem, onEditI
                     <div className="relative">
                         <button
                             type="button"
-                            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                            onClick={() => setShowEmojiPicker(true)}
                             className={`w-9 h-9 rounded-xl ${bgSubtle} border ${borderSubtle} flex items-center justify-center text-lg dango-btn-tier3 transition-colors`}
                             style={{ "--btn-glow-color": "rgba(168,85,247,0.3)" } as React.CSSProperties}
                         >
                             <EmojiGlyph emoji={newEmoji} size={20} />
                         </button>
-                        {showEmojiPicker && (
-                            <div
-                                className="absolute top-full left-0 mt-1 p-2 rounded-xl border grid grid-cols-8 gap-1 z-50 w-64 max-h-56 overflow-y-auto"
-                                style={{
-                                    background: popoverBg,
-                                    borderColor: popoverBorder,
-                                }}
-                            >
-                                {EMOJI_OPTIONS.map((e) => (
-                                    <button
-                                        key={e}
-                                        type="button"
-                                        onClick={() => {
-                                            setNewEmoji(e);
-                                            setShowEmojiPicker(false);
-                                        }}
-                                        className={`w-7 h-7 rounded ${bgSubtleHover} flex items-center justify-center text-sm`}
-                                    >
-                                        <EmojiGlyph emoji={e} size={14} />
-                                    </button>
-                                ))}
-                            </div>
-                        )}
+                        <SymbolPicker
+                            isOpen={showEmojiPicker}
+                            onClose={() => setShowEmojiPicker(false)}
+                            onSelect={(selected) => setNewEmoji(selected)}
+                            selectedSymbol={newEmoji}
+                            isLightMode={isLightMode}
+                        />
                     </div>
                     <input
                         value={newLabel}
@@ -141,35 +123,19 @@ export function CounterItemsTab({ tokens, isLightMode, items, onAddItem, onEditI
                                     <div className="relative">
                                         <button
                                             type="button"
-                                            onClick={() => setShowEditEmojiPicker(!showEditEmojiPicker)}
+                                            onClick={() => setShowEditEmojiPicker(true)}
                                             className={`w-8 h-8 rounded-lg ${bgSubtle} flex items-center justify-center text-base dango-btn-tier3 transition-colors`}
                                             style={{ "--btn-glow-color": editColor || "rgba(168,85,247,0.3)" } as React.CSSProperties}
                                         >
                                             <EmojiGlyph emoji={editEmoji} size={16} />
                                         </button>
-                                        {showEditEmojiPicker && (
-                                            <div
-                                                className="absolute top-full left-0 mt-1 p-2 rounded-xl border grid grid-cols-8 gap-1 z-50 w-64 max-h-56 overflow-y-auto"
-                                                style={{
-                                                    background: popoverBg,
-                                                    borderColor: popoverBorder,
-                                                }}
-                                            >
-                                                {EMOJI_OPTIONS.map((e) => (
-                                                    <button
-                                                        key={e}
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setEditEmoji(e);
-                                                            setShowEditEmojiPicker(false);
-                                                        }}
-                                                        className={`w-7 h-7 rounded ${bgSubtleHover} flex items-center justify-center text-sm`}
-                                                    >
-                                                        <EmojiGlyph emoji={e} size={14} />
-                                                    </button>
-                                                ))}
-                                            </div>
-                                        )}
+                                        <SymbolPicker
+                                            isOpen={showEditEmojiPicker}
+                                            onClose={() => setShowEditEmojiPicker(false)}
+                                            onSelect={(selected) => setEditEmoji(selected)}
+                                            selectedSymbol={editEmoji}
+                                            isLightMode={isLightMode}
+                                        />
                                     </div>
                                     <input
                                         value={editLabel}

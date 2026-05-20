@@ -4,7 +4,8 @@ import { memo, useRef, useCallback, useState, useEffect, useMemo, useLayoutEffec
 import { Handle, Position, NodeProps, Node, useUpdateNodeInternals } from "@xyflow/react";
 import { Trash2, ChevronUp, ChevronDown } from "lucide-react";
 import type { CardSize } from "@/components/SettingsModal";
-import { EMOJI_OPTIONS, coerceStoredEmojiToDisplay } from "@/lib/constants";
+import { coerceStoredEmojiToDisplay } from "@/lib/constants";
+import SymbolPicker from "@/components/SymbolPicker";
 import { useChartNodeEnv, type LineNodePersistedData } from "./ChartNodeEnvContext";
 import {
     chartEffectiveCardScale,
@@ -289,36 +290,21 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                                     color: accentColor,
                                     filter: isLightMode ? "none" : "drop-shadow(0 0 8px rgba(255,255,255,0.2))",
                                 }}
-                                onClick={() => setIsEditingEmoji(!isEditingEmoji)}
+                                onClick={() => setIsEditingEmoji(true)}
                                 aria-label="絵文字を変更"
                             >
                                 <EmojiGlyph emoji={coerceStoredEmojiToDisplay(data.emoji)} size={22} />
                             </button>
-                            {isEditingEmoji && (
-                                <div
-                                    className="absolute top-full left-0 mt-1 p-2 rounded-xl border grid grid-cols-6 gap-1 z-50 w-52 max-h-48 overflow-y-auto shadow-xl"
-                                    style={{
-                                        background: isLightMode ? "rgba(255,255,255,0.95)" : "rgba(15,8,35,0.95)",
-                                        borderColor: isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
-                                        backdropFilter: "blur(12px)",
-                                    }}
-                                >
-                                    {EMOJI_OPTIONS.map((e) => (
-                                        <button
-                                            key={e}
-                                            type="button"
-                                            onClick={() => {
-                                                env.onUpdateLineConfig(id, { emoji: e });
-                                                setIsEditingEmoji(false);
-                                            }}
-                                            className="w-7 h-7 rounded hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center transition-colors text-base"
-                                            style={{ color: accentColor }}
-                                        >
-                                            <EmojiGlyph emoji={e} size={18} />
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
+                            <SymbolPicker
+                                isOpen={isEditingEmoji}
+                                onClose={() => setIsEditingEmoji(false)}
+                                onSelect={(selected) => {
+                                    env.onUpdateLineConfig(id, { emoji: selected });
+                                    setIsEditingEmoji(false);
+                                }}
+                                selectedSymbol={coerceStoredEmojiToDisplay(data.emoji)}
+                                isLightMode={isLightMode}
+                            />
                         </div>
                         <input
                             type="text"

@@ -5,7 +5,8 @@ import { Plus, X } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { Z_INDEX, BREAKPOINT_MD } from "@/lib/layoutConstants";
-import { DEFAULT_ITEM_EMOJI, EMOJI_OPTIONS } from "@/lib/constants";
+import { DEFAULT_ITEM_EMOJI } from "@/lib/constants";
+import SymbolPicker from "@/components/SymbolPicker";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
 
 interface AddItemPanelProps {
@@ -24,6 +25,7 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
     // Add variables for mobile detection and modal state
     const [isMobile, setIsMobile] = useState(false);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -103,20 +105,23 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                         </button>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 justify-center mb-6 max-h-[160px] overflow-y-auto scroll-touch pr-1">
-                        {EMOJI_OPTIONS.map((e) => (
-                            <button
-                                key={e}
-                                type="button"
-                                onClick={() => setEmoji(e)}
-                                className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center text-xl transition-all ${emoji === e
-                                    ? "bg-purple-500/30 border border-purple-500/50 scale-110 shadow-lg"
-                                    : `${isLightMode ? "hover:bg-black/5 bg-black/5" : "hover:bg-white/10 bg-white/5"}`
-                                    }`}
-                            >
-                                <EmojiGlyph emoji={e} size={24} />
-                            </button>
-                        ))}
+                    <p className={`text-xs font-bold mb-2 ml-1 ${isLightMode ? "text-gray-500" : "text-white/50"}`}>絵文字</p>
+                    <div className="mb-4">
+                        <button
+                            type="button"
+                            onClick={() => setShowEmojiPicker(true)}
+                            className={`w-full ${isLightMode ? "bg-black/5 border border-black/10 text-gray-800" : "bg-white/10 border border-white/15 text-white"} rounded-xl px-4 py-3 text-left flex items-center gap-3 transition-colors`}
+                        >
+                            <EmojiGlyph emoji={emoji} size={24} />
+                            <span className={`text-xs ${isLightMode ? "text-gray-400" : "text-white/30"}`}>タップしてシンボルを選択</span>
+                        </button>
+                        <SymbolPicker
+                            isOpen={showEmojiPicker}
+                            onClose={() => setShowEmojiPicker(false)}
+                            onSelect={(selected) => setEmoji(selected)}
+                            selectedSymbol={emoji}
+                            isLightMode={isLightMode}
+                        />
                     </div>
 
                     <p className={`text-xs font-bold mb-2 ml-1 ${isLightMode ? "text-gray-500" : "text-white/50"}`}>項目名</p>
@@ -192,20 +197,26 @@ export default function AddItemPanel({ isLightMode, onAddItem, onExpand, onColla
                         boxShadow: "0 0 20px rgba(168,85,247,0.1)",
                     }}
                 >
-                    <div className="flex flex-wrap gap-1 justify-center max-h-[120px] overflow-y-auto scroll-touch pr-1">
-                        {EMOJI_OPTIONS.map((e) => (
-                            <button
-                                key={e}
-                                type="button"
-                                onClick={() => setEmoji(e)}
-                                className={`w-7 h-7 rounded-md flex items-center justify-center text-sm transition-all ${emoji === e
-                                    ? "bg-purple-500/30 border border-purple-500/50 scale-110"
-                                    : `${isLightMode ? "hover:bg-black/5" : "hover:bg-white/10"}`
-                                    }`}
-                            >
-                                <EmojiGlyph emoji={e} size={16} />
-                            </button>
-                        ))}
+                    <div className="w-full mb-1">
+                        <button
+                            type="button"
+                            onClick={() => setShowEmojiPicker(true)}
+                            className={`w-full py-2 px-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${
+                                isLightMode
+                                    ? "bg-black/5 hover:bg-black/10 border-black/10 text-gray-800"
+                                    : "bg-white/5 hover:bg-white/10 border-white/10 text-white"
+                            }`}
+                        >
+                            <EmojiGlyph emoji={emoji} size={20} />
+                            <span className={`text-[10px] ${isLightMode ? "text-gray-400" : "text-white/30"}`}>シンボル変更</span>
+                        </button>
+                        <SymbolPicker
+                            isOpen={showEmojiPicker}
+                            onClose={() => setShowEmojiPicker(false)}
+                            onSelect={(selected) => setEmoji(selected)}
+                            selectedSymbol={emoji}
+                            isLightMode={isLightMode}
+                        />
                     </div>
                     <input
                         value={label}

@@ -3,8 +3,9 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Check } from "lucide-react";
 import { useState, useCallback } from "react";
-import { COLOR_OPTIONS, EMOJI_OPTIONS, coerceStoredEmojiToDisplay } from "@/lib/constants";
+import { COLOR_OPTIONS, coerceStoredEmojiToDisplay } from "@/lib/constants";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
+import SymbolPicker from "@/components/SymbolPicker";
 
 interface EditItemModalProps {
     id: string;
@@ -130,41 +131,22 @@ export default function EditItemModal({
                             <label className={`block text-xs font-semibold ${textSecondary} uppercase tracking-wider mb-1.5`}>
                                 絵文字
                             </label>
-                            <div className="relative">
+                            <div>
                                 <button
                                     type="button"
-                                    onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                    onClick={() => setShowEmojiPicker(true)}
                                     className={`w-full ${inputBg} border ${inputBorder} rounded-xl px-3 py-2.5 text-left flex items-center gap-2 ${bgSubtleHover} transition-colors`}
                                 >
                                     <EmojiGlyph emoji={emoji} size={24} />
                                     <span className={`text-xs ${textMuted}`}>クリックして変更</span>
                                 </button>
-                                {showEmojiPicker && (
-                                    <motion.div
-                                        initial={{ opacity: 0, y: -4 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="absolute bottom-full left-0 mb-1 p-2 rounded-xl border grid grid-cols-8 gap-1 z-50 w-full max-h-48 overflow-y-auto scroll-touch"
-                                        style={{
-                                            background: isLightMode ? "rgba(255,255,255,0.98)" : "rgba(20,12,45,0.98)",
-                                            borderColor: isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)",
-                                            boxShadow: "0 -10px 30px rgba(0,0,0,0.2)",
-                                        }}
-                                    >
-                                        {EMOJI_OPTIONS.map((e) => (
-                                            <button
-                                                key={e}
-                                                type="button"
-                                                onClick={() => {
-                                                    setEmoji(e);
-                                                    setShowEmojiPicker(false);
-                                                }}
-                                                className={`w-full aspect-square rounded ${bgSubtleHover} flex items-center justify-center text-lg ${emoji === e ? "ring-2 ring-purple-500 bg-purple-500/20" : ""}`}
-                                            >
-                                                <EmojiGlyph emoji={e} size={18} />
-                                            </button>
-                                        ))}
-                                    </motion.div>
-                                )}
+                                <SymbolPicker
+                                    isOpen={showEmojiPicker}
+                                    onClose={() => setShowEmojiPicker(false)}
+                                    onSelect={(selected) => setEmoji(selected)}
+                                    selectedSymbol={emoji}
+                                    isLightMode={isLightMode}
+                                />
                             </div>
                         </div>
 
