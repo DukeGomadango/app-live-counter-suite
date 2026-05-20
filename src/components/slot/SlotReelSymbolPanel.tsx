@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronUp, Pencil, Plus, Trash2, Lock, Unlock } from "lucide-react";
+import { ChevronDown, ChevronUp, Pencil, Plus, Trash2, Lock, Unlock, Save } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import {
   MIN_REEL_COUNT,
@@ -545,7 +545,7 @@ export default function SlotReelSymbolPanel({
           className={`w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider ${textSecondary} hover:text-teal-400 transition-colors`}
         >
           <span className="flex items-center gap-1.5">
-            💾 テンプレート・プリセット
+            <Save className="w-4 h-4" /> テンプレート・プリセット
           </span>
           <ChevronDown
             size={16}
