@@ -766,3 +766,127 @@ export function migratePlayerData(players: Player[]): Player[] {
         };
     });
 }
+
+// ========== 比例配分（Proportional Scale）計算 ==========
+
+export interface RatioItem {
+    id: string;
+    value: number;
+}
+
+/**
+ * ロック状態を考慮して、数値を比例配分（Proportional Scale）して合計がちょうど 100 になるように調整する。
+ * @param items 調整対象の配列（各要素は id と value を含む。value は百分率(%)）
+ * @param lockedIds ロックされている項目の ID のセット
+ * @param targetId 今回ユーザーが手動で変更した項目の ID
+ * @param targetVal targetId に設定する新しい値
+ */
+export function distributePercentagesProportionally<T extends RatioItem>(
+    items: T[],
+    lockedIds: Set<string>,
+    targetId?: string,
+    targetVal?: number
+): T[] {
+    if (items.length === 0) return [];
+
+    // 1. コピーを作成し、targetId がある場合はその値を更新・クランプ
+    const result = items.map(item => ({ ...item }));
+    
+    if (targetId && targetVal !== undefined) {
+        const clampedVal = Math.max(0, Math.min(100, targetVal));
+        const targetItem = result.find(it => it.id === targetId);
+        if (targetItem) {
+            targetItem.value = clampedVal;
+        }
+    }
+
+    // 2. ロックされた項目（ユーザーが編集中の targetId も実質的にロック対象）を特定
+    const allLocked = new Set(lockedIds);
+    if (targetId) {
+        allLocked.add(targetId);
+    }
+
+    // 3. ロックされた項目の合計値を計算
+    const lockedItems = result.filter(it => allLocked.has(it.id));
+    const unlockedItems = result.filter(it => !allLocked.has(it.id));
+
+    const totalLockedVal = lockedItems.reduce((sum, it) => sum + it.value, 0);
+
+    // 4. ロック項目だけで 100% を超えている場合の処理
+    if (totalLockedVal >= 100) {
+        const activeTargetVal = targetId ? (result.find(it => it.id === targetId)?.value ?? 0) : 0;
+        const otherLockedSum = totalLockedVal - activeTargetVal;
+
+        if (otherLockedSum > 0) {
+            const scale = (100 - activeTargetVal) / otherLockedSum;
+            for (const it of result) {
+                if (it.id === targetId) {
+                    // targetId は保護
+                } else if (allLocked.has(it.id)) {
+                    it.value = Math.round(it.value * scale * 1000) / 1000;
+                } else {
+                    it.value = 0;
+                }
+            }
+        } else {
+            // 他のロック項目がない場合、targetId だけが100%になる
+            for (const it of result) {
+                if (it.id === targetId) {
+                    it.value = 100;
+                } else {
+                    it.value = 0;
+                }
+            }
+        }
+    } else {
+        // 5. ロック項目が 100% 未満の場合、残余分を未ロック項目で比例配分
+        const remainingVal = 100 - totalLockedVal;
+        const unlockedSum = unlockedItems.reduce((sum, it) => sum + it.value, 0);
+
+        if (unlockedItems.length > 0) {
+            if (unlockedSum > 0) {
+                const scale = remainingVal / unlockedSum;
+                for (const it of result) {
+                    if (!allLocked.has(it.id)) {
+                        it.value = Math.round(it.value * scale * 1000) / 1000;
+                    }
+                }
+            } else {
+                // 未ロック項目の合計値が 0 だった場合は均等に配分
+                const equalShare = remainingVal / unlockedItems.length;
+                for (const it of result) {
+                    if (!allLocked.has(it.id)) {
+                        it.value = Math.round(equalShare * 1000) / 1000;
+                    }
+                }
+            }
+        }
+    }
+
+    // 6. 丸め誤差の調整（合計が正確に 100 になるようにする）
+    const currentSum = result.reduce((sum, it) => sum + it.value, 0);
+    const diff = 100 - currentSum;
+    
+    if (Math.abs(diff) > 0.0001) {
+        // 調整可能な項目（できれば未ロックの最初の項目、なければ targetId 以外の最初の項目）を探す
+        let adjustItem = result.find(it => !allLocked.has(it.id));
+        if (!adjustItem && targetId) {
+            adjustItem = result.find(it => it.id !== targetId);
+        }
+        if (!adjustItem) {
+            adjustItem = result[0];
+        }
+
+        if (adjustItem) {
+            adjustItem.value = Math.round((adjustItem.value + diff) * 1000) / 1000;
+        }
+    }
+
+    // クランプして負の値を排除する
+    for (const it of result) {
+        it.value = Math.max(0, Math.min(100, it.value));
+    }
+
+    return result as T[];
+}
+

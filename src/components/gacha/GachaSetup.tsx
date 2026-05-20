@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
     Plus,
@@ -13,9 +13,12 @@ import {
     Palette,
     Pencil,
     Check,
+    Lock,
+    Unlock,
+    LayoutGrid,
     } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
-import { generateId, getRarityProbabilities, getGlobalProbabilities } from "@/lib/gacha";
+import { generateId, getRarityProbabilities, getGlobalProbabilities, distributePercentagesProportionally } from "@/lib/gacha";
 import {
     DndContext,
     closestCenter,
@@ -37,6 +40,7 @@ import { GripVertical } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { useConfirm } from "@/context/ConfirmContext";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
+import GachaBulkSetupModal from "@/components/gacha/GachaBulkSetupModal";
 
 interface GachaSetupProps {
     pool: GachaPool;
@@ -105,6 +109,29 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const [activeDragId, setActiveDragId] = useState<string | null>(null);
     const [draggingSelectionIds, setDraggingSelectionIds] = useState<Set<string> | null>(null);
     const [mounted, setMounted] = useState(false);
+    /** レア度ロック状態（設定作業用の一時UI状態。永続化しない） */
+    const [lockedRarityIds, setLockedRarityIds] = useState<Set<string>>(new Set());
+    /** アイテムロック状態（設定作業用の一時UI状態。永続化しない） */
+    const [lockedItemIds, setLockedItemIds] = useState<Set<string>>(new Set());
+    const [showBulkModal, setShowBulkModal] = useState(false);
+
+    const toggleRarityLock = useCallback((id: string) => {
+        setLockedRarityIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
+
+    const toggleItemLock = useCallback((id: string) => {
+        setLockedItemIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
 
     useEffect(() => {
         const id = setTimeout(() => setMounted(true), 0);
@@ -194,47 +221,19 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     };
 
     // -- レア度操作 --
+    /**
+     * レア度確率を正規化する（比例配分方式）。
+     * lockedRarityIds を考慮し、ロック済みのレア度を保護しながら合計が100%になるよう調整する。
+     */
     const normalizeRarityTiers = (rarities: RarityTier[], targetId?: string, targetP?: number): RarityTier[] => {
         if (rarities.length === 0) return rarities;
-        const workingRarities = rarities.map(r => ({ ...r, defaultWeight: r.defaultWeight ?? 0 }));
-        workingRarities.sort((a, b) => a.sortOrder - b.sortOrder);
 
-        if (targetId && targetP !== undefined) {
-            const p = Math.max(0, Math.min(100, targetP));
-            const others = workingRarities.filter(it => it.id !== targetId);
-            if (others.length === 0) {
-                return rarities.map(it => it.id === targetId ? { ...it, defaultWeight: 100 } : it);
-            }
-            
-            let diff = (100 - p) - others.reduce((s, it) => s + it.defaultWeight, 0);
-            for (let i = 0; i < others.length; i++) {
-                if (diff === 0) break;
-                const other = others[i];
-                if (!other) continue;
-                let newW = other.defaultWeight + diff;
-                if (newW < 0) { diff = newW; newW = 0; }
-                else if (newW > 100) { diff = newW - 100; newW = 100; }
-                else { diff = 0; newW = Math.round(newW * 1000) / 1000; }
-                other.defaultWeight = newW;
-            }
-            return rarities.map(it => {
-                if (it.id === targetId) return { ...it, defaultWeight: p };
-                return others.find(o => o.id === it.id) || it;
-            });
-        } else {
-            let diff = 100 - workingRarities.reduce((s, it) => s + it.defaultWeight, 0);
-            for (let i = 0; i < workingRarities.length; i++) {
-                if (diff === 0) break;
-                const wr = workingRarities[i];
-                if (!wr) continue;
-                let newW = wr.defaultWeight + diff;
-                if (newW < 0) { diff = newW; newW = 0; }
-                else if (newW > 100) { diff = newW - 100; newW = 100; }
-                else { diff = 0; newW = Math.round(newW * 1000) / 1000; }
-                wr.defaultWeight = newW;
-            }
-            return rarities.map(it => workingRarities.find(o => o.id === it.id) || it);
-        }
+        // distributePercentagesProportionally が扱う RatioItem 形式に変換
+        const ratioItems = rarities.map(r => ({ id: r.id, value: r.defaultWeight ?? 0 }));
+        const distributed = distributePercentagesProportionally(ratioItems, lockedRarityIds, targetId, targetP);
+        const valueMap = new Map(distributed.map(it => [it.id, it.value]));
+
+        return rarities.map(r => ({ ...r, defaultWeight: valueMap.get(r.id) ?? (r.defaultWeight ?? 0) }));
     };
 
     const updateRarity = (id: string, updates: Partial<RarityTier>) => {
@@ -275,48 +274,25 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         });
     };
 
+    /**
+     * 特定レア度内のアイテム重みを正規化する（比例配分方式）。
+     * lockedItemIds を考慮し、ロック済みのアイテムを保護しながら合計が100%になるよう調整する。
+     */
     const normalizeRarityWeights = (items: GachaItem[], rarityId: string, targetId?: string, targetP?: number): GachaItem[] => {
         const rarityItems = items.filter(it => it.rarityId === rarityId);
         if (rarityItems.length === 0) return items;
 
-        const nextRarityItems = [...rarityItems];
+        // distributePercentagesProportionally が扱う RatioItem 形式に変換
+        const ratioItems = rarityItems.map(it => ({ id: it.id, value: it.weight }));
+        // このレア度内のロック済みアイテムのみに絞り込む
+        const rarityLockedIds = new Set([...lockedItemIds].filter(id => rarityItems.some(it => it.id === id)));
+        const distributed = distributePercentagesProportionally(ratioItems, rarityLockedIds, targetId, targetP);
+        const valueMap = new Map(distributed.map(it => [it.id, it.value]));
 
-        if (targetId && targetP !== undefined) {
-            const p = Math.max(0, Math.min(100, targetP));
-            const others = nextRarityItems.filter(it => it.id !== targetId);
-            if (others.length === 0) {
-                return items.map(it => it.id === targetId ? { ...it, weight: 100 } : it);
-            }
-            
-            let diff = (100 - p) - others.reduce((s, it) => s + it.weight, 0);
-            for (let i = 0; i < others.length; i++) {
-                if (diff === 0) break;
-                const other = others[i];
-                if (!other) continue;
-                let newW = other.weight + diff;
-                if (newW < 0) { diff = newW; newW = 0; }
-                else if (newW > 100) { diff = newW - 100; newW = 100; }
-                else { diff = 0; newW = Math.round(newW * 1000) / 1000; }
-                other.weight = newW;
-            }
-            return items.map(it => {
-                if (it.id === targetId) return { ...it, weight: p };
-                return others.find(o => o.id === it.id) || it;
-            });
-        } else {
-            let diff = 100 - nextRarityItems.reduce((s, it) => s + it.weight, 0);
-            for (let i = 0; i < nextRarityItems.length; i++) {
-                if (diff === 0) break;
-                const nr = nextRarityItems[i];
-                if (!nr) continue;
-                let newW = nr.weight + diff;
-                if (newW < 0) { diff = newW; newW = 0; }
-                else if (newW > 100) { diff = newW - 100; newW = 100; }
-                else { diff = 0; newW = Math.round(newW * 1000) / 1000; }
-                nr.weight = newW;
-            }
-            return items.map(it => nextRarityItems.find(o => o.id === it.id) || it);
-        }
+        return items.map(it => {
+            if (it.rarityId !== rarityId) return it;
+            return { ...it, weight: valueMap.get(it.id) ?? it.weight };
+        });
     };
 
     const applyProbabilityEdit = (itemIndex: number, newWeight: number) => {
@@ -497,6 +473,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         <div className="w-6 text-center shrink-0">色</div>
                                         <div className="flex-1 px-1">レア度名</div>
                                         <div className="w-8 text-center shrink-0" title="優先順（小さい数字ほど高く表示されます）">優先順</div>
+                                        <div className="w-6 text-center shrink-0" title="ロック中は他のレア度の確率を変更しても自動調整されません">🔒</div>
                                         <div className="w-16 text-center shrink-0" title="出現確率（全体での割合）">出現確率</div>
                                         {pool.rarities.length > 1 && <div className="w-6 text-center shrink-0">削除</div>}
                                     </div>
@@ -534,6 +511,8 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         }}
                                                         isRemovable={pool.rarities.length > 1}
                                                         formatProb={formatProb}
+                                                        isLocked={lockedRarityIds.has(rarity.id)}
+                                                        onToggleLock={toggleRarityLock}
                                                     />
                                                 ))}
                                         </div>
@@ -553,7 +532,25 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
             {/* 品目設定 */}
             <div className="rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
-                <SectionHeader id="items" icon={Sparkles} title="排出品目" badge={mounted ? `${pool.items.length}` : "0"} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
+                <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                        <SectionHeader id="items" icon={Sparkles} title="排出品目" badge={mounted ? `${pool.items.length}` : "0"} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
+                    </div>
+                    {/* 一括グリッド設定ボタン */}
+                    <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); setShowBulkModal(true); }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 mr-3 rounded-lg text-xs font-semibold transition-all ${
+                            textLight
+                                ? "bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200"
+                                : "bg-purple-500/20 text-purple-300 hover:bg-purple-500/30 border border-purple-500/30"
+                        }`}
+                        title="一括グリッド設定モーダルを開く"
+                    >
+                        <LayoutGrid size={12} />
+                        一括設定
+                    </button>
+                </div>
                 <AnimatePresence>
                     {expandedSection === "items" && (
                         <motion.div
@@ -648,6 +645,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                             <div className="w-2.5 text-center shrink-0" title="一括操作用のチェックボックス">✓</div>
                                             <div className="w-16 text-center shrink-0 opacity-80">レア度</div>
                                             <div className="flex-1 px-1.5 opacity-80">アイテム名</div>
+                                            <div className="w-6 text-center shrink-0 opacity-80" title="🔒ロック中はこの項目の確率が自動調整から除外されます">🔒</div>
                                             <div className="w-[124px] text-center shrink-0 opacity-80">レア度内(%) / 全体(%)</div>
                                             <div className="w-[36px] text-center shrink-0 hidden sm:block opacity-80">操作</div>
                                         </div>
@@ -687,6 +685,8 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         onToggleSelect={toggleItemSelected}
                                                         draggingSelectionIds={draggingSelectionIds}
                                                         activeDragId={activeDragId}
+                                                        isLocked={lockedItemIds.has(item.id)}
+                                                        onToggleLock={toggleItemLock}
                                                     />
                                                 );
                                             })}
@@ -852,10 +852,23 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                 </div>
             )}
 
+            {/* 一括グリッド設定モーダル */}
+            <GachaBulkSetupModal
+                open={showBulkModal}
+                pool={pool}
+                isLightMode={isLightMode}
+                onClose={() => setShowBulkModal(false)}
+                onApply={(updatedItems, updatedRarities) => {
+                    onPoolChange({ ...pool, items: updatedItems, rarities: updatedRarities });
+                    // アイテムが変わったのでロック状態をリセット
+                    setLockedItemIds(new Set());
+                }}
+            />
         </div>
     );
 }
 
+/** 確率の表示用フォーマット */
 function formatProb(prob: number): string {
     if (prob === 0) return "0";
     let s: string;
@@ -886,6 +899,10 @@ interface SortableItemProps {
     onToggleSelect: (id: string) => void;
     draggingSelectionIds: Set<string> | null;
     activeDragId: string | null;
+    /** このアイテムの確率がロックされているか */
+    isLocked: boolean;
+    /** ロック状態をトグルするコールバック */
+    onToggleLock: (id: string) => void;
 }
 
 function SortableItem({
@@ -907,6 +924,8 @@ function SortableItem({
     onToggleSelect,
     draggingSelectionIds,
     activeDragId,
+    isLocked,
+    onToggleLock,
 }: SortableItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
     const isEditing = editingItemId === item.id;
@@ -1028,9 +1047,37 @@ function SortableItem({
                 </span>
             )}
 
+            {/* 🔒ロックボタン */}
+            <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onToggleLock(item.id); }}
+                className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition-all ${
+                    isLocked
+                        ? isLightMode
+                            ? "text-amber-600 bg-amber-100 hover:bg-amber-200"
+                            : "text-amber-400 bg-amber-500/20 hover:bg-amber-500/30"
+                        : isLightMode
+                            ? "text-gray-400 hover:text-amber-600 hover:bg-amber-100"
+                            : "text-white/30 hover:text-amber-400 hover:bg-amber-500/20"
+                }`}
+                title={isLocked ? "ロック中（クリックして解除）：確率の自動調整から除外されています" : "クリックしてロック：他の確率変更時に自動調整から除外します"}
+                aria-label={isLocked ? "確率ロックを解除" : "確率をロック"}
+                aria-pressed={isLocked}
+            >
+                {isLocked ? <Lock size={10} /> : <Unlock size={10} />}
+            </button>
+
             {/* パーセント入力 + レア度内確率・全体確率表示 */}
-            <span className="flex items-center gap-1 shrink-0 bg-black/5 px-2 py-0.5 rounded text-[10px]">
-                <span className="flex items-center" title="【レア度内の確率】変更すると他のアイテムが自動で調整されます">
+            <span
+                className={`flex items-center gap-1 shrink-0 px-2 py-0.5 rounded text-[10px] transition-all ${
+                    isLocked
+                        ? isLightMode
+                            ? "bg-amber-50 ring-1 ring-amber-300"
+                            : "bg-amber-500/10 ring-1 ring-amber-500/40"
+                        : "bg-black/5"
+                }`}
+            >
+                <span className="flex items-center" title={isLocked ? "🔒 ロック中：他の確率変更時に自動調整されません" : "【レア度内の確率】変更すると他のアイテムが自動で調整されます"}>
                     <input
                         type="text"
                         inputMode="decimal"
@@ -1043,8 +1090,12 @@ function SortableItem({
                             if (!Number.isNaN(n) && n >= 0) onProbabilityBlur(itemIndex, n);
                             setProbInput(null);
                         }}
-                        className={`w-14 px-1 py-0.5 rounded text-right tabular-nums ${textPrimary} outline-none cursor-text font-semibold focus:ring-1 focus:ring-purple-400`}
-                        style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                        className={`w-14 px-1 py-0.5 rounded text-right tabular-nums outline-none cursor-text font-semibold focus:ring-1 focus:ring-purple-400 ${
+                            isLocked
+                                ? isLightMode ? "text-amber-700" : "text-amber-300"
+                                : textPrimary
+                        }`}
+                        style={{ background: inputBg, border: `1px solid ${isLocked ? (isLightMode ? "rgba(217,119,6,0.4)" : "rgba(251,191,36,0.3)") : inputBorder}` }}
                     />
                     <span className={`ml-0.5 ${textMuted}`}>%</span>
                 </span>
@@ -1096,6 +1147,10 @@ interface SortableRarityItemProps {
     onRequestDeleteRarity: (id: string) => void;
     isRemovable: boolean;
     formatProb: (prob: number) => string;
+    /** このレア度の確率がロックされているか */
+    isLocked: boolean;
+    /** ロック状態をトグルするコールバック */
+    onToggleLock: (id: string) => void;
 }
 
 function SortableRarityItem({
@@ -1112,6 +1167,8 @@ function SortableRarityItem({
     onRequestDeleteRarity,
     isRemovable,
     formatProb,
+    isLocked,
+    onToggleLock,
 }: SortableRarityItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: rarity.id });
 
@@ -1159,7 +1216,34 @@ function SortableRarityItem({
                 style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
             />
             <span className={`text-[10px] w-8 text-center shrink-0 ${textMuted}`}>#{rarity.sortOrder}</span>
-            <span className="flex items-center gap-0.5 shrink-0 bg-black/5 px-1 py-0.5 rounded">
+            {/* 🔒ロックボタン（レア度確率） */}
+            <button
+                type="button"
+                onClick={e => { e.stopPropagation(); onToggleLock(rarity.id); }}
+                className={`shrink-0 w-6 h-6 flex items-center justify-center rounded transition-all ${
+                    isLocked
+                        ? isLightMode
+                            ? "text-amber-600 bg-amber-100 hover:bg-amber-200"
+                            : "text-amber-400 bg-amber-500/20 hover:bg-amber-500/30"
+                        : isLightMode
+                            ? "text-gray-400 hover:text-amber-600 hover:bg-amber-100"
+                            : "text-white/30 hover:text-amber-400 hover:bg-amber-500/20"
+                }`}
+                title={isLocked ? "ロック中（クリックして解除）：この確率は自動調整から除外されています" : "クリックしてロック：他のレア度の確率変更時に自動調整から除外します"}
+                aria-label={isLocked ? "レア度確率ロックを解除" : "レア度確率をロック"}
+                aria-pressed={isLocked}
+            >
+                {isLocked ? <Lock size={10} /> : <Unlock size={10} />}
+            </button>
+            <span
+                className={`flex items-center gap-0.5 shrink-0 px-1 py-0.5 rounded transition-all ${
+                    isLocked
+                        ? isLightMode
+                            ? "bg-amber-50 ring-1 ring-amber-300"
+                            : "bg-amber-500/10 ring-1 ring-amber-500/40"
+                        : "bg-black/5"
+                }`}
+            >
                 <input
                     type="text"
                     inputMode="decimal"
@@ -1187,9 +1271,13 @@ function SortableRarityItem({
                         }
                     }}
                     placeholder="0"
-                    className={`w-12 text-[10px] px-1 py-0.5 rounded text-right tabular-nums ${textPrimary} ${placeholderCls} outline-none cursor-text focus:ring-1 focus:ring-purple-400`}
-                    style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                    title="レア度の出現確率。変更すると他のレア度が自動調整されます"
+                    className={`w-12 text-[10px] px-1 py-0.5 rounded text-right tabular-nums ${placeholderCls} outline-none cursor-text focus:ring-1 focus:ring-purple-400 ${
+                        isLocked
+                            ? isLightMode ? "text-amber-700" : "text-amber-300"
+                            : textPrimary
+                    }`}
+                    style={{ background: inputBg, border: `1px solid ${isLocked ? (isLightMode ? "rgba(217,119,6,0.4)" : "rgba(251,191,36,0.3)") : inputBorder}` }}
+                    title={isLocked ? "🔒 ロック中：他の確率変更時に自動調整されません" : "レア度の出現確率。変更すると他のレア度が自動調整されます"}
                 />
                 <span className={`text-[10px] ${textMuted}`} title="出現確率(%)">%</span>
             </span>

@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { calculateProbabilities, getRarityProbabilities, getGlobalProbabilities, type GachaItem, type RarityTier } from "./gacha";
+import {
+  calculateProbabilities,
+  getRarityProbabilities,
+  getGlobalProbabilities,
+  distributePercentagesProportionally,
+  type GachaItem,
+  type RarityTier
+} from "./gacha";
 
 const rarities: RarityTier[] = [
   { id: "n", name: "N", color: "#999", glowColor: "#999", bgColor: "#333", sortOrder: 1, defaultWeight: 70 },
@@ -72,5 +79,50 @@ describe("getGlobalProbabilities", () => {
     expect(m.get("b")).toBeCloseTo(17.5);
     // SR = 30%, within SR: C = 100% → global C = 0.30 * 1.0 = 30%
     expect(m.get("c")).toBeCloseTo(30);
+  });
+});
+
+describe("distributePercentagesProportionally", () => {
+  it("adjusts percentages without lock", () => {
+    const items = [
+      { id: "a", value: 50 },
+      { id: "b", value: 30 },
+      { id: "c", value: 20 },
+    ];
+    // Set 'a' to 40, others are scaled up proportionally (original ratio b:c was 30:20 = 3:2)
+    // Remaining = 60. New 'b' = 60 * 3/5 = 36. New 'c' = 60 * 2/5 = 24.
+    const res = distributePercentagesProportionally(items, new Set(), "a", 40);
+    expect(res.find(it => it.id === "a")?.value).toBe(40);
+    expect(res.find(it => it.id === "b")?.value).toBe(36);
+    expect(res.find(it => it.id === "c")?.value).toBe(24);
+  });
+
+  it("respects lock state on items", () => {
+    const items = [
+      { id: "a", value: 50 },
+      { id: "b", value: 30 },
+      { id: "c", value: 20 },
+    ];
+    // Lock 'b' (value 30). Set 'a' to 40.
+    // Total locked = 40 + 30 = 70. Remaining for 'c' = 30.
+    const res = distributePercentagesProportionally(items, new Set(["b"]), "a", 40);
+    expect(res.find(it => it.id === "a")?.value).toBe(40);
+    expect(res.find(it => it.id === "b")?.value).toBe(30);
+    expect(res.find(it => it.id === "c")?.value).toBe(30);
+  });
+
+  it("handles locked values summing over 100%", () => {
+    const items = [
+      { id: "a", value: 50 },
+      { id: "b", value: 60 },
+      { id: "c", value: 10 },
+    ];
+    // Lock 'b' (value 60). Set 'a' to 60.
+    // Total locked = 120. 'a' is preserved at 60. Other locked 'b' scales down to 100 - 60 = 40.
+    // Unlocked 'c' gets 0.
+    const res = distributePercentagesProportionally(items, new Set(["b"]), "a", 60);
+    expect(res.find(it => it.id === "a")?.value).toBe(60);
+    expect(res.find(it => it.id === "b")?.value).toBe(40);
+    expect(res.find(it => it.id === "c")?.value).toBe(0);
   });
 });
