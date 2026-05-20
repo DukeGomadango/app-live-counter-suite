@@ -183,7 +183,7 @@ export default function RouletteWheel({
             const duration = isTurboMode ? 0.15 : (effectLevel === "high" ? SPIN_DURATION_NEEDLE_HIGH : SPIN_DURATION_NEEDLE_LOW);
 
             if (isTurboMode) {
-                const transition = { duration, ease: "easeOut" };
+                const transition = { duration, ease: "easeOut" as const };
                 wheelControls
                     .start({ rotate: finalDeg, transition })
                     .then(() => {
@@ -204,7 +204,7 @@ export default function RouletteWheel({
                 const transition = {
                     duration,
                     times: [0, 0.94, 0.97, 1.0],
-                    ease: [[0.1, 0.78, 0.62, 0.98], "easeOut", "easeIn"]
+                    ease: [[0.1, 0.78, 0.62, 0.98], "easeOut", "easeIn"] as any
                 };
                 wheelControls
                     .start({ rotate: rotateKeyframes, transition })
