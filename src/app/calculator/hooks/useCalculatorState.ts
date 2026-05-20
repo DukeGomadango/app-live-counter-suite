@@ -6,7 +6,7 @@ import { createDefaultCalculatorSettings, type CalculatorSettings } from "@/lib/
 
 export type CalcTab = "four" | "fraction" | "probability";
 
-export function useCalculatorState(isSplitMode: boolean) {
+export function useCalculatorState(_isSplitMode: boolean) {
   const [settings, setSettings] = useLocalStorage<CalculatorSettings>(
     "calculator-settings",
     createDefaultCalculatorSettings()

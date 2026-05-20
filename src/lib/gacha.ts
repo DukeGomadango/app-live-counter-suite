@@ -23,6 +23,7 @@ export interface GachaItem {
     linkedAssetId?: string;
     imageUrl?: string;
     audioUrl?: string;
+    costPrice?: number;
 }
 
 export interface GachaPool {
@@ -36,6 +37,7 @@ export interface GachaPool {
     pityGuaranteedRarityId: string; // 天井で確定するレア度ID
     /** ファイル配布連携: file-share-app のキャンペーン ID */
     linkedCampaignId?: string;
+    pullPrice?: number;
 }
 
 /** 保存したガチャ設定（プリセット） */
@@ -187,6 +189,7 @@ export function createDefaultPool(): GachaPool {
         pityEnabled: false,
         pityThreshold: 100,
         pityGuaranteedRarityId: "ur",
+        pullPrice: 300,
     };
 }
 
@@ -203,21 +206,41 @@ const _sampleRarities3: RarityTier[] = [
     { id: "sr", name: "SR", color: "#a855f7", glowColor: "rgba(168,85,247,0.4)", bgColor: "rgba(168,85,247,0.15)", sortOrder: 3 },
 ];
 
-/** 旧形式の link を削除する（後方互換）。読み込み後に1回だけ呼ぶ */
+/** 旧形式の link を削除し、原価・販売価格のデフォルト値をセットする（後方互換）。読み込み後に1回だけ呼ぶ */
 export function migratePoolItemsForLink(pool: GachaPool): GachaPool {
     type LegacyItem = GachaItem & { link?: string };
     let changed = false;
+    
+    // 販売価格が未設定の場合は 300 円をセット
+    if (pool.pullPrice === undefined) {
+        changed = true;
+    }
+    const pullPrice = pool.pullPrice ?? 300;
+
     const items = pool.items.map((item): GachaItem => {
         const it = item as LegacyItem;
+        let itemChanged = false;
+        let cleanedItem = { ...it };
+
         if ("link" in it && it.link !== undefined) {
             changed = true;
+            itemChanged = true;
             const { link: _dropped, ...rest } = it;
             void _dropped;
-            return rest;
+            cleanedItem = rest;
         }
-        return it;
+
+        // 原価が未設定の場合は 0 円をセット
+        if (cleanedItem.costPrice === undefined) {
+            changed = true;
+            itemChanged = true;
+            cleanedItem.costPrice = 0;
+        }
+
+        return itemChanged ? cleanedItem : item;
     });
-    return changed ? { ...pool, items } : pool;
+
+    return changed ? { ...pool, pullPrice, items } : pool;
 }
 
 /** プリセット・サンプル切り替え時用。pool をコピーするが id はそのままにし、同じガチャに戻ったときに履歴が表示されるようにする */
@@ -823,7 +846,7 @@ export function distributePercentagesProportionally<T extends RatioItem>(
                 if (it.id === targetId) {
                     // targetId は保護
                 } else if (allLocked.has(it.id)) {
-                    it.value = Math.round(it.value * scale * 1000) / 1000;
+                    it.value = Math.round(it.value * scale * 100000000) / 100000000;
                 } else {
                     it.value = 0;
                 }
@@ -848,7 +871,7 @@ export function distributePercentagesProportionally<T extends RatioItem>(
                 const scale = remainingVal / unlockedSum;
                 for (const it of result) {
                     if (!allLocked.has(it.id)) {
-                        it.value = Math.round(it.value * scale * 1000) / 1000;
+                        it.value = Math.round(it.value * scale * 100000000) / 100000000;
                     }
                 }
             } else {
@@ -856,7 +879,7 @@ export function distributePercentagesProportionally<T extends RatioItem>(
                 const equalShare = remainingVal / unlockedItems.length;
                 for (const it of result) {
                     if (!allLocked.has(it.id)) {
-                        it.value = Math.round(equalShare * 1000) / 1000;
+                        it.value = Math.round(equalShare * 100000000) / 100000000;
                     }
                 }
             }
@@ -867,7 +890,7 @@ export function distributePercentagesProportionally<T extends RatioItem>(
     const currentSum = result.reduce((sum, it) => sum + it.value, 0);
     const diff = 100 - currentSum;
     
-    if (Math.abs(diff) > 0.0001) {
+    if (Math.abs(diff) > 0.000000001) {
         // 調整可能な項目（できれば未ロックの最初の項目、なければ targetId 以外の最初の項目）を探す
         let adjustItem = result.find(it => !allLocked.has(it.id));
         if (!adjustItem && targetId) {
@@ -878,7 +901,7 @@ export function distributePercentagesProportionally<T extends RatioItem>(
         }
 
         if (adjustItem) {
-            adjustItem.value = Math.round((adjustItem.value + diff) * 1000) / 1000;
+            adjustItem.value = Math.round((adjustItem.value + diff) * 100000000) / 100000000;
         }
     }
 

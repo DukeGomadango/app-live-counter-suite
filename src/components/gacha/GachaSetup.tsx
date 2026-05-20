@@ -16,6 +16,7 @@ import {
     Lock,
     Unlock,
     LayoutGrid,
+    Coins,
     } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, getRarityProbabilities, getGlobalProbabilities, distributePercentagesProportionally } from "@/lib/gacha";
@@ -114,6 +115,8 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     /** アイテムロック状態（設定作業用の一時UI状態。永続化しない） */
     const [lockedItemIds, setLockedItemIds] = useState<Set<string>>(new Set());
     const [showBulkModal, setShowBulkModal] = useState(false);
+    /** 収益シミュレーションモード（原価・利益表示のオンオフ状態） */
+    const [showCostSimulator, setShowCostSimulator] = useState(false);
 
     const toggleRarityLock = useCallback((id: string) => {
         setLockedRarityIds(prev => {
@@ -133,8 +136,26 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         });
     }, []);
 
+    const handleToggleCostSimulator = useCallback(() => {
+        setShowCostSimulator(prev => {
+            const next = !prev;
+            if (typeof window !== "undefined") {
+                localStorage.setItem("gacha_show_cost_simulator", String(next));
+            }
+            return next;
+        });
+    }, []);
+
     useEffect(() => {
-        const id = setTimeout(() => setMounted(true), 0);
+        const id = setTimeout(() => {
+            setMounted(true);
+            if (typeof window !== "undefined") {
+                const val = localStorage.getItem("gacha_show_cost_simulator");
+                if (val === "true") {
+                    setShowCostSimulator(true);
+                }
+            }
+        }, 0);
         return () => clearTimeout(id);
     }, []);
 
@@ -454,6 +475,32 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                 <p className={`text-[10px] mt-1 ${textMuted}`}>最大100,000枚</p>
             </div>
 
+            {/* ガチャ1回の販売単価 */}
+            {showCostSimulator && (
+                <div className="rounded-2xl p-4" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
+                    <div className="flex items-center gap-1.5 mb-2">
+                        <Coins size={14} className={textLight ? "text-amber-600 animate-pulse" : "text-amber-400 animate-pulse"} />
+                        <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider block`}>
+                            ガチャ1回の販売単価
+                        </label>
+                    </div>
+                    <div className="relative">
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            value={pool.pullPrice ?? 300}
+                            onChange={e => {
+                                const n = parseInt(e.target.value, 10);
+                                onPoolChange({ ...pool, pullPrice: Number.isNaN(n) || n < 0 ? 0 : n });
+                            }}
+                            className={`w-full px-3 py-2 rounded-lg text-sm ${textPrimary} ${placeholderCls} outline-none transition-all focus:ring-2 focus:ring-purple-500/30 pr-8`}
+                            style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold" style={{ color: textMuted }}>円</span>
+                    </div>
+                </div>
+            )}
+
             {/* レア度設定 */}
             <div className="rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
                 <SectionHeader id="rarities" icon={Palette} title="レア度設定" badge={mounted ? `${pool.rarities.length}` : "0"} expandedSection={expandedSection} onToggle={toggleSection} textLight={textLight} textPrimary={textPrimary} />
@@ -611,28 +658,50 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                     </div>
                                 )}
 
-                                {/* 並べ替え */}
+                                {/* 並べ替え & シミュレーション切り替え */}
                                 {mounted && pool.items.length > 0 && (
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <span className={`text-[10px] ${textMuted}`}>並べ替え:</span>
-                                        <select
-                                            value={itemSortMode}
-                                            onChange={e => {
-                                                const mode = e.target.value as ItemSortMode;
-                                                setItemSortMode(mode);
-                                                if (mode !== "custom") applyItemSort(mode);
-                                            }}
-                                            className={`text-[10px] px-2 py-1 rounded-lg outline-none cursor-pointer ${textSecondary}`}
-                                            style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                                    <div className="flex items-center justify-between gap-2 mb-2 w-full">
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-[10px] ${textMuted}`}>並べ替え:</span>
+                                            <select
+                                                value={itemSortMode}
+                                                onChange={e => {
+                                                    const mode = e.target.value as ItemSortMode;
+                                                    setItemSortMode(mode);
+                                                    if (mode !== "custom") applyItemSort(mode);
+                                                }}
+                                                className={`text-[10px] px-2 py-1 rounded-lg outline-none cursor-pointer ${textSecondary}`}
+                                                style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
+                                            >
+                                                <option value="custom" style={selectOptionStyle}>カスタム</option>
+                                                <option value="rarity-asc" style={selectOptionStyle}>レア度順（低→高）</option>
+                                                <option value="rarity-desc" style={selectOptionStyle}>レア度順（高→低）</option>
+                                                <option value="weight-asc" style={selectOptionStyle}>確率順（低→高）</option>
+                                                <option value="weight-desc" style={selectOptionStyle}>確率順（高→低）</option>
+                                                <option value="name-asc" style={selectOptionStyle}>名前順（あ→ん）</option>
+                                                <option value="name-desc" style={selectOptionStyle}>名前順（ん→あ）</option>
+                                            </select>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={handleToggleCostSimulator}
+                                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold border transition-all cursor-pointer ${
+                                                showCostSimulator
+                                                    ? textLight
+                                                        ? "bg-amber-100 text-amber-800 border-amber-300 shadow-sm shadow-amber-200/50"
+                                                        : "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10"
+                                                    : textLight
+                                                        ? "bg-neutral-100 text-neutral-600 border-neutral-200 hover:bg-neutral-200"
+                                                        : "bg-white/5 text-white/50 border-white/10 hover:bg-white/10"
+                                            }`}
+                                            title="原価と期待値ベースの収益シミュレーションモードを切り替えます"
                                         >
-                                            <option value="custom" style={selectOptionStyle}>カスタム</option>
-                                            <option value="rarity-asc" style={selectOptionStyle}>レア度順（低→高）</option>
-                                            <option value="rarity-desc" style={selectOptionStyle}>レア度順（高→低）</option>
-                                            <option value="weight-asc" style={selectOptionStyle}>確率順（低→高）</option>
-                                            <option value="weight-desc" style={selectOptionStyle}>確率順（高→低）</option>
-                                            <option value="name-asc" style={selectOptionStyle}>名前順（あ→ん）</option>
-                                            <option value="name-desc" style={selectOptionStyle}>名前順（ん→あ）</option>
-                                        </select>
+                                            <Coins size={11} className={showCostSimulator ? "animate-pulse text-amber-500" : ""} />
+                                            収益シミュレーション
+                                            {showCostSimulator && (
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                                            )}
+                                        </button>
                                     </div>
                                 )}
 
@@ -687,6 +756,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         activeDragId={activeDragId}
                                                         isLocked={lockedItemIds.has(item.id)}
                                                         onToggleLock={toggleItemLock}
+                                                        showCostSimulator={showCostSimulator}
                                                     />
                                                 );
                                             })}
@@ -843,10 +913,10 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                         <span className="text-[10px] font-bold uppercase tracking-wider">設定サマリ</span>
                     </div>
                     <div className="text-[11px] space-y-1">
-                        <p className="inline-flex items-center gap-1"><EmojiGlyph emoji="📦" size={12} /> 品目: {pool.items.length}種類</p>
-                        <p className="inline-flex items-center gap-1"><EmojiGlyph emoji="🎲" size={12} /> 1回: {pool.pullCount}連</p>
+                        <div className="flex items-center gap-1"><EmojiGlyph emoji="📦" size={12} /> 品目: {pool.items.length}種類</div>
+                        <div className="flex items-center gap-1"><EmojiGlyph emoji="🎲" size={12} /> 1回: {pool.pullCount}連</div>
                         {pool.pityEnabled && (
-                            <p className="inline-flex items-center gap-1"><EmojiGlyph emoji="🛡️" size={12} /> 天井: {pool.pityThreshold}回で {pool.rarities.find(r => r.id === pool.pityGuaranteedRarityId)?.name || "?"} 確定</p>
+                            <div className="flex items-center gap-1"><EmojiGlyph emoji="🛡️" size={12} /> 天井: {pool.pityThreshold}回で {pool.rarities.find(r => r.id === pool.pityGuaranteedRarityId)?.name || "?"} 確定</div>
                         )}
                     </div>
                 </div>
@@ -857,9 +927,11 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                 open={showBulkModal}
                 pool={pool}
                 isLightMode={isLightMode}
+                showCostSimulator={showCostSimulator}
+                onToggleCostSimulator={handleToggleCostSimulator}
                 onClose={() => setShowBulkModal(false)}
-                onApply={(updatedItems, updatedRarities) => {
-                    onPoolChange({ ...pool, items: updatedItems, rarities: updatedRarities });
+                onApply={(updatedItems, updatedRarities, updatedPullPrice) => {
+                    onPoolChange({ ...pool, items: updatedItems, rarities: updatedRarities, pullPrice: updatedPullPrice });
                     // アイテムが変わったのでロック状態をリセット
                     setLockedItemIds(new Set());
                 }}
@@ -874,7 +946,7 @@ function formatProb(prob: number): string {
     let s: string;
     if (prob >= 0.01) s = prob.toFixed(2);
     else if (prob >= 0.0001) s = prob.toFixed(4);
-    else if (prob >= 1e-6) s = prob.toFixed(6);
+    else if (prob >= 1e-8) s = prob.toFixed(8);
     else s = prob.toExponential(2);
     
     return s.replace(/\.?0+$/, "").replace(/(\.\d*?)0+$/, "$1");
@@ -903,6 +975,7 @@ interface SortableItemProps {
     isLocked: boolean;
     /** ロック状態をトグルするコールバック */
     onToggleLock: (id: string) => void;
+    showCostSimulator?: boolean;
 }
 
 function SortableItem({
@@ -926,6 +999,7 @@ function SortableItem({
     activeDragId,
     isLocked,
     onToggleLock,
+    showCostSimulator,
 }: SortableItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
     const isEditing = editingItemId === item.id;
@@ -1045,6 +1119,25 @@ function SortableItem({
                 >
                     {item.name}
                 </span>
+            )}
+
+            {/* 原価設定 */}
+            {showCostSimulator && (
+                <div className="flex items-center gap-1 shrink-0 px-1 py-0.5 rounded bg-black/5" style={{ border: `1px solid ${inputBorder}` }}>
+                    <span className={`text-[9px] ${textMuted}`}>原価:</span>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        value={item.costPrice ?? 0}
+                        onChange={e => {
+                            const n = parseInt(e.target.value, 10);
+                            updateItem(item.id, { costPrice: Number.isNaN(n) || n < 0 ? 0 : n });
+                        }}
+                        className={`w-12 px-1 py-0.5 rounded text-right text-[10px] tabular-nums font-semibold outline-none focus:ring-1 focus:ring-purple-400 ${textPrimary}`}
+                        style={{ background: inputBg, border: "none" }}
+                    />
+                    <span className={`text-[9px] ${textMuted}`}>円</span>
+                </div>
             )}
 
             {/* 🔒ロックボタン */}

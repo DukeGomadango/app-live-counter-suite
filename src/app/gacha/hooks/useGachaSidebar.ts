@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 export type MobileTab = "setup" | "gacha" | "results" | "players" | "items" | "distribute";

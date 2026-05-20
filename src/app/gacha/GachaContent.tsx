@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Settings, Users, Sparkles, BarChart3, Sun, Moon, Menu, X, Package, ChevronDown, Save } from "lucide-react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { toPng } from "html-to-image";
-import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
+import { getTimestampForFilename, shareImageWithText } from "@/lib/share";
 import { DEFAULT_SHARE_HASHTAG } from "@/lib/site";
 
 export function useCounterShare(isLightMode: boolean, currentTemplateId: string) {

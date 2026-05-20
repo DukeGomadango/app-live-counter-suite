@@ -13,6 +13,7 @@ import {
     SplitSquareHorizontal,
     Lock,
     Unlock,
+    Coins,
 } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, distributePercentagesProportionally } from "@/lib/gacha";
@@ -33,6 +34,7 @@ interface DraftRow {
     linkedAssetId?: string;
     /** 確率をロックするか（このモーダル内限定の一時状態） */
     locked: boolean;
+    costPrice: number;
 }
 
 interface GachaBulkSetupModalProps {
@@ -40,8 +42,10 @@ interface GachaBulkSetupModalProps {
     pool: GachaPool;
     isLightMode?: boolean;
     onClose: () => void;
-    /** 適用ボタン押下時に呼ばれる。更新後の items と rarities を渡す */
-    onApply: (updatedItems: GachaItem[], updatedRarities: RarityTier[]) => void;
+    /** 適用ボタン押下時に呼ばれる。更新後の items と rarities、さらに販売単価を渡す */
+    onApply: (updatedItems: GachaItem[], updatedRarities: RarityTier[], updatedPullPrice: number) => void;
+    showCostSimulator?: boolean;
+    onToggleCostSimulator?: () => void;
 }
 
 // ============================================================
@@ -98,13 +102,14 @@ function draftToItems(rows: DraftRow[]): GachaItem[] {
         rarityId: r.rarityId,
         weight: Math.max(0, r.weight),
         ...(r.linkedAssetId ? { linkedAssetId: r.linkedAssetId } : {}),
+        costPrice: r.costPrice,
     }));
 }
 
 /** 確率の表示フォーマット（小数点以下不要な0を省略） */
 function fmtW(w: number): string {
     if (w === 0) return "0";
-    const s = w >= 0.01 ? w.toFixed(2) : w >= 0.0001 ? w.toFixed(4) : w.toFixed(6);
+    const s = w >= 0.01 ? w.toFixed(2) : w >= 0.0001 ? w.toFixed(4) : w.toFixed(8);
     return s.replace(/\.?0+$/, "").replace(/(\.\d*?)0+$/, "$1");
 }
 
@@ -219,6 +224,59 @@ function WeightCell({
 }
 
 // ============================================================
+// CostCell：原価入力セル（ローカルステートで編集中値を保持）
+// ============================================================
+
+interface CostCellProps {
+    row: DraftRow;
+    textPrimary: string;
+    textMuted: string;
+    inputBg: string;
+    inputBorder: string;
+    onCostChange: (id: string, val: string) => void;
+}
+
+function CostCell({
+    row,
+    textPrimary,
+    textMuted,
+    inputBg,
+    inputBorder,
+    onCostChange,
+}: CostCellProps) {
+    const [localVal, setLocalVal] = useState<string | null>(null);
+
+    const display = localVal !== null ? localVal : String(row.costPrice);
+
+    return (
+        <div className="flex items-center justify-end gap-1">
+            <input
+                type="text"
+                inputMode="numeric"
+                value={display}
+                onFocus={() => setLocalVal(String(row.costPrice))}
+                onChange={e => setLocalVal(e.target.value)}
+                onBlur={() => {
+                    const v = localVal ?? String(row.costPrice);
+                    onCostChange(row.id, v);
+                    setLocalVal(null);
+                }}
+                className="w-20 text-right tabular-nums text-xs px-1.5 py-1 rounded-lg outline-none font-semibold focus:ring-1 focus:ring-purple-400"
+                style={{ background: inputBg, border: `1px solid ${inputBorder}`, color: textPrimary }}
+            />
+            <span className="text-[10px]" style={{ color: textMuted }}>円</span>
+        </div>
+    );
+}
+
+function fmtPrice(val: number): string {
+    if (Number.isInteger(val)) {
+        return val.toLocaleString("ja-JP");
+    }
+    return val.toLocaleString("ja-JP", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+// ============================================================
 // RarityWeightInput：レア度確率入力コンポーネント
 // ============================================================
 
@@ -291,6 +349,8 @@ export default function GachaBulkSetupModal({
     isLightMode = false,
     onClose,
     onApply,
+    showCostSimulator = false,
+    onToggleCostSimulator,
 }: GachaBulkSetupModalProps) {
     /** 下書き行リスト */
     const [rows, setRows] = useState<DraftRow[]>([]);
@@ -305,6 +365,9 @@ export default function GachaBulkSetupModal({
     const [lockedRarityIds, setLockedRarityIds] = useState<Set<string>>(new Set());
     /** レア度パネルの展開状態 */
     const [isRaritiesExpanded, setIsRaritiesExpanded] = useState(true);
+
+    /** ガチャ1回あたりの販売価格 */
+    const [pullPrice, setPullPrice] = useState<number>(300);
 
     const activeRarities = rarities.length > 0 ? rarities : pool.rarities;
     const sortedRarities = [...activeRarities].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -321,6 +384,7 @@ export default function GachaBulkSetupModal({
                 weight: it.weight,
                 linkedAssetId: it.linkedAssetId,
                 locked: false,
+                costPrice: it.costPrice ?? 0,
             }));
             setRows(initial);
             setFilterRarityId("all");
@@ -328,6 +392,7 @@ export default function GachaBulkSetupModal({
             setRarities(pool.rarities.map(r => ({ ...r })));
             setLockedRarityIds(new Set());
             setIsRaritiesExpanded(true);
+            setPullPrice(pool.pullPrice ?? 300);
         }
     }
 
@@ -362,6 +427,12 @@ export default function GachaBulkSetupModal({
         });
     }, []);
 
+    const handleCostChange = useCallback((id: string, rawVal: string) => {
+        const n = parseInt(rawVal, 10);
+        const val = Number.isNaN(n) || n < 0 ? 0 : n;
+        setRows(prev => prev.map(r => r.id === id ? { ...r, costPrice: val } : r));
+    }, []);
+
     const handleToggleLock = useCallback((id: string) => {
         setRows(prev => prev.map(r => r.id === id ? { ...r, locked: !r.locked } : r));
     }, []);
@@ -374,6 +445,7 @@ export default function GachaBulkSetupModal({
             rarityId: defaultRarityId,
             weight: 0,
             locked: false,
+            costPrice: 0,
         };
         setRows(prev => {
             const next = [...prev, newRow];
@@ -400,11 +472,11 @@ export default function GachaBulkSetupModal({
             const lockedRows = prev.filter(r => r.rarityId === targetId && r.locked);
             const lockedSum = lockedRows.reduce((s, r) => s + r.weight, 0);
             const remaining = Math.max(0, 100 - lockedSum);
-            const equalShare = Math.round((remaining / rarityRows.length) * 1000) / 1000;
+            const equalShare = Math.round((remaining / rarityRows.length) * 100000000) / 100000000;
             // 最後の要素で丸め誤差を吸収
             const distributed = rarityRows.map((r, i) =>
                 i === rarityRows.length - 1
-                    ? { ...r, weight: Math.round((remaining - equalShare * (rarityRows.length - 1)) * 1000) / 1000 }
+                    ? { ...r, weight: Math.round((remaining - equalShare * (rarityRows.length - 1)) * 100000000) / 100000000 }
                     : { ...r, weight: equalShare }
             );
             const distMap = new Map(distributed.map(r => [r.id, r.weight]));
@@ -511,14 +583,14 @@ export default function GachaBulkSetupModal({
             if (oldSum > 0) {
                 nextRarities = remainingRarities.map(r => ({
                     ...r,
-                    defaultWeight: Math.round(((r.defaultWeight ?? 0) * 100 / oldSum) * 1000) / 1000,
+                    defaultWeight: Math.round(((r.defaultWeight ?? 0) * 100 / oldSum) * 100000000) / 100000000,
                 }));
             } else {
-                const equalWeight = Math.round((100 / remainingRarities.length) * 1000) / 1000;
+                const equalWeight = Math.round((100 / remainingRarities.length) * 100000000) / 100000000;
                 nextRarities = remainingRarities.map((r, idx) => ({
                     ...r,
                     defaultWeight: idx === remainingRarities.length - 1
-                        ? Math.round((100 - equalWeight * (remainingRarities.length - 1)) * 1000) / 1000
+                        ? Math.round((100 - equalWeight * (remainingRarities.length - 1)) * 100000000) / 100000000
                         : equalWeight,
                 }));
             }
@@ -537,9 +609,9 @@ export default function GachaBulkSetupModal({
     const handleApply = useCallback(() => {
         const items = draftToItems(rows);
         const finalRarities = rarities.length > 0 ? rarities : pool.rarities;
-        onApply(items, finalRarities);
+        onApply(items, finalRarities, pullPrice);
         onClose();
-    }, [rows, rarities, pool.rarities, onApply, onClose]);
+    }, [rows, rarities, pool.rarities, pullPrice, onApply, onClose]);
 
     // ============================================================
     // 描画
@@ -799,6 +871,63 @@ export default function GachaBulkSetupModal({
                             </select>
                         </div>
 
+                        {/* 収益シミュレーション モードトグル */}
+                        {onToggleCostSimulator && (
+                            <button
+                                type="button"
+                                onClick={onToggleCostSimulator}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer`}
+                                style={{
+                                    background: showCostSimulator
+                                        ? isLightMode
+                                            ? "rgba(245,158,11,0.1)"
+                                            : "rgba(245,158,11,0.2)"
+                                        : inputBg,
+                                    borderColor: showCostSimulator
+                                        ? isLightMode
+                                            ? "rgba(245,158,11,0.4)"
+                                            : "rgba(245,158,11,0.5)"
+                                        : inputBorder,
+                                    color: showCostSimulator
+                                        ? isLightMode
+                                            ? "#b45309"
+                                            : "#f59e0b"
+                                        : textMuted
+                                }}
+                                title="原価と期待値ベースの収益シミュレーションを切り替えます"
+                            >
+                                <Coins size={13} className={showCostSimulator ? "animate-pulse" : ""} />
+                                <span>収益シミュレーション</span>
+                                {showCostSimulator && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                                )}
+                            </button>
+                        )}
+
+                        {/* 販売単価設定 (シミュレーションモードON時のみ表示) */}
+                        {showCostSimulator && (
+                            <div className="flex items-center gap-2 px-3 py-1 rounded-xl border transition-all"
+                                 style={{
+                                     background: isLightMode ? "rgba(245,158,11,0.03)" : "rgba(245,158,11,0.06)",
+                                     borderColor: isLightMode ? "rgba(245,158,11,0.2)" : "rgba(245,158,11,0.3)",
+                                 }}>
+                                <Coins size={13} className="text-amber-500" />
+                                <span className="text-xs font-bold" style={{ color: textPrimary }}>ガチャ1回の販売単価:</span>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    value={pullPrice}
+                                    onChange={e => {
+                                        const n = parseInt(e.target.value, 10);
+                                        setPullPrice(Number.isNaN(n) || n < 0 ? 0 : n);
+                                    }}
+                                    className="w-16 text-right font-bold text-xs bg-transparent border-none outline-none tabular-nums"
+                                    style={{ color: textPrimary }}
+                                />
+                                <span className="text-[10px]" style={{ color: textMuted }}>円</span>
+                            </div>
+                        )}
+
                         {/* 均等割りアシスト */}
                         <div className="flex items-center gap-2 ml-auto">
                             <SplitSquareHorizontal size={13} style={{ color: textMuted }} />
@@ -844,6 +973,19 @@ export default function GachaBulkSetupModal({
                                     <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
                                         全体確率
                                     </th>
+                                    {showCostSimulator && (
+                                        <>
+                                            <th className="px-3 py-2.5 text-right font-semibold w-28" style={{ color: textMuted }}>
+                                                原価
+                                            </th>
+                                            <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
+                                                期待原価
+                                            </th>
+                                            <th className="px-3 py-2.5 text-right font-semibold w-24" style={{ color: textMuted }}>
+                                                単体損益
+                                            </th>
+                                        </>
+                                    )}
                                     <th className="px-3 py-2.5 text-center font-semibold w-10" style={{ color: textMuted }}>削除</th>
                                 </tr>
                             </thead>
@@ -953,6 +1095,34 @@ export default function GachaBulkSetupModal({
                                                     {fmtW(globalProb)}%
                                                 </td>
 
+                                                {/* 原価・期待原価・単体損益 */}
+                                                {showCostSimulator && (
+                                                    <>
+                                                        <td className="px-3 py-2">
+                                                            <CostCell
+                                                                row={row}
+                                                                textPrimary={textPrimary}
+                                                                textMuted={textMuted}
+                                                                inputBg={inputBg}
+                                                                inputBorder={inputBorder}
+                                                                onCostChange={handleCostChange}
+                                                            />
+                                                        </td>
+
+                                                        <td className="px-3 py-2 text-right font-semibold tabular-nums text-xs" style={{ color: textMuted }}>
+                                                            {fmtPrice((globalProb * row.costPrice) / 100)}円
+                                                        </td>
+
+                                                        <td className={`px-3 py-2 text-right font-semibold tabular-nums text-xs ${
+                                                            (pullPrice - row.costPrice) >= 0
+                                                                ? (isLightMode ? "text-emerald-600" : "text-emerald-400 font-semibold")
+                                                                : (isLightMode ? "text-rose-600" : "text-rose-400 font-semibold")
+                                                        }`}>
+                                                            {(pullPrice - row.costPrice) >= 0 ? "+" : ""}{fmtPrice(pullPrice - row.costPrice)}円
+                                                        </td>
+                                                    </>
+                                                )}
+
                                                 {/* 削除ボタン */}
                                                 <td className="px-2 py-2 text-center">
                                                     <button
@@ -974,23 +1144,135 @@ export default function GachaBulkSetupModal({
                                 </AnimatePresence>
 
                                 {/* 空の場合のメッセージ */}
-                                {displayRows.length === 0 && (
-                                    <tr>
-                                        <td colSpan={6} className="px-6 py-12 text-center" style={{ color: textMuted }}>
-                                            <div className="flex flex-col items-center gap-2">
-                                                <Sliders size={28} style={{ color: textMuted, opacity: 0.4 }} />
-                                                <p className="text-xs">
-                                                    {filterRarityId === "all"
-                                                        ? "景品がありません。「行を追加」で追加してください。"
-                                                        : "このレア度に景品がありません。"}
-                                                </p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                )}
+                                                                {displayRows.length === 0 && (
+                                                                    <tr>
+                                                                        <td colSpan={showCostSimulator ? 9 : 6} className="px-6 py-12 text-center" style={{ color: textMuted }}>
+                                                                            <div className="flex flex-col items-center gap-2">
+                                                                                <Sliders size={28} style={{ color: textMuted, opacity: 0.4 }} />
+                                                                                <p className="text-xs">
+                                                                                    {filterRarityId === "all"
+                                                                                        ? "景品がありません。「行を追加」で追加してください。"
+                                                                                        : "このレア度に景品がありません。"}
+                                                                                </p>
+                                                                            </div>
+                                                                        </td>
+                                                                    </tr>
+                                                                )}
                             </tbody>
                         </table>
                     </div>
+
+                    {/* ━━━━━ 期待値シミュレーションの計算 ━━━━━ */}
+                    {showCostSimulator && (() => {
+                        const activeRaritiesWithItems = new Set<string>();
+                        for (const r of rows) activeRaritiesWithItems.add(r.rarityId);
+
+                        let totalRarityWeight = 0;
+                        for (const r of currentRarities) {
+                            if (!activeRaritiesWithItems.has(r.id)) continue;
+                            totalRarityWeight += (r.defaultWeight ?? 1);
+                        }
+
+                        const rarityProbs = new Map<string, number>();
+                        for (const r of currentRarities) {
+                            if (!activeRaritiesWithItems.has(r.id)) {
+                                rarityProbs.set(r.id, 0);
+                                continue;
+                            }
+                            rarityProbs.set(r.id, totalRarityWeight === 0 ? 0 : (((r.defaultWeight ?? 1) / totalRarityWeight) * 100));
+                        }
+
+                        const rarityWeightSums = new Map<string, number>();
+                        for (const r of rows) {
+                            rarityWeightSums.set(r.rarityId, (rarityWeightSums.get(r.rarityId) || 0) + r.weight);
+                        }
+
+                        const withinRarityProbs = new Map<string, number>();
+                        for (const r of rows) {
+                            const totalInRarity = rarityWeightSums.get(r.rarityId) || 0;
+                            if (totalInRarity === 0) continue;
+                            withinRarityProbs.set(r.id, (r.weight / totalInRarity) * 100);
+                        }
+
+                        let expectedCost = 0;
+                        for (const r of rows) {
+                            const rp = rarityProbs.get(r.rarityId) || 0;
+                            const wp = withinRarityProbs.get(r.id) || 0;
+                            const globalProb = (rp / 100) * (wp / 100);
+                            expectedCost += globalProb * r.costPrice;
+                        }
+
+                        const expectedProfitMargin = pullPrice > 0 ? ((pullPrice - expectedCost) / pullPrice) * 100 : 0;
+                        const isDeficit = pullPrice < expectedCost;
+
+                        return (
+                            <div
+                                className="px-6 py-4 shrink-0 flex flex-wrap items-center justify-between gap-4 transition-all"
+                                style={{
+                                    borderTop: `1px solid ${borderColor}`,
+                                    background: isDeficit
+                                        ? (isLightMode ? "rgba(239,68,68,0.04)" : "rgba(239,68,68,0.06)")
+                                        : (isLightMode ? "rgba(16,185,129,0.02)" : "rgba(16,185,129,0.04)"),
+                                    borderColor: isDeficit
+                                        ? (isLightMode ? "rgba(239,68,68,0.2)" : "rgba(239,68,68,0.3)")
+                                        : borderColor,
+                                }}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isDeficit ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" : "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"}`}>
+                                        <Coins size={14} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-xs font-bold" style={{ color: textPrimary }}>
+                                            期待値シミュレーション
+                                        </h3>
+                                        <p className="text-[10px]" style={{ color: textMuted }}>
+                                            確率と原価に基づき、ガチャ1回あたりの期待値をリアルタイム計算します
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-6">
+                                    {/* 平均期待原価 */}
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px]" style={{ color: textMuted }}>平均期待原価</span>
+                                        <span className="text-base font-extrabold tabular-nums" style={{ color: textPrimary }}>
+                                            {fmtPrice(expectedCost)} <span className="text-xs font-medium">円</span>
+                                        </span>
+                                    </div>
+
+                                    {/* 期待利益率 */}
+                                    <div className="flex flex-col">
+                                        <span className="text-[10px]" style={{ color: textMuted }}>期待利益率</span>
+                                        <span className={`text-base font-extrabold tabular-nums flex items-center gap-1 ${
+                                            expectedProfitMargin >= 0
+                                                ? (isLightMode ? "text-emerald-600" : "text-emerald-400")
+                                                : (isLightMode ? "text-rose-600" : "text-rose-400")
+                                        }`}>
+                                            {expectedProfitMargin >= 0 ? "+" : ""}{expectedProfitMargin.toFixed(1)}%
+                                        </span>
+                                    </div>
+
+                                    {/* ステータスバッジ/警告アラート */}
+                                    {isDeficit ? (
+                                        <motion.div
+                                            animate={{ scale: [1, 1.02, 1] }}
+                                            transition={{ repeat: Infinity, duration: 2 }}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-rose-500/25 bg-rose-500/10 text-rose-500 font-bold text-xs"
+                                        >
+                                            <AlertCircle size={13} />
+                                            <span>⚠️ 期待値赤字状態です。確率または原価を見直してください。</span>
+                                        </motion.div>
+                                    ) : (
+                                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-emerald-500/25 bg-emerald-500/10 text-emerald-500 font-bold text-xs">
+                                            <CheckCircle2 size={13} />
+                                            <span>期待値黒字（安全）</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })()}
 
                     {/* ━━━━━ バリデーションサマリ ━━━━━ */}
                     <div
