@@ -14,6 +14,7 @@ import RouletteStatsPanel from "@/components/roulette/RouletteStatsPanel";
 import RouletteHitEffect from "@/components/roulette/RouletteHitEffect";
 import RoulettePredictorHistoryCard from "@/components/roulette/RoulettePredictorHistoryCard";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/components/Toast";
 
 import {
     createDefaultSlots,
@@ -72,6 +73,7 @@ export default function RouletteContent({
 
     const [showSettingsPanel, setShowSettingsPanel] = useState(false);
     const { confirm } = useConfirm();
+    const { showToast } = useToast();
     const [wheelScale, setWheelScale] = useState(1);
 
     // オートスピン＆画像共有用ステートとレフ
@@ -158,6 +160,7 @@ export default function RouletteContent({
     const handleSaveTemplate = (name: string) => {
         const t = createRouletteTemplate(name, slots, settings);
         setTemplates((prev) => [...prev.filter((x) => x.id !== t.id), t].slice(-30));
+        showToast(`テンプレート「${name.trim()}」を新規保存しました 💾`, "success");
     };
 
     const handleLoadTemplate = (templateId: string) => {
@@ -168,12 +171,14 @@ export default function RouletteContent({
             if (t.settings && Object.keys(t.settings).length > 0) {
                 setSettings((prev) => ({ ...prev, ...t.settings }));
             }
+            showToast(`テンプレート「${t.name}」を適用しました 💾`, "success");
         }
     };
 
     const handleOverwriteTemplate = async (templateId: string, templateName: string) => {
         if (await confirm({ title: "テンプレート上書き", message: `現在の設定でテンプレート「${templateName}」を上書きしますか？`, danger: true })) {
             setTemplates(prev => prev.map(t => t.id === templateId ? { ...t, slots: [...slots], settings: { ...settings }, savedAt: Date.now() } : t));
+            showToast(`テンプレート「${templateName}」を上書き保存しました 💾`, "success");
         }
     };
 
@@ -181,6 +186,7 @@ export default function RouletteContent({
         const name = templates.find(t => t.id === templateId)?.name;
         if (await confirm({ title: "テンプレート削除", message: `テンプレート「${name}」を削除しますか？`, danger: true })) {
             setTemplates(prev => prev.filter(t => t.id !== templateId));
+            showToast(`テンプレート「${name}」を削除しました 🗑️`, "success");
         }
     };
 

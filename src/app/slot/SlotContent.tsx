@@ -743,7 +743,17 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
           </div>
         )}
       </AnimatePresence>
-      {engine.showHitEffect && <RouletteHitEffect show={engine.showHitEffect} text={engine.lastWin?.isReplay ? "REPLAY!" : engine.lastWin?.label ?? "WIN!"} accentColor={accentColor} onComplete={() => engine.setShowHitEffect(false)} />}
+      {engine.showHitEffect && (
+        <RouletteHitEffect
+          show={engine.showHitEffect}
+          text={engine.lastWin?.isReplay ? "REPLAY!" : engine.lastWin?.label ?? "WIN!"}
+          accentColor={accentColor}
+          payout={engine.lastWin?.payout ?? 0}
+          isReplay={engine.lastWin?.isReplay ?? false}
+          isBonus={engine.lastWin?.label === "7" || engine.lastWin?.label?.includes("ボーナス")}
+          onComplete={() => engine.setShowHitEffect(false)}
+        />
+      )}
       <AnimatePresence>
         {engine.autoSpinStats && engine.autoSpinRemaining <= 0 && !engine.isSpinning && engine.autoSpinStats.spins > 0 && (
           <div className="fixed inset-0 flex items-center justify-center p-4 z-[110]">
