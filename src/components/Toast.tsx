@@ -75,35 +75,67 @@ const ICON_MAP: Record<ToastType, typeof AlertCircle> = {
   success: CheckCircle,
 };
 
-const BG_MAP: Record<ToastType, string> = {
-  error: "rgba(239,68,68,0.95)",
-  info: "rgba(59,130,246,0.92)",
-  success: "rgba(34,197,94,0.92)",
+const THEME_MAP: Record<
+  ToastType,
+  {
+    border: string;
+    shadow: string;
+    iconColor: string;
+    iconShadow: string;
+  }
+> = {
+  success: {
+    border: "rgba(16, 185, 129, 0.35)",
+    shadow: "0 8px 32px rgba(16, 185, 129, 0.12), 0 4px 12px rgba(0, 0, 0, 0.4)",
+    iconColor: "#34d399",
+    iconShadow: "drop-shadow(0 0 6px rgba(52, 211, 153, 0.7))",
+  },
+  info: {
+    border: "rgba(59, 130, 246, 0.35)",
+    shadow: "0 8px 32px rgba(59, 130, 246, 0.12), 0 4px 12px rgba(0, 0, 0, 0.4)",
+    iconColor: "#60a5fa",
+    iconShadow: "drop-shadow(0 0 6px rgba(96, 165, 250, 0.7))",
+  },
+  error: {
+    border: "rgba(239, 68, 68, 0.35)",
+    shadow: "0 8px 32px rgba(239, 68, 68, 0.12), 0 4px 12px rgba(0, 0, 0, 0.4)",
+    iconColor: "#f87171",
+    iconShadow: "drop-shadow(0 0 6px rgba(248, 113, 113, 0.7))",
+  },
 };
 
 function ToastCard({ item, onDismiss }: { item: ToastItem; onDismiss: (id: number) => void }) {
   const Icon = ICON_MAP[item.type];
+  const theme = THEME_MAP[item.type];
   return (
     <motion.div
       initial={{ opacity: 0, y: 32, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 16, scale: 0.95 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className="flex items-center gap-2.5 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-medium pointer-events-auto select-none"
+      className="flex items-center gap-3 px-4 py-3 rounded-xl text-white text-sm font-medium pointer-events-auto select-none"
       style={{
-        background: BG_MAP[item.type],
-        backdropFilter: "blur(12px)",
-        border: "1px solid rgba(255,255,255,0.15)",
-        minWidth: 240,
+        background: "rgba(15, 23, 42, 0.85)",
+        backdropFilter: "blur(16px)",
+        border: `1px solid ${theme.border}`,
+        boxShadow: theme.shadow,
+        minWidth: 260,
       }}
       role="alert"
     >
-      <Icon size={18} className="shrink-0 opacity-90" />
-      <span className="flex-1 leading-snug">{item.message}</span>
+      <Icon
+        size={18}
+        className="shrink-0"
+        style={{
+          color: theme.iconColor,
+          filter: theme.iconShadow,
+        }}
+      />
+      <span className="flex-1 leading-snug font-medium text-white/95">{item.message}</span>
       <button
         type="button"
         onClick={() => onDismiss(item.id)}
-        className="shrink-0 p-0.5 rounded hover:bg-white/20 transition-colors"
+        className="shrink-0 p-1 rounded-lg text-white/45 hover:text-white/80 hover:bg-white/10 transition-all duration-200"
         aria-label="閉じる"
       >
         <X size={14} />

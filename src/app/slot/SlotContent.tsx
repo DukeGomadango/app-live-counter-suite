@@ -22,7 +22,18 @@ import { useSlotState } from "./hooks/useSlotState";
 import { useSlotEngine } from "./hooks/useSlotEngine";
 import { useSlotSidebar } from "./hooks/useSlotSidebar";
 import { SlotOrbsBackground } from "./components/SlotOrbsBackground";
-import { resolveReelStrips, SlotPlayer } from "@/lib/slot";
+import { 
+  resolveReelStrips, 
+  SlotPlayer,
+  checkPaylines,
+  pickSymbolByWeight,
+  calculateTheoreticalPayoutPercent,
+  getBonusSymbolIds,
+  pickCeilingBonusIndices,
+  type SlotSymbol,
+  normalizePaylines
+} from "@/lib/slot";
+import EmojiGlyph from "@/components/icons/EmojiGlyph";
 import { toPng } from "html-to-image";
 import { 
   getTimestampForFilename, 
@@ -72,6 +83,181 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
   );
 
   const activePlayer = useMemo(() => players.find(p => p.id === activePlayerId) || null, [players, activePlayerId]);
+
+  // 理論機械割 (RTP) 計算
+  const theoreticalRTP = useMemo(() => {
+    return calculateTheoreticalPayoutPercent(
+      resolvedStrips,
+      activePlayer?.defaultBet ?? 1,
+      settings.paylines,
+      settings.visibleRows,
+      settings.probabilityMode ?? "direct-percent",
+      symbolMaster
+    );
+  }, [resolvedStrips, activePlayer?.defaultBet, settings.paylines, settings.visibleRows, settings.probabilityMode, symbolMaster]);
+
+  // シミュレーター用状態
+  interface SimulationResult {
+    spins: number;
+    totalBet: number;
+    totalPayout: number;
+    netGain: number;
+    bonusesCount: number;
+    replaysCount: number;
+    ceilingsCount: number;
+    maxHamarri: number;
+    actualRTP: number;
+    hitSymbols: Record<string, { symbol: SlotSymbol; count: number; totalPayout: number }>;
+  }
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationResult, setSimulationResult] = useState<SimulationResult | null>(null);
+
+  const runSimulation = useCallback((): SimulationResult => {
+    const bet = activePlayer?.defaultBet ?? 1;
+    const strips = resolvedStrips;
+    const totalSpinsTarget = 10000;
+    
+    let spinsCount = 0;
+    let totalBet = 0;
+    let totalPayout = 0;
+    let bonusesCount = 0;
+    let replaysCount = 0;
+    let ceilingsCount = 0;
+    
+    let currentHamarri = 0;
+    let maxHamarri = 0;
+    
+    let ceilingSpinsCount = 0;
+    let bonusGamesRemaining = 0;
+    let replayFreeSpin = false;
+    
+    const hitSymbols: Record<string, { symbol: SlotSymbol; count: number; totalPayout: number }> = {};
+    const visibleRows = settings.visibleRows ?? 1;
+    const paylines = normalizePaylines(settings.paylines, strips.length, visibleRows);
+    const bonusIds = getBonusSymbolIds(strips);
+    
+    while (spinsCount < totalSpinsTarget) {
+      const inBonus = bonusGamesRemaining > 0;
+      
+      // 1. Determine bet
+      let currentBet = 0;
+      if (!replayFreeSpin && !inBonus) {
+        currentBet = bet;
+        totalBet += bet;
+      }
+      
+      // 2. Determine stop indices
+      let results: number[] = [];
+      const isCeilingEnabled = settings.ceilingSpins > 0;
+      
+      if (isCeilingEnabled && !inBonus && ceilingSpinsCount >= settings.ceilingSpins) {
+        ceilingsCount++;
+        ceilingSpinsCount = 0;
+        results = pickCeilingBonusIndices(strips, bonusIds);
+      } else {
+        results = strips.map((strip) => pickSymbolByWeight(strip));
+      }
+      
+      // 3. Check win
+      const winResult = checkPaylines(results, strips, paylines, visibleRows);
+      
+      // 4. Calculate payout
+      let payout = bet * winResult.multiplier;
+      if (winResult.isReplay) {
+        payout += bet;
+      }
+      
+      totalPayout += payout;
+      spinsCount++;
+      
+      if (winResult.isReplay) {
+        replaysCount++;
+        replayFreeSpin = true;
+      } else {
+        replayFreeSpin = false;
+      }
+      
+      const isBonusHit = winResult.win && winResult.symbol?.role === "bonus";
+      
+      if (isBonusHit) {
+        bonusesCount++;
+        const bonusCount = settings.bonusGamesCount ?? 15;
+        if (bonusCount > 0) {
+          bonusGamesRemaining = bonusCount;
+        }
+        
+        if (currentHamarri > maxHamarri) {
+          maxHamarri = currentHamarri;
+        }
+        currentHamarri = 0;
+        ceilingSpinsCount = 0;
+      } else {
+        if (!inBonus && !replayFreeSpin) {
+          currentHamarri++;
+          ceilingSpinsCount++;
+        }
+      }
+      
+      if (inBonus) {
+        bonusGamesRemaining = Math.max(0, bonusGamesRemaining - 1);
+        if (settings.artEnabled && (settings.artAddGames ?? 0) > 0 && winResult.wins.some((w) => w.symbol.role === "bonus")) {
+          bonusGamesRemaining += settings.artAddGames ?? 0;
+        }
+      }
+      
+      if (winResult.win && winResult.wins.length > 0) {
+        winResult.wins.forEach((w) => {
+          const sym = w.symbol;
+          const existing = hitSymbols[sym.id] || { symbol: sym, count: 0, totalPayout: 0 };
+          
+          let linePayout = bet * w.multiplier;
+          if (w.isReplay) linePayout += bet;
+          
+          hitSymbols[sym.id] = {
+            ...existing,
+            count: existing.count + 1,
+            totalPayout: existing.totalPayout + linePayout,
+          };
+        });
+      }
+    }
+    
+    if (currentHamarri > maxHamarri) {
+      maxHamarri = currentHamarri;
+    }
+    
+    const netGain = totalPayout - totalBet;
+    const actualRTP = totalBet > 0 ? (totalPayout / totalBet) * 100 : 0;
+    
+    return {
+      spins: spinsCount,
+      totalBet,
+      totalPayout,
+      netGain,
+      bonusesCount,
+      replaysCount,
+      ceilingsCount,
+      maxHamarri,
+      actualRTP,
+      hitSymbols,
+    };
+  }, [resolvedStrips, settings, symbolMaster, activePlayer]);
+
+  const handleStartSimulation = useCallback(() => {
+    setIsSimulating(true);
+    setSimulationResult(null);
+    
+    setTimeout(() => {
+      try {
+        const result = runSimulation();
+        setSimulationResult(result);
+      } catch (err) {
+        console.error("Simulation error:", err);
+      } finally {
+        setIsSimulating(false);
+      }
+    }, 120);
+  }, [runSimulation]);
 
   const engine = useSlotEngine({
     strips: resolvedStrips,
@@ -376,9 +562,22 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
           {!isSplitMode && <ModeSelector isLightMode={isLightMode} accentColor={accentColor} />}
           <div className="h-4 w-px bg-black/10 dark:bg-white/10" />
           <h1 className="text-sm font-bold tracking-tight opacity-80">スロット</h1>
+          <div 
+            className="ml-2 px-2.5 py-1 rounded-full text-[10px] font-black border tracking-wider flex items-center gap-1 shrink-0" 
+            style={{ 
+              color: isLightMode ? "#0d9488" : "#2dd4bf", 
+              borderColor: isLightMode ? "rgba(13,148,136,0.3)" : "rgba(45,212,191,0.3)", 
+              backgroundColor: isLightMode ? "rgba(13,148,136,0.08)" : "rgba(45,212,191,0.08)",
+              boxShadow: isLightMode ? "none" : "0 0 10px rgba(45,212,191,0.15)"
+            }}
+            title="現在の設定における理論機械割（RTP）です。"
+          >
+            <span>RTP:</span>
+            <span className="font-extrabold">{theoreticalRTP.toFixed(1)}%</span>
+          </div>
           {!activePlayer && (
             <div 
-              className="ml-2 px-2.5 py-1 rounded-full text-[10px] font-black border tracking-wider" 
+              className="ml-2 px-2.5 py-1 rounded-full text-[10px] font-black border tracking-wider shrink-0" 
               style={{ 
                 color: accentColor, 
                 borderColor: `${accentColor}40`, 
@@ -399,7 +598,10 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
             {isLightMode ? <Moon size={18} /> : <Sun size={18} />}
           </button>
           <button 
-            onClick={() => setShowSettingsPanel(true)} 
+            onClick={() => {
+              setSidebarTab("rules");
+              setSidebarOpen(true);
+            }} 
             className="p-2 rounded-xl dango-btn-tier3"
             style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
           >
@@ -421,7 +623,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
                 style={{ width: sidebarWidthPx, zIndex: Z_INDEX.SIDEBAR }}
               >
                 <div className="flex p-2 gap-1.5 border-b border-border-subtle bg-black/5 dark:bg-white/5">
-                  {(["reel", "players", "templates", "stats"] as const).map((tab) => (
+                  {(["reel", "rules", "players", "stats"] as const).map((tab) => (
                     <button 
                       key={tab} 
                       onClick={() => setSidebarTab(tab)} 
@@ -432,7 +634,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
                       }`}
                       style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
                     >
-                      {tab === "reel" ? "リール" : tab === "players" ? "名簿" : tab === "templates" ? "保存" : "統計"}
+                      {tab === "reel" ? "リール" : tab === "rules" ? "ルール" : tab === "players" ? "名簿" : "統計"}
                     </button>
                   ))}
                 </div>
@@ -446,6 +648,23 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
                       reelStripIds={reelStripIds as string[][]}
                       onReelStripIdsChange={setReelStrips as (ids: string[][]) => void}
                       isLightMode={isLightMode}
+                      templates={templates}
+                      onSaveTemplate={(name) => handleSaveSlotTemplate(name, symbolMaster, reelStripIds as string[][], settings, setTemplates)}
+                      onLoadTemplate={(id) => handleLoadSlotTemplate(id, templates, setSymbolMaster, setReelStrips, setSettings)}
+                      onDeleteTemplate={(id) => handleDeleteSlotTemplate(id, setTemplates)}
+                      onOverwriteTemplate={(id, name) => handleOverwriteSlotTemplate(id, name, symbolMaster, reelStripIds as string[][], settings, setTemplates)}
+                      onApplyNumbers17Preset={() => handleApplyNumbers17Preset(setSymbolMaster, setReelStrips)}
+                      onApplyDefaultSymbolsPreset={() => handleApplyDefaultSymbolsPreset(setSymbolMaster, setReelStrips)}
+                    />
+                  )}
+                  {sidebarTab === "rules" && (
+                    <SlotSettingsPanel
+                      settings={settings}
+                      onSettingsChange={setSettings}
+                      isLightMode={isLightMode}
+                      onOpenPlayerManager={() => {
+                        setSidebarTab("players");
+                      }}
                     />
                   )}
                   {sidebarTab === "players" && (
@@ -460,24 +679,11 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
                       isLightMode={isLightMode}
                     />
                   )}
-                  {sidebarTab === "templates" && (
-                    <SlotTemplatePanel
-                      symbolMaster={symbolMaster}
-                      onSymbolMasterChange={setSymbolMaster}
-                      templates={templates}
-                      onSaveTemplate={(name) => handleSaveSlotTemplate(name, symbolMaster, reelStripIds as string[][], settings, setTemplates)}
-                      onLoadTemplate={(id) => handleLoadSlotTemplate(id, templates, setSymbolMaster, setReelStrips, setSettings)}
-                      onDeleteTemplate={(id) => handleDeleteSlotTemplate(id, setTemplates)}
-                      onOverwriteTemplate={(id, name) => handleOverwriteSlotTemplate(id, name, symbolMaster, reelStripIds as string[][], settings, setTemplates)}
-                      onApplyNumbers17Preset={() => handleApplyNumbers17Preset(setSymbolMaster, setReelStrips)}
-                      onApplyDefaultSymbolsPreset={() => handleApplyDefaultSymbolsPreset(setSymbolMaster, setReelStrips)}
-                      isLightMode={isLightMode}
-                    />
-                  )}
                   {sidebarTab === "stats" && (
                     <SlotStatsPanel
                       players={players}
                       isLightMode={isLightMode}
+                      onRunSimulation={handleStartSimulation}
                     />
                   )}
                 </div>
@@ -495,39 +701,31 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
       </div>
 
       <AnimatePresence>
-        {showSettingsPanel && (
-          <SlotSettingsPanel 
-            settings={settings} 
-            onSettingsChange={setSettings} 
-            isLightMode={isLightMode} 
-            onClose={() => setShowSettingsPanel(false)} 
-            onOpenPlayerManager={() => {
-              setSidebarTab("players");
-              setSidebarOpen(true);
-              setShowSettingsPanel(false);
-            }}
-          />
-        )}
-      </AnimatePresence>
-      <AnimatePresence>
         {playerHistoryViewId && (
           <div 
             className="fixed inset-0 flex items-center justify-center p-4"
             style={{ zIndex: Z_INDEX.MODAL }}
           >
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPlayerHistoryViewId(null)} className="absolute inset-0 bg-black/60 backdrop-blur-md" style={{ zIndex: Z_INDEX.MODAL_BACKDROP }} />
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 20 }} className="relative w-full max-w-2xl max-h-[80vh] overflow-hidden bg-bg-sidebar backdrop-blur-2xl rounded-3xl shadow-2xl flex flex-col border border-border-subtle">
-              <div className="flex items-center justify-between p-4 border-b border-border-subtle">
-                <h3 className="font-bold">履歴詳細</h3>
-                <button onClick={() => setPlayerHistoryViewId(null)} className="p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/10"><X size={20} /></button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
-                {(() => {
-                  const p = players.find((x) => x.id === playerHistoryViewId);
-                  if (!p) return null;
-                  return <SlotPlayerHistoryCard player={p} isLightMode={isLightMode} onClose={() => setPlayerHistoryViewId(null)} />;
-                })()}
-              </div>
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }} 
+              animate={{ opacity: 1, scale: 1, y: 0 }} 
+              exit={{ opacity: 0, scale: 0.9, y: 20 }} 
+              className="relative w-full max-w-2xl max-h-[85vh] overflow-hidden bg-bg-sidebar backdrop-blur-2xl rounded-3xl shadow-2xl flex flex-col border border-border-subtle" 
+              style={{ zIndex: Z_INDEX.MODAL }}
+            >
+              {(() => {
+                const p = players.find((x) => x.id === playerHistoryViewId);
+                if (!p) return null;
+                return (
+                  <SlotPlayerHistoryCard 
+                    player={p} 
+                    isLightMode={isLightMode} 
+                    onClose={() => setPlayerHistoryViewId(null)} 
+                    resolvedStrips={resolvedStrips} 
+                  />
+                );
+              })()}
             </motion.div>
           </div>
         )}
@@ -647,6 +845,215 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
         toolId="slot"
         isLightMode={isLightMode}
       />
+
+      <AnimatePresence>
+        {isSimulating && (
+          <div className="fixed inset-0 flex items-center justify-center p-4 z-[120]">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className={`relative p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4 border text-center ${
+                isLightMode ? "bg-white border-gray-200" : "bg-gray-900 border-white/10"
+              }`}
+            >
+              <div className="relative w-12 h-12">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                  className="w-12 h-12 rounded-full border-4 border-t-transparent"
+                  style={{ borderColor: `${accentColor} transparent ${accentColor} transparent` }}
+                />
+              </div>
+              <div>
+                <h3 className={`text-base font-black ${isLightMode ? "text-gray-800" : "text-white"}`}>
+                  シミュレーション実行中
+                </h3>
+                <p className={`text-xs mt-1 ${isLightMode ? "text-gray-500" : "text-gray-400"}`}>
+                  10,000回のスピンを高速計算しています...
+                </p>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {simulationResult && (
+          <div className="fixed inset-0 flex items-center justify-center p-4 z-[120]">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSimulationResult(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className={`relative w-full max-w-md rounded-3xl shadow-2xl flex flex-col border overflow-hidden ${
+                isLightMode ? "bg-white border-gray-200" : "bg-gray-900 border-white/10"
+              }`}
+            >
+              {/* Header Accent Line */}
+              <div className="absolute top-0 left-0 w-full h-1.5 animate-pulse" style={{ background: `linear-gradient(90deg, ${accentColor}, #2dd4bf, ${accentColor})` }} />
+              
+              <div className="p-6 flex flex-col gap-4 max-h-[85vh] overflow-y-auto custom-scrollbar">
+                {/* Title */}
+                <div>
+                  <h3 className={`text-lg font-black text-center ${isLightMode ? "text-gray-800" : "text-white"}`}>
+                    🎰 1万回スピン シミュレーション結果
+                  </h3>
+                  <p className={`text-[10px] text-center font-bold tracking-wider mt-0.5 ${isLightMode ? "text-gray-400" : "text-gray-500"}`}>
+                    HIGH-SPEED SLOT EMULATION (10,000 SPINS)
+                  </p>
+                </div>
+
+                {/* RTP Comparison Highlight Card */}
+                <div className={`p-4 rounded-2xl flex flex-col items-center gap-1 text-center border ${
+                  isLightMode ? "bg-teal-50/50 border-teal-100" : "bg-teal-500/5 border-teal-500/20 shadow-[inset_0_0_12px_rgba(45,212,191,0.05)]"
+                }`}>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${isLightMode ? "text-teal-700/80" : "text-teal-400/80"}`}>
+                    実測機械割 (Actual RTP)
+                  </span>
+                  <span className={`text-3xl font-black ${isLightMode ? "text-teal-600" : "text-teal-400 drop-shadow-[0_0_10px_rgba(45,212,191,0.3)]"}`}>
+                    {simulationResult.actualRTP.toFixed(2)}%
+                  </span>
+                  <span className={`text-[10px] mt-1 ${isLightMode ? "text-gray-500" : "text-white/60"}`}>
+                    理論機械割 (Theoretical RTP): <span className="font-bold">{theoreticalRTP.toFixed(1)}%</span>
+                  </span>
+                </div>
+
+                {/* Main Stats Grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className={`p-3 rounded-xl flex flex-col gap-0.5 border ${isLightMode ? "bg-gray-50 border-gray-100" : "bg-white/5 border-white/5"}`}>
+                    <span className={`text-[10px] font-bold ${isLightMode ? "text-gray-500" : "text-white/50"}`}>最終収支</span>
+                    <span className={`text-base font-black ${
+                      simulationResult.netGain > 0 
+                        ? "text-green-500" 
+                        : simulationResult.netGain < 0 
+                          ? "text-red-500" 
+                          : isLightMode ? "text-gray-800" : "text-white"
+                    }`}>
+                      {simulationResult.netGain > 0 ? `+${simulationResult.netGain}` : simulationResult.netGain} 枚
+                    </span>
+                  </div>
+                  <div className={`p-3 rounded-xl flex flex-col gap-0.5 border ${isLightMode ? "bg-gray-50 border-gray-100" : "bg-white/5 border-white/5"}`}>
+                    <span className={`text-[10px] font-bold ${isLightMode ? "text-gray-500" : "text-white/50"}`}>最大ハマり</span>
+                    <span className={`text-base font-black ${isLightMode ? "text-gray-800" : "text-white"}`}>
+                      {simulationResult.maxHamarri} G
+                    </span>
+                  </div>
+                  <div className={`p-3 rounded-xl flex flex-col gap-0.5 border ${isLightMode ? "bg-gray-50 border-gray-100" : "bg-white/5 border-white/5"}`}>
+                    <span className={`text-[10px] font-bold ${isLightMode ? "text-gray-500" : "text-white/50"}`}>ボーナス回数</span>
+                    <span className="text-base font-black text-amber-500">
+                      {simulationResult.bonusesCount} 回
+                    </span>
+                  </div>
+                  <div className={`p-3 rounded-xl flex flex-col gap-0.5 border ${isLightMode ? "bg-gray-50 border-gray-100" : "bg-white/5 border-white/5"}`}>
+                    <span className={`text-[10px] font-bold ${isLightMode ? "text-gray-500" : "text-white/50"}`}>リプレイ回数</span>
+                    <span className="text-base font-black text-purple-400">
+                      {simulationResult.replaysCount} 回
+                    </span>
+                  </div>
+                </div>
+
+                {/* Additional Stats Row */}
+                {settings.ceilingSpins > 0 && (
+                  <div className={`p-2.5 rounded-xl border flex justify-between items-center text-xs ${
+                    isLightMode ? "bg-gray-50 border-gray-100 text-gray-700" : "bg-white/5 border-white/5 text-white/90"
+                  }`}>
+                    <span className="font-bold opacity-80">天井発動回数</span>
+                    <span className="font-black text-amber-400">{simulationResult.ceilingsCount} 回</span>
+                  </div>
+                )}
+
+                {/* Hit Symbols Breakdown Section */}
+                <div className="flex flex-col gap-1.5">
+                  <span className={`text-xs font-black tracking-wider ${isLightMode ? "text-gray-500" : "text-white/50"}`}>
+                    獲得役別の詳細内訳 (最大当選順)
+                  </span>
+                  
+                  <div className={`flex flex-col gap-1.5 p-2 rounded-2xl max-h-[220px] overflow-y-auto custom-scrollbar border ${
+                    isLightMode ? "bg-gray-50 border-gray-100" : "bg-black/20 border-white/5"
+                  }`}>
+                    {Object.values(simulationResult.hitSymbols).length === 0 ? (
+                      <span className={`text-xs py-4 text-center ${isLightMode ? "text-gray-400" : "text-gray-500"}`}>当選した役はありませんでした。</span>
+                    ) : (
+                      Object.values(simulationResult.hitSymbols)
+                        .sort((a, b) => b.count - a.count)
+                        .map((hit) => {
+                          const percent = (hit.count / 10000) * 100;
+                          return (
+                            <div 
+                              key={hit.symbol.id} 
+                              className="flex flex-col gap-1 py-1.5 px-2 rounded-lg border border-transparent hover:border-black/5 dark:hover:border-white/5 transition"
+                            >
+                              <div className="flex justify-between items-center">
+                                <div className="flex items-center gap-1.5">
+                                  <EmojiGlyph emoji={hit.symbol.label} role={hit.symbol.role} size={18} />
+                                  <span className={`text-xs font-black truncate max-w-[80px] ${isLightMode ? "text-gray-700" : "text-gray-300"}`}>
+                                    {hit.symbol.label}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className={`text-[10px] font-bold ${isLightMode ? "text-gray-500" : "text-gray-400"}`}>
+                                    {hit.count.toLocaleString()} 回 ({percent.toFixed(1)}%)
+                                  </span>
+                                  <span className="text-xs font-black text-amber-500 w-16 text-right">
+                                    +{hit.totalPayout.toLocaleString()}枚
+                                  </span>
+                                </div>
+                              </div>
+                              {/* Relative frequency bar */}
+                              <div className="w-full h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+                                <div 
+                                  className="h-full rounded-full" 
+                                  style={{ 
+                                    width: `${Math.min(100, (percent / 20) * 100)}%`, 
+                                    backgroundColor: accentColor 
+                                  }} 
+                                />
+                              </div>
+                            </div>
+                          );
+                        })
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer buttons inside content to ensure scrolling layout works */}
+                <div className="flex gap-2.5 mt-2">
+                  <button
+                    onClick={() => setSimulationResult(null)}
+                    className={`flex-1 py-3 rounded-2xl font-bold text-sm transition border ${
+                      isLightMode 
+                        ? "bg-white text-gray-700 border-gray-200 hover:bg-gray-50" 
+                        : "bg-black/30 text-gray-300 border-white/10 hover:bg-white/10"
+                    }`}
+                  >
+                    閉じる
+                  </button>
+                  <button
+                    onClick={handleStartSimulation}
+                    className="flex-1 py-3 rounded-2xl font-bold text-sm text-white transition hover:opacity-95 shadow-lg flex items-center justify-center gap-1"
+                    style={{ background: accentColor, boxShadow: `0 8px 24px -6px ${accentColor}` }}
+                  >
+                    もう一度実行
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

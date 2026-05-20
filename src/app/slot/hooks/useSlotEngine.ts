@@ -327,6 +327,22 @@ export function useSlotEngine({
       winResult.win
         ? { label: winResult.symbol?.label ?? "", payout, isReplay: winResult.isReplay }
         : null;
+
+    let isNearMiss = false;
+    if (!winResult.win && results.length >= 3) {
+      const r0 = results[0];
+      const r1 = results[1];
+      const r2 = results[2];
+      if (r0 != null && r1 != null && r2 != null) {
+        const s0 = strips[0]?.[r0]?.id;
+        const s1 = strips[1]?.[r1]?.id;
+        const s2 = strips[2]?.[r2]?.id;
+        if (s0 && s1 && s2) {
+          isNearMiss = (s0 === s1) || (s1 === s2) || (s0 === s2);
+        }
+      }
+    }
+
     const record: Omit<SlotSpinRecord, "id"> = {
       timestamp: Date.now(),
       playerId: currentPlayer.id,
@@ -337,6 +353,7 @@ export function useSlotEngine({
       bonusTriggered: !!(winResult.win && winResult.symbol?.role === "bonus"),
       inBonus: wasInBonus,
       ceilingTriggered: false,
+      isNearMiss,
       winLabels: winResult.wins.map((w) => w.symbol.label),
     };
     queueMicrotask(() => {

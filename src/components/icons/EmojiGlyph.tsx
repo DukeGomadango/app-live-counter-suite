@@ -1,6 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import * as LucideIcons from "lucide-react";
 
+type SlotSymbolRole = "bonus" | "small" | "replay" | "chance";
+
 interface EmojiGlyphProps {
   emoji: string;
   className?: string;
@@ -8,6 +10,7 @@ interface EmojiGlyphProps {
   size?: number;
   title?: string;
   ariaLabel?: string;
+  role?: SlotSymbolRole;
 }
 
 /**
@@ -21,22 +24,60 @@ export default function EmojiGlyph({
   size,
   title,
   ariaLabel,
+  role,
 }: EmojiGlyphProps) {
   const glyph = (emoji ?? "").trim();
   if (!glyph) return null;
   const px = size ?? 24;
-  const iconNode = renderIconNode(glyph, px);
+  const iconNode = renderIconNode(glyph, px, role);
   return (
-    <span
-      className={className}
-      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: 1, ...style }}
-      title={title}
-      aria-label={ariaLabel}
-      role={ariaLabel ? "img" : undefined}
-      aria-hidden={ariaLabel ? undefined : true}
-    >
-      {iconNode}
-    </span>
+    <>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @keyframes goldPulse {
+          0% {
+            box-shadow: 0 0 ${px * 0.4}px rgba(245, 158, 11, 0.45), inset 0 0 ${px * 0.2}px rgba(255, 255, 255, 0.05);
+          }
+          50% {
+            box-shadow: 0 0 ${px * 0.9}px rgba(245, 158, 11, 0.85), inset 0 0 ${px * 0.4}px rgba(255, 255, 255, 0.15);
+          }
+          100% {
+            box-shadow: 0 0 ${px * 0.4}px rgba(245, 158, 11, 0.45), inset 0 0 ${px * 0.2}px rgba(255, 255, 255, 0.05);
+          }
+        }
+        @keyframes metalShimmer {
+          0% {
+            background-position: -200% 0;
+          }
+          100% {
+            background-position: 200% 0;
+          }
+        }
+        .animate-gold-pulse {
+          animation: goldPulse 2s infinite ease-in-out;
+        }
+        .animate-shimmer {
+          background-size: 200% auto;
+          animation: metalShimmer 4s infinite linear;
+        }
+        @keyframes spinSlow {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        .animate-spin-slow {
+          animation: spinSlow 12s infinite linear;
+        }
+      `}} />
+      <span
+        className={className}
+        style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", lineHeight: 1, ...style }}
+        title={title}
+        aria-label={ariaLabel}
+        role={ariaLabel ? "img" : undefined}
+        aria-hidden={ariaLabel ? undefined : true}
+      >
+        {iconNode}
+      </span>
+    </>
   );
 }
 
@@ -59,7 +100,95 @@ function Badge({ text, size }: { text: string; size: number }) {
   );
 }
 
-function renderIconNode(emoji: string, size: number): ReactNode {
+function UnifiedGlassOrb({
+  children,
+  emoji,
+  role,
+  size,
+}: {
+  children: ReactNode;
+  emoji: string;
+  role?: SlotSymbolRole;
+  size: number;
+}) {
+  let glowColor = "rgba(56, 189, 248, 0.15)";
+  let glowIntensity = "0px 0px 12px";
+  let borderGrad = "linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))";
+
+  if (role === "bonus" || emoji === "🏆" || emoji === "👑" || emoji === "🎰") {
+    glowColor = "rgba(245, 158, 11, 0.35)";
+    glowIntensity = "0px 0px 18px";
+    borderGrad = "linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(217, 119, 6, 0.1))";
+  } else if (role === "replay" || emoji === "🔄" || emoji === "🍀" || emoji === "🌈" || emoji === "⚡") {
+    glowColor = "rgba(168, 85, 247, 0.3)";
+    borderGrad = "linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(99, 102, 241, 0.1))";
+  } else if (emoji === "🍒" || emoji === "🍉" || emoji === "🍇" || emoji === "🍓" || emoji === "🍑" || emoji === "🍎") {
+    glowColor = "rgba(244, 63, 94, 0.25)";
+    borderGrad = "linear-gradient(135deg, rgba(244, 63, 94, 0.25), rgba(225, 29, 72, 0.1))";
+  } else if (emoji === "🔔" || emoji === "💡" || emoji === "🍊" || emoji === "🍋") {
+    glowColor = "rgba(234, 179, 8, 0.25)";
+    borderGrad = "linear-gradient(135deg, rgba(234, 179, 8, 0.25), rgba(202, 138, 4, 0.1))";
+  } else if (emoji === "❤️" || emoji === "💜" || emoji === "💙" || emoji === "💚" || emoji === "💛" || emoji === "🧡") {
+    glowColor = "rgba(236, 72, 153, 0.25)";
+    borderGrad = "linear-gradient(135deg, rgba(236, 72, 153, 0.25), rgba(219, 39, 119, 0.1))";
+  } else if (role === "small") {
+    glowColor = "rgba(20, 184, 166, 0.25)";
+    borderGrad = "linear-gradient(135deg, rgba(20, 184, 166, 0.25), rgba(13, 148, 136, 0.1))";
+  }
+
+  const orbSize = size * 1.8;
+  const padding = size * 0.4;
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: `${orbSize}px`,
+        height: `${orbSize}px`,
+        background: "linear-gradient(135deg, rgba(24, 24, 27, 0.65), rgba(9, 9, 11, 0.85))",
+        borderRadius: "50%",
+        border: "1px solid transparent",
+        backgroundImage: "linear-gradient(135deg, rgba(24, 24, 27, 0.65), rgba(9, 9, 11, 0.85)), " + borderGrad,
+        backgroundOrigin: "border-box",
+        backgroundClip: "padding-box, border-box",
+        boxShadow: `${glowIntensity} ${glowColor}, inset 0 0 ${size * 0.15}px rgba(255, 255, 255, 0.05)`,
+        backdropFilter: "blur(6px)",
+        padding: `${padding}px`,
+        position: "relative",
+        overflow: "visible",
+      }}
+    >
+      <div 
+        style={{ 
+          width: "100%", 
+          height: "100%", 
+          display: "flex", 
+          alignItems: "center", 
+          justifyContent: "center",
+          color: "currentColor",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function renderIconNode(emoji: string, size: number, role?: SlotSymbolRole): ReactNode {
+  if (isTextSymbol(emoji)) {
+    return <NeonGlassBadge text={emoji} role={role} size={size} />;
+  }
+  const rawNode = getRawIconNode(emoji, size, role);
+  return (
+    <UnifiedGlassOrb emoji={emoji} role={role} size={size}>
+      {rawNode}
+    </UnifiedGlassOrb>
+  );
+}
+
+function getRawIconNode(emoji: string, size: number, role?: SlotSymbolRole): ReactNode {
   if (emoji === "❤️" || emoji === "💜" || emoji === "💙" || emoji === "💚" || emoji === "💛" || emoji === "🧡") {
     return <HeartVariantIcon kind={emoji} size={size} />;
   }
@@ -178,12 +307,98 @@ function renderIconNode(emoji: string, size: number): ReactNode {
   if (emoji === "🎈" || emoji === "🎀") return <PartyIcon kind={emoji} size={size} />;
   if (emoji === "♡" || emoji === "☆") return <Badge text={emoji === "♡" ? "H" : "S"} size={size} />;
 
-  // 数字スロット用シンボル（"1"〜"9"）は Badge でテキスト描画
-  if (/^[0-9]{1,2}$/.test(emoji)) {
-    return <Badge text={emoji} size={size} />;
+  // アルファベット、日本語、数字などのテキスト図柄の場合はプレミアムグラスネオンバッジを描画
+  if (isTextSymbol(emoji)) {
+    return <NeonGlassBadge text={emoji} role={role} size={size} />;
   }
 
   return <LucideByName name="Sparkles" size={size} />;
+}
+
+function isTextSymbol(emoji: string): boolean {
+  // 英数字、日本語文字（ひらがな・カタカナ・漢字）を含むか判定
+  return /[\w\d\u3040-\u30ff\u4e00-\u9faf]/.test(emoji);
+}
+
+function NeonGlassBadge({ text, role, size }: { text: string; role?: SlotSymbolRole; size: number }) {
+  let glowColor = "rgba(168, 85, 247, 0.45)"; // デフォルト：パープル
+  let textColor = "#f3e8ff";
+  let borderGrad = "linear-gradient(135deg, #a855f7, #6366f1)";
+  let bgGrad = "linear-gradient(135deg, rgba(24, 24, 27, 0.85), rgba(9, 9, 11, 0.95))";
+
+  if (role === "bonus") {
+    // ゴールド / アンバー発光
+    glowColor = "rgba(245, 158, 11, 0.65)";
+    textColor = "#fef3c7";
+    borderGrad = "linear-gradient(135deg, #fbbf24, #d97706)";
+    bgGrad = "linear-gradient(135deg, rgba(41, 37, 36, 0.9), rgba(28, 25, 23, 0.95))";
+  } else if (role === "replay") {
+    // ネオンパープル / ブルー発光
+    glowColor = "rgba(139, 92, 246, 0.65)";
+    textColor = "#ede9fe";
+    borderGrad = "linear-gradient(135deg, #c084fc, #6366f1)";
+    bgGrad = "linear-gradient(135deg, rgba(30, 27, 75, 0.9), rgba(15, 23, 42, 0.95))";
+  } else if (role === "small") {
+    // シャープなティール / シアン発光
+    glowColor = "rgba(20, 184, 166, 0.65)";
+    textColor = "#ccfbf1";
+    borderGrad = "linear-gradient(135deg, #2dd4bf, #0891b2)";
+    bgGrad = "linear-gradient(135deg, rgba(13, 31, 37, 0.9), rgba(8, 28, 36, 0.95))";
+  } else if (role === "chance") {
+    // 鮮やかなピンク / レッド発光
+    glowColor = "rgba(244, 63, 94, 0.65)";
+    textColor = "#ffe4e6";
+    borderGrad = "linear-gradient(135deg, #fda4af, #e11d48)";
+    bgGrad = "linear-gradient(135deg, rgba(67, 20, 30, 0.9), rgba(30, 10, 15, 0.95))";
+  }
+
+  // サイズに比例したレスポンシブなCSSデザイン
+  const badgeWidth = size * 2.8;
+  const badgeHeight = size * 1.3;
+  const borderRadius = size * 0.3;
+  const fontSize = size * 0.45;
+  const borderWidth = Math.max(1, size * 0.05);
+
+  const isBonus = role === "bonus";
+
+  return (
+    <div
+      className={isBonus ? "animate-gold-pulse animate-shimmer" : ""}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: `${badgeWidth}px`,
+        height: `${badgeHeight}px`,
+        background: isBonus 
+          ? "linear-gradient(90deg, rgba(41, 37, 36, 0.9), rgba(60, 48, 36, 0.95), rgba(41, 37, 36, 0.9))" 
+          : bgGrad,
+        borderRadius: `${borderRadius}px`,
+        border: `${borderWidth}px solid transparent`,
+        backgroundImage: isBonus 
+          ? "linear-gradient(90deg, rgba(41, 37, 36, 0.9), rgba(60, 48, 36, 0.95), rgba(41, 37, 36, 0.9)), " + borderGrad
+          : `${bgGrad}, ${borderGrad}`,
+        backgroundOrigin: "border-box",
+        backgroundClip: "padding-box, border-box",
+        boxShadow: isBonus 
+          ? undefined 
+          : `0 0 ${size * 0.5}px ${glowColor}, inset 0 0 ${size * 0.25}px rgba(255, 255, 255, 0.1)`,
+        color: textColor,
+        fontWeight: 900,
+        fontSize: `${fontSize}px`,
+        fontFamily: "'Outfit', 'Inter', sans-serif",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        textAlign: "center",
+        textShadow: `0 0 ${size * 0.2}px ${textColor}`,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      {text}
+    </div>
+  );
 }
 
 function HeartVariantIcon({ kind, size }: { kind: string; size: number }) {

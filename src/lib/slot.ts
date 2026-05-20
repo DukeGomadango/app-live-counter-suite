@@ -54,6 +54,8 @@ export interface SlotSettings {
   autoStopInitialDelay?: number;
   /** 2番目以降のストップ間隔 (ms) */
   autoStopInterval?: number;
+  /** 確率設定モード："reel-sequence" (手動リール配列) または "direct-percent" (ダイレクト確率設定) */
+  probabilityMode?: "reel-sequence" | "direct-percent";
 }
 
 /** 1ライン分の成立情報 */
@@ -113,6 +115,21 @@ export function createDefaultReelStrips(symbols: SlotSymbol[]): SlotSymbol[][] {
     [...strip],
     [...strip],
   ];
+}
+
+/** ダイレクト確率モード用：図柄マスタから各リールの配列を自動生成する。各リールで停止位置がバラけるよう少しずつ位置をずらす */
+export function autoGenerateReelStrips(master: SlotSymbol[], reelCount: number): string[][] {
+  const enabledIds = master.filter((s) => s.enabled !== false).map((s) => s.id);
+  if (enabledIds.length === 0) {
+    return Array(reelCount).fill([]);
+  }
+  const strips: string[][] = [];
+  for (let r = 0; r < reelCount; r++) {
+    const offset = (r * 2) % enabledIds.length;
+    const shifted = [...enabledIds.slice(offset), ...enabledIds.slice(0, offset)];
+    strips.push(shifted);
+  }
+  return strips;
 }
 
 /** 図柄 id の並びをマスタから解決して SlotSymbol[] を返す。マスタに無い id は先頭図柄で補う */
@@ -191,14 +208,34 @@ function buildTemplateSymbols(weights: number[]): SlotSymbol[] {
   }));
 }
 
+function buildNumbersTemplateSymbols(weights: number[]): SlotSymbol[] {
+  return [1, 2, 3, 4, 5, 6, 7].map((n, i) => ({
+    id: `num${n}`,
+    label: String(n),
+    weight: weights[i] ?? 1,
+    payoutMultiplier: 0,
+    role: "chance" as const,
+    enabled: true,
+  }));
+}
+
 /** 確率テンプレート一覧（標準・甘め・辛め・設定1・設定6）。甘め・設定6は約5倍当たりやすく調整 */
-export function getSlotProbabilityTemplates(): SlotProbabilityTemplate[] {
+export function getSlotProbabilityTemplates(isNumbersMode?: boolean): SlotProbabilityTemplate[] {
+  if (isNumbersMode) {
+    return [
+      { id: "standard", name: "ベーシック（標準）", symbols: buildNumbersTemplateSymbols([20, 20, 18, 15, 12, 10, 5]) },
+      { id: "sweet", name: "カジュアル（高頻度当選）", symbols: buildNumbersTemplateSymbols([10, 15, 15, 15, 15, 15, 15]) },
+      { id: "tight", name: "チャレンジ（一撃重視）", symbols: buildNumbersTemplateSymbols([25, 24, 20, 15, 10, 5, 1]) },
+      { id: "setting1", name: "激辛・地獄（リアル低設定）", symbols: buildNumbersTemplateSymbols([35, 30, 15, 10, 6, 3, 1]) },
+      { id: "setting6", name: "無双・天国（リアル最高設定）", symbols: buildNumbersTemplateSymbols([5, 10, 10, 15, 15, 20, 25]) },
+    ];
+  }
   return [
-    { id: "standard", name: "標準", symbols: buildTemplateSymbols([2, 8, 10, 15, 12, 53]) },
-    { id: "sweet", name: "甘め", symbols: buildTemplateSymbols([8, 20, 20, 28, 23, 1]) },
-    { id: "tight", name: "辛め", symbols: buildTemplateSymbols([1, 5, 6, 10, 8, 70]) },
-    { id: "setting1", name: "設定1", symbols: buildTemplateSymbols([1, 4, 6, 8, 6, 75]) },
-    { id: "setting6", name: "設定6", symbols: buildTemplateSymbols([10, 20, 20, 26, 24, 0]) },
+    { id: "standard", name: "ベーシック（標準）", symbols: buildTemplateSymbols([5, 11, 13, 18, 15, 38]) },
+    { id: "sweet", name: "カジュアル（高頻度当選）", symbols: buildTemplateSymbols([8, 20, 20, 28, 23, 1]) },
+    { id: "tight", name: "チャレンジ（一撃重視）", symbols: buildTemplateSymbols([1, 5, 6, 10, 8, 70]) },
+    { id: "setting1", name: "激辛・地獄（リアル低設定）", symbols: buildTemplateSymbols([1, 4, 6, 8, 6, 75]) },
+    { id: "setting6", name: "無双・天国（リアル最高設定）", symbols: buildTemplateSymbols([10, 20, 20, 26, 24, 0]) },
   ];
 }
 
@@ -314,6 +351,7 @@ export function createDefaultSettings(): SlotSettings {
     autoStopEnabled: false,
     autoStopInitialDelay: 1000,
     autoStopInterval: 600,
+    probabilityMode: "direct-percent",
   };
 }
 
@@ -468,17 +506,40 @@ export function calculateTheoreticalPayoutPercent(
   reelStrips: SlotSymbol[][],
   bet: number,
   paylines: number[][] = [[0, 0, 0]],
-  visibleRows: 1 | 3 = 1
+  visibleRows: 1 | 3 = 1,
+  probabilityMode: "reel-sequence" | "direct-percent" = "direct-percent",
+  symbolMaster?: SlotSymbol[]
 ): number {
-  if (reelStrips.length === 0 || bet <= 0) return 0;
+  if (bet <= 0) return 0;
+  const rows = visibleRows === 3 ? 3 : 1;
+  const reelCount = reelStrips.length || 3;
+  const normPaylines = paylines.length ? paylines : [Array(reelCount).fill(rows === 3 ? 1 : 0)];
+
+  if (probabilityMode === "direct-percent" && symbolMaster && symbolMaster.length > 0) {
+    const enabledSymbols = symbolMaster.filter((s) => s.enabled !== false);
+    if (enabledSymbols.length === 0) return 0;
+    const totalWeight = enabledSymbols.reduce((s, sym) => s + sym.weight, 0);
+    if (totalWeight <= 0) return 0;
+
+    let expectedPayout = 0;
+    for (const _ of normPaylines) {
+      for (const sym of enabledSymbols) {
+        let prob = 1;
+        for (let r = 0; r < reelCount; r++) {
+          prob *= sym.weight / totalWeight;
+        }
+        expectedPayout += prob * (bet * sym.payoutMultiplier);
+      }
+    }
+    return (expectedPayout / bet) * 100;
+  }
+
+  if (reelStrips.length === 0) return 0;
   const symbolIds = new Set<string>();
   for (const strip of reelStrips) {
     for (const s of strip) symbolIds.add(s.id);
   }
   let expectedPayout = 0;
-  const rows = visibleRows === 3 ? 3 : 1;
-  const normPaylines = paylines.length ? paylines : [Array(reelStrips.length).fill(rows === 3 ? 1 : 0)];
-
   for (const _ of normPaylines) {
     for (const sid of symbolIds) {
       let prob = 1;
@@ -511,6 +572,7 @@ export interface SlotSpinRecord {
   bonusTriggered: boolean;
   inBonus: boolean;
   ceilingTriggered?: boolean;
+  isNearMiss?: boolean;
   /** 成立した役のラベル（表示用・複数ライン対応） */
   winLabels: string[];
 }

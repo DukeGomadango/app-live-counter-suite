@@ -8,6 +8,7 @@ import type { SlotPlayer, SlotSpinRecord } from "@/lib/slot";
 interface SlotStatsPanelProps {
   players: SlotPlayer[];
   isLightMode: boolean;
+  onRunSimulation?: () => void;
 }
 
 function formatTime(ts: number): string {
@@ -18,6 +19,7 @@ function formatTime(ts: number): string {
 export default function SlotStatsPanel({
   players,
   isLightMode,
+  onRunSimulation,
 }: SlotStatsPanelProps) {
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const { glassBg, glassBorder } = useGlassStyle(isLightMode);
@@ -53,6 +55,19 @@ export default function SlotStatsPanel({
         backdropFilter: "blur(12px)",
       }}
     >
+      {onRunSimulation && (
+        <button
+          onClick={onRunSimulation}
+          className="w-full py-2.5 px-4 rounded-xl font-bold text-sm tracking-wide text-white transition-all hover:brightness-110 shadow-lg flex items-center justify-center gap-2 dango-btn-tier1 shrink-0 mb-1"
+          style={{
+            background: "linear-gradient(135deg, #a855f7, #7c3aed)",
+            "--btn-glow-color": "rgba(124,58,237,0.4)"
+          } as React.CSSProperties}
+        >
+          🎰 1万回高速シミュレーター起動
+        </button>
+      )}
+
       <div>
         <label className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}>
           表示するプレイヤー

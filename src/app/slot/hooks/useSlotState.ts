@@ -14,6 +14,7 @@ import {
   createDefaultPlayers,
   isReelStripsLegacyFormat,
   migrateReelStripsToSymbolMasterAndIds,
+  autoGenerateReelStrips,
 } from "@/lib/slot";
 
 const DEFAULT_SYMBOLS = createDefaultSymbols();
@@ -61,6 +62,7 @@ export function useSlotState() {
 
   // リール数とリール配列の同期
   useEffect(() => {
+    if (settings.probabilityMode === "direct-percent") return;
     if (lastReelCountRef.current === settings.reelCount) return;
     lastReelCountRef.current = settings.reelCount;
 
@@ -79,7 +81,16 @@ export function useSlotState() {
       // 過剰分をカット（データは保持したい気もするが、現状のロジックに合わせる）
       setReelStrips(reelStrips.slice(0, targetCount));
     }
-  }, [settings.reelCount, reelStrips, symbolMaster, setReelStrips]);
+  }, [settings.reelCount, settings.probabilityMode, reelStrips, symbolMaster, setReelStrips]);
+
+  // ダイレクト確率モード時のリール配列の自動同期処理
+  useEffect(() => {
+    if (settings.probabilityMode !== "direct-percent") return;
+    const generated = autoGenerateReelStrips(symbolMaster, settings.reelCount);
+    if (JSON.stringify(reelStrips) !== JSON.stringify(generated)) {
+      setReelStrips(generated);
+    }
+  }, [settings.probabilityMode, settings.reelCount, symbolMaster, reelStrips, setReelStrips]);
 
   // Migration effects
   useEffect(() => {

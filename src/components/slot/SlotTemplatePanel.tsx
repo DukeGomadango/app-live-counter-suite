@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { Trash2, Download, Save } from "lucide-react";
+import { motion } from "framer-motion";
+import { useToast } from "@/components/Toast";
 import {
   getSlotProbabilityTemplates,
   applyProbabilityTemplate,
@@ -24,7 +26,56 @@ interface SlotTemplatePanelProps {
   onApplyDefaultSymbolsPreset?: () => void;
   onDeleteTemplate?: (templateId: string) => void;
   onOverwriteTemplate?: (templateId: string, templateName: string) => void;
+  isInline?: boolean;
 }
+
+const TEMPLATE_METADATA: Record<
+  string,
+  { desc: string; icon: string; accentClass: string; activeAccentClass: string }
+> = {
+  equal: {
+    desc: "全図柄が偏りなく完全に均等な割合で出現します",
+    icon: "⚖️",
+    accentClass: "hover:border-teal-500/50 hover:bg-teal-500/5",
+    activeAccentClass:
+      "border-teal-500/80 bg-teal-500/10 text-teal-300 shadow-[0_0_12px_rgba(20,184,166,0.25)] border-solid font-bold",
+  },
+  standard: {
+    desc: "現実のスロットに近い、適度な当たりやすさとハズレのバランス",
+    icon: "🎰",
+    accentClass: "hover:border-blue-500/50 hover:bg-blue-500/5",
+    activeAccentClass:
+      "border-blue-500/80 bg-blue-500/10 text-blue-300 shadow-[0_0_12px_rgba(59,130,246,0.25)] border-solid font-bold",
+  },
+  sweet: {
+    desc: "ハズレが非常に少なく、サクサク当たる爽快仕様",
+    icon: "🍬",
+    accentClass: "hover:border-emerald-500/50 hover:bg-emerald-500/5",
+    activeAccentClass:
+      "border-emerald-500/80 bg-emerald-500/10 text-emerald-300 shadow-[0_0_12px_rgba(16,185,129,0.25)] border-solid font-bold",
+  },
+  tight: {
+    desc: "ハズレが多く、当たった時の喜びが大きいヒリヒリ仕様",
+    icon: "🌵",
+    accentClass: "hover:border-amber-500/50 hover:bg-amber-500/5",
+    activeAccentClass:
+      "border-amber-500/80 bg-amber-500/10 text-amber-300 shadow-[0_0_12px_rgba(245,158,11,0.25)] border-solid font-bold",
+  },
+  setting1: {
+    desc: "現実の厳しい洗礼を体験する、ハズレ75%の修行モード",
+    icon: "💀",
+    accentClass: "hover:border-red-500/50 hover:bg-red-500/5",
+    activeAccentClass:
+      "border-red-500/80 bg-red-500/10 text-red-300 shadow-[0_0_12px_rgba(239,68,68,0.25)] border-solid font-bold",
+  },
+  setting6: {
+    desc: "ハズレ図柄0%！ボーナスと小役が吹き荒れる超無双状態",
+    icon: "👑",
+    accentClass: "hover:border-purple-500/50 hover:bg-purple-500/5",
+    activeAccentClass:
+      "border-purple-500/80 bg-purple-500/10 text-purple-300 shadow-[0_0_12px_rgba(168,85,247,0.25)] border-solid font-bold",
+  },
+};
 
 export default function SlotTemplatePanel({
   symbolMaster,
@@ -37,22 +88,56 @@ export default function SlotTemplatePanel({
   onApplyDefaultSymbolsPreset,
   onDeleteTemplate,
   onOverwriteTemplate,
+  isInline = false,
 }: SlotTemplatePanelProps) {
   const [templateName, setTemplateName] = useState("");
   const { glassBg, glassBorder } = useGlassStyle(isLightMode);
+  const { showToast } = useToast();
+
   const textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
   const textSecondary = isLightMode ? "text-gray-600" : "text-white/70";
   const inputBg = isLightMode ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)";
   const inputBorder = isLightMode ? "rgba(0,0,0,0.1)" : "rgba(255,255,255,0.1)";
 
+  // 有効なシンボルのみを抽出
+  const enabledCurrent = symbolMaster.filter((s) => s.enabled !== false);
+
+  // 数字スロットモードか否かを判定（numで始まるIDがあるか）
+  const isNumbersMode = symbolMaster.some((s) => s.id.startsWith("num"));
+
+  // 現在の設定が「均等」かどうか判定（誤差0.15%以内）
+  const isEqualWeightsActive = () => {
+    if (enabledCurrent.length === 0) return false;
+    const weights = enabledCurrent.map((s) => s.weight);
+    const maxWeight = Math.max(...weights);
+    const minWeight = Math.min(...weights);
+    return maxWeight - minWeight <= 0.15;
+  };
+
+  // 各確率テンプレートと一致しているか判定
+  const isTemplateActive = (tplSymbols: SlotSymbol[]) => {
+    if (enabledCurrent.length !== tplSymbols.length) return false;
+
+    const tplWeightMap = new Map(tplSymbols.map((s) => [s.id, s.weight]));
+    return enabledCurrent.every((s) => {
+      const tplWeight = tplWeightMap.get(s.id);
+      if (tplWeight === undefined) return false;
+      return Math.abs(s.weight - tplWeight) < 0.05;
+    });
+  };
+
   return (
     <div
-      className="flex flex-col gap-4 rounded-2xl p-4 h-full overflow-y-auto"
-      style={{
-        background: glassBg,
-        border: `1px solid ${glassBorder}`,
-        backdropFilter: "blur(12px)",
-      }}
+      className={isInline ? "flex flex-col gap-4" : "flex flex-col gap-4 rounded-2xl p-4 h-full overflow-y-auto"}
+      style={
+        isInline
+          ? undefined
+          : {
+              background: glassBg,
+              border: `1px solid ${glassBorder}`,
+              backdropFilter: "blur(12px)",
+            }
+      }
     >
       {(onApplyNumbers17Preset || onApplyDefaultSymbolsPreset) && (
         <div>
@@ -66,77 +151,128 @@ export default function SlotTemplatePanel({
           </p>
           <div className="flex flex-col gap-2">
             {onApplyNumbers17Preset && (
-              <button
+              <motion.button
                 type="button"
-                onClick={onApplyNumbers17Preset}
-                className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition ${
+                whileTap={{ scale: 0.97 }}
+                onClick={() => {
+                  onApplyNumbers17Preset();
+                  showToast("1〜7 数字スロットプリセットを適用しました 🔢", "success");
+                }}
+                className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition border flex items-center justify-center gap-2 ${
                   isLightMode
-                    ? "bg-black/5 text-gray-700 border border-black/10 hover:bg-black/10"
-                    : "bg-white/10 text-white/80 border border-white/10 hover:bg-white/15"
+                    ? "bg-black/5 text-gray-700 border-black/10 hover:bg-black/10 hover:border-black/20"
+                    : "bg-white/10 text-white/80 border-white/10 hover:bg-white/15 hover:border-white/20"
                 }`}
                 title="1〜7の数字のみ・等確率・当たりなしのスロットに変更"
               >
-                1〜7 数字スロット
-              </button>
+                🔢 1〜7 数字スロット
+              </motion.button>
             )}
             {onApplyDefaultSymbolsPreset && (
-              <button
+              <motion.button
                 type="button"
-                onClick={onApplyDefaultSymbolsPreset}
-                className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition ${
+                whileTap={{ scale: 0.97 }}
+                onClick={() => {
+                  onApplyDefaultSymbolsPreset();
+                  showToast(
+                    isNumbersMode
+                      ? "デフォルト図柄モードに切り替えました 🎰"
+                      : "デフォルト図柄にリセットしました 🎰",
+                    "success"
+                  );
+                }}
+                className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition border flex items-center justify-center gap-2 ${
                   isLightMode
-                    ? "bg-black/5 text-gray-700 border border-black/10 hover:bg-black/10"
-                    : "bg-white/10 text-white/80 border border-white/10 hover:bg-white/15"
+                    ? "bg-black/5 text-gray-700 border-black/10 hover:bg-black/10 hover:border-black/20"
+                    : "bg-white/10 text-white/80 border-white/10 hover:bg-white/15 hover:border-white/20"
                 }`}
-                title="7・BAR・スイカ等の図柄モードに戻す"
+                title={
+                  isNumbersMode
+                    ? "7・BAR・スイカ等の図柄モードに戻す"
+                    : "図柄とリール配列をデフォルトの初期状態に戻す"
+                }
               >
-                図柄モードに戻す（7・BAR・スイカ…）
-              </button>
+                {isNumbersMode ? "🔄 図柄モードに戻す（7・BAR・スイカ…）" : "🔄 デフォルト図柄にリセット"}
+              </motion.button>
             )}
           </div>
         </div>
       )}
+
       <div>
         <label
           className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}
         >
           標準テンプレート（確率）
         </label>
-        <p className={`text-[10px] ${textSecondary} mb-2`}>
-          図柄マスタの確率だけを一括で差し替えます（id が一致する図柄のみ）。「均等」で全図柄を等確率にします。
+        <p className={`text-[10px] ${textSecondary} mb-2.5`}>
+          図柄マスタの確率を一括で調整します（南京錠ロックは自動解除されます）。
         </p>
-        <div className="flex flex-wrap gap-2 mb-2">
-          <button
-            type="button"
-            onClick={() => onSymbolMasterChange(applyEqualWeights(symbolMaster))}
-            className={`min-w-0 px-3 py-2 rounded-lg text-sm font-medium transition ${
-              isLightMode
-                ? "bg-black/5 text-gray-700 border border-black/10 hover:bg-black/10"
-                : "bg-white/10 text-white/80 border border-white/10 hover:bg-white/15"
-            }`}
-            title="全図柄の確率を等倍（均等）にする"
-          >
-            均等
-          </button>
-          {getSlotProbabilityTemplates().map((tpl) => (
-            <button
-              key={tpl.id}
-              type="button"
-              onClick={() =>
-                onSymbolMasterChange(
-                  applyProbabilityTemplate(symbolMaster, tpl.symbols)
-                )
-              }
-              className={`min-w-0 px-3 py-2 rounded-lg text-sm font-medium transition ${
-                isLightMode
-                  ? "bg-black/5 text-gray-700 border border-black/10 hover:bg-black/10"
-                  : "bg-white/10 text-white/80 border border-white/10 hover:bg-white/15"
-              }`}
-              title={`${tpl.name}の確率配分を図柄マスタに適用`}
-            >
-              {tpl.name}
-            </button>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
+          {/* 均等確率ボタン */}
+          {(() => {
+            const isActive = isEqualWeightsActive();
+            const meta = TEMPLATE_METADATA.equal!;
+            return (
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.96 }}
+                onClick={() => {
+                  onSymbolMasterChange(applyEqualWeights(symbolMaster));
+                  showToast("等確率（フラット）を適用しました ⚖️", "success");
+                }}
+                className={`flex flex-col items-start p-2.5 rounded-xl border transition-all text-left w-full ${
+                  isActive
+                    ? meta.activeAccentClass
+                    : isLightMode
+                    ? "bg-black/5 text-gray-800 border-black/10 hover:bg-black/10 hover:border-black/20"
+                    : "bg-white/5 text-white/90 border-white/10 hover:bg-white/10 hover:border-white/20"
+                } ${meta.accentClass}`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm">
+                  <span>{meta.icon}</span>
+                  <span>フラット（等確率）</span>
+                </div>
+                <span className="text-[10px] opacity-75 mt-1 leading-tight">{meta.desc}</span>
+              </motion.button>
+            );
+          })()}
+
+          {/* 各確率テンプレートボタン */}
+          {getSlotProbabilityTemplates(isNumbersMode).map((tpl) => {
+            const isActive = isTemplateActive(tpl.symbols);
+            const meta = TEMPLATE_METADATA[tpl.id] || {
+              desc: `${tpl.name}の確率配分を図柄マスタに適用`,
+              icon: "🎲",
+              accentClass: "hover:border-teal-500/50 hover:bg-teal-500/5",
+              activeAccentClass:
+                "border-teal-500/80 bg-teal-500/10 text-teal-300 shadow-[0_0_12px_rgba(20,184,166,0.25)] border-solid font-bold",
+            };
+            return (
+              <motion.button
+                key={tpl.id}
+                type="button"
+                whileTap={{ scale: 0.96 }}
+                onClick={() => {
+                  onSymbolMasterChange(applyProbabilityTemplate(symbolMaster, tpl.symbols));
+                  showToast(`確率テンプレート「${tpl.name}」を適用しました ${meta.icon}`, "success");
+                }}
+                className={`flex flex-col items-start p-2.5 rounded-xl border transition-all text-left w-full ${
+                  isActive
+                    ? meta.activeAccentClass
+                    : isLightMode
+                    ? "bg-black/5 text-gray-800 border-black/10 hover:bg-black/10 hover:border-black/20"
+                    : "bg-white/5 text-white/90 border-white/10 hover:bg-white/10 hover:border-white/20"
+                } ${meta.accentClass}`}
+              >
+                <div className="flex items-center gap-1.5 font-bold text-xs sm:text-sm">
+                  <span>{meta.icon}</span>
+                  <span>{tpl.name}</span>
+                </div>
+                <span className="text-[10px] opacity-75 mt-1 leading-tight">{meta.desc}</span>
+              </motion.button>
+            );
+          })}
         </div>
       </div>
 
@@ -158,11 +294,13 @@ export default function SlotTemplatePanel({
             className={`flex-1 min-w-[8rem] px-2 py-1.5 rounded text-sm ${textPrimary}`}
             style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
           />
-          <button
+          <motion.button
             type="button"
+            whileTap={templateName.trim() ? { scale: 0.95 } : undefined}
             onClick={() => {
               if (templateName.trim()) {
                 onSaveTemplate(templateName.trim());
+                showToast(`テンプレート「${templateName.trim()}」を新規保存しました 💾`, "success");
                 setTemplateName("");
               }
             }}
@@ -173,12 +311,12 @@ export default function SlotTemplatePanel({
                   ? "bg-teal-500 text-white hover:bg-teal-600 shadow-sm"
                   : "bg-teal-500/30 text-teal-300 hover:bg-teal-500/40"
                 : isLightMode
-                  ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
-                  : "bg-white/5 text-white/40 cursor-not-allowed"
+                ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                : "bg-white/5 text-white/40 cursor-not-allowed"
             }`}
           >
             保存
-          </button>
+          </motion.button>
         </div>
       </div>
 
@@ -204,9 +342,13 @@ export default function SlotTemplatePanel({
                   {t.reelCount}リール・天井{t.ceilingSpins || "—"}
                 </span>
                 <div className="flex items-center gap-1 shrink-0">
-                  <button
+                  <motion.button
                     type="button"
-                    onClick={() => onLoadTemplate(t.id)}
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                      onLoadTemplate(t.id);
+                      showToast(`テンプレート「${t.name}」を読み込みました 💾`, "success");
+                    }}
                     className={`p-1.5 rounded transition-colors ${
                       isLightMode
                         ? "text-teal-600 hover:bg-teal-50"
@@ -215,11 +357,15 @@ export default function SlotTemplatePanel({
                     title="読み込み"
                   >
                     <Download size={16} />
-                  </button>
+                  </motion.button>
                   {onOverwriteTemplate && (
-                    <button
+                    <motion.button
                       type="button"
-                      onClick={() => onOverwriteTemplate(t.id, t.name)}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => {
+                        onOverwriteTemplate(t.id, t.name);
+                        showToast(`テンプレート「${t.name}」を上書き保存しました 💾`, "success");
+                      }}
                       className={`p-1.5 rounded transition-colors ${
                         isLightMode
                           ? "text-amber-600 hover:bg-amber-50"
@@ -228,19 +374,25 @@ export default function SlotTemplatePanel({
                       title="現在の設定で上書き保存"
                     >
                       <Save size={16} />
-                    </button>
+                    </motion.button>
                   )}
                   {onDeleteTemplate && (
-                    <button
+                    <motion.button
                       type="button"
-                      onClick={() => onDeleteTemplate(t.id)}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => {
+                        onDeleteTemplate(t.id);
+                        showToast(`テンプレート「${t.name}」を削除しました 🗑️`, "success");
+                      }}
                       className={`p-1.5 rounded transition-colors ${
-                        isLightMode ? "text-red-600 hover:bg-red-50" : "text-red-400 hover:bg-red-500/20"
+                        isLightMode
+                          ? "text-red-600 hover:bg-red-50"
+                          : "text-red-400 hover:bg-red-500/20"
                       }`}
                       title="削除"
                     >
                       <Trash2 size={16} />
-                    </button>
+                    </motion.button>
                   )}
                 </div>
               </div>

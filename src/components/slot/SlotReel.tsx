@@ -128,7 +128,7 @@ export default function SlotReel({
       className={`flex items-center justify-center shrink-0 font-bold text-xl ${isLightMode ? "text-gray-900" : "text-white"}`}
       style={{ height: CELL_HEIGHT }}
     >
-      <EmojiGlyph emoji={s.label} size={26} />
+      <EmojiGlyph emoji={s.label} role={s.role} size={26} />
     </div>
   ));
 

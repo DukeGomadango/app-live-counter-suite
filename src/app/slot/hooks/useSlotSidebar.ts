@@ -5,7 +5,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 
 export function useSlotSidebar() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [sidebarTab, setSidebarTab] = useState<"reel" | "players" | "templates" | "stats">("reel");
+  const [sidebarTab, setSidebarTab] = useState<"reel" | "rules" | "players" | "stats">("reel");
   const [sidebarWidthPx, setSidebarWidthPx] = useLocalStorage<number>("slot-sidebar-width", 320);
   const [playerHistoryViewId, setPlayerHistoryViewId] = useState<string | null>(null);
 
