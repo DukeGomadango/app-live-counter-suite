@@ -16,17 +16,18 @@ Vitest の `test.projects` 分割は、テスト規模がさらに増えた段�
 
 ## CI（GitHub Actions）
 
-[.github/workflows/ci.yml](../.github/workflows/ci.yml) は **並列ジョブ**です。
+[.github/workflows/ci.yml](../.github/workflows/ci.yml) は **2 並列ジョブ**（`frontend` と `worker`）です。同一 PR の古い run は `concurrency` でキャンセルされます。
 
-| ジョブ | 呼ぶスクリプト |
-|--------|----------------|
-| `lint` | `npm run lint` |
-| `audit` | `npm audit --audit-level=high` |
-| `unit` | `npm run test:unit:coverage` |
-| `e2e` | `npx playwright install chromium --with-deps` のあと `npm run test:e2e`（`webServer` は `build` + `start:static`＝`node scripts/serve-out.mjs` で `out/` を配信） |
+| ジョブ | 内容 |
+|--------|------|
+| `frontend` | ルートで `npm ci` 1 回 → `lint` → `audit` → `test:unit:coverage` → `build` → Playwright ブラウザ導入 → `test:e2e`（`PLAYWRIGHT_PREBUILT=true` のため E2E は `out/` を `start:static` のみで配信。ビルドの二重実行なし） |
 | `worker` | `my-worker` で `npm ci` と `npx vitest run` |
 
-`e2e` が失敗したとき、`test-results/` と `playwright-report/` を artifact `playwright-output` としてアップロードします（7 日保持）。
+キャッシュ: `.next/cache` と `~/.cache/ms-playwright`（キーは `package-lock.json` のハッシュ）。
+
+`frontend` の E2E が失敗したとき、`test-results/` と `playwright-report/` を artifact `playwright-output` としてアップロードします（7 日保持）。
+
+ローカルの `npm run test:e2e` は従来どおり `webServer` が `build` + `start:static` です。CI と同じくビルド済み `out/` だけで試す場合は `PLAYWRIGHT_PREBUILT=true npm run test:e2e` を使えます。
 
 ## 何を担保しているか
 

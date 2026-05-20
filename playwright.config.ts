@@ -14,8 +14,12 @@ export default defineConfig({
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   // output: "export" のため next start は使えない。ビルド成果物 out を scripts/serve-out.mjs で配信する（拡張子なし URL → *.html）。
+  // CI では直前に build 済みの out/ を使う（PLAYWRIGHT_PREBUILT）。ローカルは従来どおり build から起動。
   webServer: {
-    command: "npm run build && npm run start:static",
+    command:
+      process.env.PLAYWRIGHT_PREBUILT === "true"
+        ? "npm run start:static"
+        : "npm run build && npm run start:static",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 180000,
