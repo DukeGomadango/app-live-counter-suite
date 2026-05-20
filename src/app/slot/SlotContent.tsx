@@ -356,6 +356,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
         {resolvedStrips.map((strip, i) => (
           <SlotReel
             key={i}
+            reelIndex={i}
             symbols={strip}
             isSpinning={engine.isSpinning}
             stoppedIndex={engine.reelResults[i] ?? null}

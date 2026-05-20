@@ -12,7 +12,7 @@ for (const pathname of ["/privacy-policy", "/terms"] as const) {
     await page.goto(pathname, { waitUntil: "load", timeout: 60000 });
     await expect(page.locator("main")).toBeVisible();
 
-    const results = await new AxeBuilder({ page }).analyze();
+    const results = await new AxeBuilder({ page: page as any }).analyze();
     const serious = results.violations.filter((v) => v.impact === "critical" || v.impact === "serious");
     expect(
       serious,

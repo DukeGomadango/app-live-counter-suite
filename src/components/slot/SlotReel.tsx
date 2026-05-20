@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, useMotionValue, useTransform, animate } from "framer-motion";
 import type { SlotSymbol } from "@/lib/slot";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
@@ -15,6 +15,114 @@ const MIN_COAST_PX = 80; // 止まる前に最低この分は進んでから減�
 const STOP_DURATION_MIN = 0.25;
 const STOP_DURATION_MAX = 2.2;
 
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mediaQuery.matches);
+    const listener = (e: MediaQueryListEvent) => setReduced(e.matches);
+    mediaQuery.addEventListener("change", listener);
+    return () => mediaQuery.removeEventListener("change", listener);
+  }, []);
+  return reduced;
+}
+
+interface ReelCellProps {
+  symbol: SlotSymbol;
+  index: number;
+  y: any; // MotionValue<number>
+  stripLen: number;
+  visibleRows: 1 | 3;
+  isLightMode: boolean;
+  reducedMotion: boolean;
+}
+
+function ReelCell({
+  symbol,
+  index,
+  y,
+  stripLen,
+  visibleRows,
+  isLightMode,
+  reducedMotion,
+}: ReelCellProps) {
+  const offsetFromCenter = useTransform(y, (latestY: number) => {
+    // ダブル y軸反転 (scaleY(-1)) が適用されているため、物理的なスクロール方向と座標系が反転しています。
+    // 物理的なビューポート内のセルのY座標を計算し、ビューポート中心からの距離を求めます。
+    const windowHeight = CELL_HEIGHT * visibleRows;
+    const viewportCenter = visibleRows === 3 ? CELL_HEIGHT : 0;
+    
+    // 物理位置の計算式：親と孫に scaleY(-1) が適用されたレイアウト下でのセルの物理Y位置
+    const visualY = index * CELL_HEIGHT + latestY - (2 * stripLen - windowHeight);
+    
+    let diff = visualY - viewportCenter;
+    
+    // 図柄ループの全長 (stripLen) を基準として、[-stripLen / 2, stripLen / 2] の範囲に diff を丸め込みます。
+    // これにより、スロット図柄数が少ない場合や、スクロール中であっても、常に正しい不透明度と3D湾曲が得られます。
+    diff = ((diff + stripLen / 2) % stripLen + stripLen) % stripLen - stripLen / 2;
+    
+    return diff;
+  });
+
+  // 立体ドラムロール用の 3D 変形（角度、スケール、奥行き、透明度）
+  const rotateX = useTransform(
+    offsetFromCenter,
+    [-CELL_HEIGHT * 1.5, -CELL_HEIGHT, 0, CELL_HEIGHT, CELL_HEIGHT * 1.5],
+    [30, 20, 0, -20, -30]
+  );
+
+  const scale = useTransform(
+    offsetFromCenter,
+    [-CELL_HEIGHT * 1.5, -CELL_HEIGHT, 0, CELL_HEIGHT, CELL_HEIGHT * 1.5],
+    [0.85, 0.92, 1, 0.92, 0.85]
+  );
+
+  const translateZ = useTransform(
+    offsetFromCenter,
+    [-CELL_HEIGHT * 1.5, -CELL_HEIGHT, 0, CELL_HEIGHT, CELL_HEIGHT * 1.5],
+    [-20, -10, 0, -10, -20]
+  );
+
+  const opacity = useTransform(
+    offsetFromCenter,
+    [-CELL_HEIGHT * 2, -CELL_HEIGHT * 1.5, -CELL_HEIGHT, 0, CELL_HEIGHT, CELL_HEIGHT * 1.5, CELL_HEIGHT * 2],
+    [0, 0.4, 0.8, 1, 0.8, 0.4, 0]
+  );
+
+  // アクセシビリティまたは1段表示時のフォールバック（シンプルな透明度グラデーションのみ）
+  const style = reducedMotion || visibleRows === 1
+    ? {
+        height: CELL_HEIGHT,
+        opacity: visibleRows === 3 
+          ? useTransform(
+              offsetFromCenter,
+              [-CELL_HEIGHT * 1.5, -CELL_HEIGHT, 0, CELL_HEIGHT, CELL_HEIGHT * 1.5],
+              [0.4, 0.8, 1, 0.8, 0.4]
+            )
+          : 1,
+      }
+    : {
+        height: CELL_HEIGHT,
+        rotateX,
+        scale,
+        translateZ,
+        opacity,
+        transformStyle: "preserve-3d" as const,
+      };
+
+  return (
+    <motion.div
+      className={`flex items-center justify-center shrink-0 font-bold text-xl ${
+        isLightMode ? "text-gray-900" : "text-white"
+      }`}
+      style={style}
+    >
+      <EmojiGlyph emoji={symbol.label} role={symbol.role} size={26} />
+    </motion.div>
+  );
+}
+
 interface SlotReelProps {
   symbols: SlotSymbol[];
   isSpinning: boolean;
@@ -28,6 +136,7 @@ interface SlotReelProps {
   /** 表示行数（1＝1段、3＝3段） */
   visibleRows?: 1 | 3;
   isTurboMode?: boolean;
+  reelIndex?: number;
 }
 
 export default function SlotReel({
@@ -41,6 +150,7 @@ export default function SlotReel({
   isReach = false,
   visibleRows = 1,
   isTurboMode = false,
+  reelIndex,
 }: SlotReelProps) {
   const y = useMotionValue(0);
   const displayY = useTransform(y, (v) => -v);
@@ -51,6 +161,7 @@ export default function SlotReel({
   const lastTimeRef = useRef<number>(0);
   const animateStopRef = useRef<ReturnType<typeof animate> | null>(null);
   const currentSpinSpeed = isTurboMode ? SPIN_SPEED * 3 : SPIN_SPEED;
+  const reducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
     if (symbols.length === 0) return;
@@ -123,14 +234,24 @@ export default function SlotReel({
   }
 
   const stripContent = [...symbols, ...symbols].map((s, i) => (
-    <div
+    <ReelCell
       key={`${s.id}-${i}`}
-      className={`flex items-center justify-center shrink-0 font-bold text-xl ${isLightMode ? "text-gray-900" : "text-white"}`}
-      style={{ height: CELL_HEIGHT }}
-    >
-      <EmojiGlyph emoji={s.label} role={s.role} size={26} />
-    </div>
+      symbol={s}
+      index={i}
+      y={y}
+      stripLen={stripLen}
+      visibleRows={rows}
+      isLightMode={isLightMode}
+      reducedMotion={reducedMotion}
+    />
   ));
+
+  // スクリーンリーダー向け動的ステータスアナウンス
+  const statusText = isSpinning
+    ? `${reelIndex !== undefined ? `第${reelIndex + 1}` : "リール"}回転中`
+    : stoppedIndex !== null && symbols[stoppedIndex]
+      ? `${reelIndex !== undefined ? `第${reelIndex + 1}` : "リール"}停止: ${symbols[stoppedIndex].label}`
+      : `${reelIndex !== undefined ? `第${reelIndex + 1}` : "リール"}待機中`;
 
   return (
     <div className="flex flex-col items-center gap-2">
@@ -138,33 +259,53 @@ export default function SlotReel({
         <span className="text-xs font-bold text-amber-400 animate-pulse">REACH</span>
       )}
       <div
+        role="status"
+        aria-label={statusText}
+        aria-live="polite"
+        aria-busy={isSpinning}
         className="relative overflow-hidden rounded-xl border-2 transition-colors"
         style={{
           height: windowHeight,
           width: 80,
-          boxShadow: "inset 0 8px 16px -8px rgba(0,0,0,0.4), inset 0 -8px 16px -8px rgba(0,0,0,0.4)",
           borderColor: isReach ? accentColor : canStop ? "rgb(251 191 36)" : isLightMode ? "rgb(229 231 235)" : "rgba(255,255,255,0.2)",
           background: isLightMode ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.2)",
+          perspective: "800px",
+          transformStyle: "preserve-3d",
         }}
       >
-        <div style={{ transform: "scaleY(-1)", height: "100%", minHeight: windowHeight }}>
+        <div style={{ transform: "scaleY(-1)", height: "100%", minHeight: windowHeight, transformStyle: "preserve-3d" }}>
           <motion.div
             className="flex flex-col items-center justify-center w-full"
             style={{
               y: displayY,
               width: 80,
+              transformStyle: "preserve-3d",
             }}
           >
-            <div style={{ transform: "scaleY(-1)" }}>
+            <div style={{ transform: "scaleY(-1)", transformStyle: "preserve-3d" }}>
               {stripContent}
             </div>
           </motion.div>
         </div>
+
+        {/* 立体的な影（3Dシリンダー感を極限まで高めるグラデーションオーバーレイ） */}
+        <div
+          className="absolute inset-0 pointer-events-none rounded-lg"
+          style={{
+            background: isLightMode
+              ? "linear-gradient(to bottom, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0) 22%, rgba(255,255,255,0) 78%, rgba(255,255,255,0.85) 100%)"
+              : "linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0) 22%, rgba(0,0,0,0) 78%, rgba(0,0,0,0.8) 100%)",
+            boxShadow: isLightMode
+              ? "inset 0 4px 8px rgba(0,0,0,0.03), inset 0 -4px 8px rgba(0,0,0,0.03)"
+              : "inset 0 8px 16px rgba(0,0,0,0.65), inset 0 -8px 16px rgba(0,0,0,0.65)",
+          }}
+        />
       </div>
       <button
         type="button"
         disabled={!canStop}
         onClick={onStop}
+        aria-label={reelIndex !== undefined ? `第${reelIndex + 1}リールを停止` : "リールを停止"}
         className={`w-full max-w-[80px] px-4 py-2 rounded-lg text-sm font-medium transition ${
           canStop
             ? "bg-amber-500 text-white hover:bg-amber-600"
