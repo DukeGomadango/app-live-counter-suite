@@ -1,7 +1,6 @@
  "use client";
 
-import { motion } from "framer-motion";
-import { X, Users } from "lucide-react";
+import { Users } from "lucide-react";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { type SlotSettings } from "@/lib/slot";
 
@@ -91,6 +90,38 @@ export default function SlotSettingsPanel({
         <p className={`text-xs ${textSecondary} mt-0.5`}>
           {settings.orbIntensity}%
         </p>
+      </div>
+
+      <div className="pt-2">
+        <label
+          className={`text-xs font-bold uppercase tracking-wider ${textSecondary} block mb-2`}
+        >
+          表示サイズ（ズーム）
+        </label>
+        <div className={`flex rounded-lg p-1 ${isLightMode ? "bg-black/5" : "bg-white/5"}`}>
+          {[
+            { label: "小", value: 0.8 },
+            { label: "中", value: 1.0 },
+            { label: "大", value: 1.25 },
+            { label: "特大", value: 1.5 },
+          ].map((size) => {
+            const isActive = (settings.zoomLevel ?? 1.0) === size.value;
+            return (
+              <button
+                key={size.label}
+                type="button"
+                onClick={() => onSettingsChange({ ...settings, zoomLevel: size.value })}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-all ${
+                  isActive
+                    ? isLightMode ? "bg-white shadow-sm text-gray-900" : "bg-white/20 shadow-sm text-white"
+                    : `${textSecondary} hover:bg-black/5 dark:hover:bg-white/10`
+                }`}
+              >
+                {size.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

@@ -56,6 +56,8 @@ export interface SlotSettings {
   autoStopInterval?: number;
   /** 確率設定モード："reel-sequence" (手動リール配列) または "direct-percent" (ダイレクト確率設定) */
   probabilityMode?: "reel-sequence" | "direct-percent";
+  /** 表示サイズ（ズーム倍率）。1.0が標準 */
+  zoomLevel?: number;
 }
 
 /** 1ライン分の成立情報 */
@@ -352,6 +354,7 @@ export function createDefaultSettings(): SlotSettings {
     autoStopInitialDelay: 1000,
     autoStopInterval: 600,
     probabilityMode: "direct-percent",
+    zoomLevel: 1.0,
   };
 }
 

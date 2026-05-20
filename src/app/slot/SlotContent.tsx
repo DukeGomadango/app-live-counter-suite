@@ -352,22 +352,34 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
 
   const gameArea = (
     <div className="flex-1 flex flex-col items-center justify-center p-4 relative overflow-hidden">
-      <div className="mb-8 w-full max-w-4xl flex justify-center gap-4 slot-reel-container">
-        {resolvedStrips.map((strip, i) => (
-          <SlotReel
-            key={i}
-            reelIndex={i}
-            symbols={strip}
-            isSpinning={engine.isSpinning}
-            stoppedIndex={engine.reelResults[i] ?? null}
-            onStop={() => engine.handleStop(i)}
-            canStop={engine.canStop(i)}
-            accentColor={accentColor}
-            isLightMode={isLightMode}
-            visibleRows={settings.visibleRows}
-            isTurboMode={engine.isTurboMode}
-          />
-        ))}
+      <div 
+        className="mb-8 w-full max-w-4xl flex justify-center items-center transition-all duration-300"
+        style={{ minHeight: (settings.visibleRows === 3 ? 168 : 56) * (settings.zoomLevel ?? 1.0) }}
+      >
+        <div 
+          className="flex justify-center gap-4 slot-reel-container"
+          style={{
+            transform: `scale(${settings.zoomLevel ?? 1.0})`,
+            transformOrigin: 'center center',
+            transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+          }}
+        >
+          {resolvedStrips.map((strip, i) => (
+            <SlotReel
+              key={i}
+              reelIndex={i}
+              symbols={strip}
+              isSpinning={engine.isSpinning}
+              stoppedIndex={engine.reelResults[i] ?? null}
+              onStop={() => engine.handleStop(i)}
+              canStop={engine.canStop(i)}
+              accentColor={accentColor}
+              isLightMode={isLightMode}
+              visibleRows={settings.visibleRows}
+              isTurboMode={engine.isTurboMode}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="flex flex-col items-center gap-4 w-full max-w-sm">
