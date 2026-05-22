@@ -23,7 +23,7 @@ export function useGachaState() {
   const [players, setPlayers] = useLocalStorage<Player[]>("gacha-players", []);
   const [activePlayerId, setActivePlayerId] = useLocalStorage<string | null>("gacha-active-player", null);
   const [integrationConfig, setIntegrationConfig] = useLocalStorage<IntegrationConfig>("gacha-integration-config", {
-    apiBaseUrl: typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://share.dango.tools',
+    apiBaseUrl: typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://share.dango.tools',
     integrationToken: "",
   });
   const [latestResults, setLatestResults] = useState<GachaResult[] | null>(null);
@@ -34,6 +34,19 @@ export function useGachaState() {
   useEffect(() => {
     setPool(prev => migratePoolItemsForLink(prev));
   }, [setPool]);
+
+  // 動的オリジン注入: クエリパラメータ api_base_url を検知して連携先URLを自動更新
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const u = new URL(window.location.href);
+    const apiUrl = u.searchParams.get("api_base_url");
+    if (apiUrl) {
+      setIntegrationConfig(prev => ({ ...prev, apiBaseUrl: apiUrl }));
+      // リロード時の再上書きを防ぐためパラメータをクレンジング
+      u.searchParams.delete("api_base_url");
+      window.history.replaceState({}, "", u.pathname + u.search);
+    }
+  }, [setIntegrationConfig]);
 
   // OAuth連携のコールバック処理
   useEffect(() => {
