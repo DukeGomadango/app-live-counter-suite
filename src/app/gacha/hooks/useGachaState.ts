@@ -42,11 +42,20 @@ export function useGachaState() {
     if (typeof window === 'undefined') return;
     const u = new URL(window.location.href);
     const token = u.searchParams.get("integration_token");
+    const state = u.searchParams.get("state");
     if (token) {
       setIntegrationConfig(prev => ({ ...prev, integrationToken: token }));
       u.searchParams.delete("integration_token");
       u.searchParams.delete("state");
-      window.history.replaceState({}, "", u.toString());
+      
+      let redirectUrl = u.pathname;
+      if (state && state.startsWith("?")) {
+        redirectUrl += state;
+      } else {
+        redirectUrl += u.search;
+      }
+      
+      window.history.replaceState({}, "", redirectUrl);
     }
   }, [setIntegrationConfig]);
 

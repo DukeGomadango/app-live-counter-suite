@@ -123,6 +123,9 @@ export default function GachaDistributionPanel({
         const u = new URL(`${integrationConfig.apiBaseUrl}/settings/integrations/authorize`);
         u.searchParams.set("client_id", "dango-tools-gacha");
         u.searchParams.set("redirect_uri", window.location.origin + window.location.pathname);
+        if (typeof window !== "undefined" && window.location.search) {
+            u.searchParams.set("state", window.location.search);
+        }
         window.location.href = u.toString();
     };
 

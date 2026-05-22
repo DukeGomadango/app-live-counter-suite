@@ -422,3 +422,34 @@ export async function createExternalCampaign(
     }
     return res.json() as Promise<ExternalCampaign>;
 }
+
+// ========== ガチャ設定の同期保存 ==========
+
+/**
+ * 連携先キャンペーンのガチャ構成とアセットのレア度マッピングを一括更新（同期）する。
+ */
+export async function saveExternalGachaConfig(
+    campaignId: string,
+    payload: {
+        gachaConfig: {
+            rarities: { id: string; name: string; probability: number; color: string }[];
+        };
+        assetRarityMappings: { assetId: string; gachaRarityId: string | null }[];
+    },
+    config: IntegrationConfig
+): Promise<{ ok: boolean }> {
+    const res = await fetch(
+        `${config.apiBaseUrl}/api/v1/external/campaigns/${encodeURIComponent(campaignId)}/gacha-config`,
+        {
+            method: "PUT",
+            headers: authHeaders(config),
+            body: JSON.stringify(payload),
+        }
+    );
+    if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || `ガチャ設定の同期に失敗しました (HTTP ${res.status})`);
+    }
+    return res.json() as Promise<{ ok: boolean }>;
+}
+

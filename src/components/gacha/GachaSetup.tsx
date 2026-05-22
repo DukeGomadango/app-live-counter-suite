@@ -18,7 +18,7 @@ import {
     LayoutGrid,
     Coins,
     } from "lucide-react";
-import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
+import type { GachaPool, GachaItem, RarityTier, IntegrationConfig } from "@/lib/gacha";
 import { generateId, getRarityProbabilities, getGlobalProbabilities, distributePercentagesProportionally } from "@/lib/gacha";
 import {
     DndContext,
@@ -42,6 +42,8 @@ import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { useConfirm } from "@/context/ConfirmContext";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
 import GachaBulkSetupModal from "@/components/gacha/GachaBulkSetupModal";
+import { useToast } from "@/components/Toast";
+import { saveExternalGachaConfig } from "@/lib/gachaDistribution";
 
 interface GachaSetupProps {
     pool: GachaPool;
@@ -49,6 +51,7 @@ interface GachaSetupProps {
     isLightMode: boolean;
     /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
     textContrastLight?: boolean;
+    integrationConfig?: IntegrationConfig;
 }
 
 function SectionHeader({
@@ -92,7 +95,7 @@ function SectionHeader({
     );
 }
 
-export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false }: GachaSetupProps) {
+export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false, integrationConfig }: GachaSetupProps) {
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
@@ -100,6 +103,39 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editName, setEditName] = useState("");
     const { confirm } = useConfirm();
+    const { showToast } = useToast();
+
+    const syncGachaConfigToExternal = useCallback(async (updatedItems: GachaItem[], updatedRarities: RarityTier[]) => {
+        if (!pool.linkedCampaignId || !integrationConfig?.integrationToken) return;
+
+        try {
+            const payload = {
+                gachaConfig: {
+                    rarities: updatedRarities.map(r => ({
+                        id: r.id,
+                        name: r.name,
+                        probability: r.defaultWeight ?? 0,
+                        color: r.color
+                    }))
+                },
+                assetRarityMappings: updatedItems
+                    .filter(it => !!it.linkedAssetId)
+                    .map(it => ({
+                        assetId: it.linkedAssetId!,
+                        gachaRarityId: it.rarityId || null
+                    }))
+            };
+
+            const res = await saveExternalGachaConfig(pool.linkedCampaignId, payload, integrationConfig);
+            if (res.ok) {
+                showToast("確率設定をシェアリンクに保存・同期しました", "success");
+            }
+        } catch (e) {
+            const err = e as Error;
+            console.error("Failed to sync gacha config to Share Link:", err);
+            showToast(err.message || "シェアリンクとの同期に失敗しました", "error");
+        }
+    }, [pool.linkedCampaignId, integrationConfig, showToast]);
     const [pullCountInput, setPullCountInput] = useState<string | null>(null);
     const [pityThresholdInput, setPityThresholdInput] = useState<string | null>(null);
     const [rarityProbInputs, setRarityProbInputs] = useState<Record<string, string>>({});
@@ -157,6 +193,22 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
             }
         }, 0);
         return () => clearTimeout(id);
+    }, []);
+
+    // Detect open_bulk_modal=true in URL and automatically trigger the bulk modal
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const u = new URL(window.location.href);
+        if (u.searchParams.get("open_bulk_modal") === "true") {
+            const timer = setTimeout(() => {
+                setShowBulkModal(true);
+            }, 0);
+            
+            // Clean up parameter to avoid opening modal on reload
+            u.searchParams.delete("open_bulk_modal");
+            window.history.replaceState({}, "", u.pathname + u.search);
+            return () => clearTimeout(timer);
+        }
     }, []);
 
 
@@ -934,6 +986,8 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                     onPoolChange({ ...pool, items: updatedItems, rarities: updatedRarities, pullPrice: updatedPullPrice });
                     // アイテムが変わったのでロック状態をリセット
                     setLockedItemIds(new Set());
+                    // Sync to external campaign
+                    void syncGachaConfigToExternal(updatedItems, updatedRarities);
                 }}
             />
         </div>
