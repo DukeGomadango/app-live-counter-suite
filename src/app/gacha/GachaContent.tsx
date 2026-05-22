@@ -53,10 +53,9 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         integrationConfig, setIntegrationConfig,
         latestResults, setLatestResults,
         gachaSettings, setGachaSettings,
-        isInitializing
     } = useGachaState();
     const { isLightMode, toggleTheme } = useTheme();
-    const [isAuthChecking, setIsAuthChecking] = useState(true);
+    const [isAuthChecking, setIsAuthChecking] = useState(false);
     /** リンクシェア deep link: 同期完了後に一括設定モーダルを開く（effect 再実行で同期しないよう ref） */
     const pendingBulkModalRef = useRef(false);
     const [openBulkModal, setOpenBulkModal] = useState(false);
@@ -165,7 +164,6 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
 
     // Detect campaign_id in URL, handle auto-authorization, and auto-sync campaign ID & assets
     useEffect(() => {
-        if (isInitializing) return; // Wait until all useLocalStorage settings have loaded from localStorage
         if (typeof window === 'undefined') return;
         const u = new URL(window.location.href);
         const campaignId = u.searchParams.get("campaign_id");
@@ -272,7 +270,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             setOpenBulkModal(true);
             pendingBulkModalRef.current = false;
         }
-    }, [isInitializing, setSidebarTab, setMobileTab, isSplitMode, setSidebarOpen, isIntegrationEnabled, integrationConfig.integrationToken, integrationConfig.apiBaseUrl, pool.linkedCampaignId, setPool]);
+    }, [setSidebarTab, setMobileTab, isSplitMode, setSidebarOpen, isIntegrationEnabled, integrationConfig.integrationToken, integrationConfig.apiBaseUrl, pool.linkedCampaignId, setPool]);
 
     const activePlayer = useMemo(() => 
         visiblePlayers.find(p => p.id === activePlayerId)
@@ -361,11 +359,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         }
     }, [isIntegrationEnabled, handleSetShowSettingsPanel]);
 
-    if (typeof window !== 'undefined') {
-        console.log("[GachaContent Debug] rendering. isInitializing:", isInitializing, "isAuthChecking:", isAuthChecking);
-    }
-
-    if (isAuthChecking || isInitializing) {
+    if (isAuthChecking) {
         return (
             <div className="flex items-center justify-center min-h-[50vh] text-gray-500 dark:text-white/60">
                 読み込み中…

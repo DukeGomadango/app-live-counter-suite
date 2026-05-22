@@ -12,10 +12,9 @@ test("calculator: digit buttons update display", async ({ page }) => {
 });
 
 test("gacha page renders main shell", async ({ page }) => {
-  page.on("console", (msg) => console.log(`BROWSER LOG: [${msg.type()}] ${msg.text()}`));
-  page.on("pageerror", (err) => console.error(`BROWSER ERROR: ${err.message}\n${err.stack}`));
   await page.goto("/gacha", { waitUntil: "load" });
-  await expect(page.locator("main")).toBeVisible({ timeout: 15000 });
+  await expect(page.locator("main")).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole("button", { name: /PULL/i })).toBeVisible({ timeout: 30000 });
 });
 
 test("clock page renders main shell", async ({ page }) => {

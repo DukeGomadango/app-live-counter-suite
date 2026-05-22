@@ -29,20 +29,11 @@ export function useGachaState() {
   const [latestResults, setLatestResults] = useState<GachaResult[] | null>(null);
   const [gachaSettings, setGachaSettings] = useLocalStorage<GachaSettings>("gacha-settings", DEFAULT_SETTINGS);
   const [hasMigrated, setHasMigrated] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
 
   // 旧品目形式（link）を imageUrl に移すマイグレーション（初回のみ）
   useEffect(() => {
     setPool(prev => migratePoolItemsForLink(prev));
   }, [setPool]);
-
-  // ローカルストレージの読み込み完了を待機する初期化制御
-  useEffect(() => {
-    const id = setTimeout(() => {
-      setIsInitializing(false);
-    }, 0);
-    return () => clearTimeout(id);
-  }, []);
 
   // 動的オリジン注入 & OAuth連携コールバックの統合処理
   useEffect(() => {
@@ -167,6 +158,5 @@ export function useGachaState() {
     latestResults, setLatestResults,
     gachaSettings, setGachaSettings,
     hasMigrated, setHasMigrated,
-    isInitializing
   };
 }
