@@ -49,6 +49,11 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         gachaSettings, setGachaSettings,
     } = useGachaState();
     const { isLightMode, toggleTheme } = useTheme();
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
 
     const {
         mobileTab, setMobileTab,
@@ -99,6 +104,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
 
     // Detect campaign_id in URL, handle auto-authorization, and auto-sync campaign ID
     useEffect(() => {
+        if (!isMounted) return;
         if (typeof window === 'undefined') return;
         const u = new URL(window.location.href);
         const campaignId = u.searchParams.get("campaign_id");
@@ -125,7 +131,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                 setSidebarOpen(true);
             }
         }
-    }, [setSidebarTab, setMobileTab, isSplitMode, setSidebarOpen, isIntegrationEnabled, integrationConfig, pool.linkedCampaignId, setPool]);
+    }, [isMounted, setSidebarTab, setMobileTab, isSplitMode, setSidebarOpen, isIntegrationEnabled, integrationConfig, pool.linkedCampaignId, setPool]);
 
     const activePlayer = useMemo(() => 
         players.find(p => p.id === activePlayerId)
