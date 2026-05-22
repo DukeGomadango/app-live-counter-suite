@@ -13,7 +13,7 @@ import {
     FiSearch,
     FiLink2
 } from "react-icons/fi";
-import { fetchExternalCampaigns, createExternalCampaign, type ExternalCampaign, issueClaimForPlayer, type ExternalAsset, fetchExternalAssets, uploadAssetAndRegister, fetchExternalGachaConfig } from "@/lib/gachaDistribution";
+import { fetchExternalCampaigns, createExternalCampaign, type ExternalCampaign, issueClaimForPlayer, type ExternalAsset, fetchExternalAssets, uploadAssetAndRegister, fetchExternalGachaConfig, resolveExternalGachaItemDisplayName, resolveExternalAssetDisplayName } from "@/lib/gachaDistribution";
 import type { GachaPool, IntegrationConfig, GachaItem, Player, RarityTier } from "@/lib/gacha";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/components/Toast";
@@ -114,7 +114,15 @@ export default function GachaDistributionPanel({
     useEffect(() => {
         if (!integrationConfig.integrationToken) return;
         void loadData();
-    }, [integrationConfig.integrationToken, loadData]);
+    }, [integrationConfig.integrationToken, pool.linkedCampaignId, loadData]);
+
+    useEffect(() => {
+        const newMapping: Record<string, string> = {};
+        pool.items.forEach(it => {
+            if (it.linkedAssetId) newMapping[it.id] = it.linkedAssetId;
+        });
+        setMapping(newMapping);
+    }, [pool.items]);
 
     const handleOAuthLogin = () => {
         const u = new URL(`${integrationConfig.apiBaseUrl}/settings/integrations/authorize`);
@@ -220,7 +228,7 @@ export default function GachaDistributionPanel({
             // 2. アイテムの同期
             const newItems: GachaItem[] = config.items.map(item => ({
                 id: item.id, // AssetID をそのまま ItemID に
-                name: item.label || "無題のアイテム",
+                name: resolveExternalGachaItemDisplayName(item),
                 rarityId: item.rarityId || newRarities[newRarities.length - 1]!.id,
                 weight: 100, // レア度内確率は等倍(100)で初期化
                 linkedAssetId: item.id
@@ -238,6 +246,13 @@ export default function GachaDistributionPanel({
                 if (it.linkedAssetId) newMapping[it.id] = it.linkedAssetId;
             });
             setMapping(newMapping);
+
+            try {
+                const asts = await fetchExternalAssets(pool.linkedCampaignId, integrationConfig);
+                setAssets(asts);
+            } catch {
+                /* loadData と同等の失敗は toast 済み */
+            }
             
             showToast("Link Share からガチャ構成とアセットを同期しました", "success");
         } catch (e) {
@@ -353,6 +368,18 @@ export default function GachaDistributionPanel({
 
             {/* Main Table Area */}
             <div className="flex-1 overflow-auto p-6">
+                {pool.linkedCampaignId && (
+                    <div
+                        className={`mb-4 p-4 rounded-2xl text-sm leading-relaxed border ${isLightMode ? "bg-amber-50 border-amber-200 text-amber-950" : "bg-amber-500/10 border-amber-500/25 text-amber-50"}`}
+                    >
+                        <p className="font-bold mb-1">受取人の扱い（推奨）</p>
+                        <p className={isLightMode ? "text-amber-900/90" : "text-amber-50/90"}>
+                            同一人物はリンクシェアの<strong>受取人名簿</strong>で管理し、キャンペーンには名簿から追加してください。
+                            ガチャで自動作成された枠と重なった場合は、管理画面で<strong>マージ</strong>します。
+                            プレイヤーごとに名簿を紐づけると二重枠を減らせます（プレイヤー一覧の配布アイコン）。
+                        </p>
+                    </div>
+                )}
                 {!pool.linkedCampaignId ? (
                     <div className="flex flex-col items-center justify-center h-full text-center opacity-60">
                         <FiSearch className="w-12 h-12 mb-4" />
@@ -416,7 +443,7 @@ export default function GachaDistributionPanel({
                                             >
                                                 <option value="">（未設定）</option>
                                                 {assets.map(asset => (
-                                                    <option key={asset.id} value={asset.id}>{asset.label}</option>
+                                                    <option key={asset.id} value={asset.id}>{resolveExternalAssetDisplayName(asset)}</option>
                                                 ))}
                                             </select>
                                         </td>

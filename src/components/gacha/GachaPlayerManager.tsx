@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import { UserPlus, Trash2, RotateCcw, ChevronRight, User, Link, Pencil, Check, Gift } from "lucide-react";
 import type { Player, GachaPool } from "@/lib/gacha";
+import type { RecipientSlotLinkStatus } from "@/lib/gachaDistribution";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { useConfirm } from "@/context/ConfirmContext";
@@ -26,6 +27,9 @@ interface GachaPlayerManagerProps {
     shareHashtags?: string;
     integrationConfig?: import("@/lib/gacha").IntegrationConfig;
     onUpdatePlayers?: (updater: (prev: Player[]) => Player[]) => void;
+    linkStatuses?: Record<string, RecipientSlotLinkStatus>;
+    onLinkedRecipientChange?: (playerId: string, recipientId: string | null) => void;
+    onResyncPlayer?: (playerId: string) => void;
 }
 
 export default function GachaPlayerManager({
@@ -44,6 +48,9 @@ export default function GachaPlayerManager({
     shareHashtags: _shareHashtags = DEFAULT_EXTRA_HASHTAG,
     integrationConfig,
     onUpdatePlayers: _onUpdatePlayers,
+    linkStatuses = {},
+    onLinkedRecipientChange,
+    onResyncPlayer,
 }: GachaPlayerManagerProps) {
     const [newPlayerName, setNewPlayerName] = useState("");
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
@@ -255,12 +262,20 @@ export default function GachaPlayerManager({
                                         )}
                                         {(() => {
                                             const st = player.poolStates?.[pool.id] || { totalPulls: 0, pityCounter: 0, pityReachCount: 0 };
+                                            const linkSt = linkStatuses[player.id];
                                             return (
-                                                <p className={`text-[10px] ${textMuted}`}>
-                                                    {st.totalPulls.toLocaleString()}連
-                                                    {pool.pityEnabled && ` • 天井: ${st.pityCounter}/${pool.pityThreshold}`}
-                                                    {pool.pityEnabled && (st.pityReachCount ?? 0) > 0 && ` • 到達${st.pityReachCount}回`}
-                                                </p>
+                                                <>
+                                                    <p className={`text-[10px] ${textMuted}`}>
+                                                        {st.totalPulls.toLocaleString()}連
+                                                        {pool.pityEnabled && ` • 天井: ${st.pityCounter}/${pool.pityThreshold}`}
+                                                        {pool.pityEnabled && (st.pityReachCount ?? 0) > 0 && ` • 到達${st.pityReachCount}回`}
+                                                    </p>
+                                                    {linkSt === "missing" && (
+                                                        <p className="text-[10px] text-amber-600 dark:text-amber-400">
+                                                            リンクシェア側で配布枠なし（名簿から追加後にマージを確認）
+                                                        </p>
+                                                    )}
+                                                </>
                                             );
                                         })()}
                                     </div>
@@ -273,7 +288,18 @@ export default function GachaPlayerManager({
                                             title="配布状況・管理画面"
                                         >
                                             {integrationConfig?.integrationToken && pool.linkedCampaignId ? (
-                                                <Gift size={12} className={player.issuedClaimUrl && player.issuedCampaignId === pool.linkedCampaignId ? "text-green-500" : ""} />
+                                                <Gift
+                                                    size={12}
+                                                    className={
+                                                        linkStatuses[player.id] === "missing"
+                                                            ? "text-amber-500"
+                                                            : player.issuedClaimUrl &&
+                                                                player.issuedCampaignId === pool.linkedCampaignId &&
+                                                                linkStatuses[player.id] === "linked"
+                                                              ? "text-green-500"
+                                                              : ""
+                                                    }
+                                                />
                                             ) : (
                                                 <Link size={12} />
                                             )}
@@ -331,6 +357,15 @@ export default function GachaPlayerManager({
                         pool={pool}
                         isLightMode={isLightMode}
                         integrationConfig={integrationConfig}
+                        linkStatus={linkStatuses[player.id]}
+                        onLinkedRecipientChange={
+                            onLinkedRecipientChange
+                                ? (recipientId) => onLinkedRecipientChange(player.id, recipientId)
+                                : undefined
+                        }
+                        onResync={
+                            onResyncPlayer ? () => onResyncPlayer(player.id) : undefined
+                        }
                         onClose={() => setLinkCollectionPlayerId(null)}
                     />
                 );

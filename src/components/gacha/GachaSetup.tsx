@@ -52,6 +52,9 @@ interface GachaSetupProps {
     /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
     textContrastLight?: boolean;
     integrationConfig?: IntegrationConfig;
+    /** 親が同期完了後に一括設定モーダルを開く */
+    openBulkModal?: boolean;
+    onBulkModalOpened?: () => void;
 }
 
 function SectionHeader({
@@ -95,7 +98,7 @@ function SectionHeader({
     );
 }
 
-export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false, integrationConfig }: GachaSetupProps) {
+export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false, integrationConfig, openBulkModal = false, onBulkModalOpened }: GachaSetupProps) {
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
@@ -195,21 +198,15 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         return () => clearTimeout(id);
     }, []);
 
-    // Detect open_bulk_modal=true in URL and automatically trigger the bulk modal
+    // リンクシェア deep link: 同期完了後に親から openBulkModal が立つ
     useEffect(() => {
-        if (typeof window === 'undefined') return;
-        const u = new URL(window.location.href);
-        if (u.searchParams.get("open_bulk_modal") === "true") {
-            const timer = setTimeout(() => {
-                setShowBulkModal(true);
-            }, 0);
-            
-            // Clean up parameter to avoid opening modal on reload
-            u.searchParams.delete("open_bulk_modal");
-            window.history.replaceState({}, "", u.pathname + u.search);
-            return () => clearTimeout(timer);
-        }
-    }, []);
+        if (!openBulkModal) return;
+        const id = setTimeout(() => {
+            setShowBulkModal(true);
+            onBulkModalOpened?.();
+        }, 0);
+        return () => clearTimeout(id);
+    }, [openBulkModal, onBulkModalOpened]);
 
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);

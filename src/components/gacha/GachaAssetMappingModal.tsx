@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
     fetchCampaignAssets, 
     uploadAssetAndRegister, 
+    resolveExternalAssetDisplayName,
     type ExternalAsset 
 } from "@/lib/gachaDistribution";
 import type { GachaPool, IntegrationConfig, GachaItem } from "@/lib/gacha";
@@ -258,7 +259,7 @@ export default function GachaAssetMappingModal({
                                                         >
                                                             <option value="">（未設定）</option>
                                                             {assets.map(asset => (
-                                                                <option key={asset.id} value={asset.id}>{asset.label}</option>
+                                                                <option key={asset.id} value={asset.id}>{resolveExternalAssetDisplayName(asset)}</option>
                                                             ))}
                                                         </select>
                                                     </td>

@@ -16,7 +16,7 @@ import { type MobileTab } from "./useGachaSidebar";
 interface GachaEngineProps {
   pool: GachaPool;
   players: Player[];
-  setPlayers: (p: Player[]) => void;
+  setPlayers: (p: Player[] | ((prev: Player[]) => Player[])) => void;
   activePlayerId: string | null;
   setActivePlayerId: (id: string | null) => void;
   integrationConfig: IntegrationConfig;
@@ -43,18 +43,30 @@ export function useGachaEngine({
 
   const syncPlayerWithRemote = useCallback(async (player: Player) => {
     if (!pool.linkedCampaignId || !integrationConfig.integrationToken) return;
-    
+
     try {
       const result = await issueClaimForPlayer(player, pool, integrationConfig);
       if (result.ok && result.claim_url) {
-        setPlayers((players || []).map(p => 
-          p.id === player.id ? { ...p, issuedClaimUrl: result.claim_url, issuedCampaignId: pool.linkedCampaignId } : p
-        ));
+        const campaignId = pool.linkedCampaignId;
+        setPlayers((prev) =>
+          prev.map((p) =>
+            p.id === player.id
+              ? {
+                  ...p,
+                  issuedClaimUrl: result.claim_url,
+                  issuedCampaignId: campaignId ?? p.issuedCampaignId,
+                  ...(result.recipient_id
+                    ? { linkedRecipientId: result.recipient_id }
+                    : {}),
+                }
+              : p
+          )
+        );
       }
     } catch (e) {
       console.error("Failed to sync player with remote:", e);
     }
-  }, [pool, integrationConfig, setPlayers, players]);
+  }, [pool, integrationConfig, setPlayers]);
 
   const handleRoll = useCallback(() => {
     if (pool.items.length === 0) return;
@@ -88,10 +100,15 @@ export function useGachaEngine({
 
     // プレイヤー更新
     if (currentPlayer) {
-      setPlayers((players || []).map(p => p.id === updatedPlayer.id ? updatedPlayer : p));
+      setPlayers((prev) => prev.map((p) => (p.id === updatedPlayer.id ? updatedPlayer : p)));
     } else {
-      setPlayers([...(players || []), updatedPlayer]);
-      setActivePlayerId(updatedPlayer.id);
+      const guest = pool.linkedCampaignId
+        ? { ...updatedPlayer, issuedCampaignId: pool.linkedCampaignId }
+        : updatedPlayer;
+      setPlayers((prev) => [...prev, guest]);
+      setActivePlayerId(guest.id);
+      syncPlayerWithRemote(guest);
+      return;
     }
 
     syncPlayerWithRemote(updatedPlayer);
@@ -106,50 +123,69 @@ export function useGachaEngine({
   }, [isMobile, setMobileTab]);
 
   const addPlayer = useCallback((name: string) => {
-    const newPlayer = createDefaultPlayer(name);
-    setPlayers([...(players || []), newPlayer]);
+    const newPlayer = {
+      ...createDefaultPlayer(name),
+      ...(pool.linkedCampaignId ? { issuedCampaignId: pool.linkedCampaignId } : {}),
+    };
+    setPlayers((prev) => [...prev, newPlayer]);
     setActivePlayerId(newPlayer.id);
     syncPlayerWithRemote(newPlayer);
-  }, [players, setPlayers, setActivePlayerId, syncPlayerWithRemote]);
+  }, [pool.linkedCampaignId, setPlayers, setActivePlayerId, syncPlayerWithRemote]);
 
   const removePlayer = useCallback((id: string) => {
     deleteExternalSlot(id, pool, integrationConfig);
-    setPlayers((players || []).filter(p => p.id !== id));
+    setPlayers((prev) => prev.filter((p) => p.id !== id));
     if (activePlayerId === id) {
       setActivePlayerId(null);
     }
-  }, [players, setPlayers, activePlayerId, setActivePlayerId, pool, integrationConfig]);
+  }, [activePlayerId, setPlayers, setActivePlayerId, pool, integrationConfig]);
 
   const resetPlayer = useCallback((id: string) => {
-    setPlayers((players || []).map(p => {
-      if (p.id !== id) return p;
-      return {
-        ...p,
-        results: [],
-        runHistory: (p.runHistory || []).filter(r => r.poolId !== pool.id),
-        poolStates: {
-          ...(p.poolStates || {}),
-          [pool.id]: { totalPulls: 0, pityCounter: 0, pityReachCount: 0, inventory: {} }
-        }
-      };
-    }));
-  }, [players, setPlayers, pool.id]);
+    setPlayers((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        return {
+          ...p,
+          results: [],
+          runHistory: (p.runHistory || []).filter((r) => r.poolId !== pool.id),
+          poolStates: {
+            ...(p.poolStates || {}),
+            [pool.id]: { totalPulls: 0, pityCounter: 0, pityReachCount: 0, inventory: {} },
+          },
+        };
+      })
+    );
+  }, [setPlayers, pool.id]);
 
   const resetAllPlayers = useCallback(() => {
-    setPlayers((players || []).map(p => ({
-      ...p,
-      results: [],
-      runHistory: (p.runHistory || []).filter(r => r.poolId !== pool.id),
-      poolStates: {
-        ...(p.poolStates || {}),
-        [pool.id]: { totalPulls: 0, pityCounter: 0, pityReachCount: 0, inventory: {} }
-      }
-    })));
-  }, [players, setPlayers, pool.id]);
+    setPlayers((prev) =>
+      prev.map((p) => ({
+        ...p,
+        results: [],
+        runHistory: (p.runHistory || []).filter((r) => r.poolId !== pool.id),
+        poolStates: {
+          ...(p.poolStates || {}),
+          [pool.id]: { totalPulls: 0, pityCounter: 0, pityReachCount: 0, inventory: {} },
+        },
+      }))
+    );
+  }, [setPlayers, pool.id]);
 
-  const renamePlayer = useCallback((id: string, newName: string) => {
-    setPlayers((players || []).map(p => p.id === id ? { ...p, name: newName } : p));
-  }, [players, setPlayers]);
+  const renamePlayer = useCallback(
+    (id: string, newName: string) => {
+      setPlayers((prev) => {
+        const next = prev.map((p) => (p.id === id ? { ...p, name: newName } : p));
+        const updated = next.find((p) => p.id === id);
+        if (updated) {
+          queueMicrotask(() => {
+            void syncPlayerWithRemote(updated);
+          });
+        }
+        return next;
+      });
+    },
+    [setPlayers, syncPlayerWithRemote]
+  );
 
   return {
     isRolling,

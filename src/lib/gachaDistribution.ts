@@ -20,8 +20,35 @@ export interface ExternalCampaign {
 export interface ExternalAsset {
     id: string;
     label: string | null;
+    /** 連携 API が解決済みで返す表示名（label / ライブラリ名のフォールバック後） */
+    displayName?: string | null;
     asset_url: string | null;
     gachaRarityId?: string | null;
+}
+
+const EXTERNAL_ASSET_UNTITLED = "無題のアイテム";
+
+/** 外部アセットの表示名（displayName 優先、後方互換で label） */
+export function resolveExternalAssetDisplayName(
+    asset: Pick<ExternalAsset, "displayName" | "label">
+): string {
+    const dn = asset.displayName?.trim();
+    if (dn) return dn;
+    const lb = asset.label?.trim();
+    if (lb) return lb;
+    return EXTERNAL_ASSET_UNTITLED;
+}
+
+/** gacha-config items の表示名 */
+export function resolveExternalGachaItemDisplayName(item: {
+    displayName?: string | null;
+    label?: string | null;
+}): string {
+    const dn = item.displayName?.trim();
+    if (dn) return dn;
+    const lb = item.label?.trim();
+    if (lb) return lb;
+    return EXTERNAL_ASSET_UNTITLED;
 }
 
 /** ガチャ構成情報のレスポンス */
@@ -38,7 +65,8 @@ export interface ExternalGachaConfigResponse {
     } | null;
     items: {
         id: string;
-        label: string;
+        label: string | null;
+        displayName?: string | null;
         rarityId: string | null;
     }[];
 }
@@ -49,9 +77,24 @@ export interface RecipientSlotResult {
     claim_url?: string;
     claim_id?: string;
     slot_id?: string;
+    recipient_id?: string | null;
     external_transaction_id?: string;
     error?: string;
     message?: string;
+}
+
+export interface ExternalRegistryRecipient {
+    id: string;
+    name: string;
+}
+
+export type RecipientSlotLinkStatus = "linked" | "missing" | "none";
+
+export interface RecipientSlotStatusResult {
+    ok: boolean;
+    linked: boolean;
+    claim_url?: string;
+    recipient_id?: string | null;
 }
 
 // ========== API ヘルパー ==========
@@ -62,6 +105,57 @@ function authHeaders(config: IntegrationConfig): HeadersInit {
         "Content-Type": "application/json",
         Authorization: `Bearer ${config.integrationToken}`,
     };
+}
+
+// ========== 受取人名簿 ==========
+
+/** ワークスペースの受取人名簿（最小フィールド） */
+export async function fetchExternalRecipients(
+    config: IntegrationConfig
+): Promise<ExternalRegistryRecipient[]> {
+    if (!config.integrationToken) return [];
+    try {
+        const res = await fetch(`${config.apiBaseUrl}/api/v1/external/recipients`, {
+            headers: authHeaders(config),
+        });
+        if (!res.ok) return [];
+        const data = (await res.json()) as { recipients?: ExternalRegistryRecipient[] };
+        return data.recipients ?? [];
+    } catch {
+        return [];
+    }
+}
+
+/** 冪等キーでリンクシェア側の Claim がまだあるか確認 */
+export async function fetchRecipientSlotStatus(
+    campaignId: string,
+    externalTransactionId: string,
+    config: IntegrationConfig
+): Promise<RecipientSlotStatusResult> {
+    if (!config.integrationToken) {
+        return { ok: false, linked: false };
+    }
+    try {
+        const url = new URL(
+            `${config.apiBaseUrl}/api/v1/external/campaigns/${encodeURIComponent(campaignId)}/recipient-slots`
+        );
+        url.searchParams.set("external_transaction_id", externalTransactionId);
+        const res = await fetch(url.toString(), { headers: authHeaders(config) });
+        const data = (await res.json().catch(() => ({}))) as RecipientSlotStatusResult & {
+            error?: string;
+        };
+        if (!res.ok) {
+            return { ok: false, linked: false };
+        }
+        return {
+            ok: true,
+            linked: !!data.linked,
+            claim_url: data.claim_url,
+            recipient_id: data.recipient_id,
+        };
+    } catch {
+        return { ok: false, linked: false };
+    }
 }
 
 // ========== 連携テスト ==========
@@ -248,6 +342,11 @@ export async function uploadAssetAndRegister(
 
 // ========== 受取人スロット（Claim URL）発行 ==========
 
+/** プレイヤー×ガチャプールの冪等キー（リンクシェアの external_transaction_id） */
+export function buildGachaPlayerExternalTransactionId(poolId: string, playerId: string): string {
+    return `gacha-${poolId}-player-${playerId}`;
+}
+
 /**
  * プレイヤーの配布URLを発行する。
  *
@@ -270,8 +369,7 @@ export async function issueClaimForPlayer(
         return { ok: false, error: "連携が設定されていません" };
     }
 
-    // 冪等性キー: 同じプレイヤー×同じガチャプールなら同じURLを返す
-    const externalTxId = `gacha-${pool.id}-player-${player.id}`;
+    const externalTxId = buildGachaPlayerExternalTransactionId(pool.id, player.id);
 
     // 当選アイテム（インベントリ）から配布対象のアセットIDを抽出（重複排除）
     const hasAnyMapping = pool.items.some(it => !!it.linkedAssetId);
@@ -321,6 +419,9 @@ export async function issueClaimForPlayer(
                     listener_display_name: player.name,
                     external_transaction_id: externalTxId,
                     campaign_asset_ids: assetIds,
+                    ...(player.linkedRecipientId
+                        ? { recipient_id: player.linkedRecipientId }
+                        : {}),
                 }),
             }
         );
@@ -340,6 +441,7 @@ export async function issueClaimForPlayer(
             claim_url: data.claim_url,
             claim_id: data.claim_id,
             slot_id: data.slot_id,
+            recipient_id: data.recipient_id ?? player.linkedRecipientId,
             external_transaction_id: data.external_transaction_id,
         };
     } catch (e) {
@@ -361,7 +463,7 @@ export async function deleteExternalSlot(
     const campaignId = pool.linkedCampaignId;
     if (!campaignId || !config.integrationToken) return false;
 
-    const externalTxId = `gacha-${pool.id}-player-${playerId}`;
+    const externalTxId = buildGachaPlayerExternalTransactionId(pool.id, playerId);
 
     try {
         const res = await fetch(

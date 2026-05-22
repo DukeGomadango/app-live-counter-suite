@@ -161,6 +161,8 @@ export interface Player {
     issuedClaimUrl?: string;
     /** ファイル配布連携: 発行時のキャンペーンID */
     issuedCampaignId?: string;
+    /** リンクシェア受取人名簿（recipients.id）。名簿先行運用で二重枠を減らす */
+    linkedRecipientId?: string;
 }
 
 export type SortMode = "rarity-asc" | "rarity-desc" | "name" | "count";
@@ -327,6 +329,16 @@ export function createDefaultPlayer(name: string): Player {
         pityCounter: 0,
         pityReachCount: 0,
     };
+}
+
+/**
+ * 連携キャンペーンに紐づくプレイヤーのみ表示する。
+ * issuedCampaignId 未設定の旧データは後方互換のため常に含める。
+ */
+export function playersForLinkedPool(all: Player[], pool: GachaPool): Player[] {
+    const campaignId = pool.linkedCampaignId?.trim();
+    if (!campaignId) return all;
+    return all.filter((p) => !p.issuedCampaignId || p.issuedCampaignId === campaignId);
 }
 
 // ========== 確率計算 ==========
