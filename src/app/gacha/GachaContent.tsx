@@ -102,7 +102,8 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         if (typeof window === 'undefined') return;
         const u = new URL(window.location.href);
         const campaignId = u.searchParams.get("campaign_id");
-        if (campaignId) {
+        const hasIncomingToken = u.searchParams.has("integration_token");
+        if (campaignId && !hasIncomingToken) {
             // If OAuth integration is enabled but not authorized yet, redirect to authorize automatically
             if (isIntegrationEnabled && !integrationConfig.integrationToken) {
                 const authUrl = new URL(`${integrationConfig.apiBaseUrl}/settings/integrations/authorize`);

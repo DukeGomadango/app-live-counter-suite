@@ -8,7 +8,7 @@ export default defineConfig({
   workers: process.env.CI ? 2 : undefined,
   reporter: process.env.CI ? [["github"], ["html", { open: "never" }]] : [["list"]],
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3001",
     trace: "retain-on-failure",
     video: "retain-on-failure",
   },
@@ -20,7 +20,10 @@ export default defineConfig({
       process.env.PLAYWRIGHT_PREBUILT === "true"
         ? "npm run start:static"
         : "npm run build && npm run start:static",
-    url: "http://127.0.0.1:3000",
+    url: "http://127.0.0.1:3001",
+    env: {
+      PORT: "3001",
+    },
     reuseExistingServer: !process.env.CI,
     timeout: 180000,
   },
