@@ -2,15 +2,14 @@
 
 import React from "react";
 import { ImagePlus } from "lucide-react";
+import Image from "next/image";
 import { 
   type PanelOverlay, 
   type PartitionStroke, 
-  type PanelEditStep,
   isPartitionLine,
   PartitionCurve,
   OverlayShape
 } from "../../lib/panelTypes";
-import { getImageBoundsPct } from "../../lib/panelUtils";
 import { smoothPoints, pointsToBezierChain } from "../../lib/panelStrokeUtils";
 import { OverlayItem } from "./OverlayItem";
 
@@ -150,11 +149,15 @@ export function PanelCanvas({
         </div>
       ) : (
         <>
-          <img
-            src={resolvedBgUrl ?? (imageDataUrl && imageDataUrl.startsWith("data:") ? imageDataUrl : undefined)}
-            alt="パネル画像"
-            className="absolute inset-0 w-full h-full object-contain pointer-events-none"
-          />
+          {(resolvedBgUrl ?? (imageDataUrl && imageDataUrl.startsWith("data:") ? imageDataUrl : undefined)) && (
+            <Image
+              src={resolvedBgUrl ?? imageDataUrl!}
+              alt="パネル画像"
+              fill
+              unoptimized
+              className="object-contain pointer-events-none"
+            />
+          )}
           {activeFilters.includes("blur") && (
             <div
               className="absolute inset-0 pointer-events-none"

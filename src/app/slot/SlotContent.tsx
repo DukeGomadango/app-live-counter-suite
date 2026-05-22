@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sun, Moon, Menu, Settings, ImageDown, X, Zap, RotateCw, Play, Plus, Minus } from "lucide-react";
+import { Sun, Moon, Menu, Settings, ImageDown, Zap, RotateCw, Play, Plus, Minus } from "lucide-react";
 import ModeSelector from "@/components/ModeSelector";
 import ShareModal from "@/components/ShareModal";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
@@ -13,7 +13,6 @@ import SlotReel from "@/components/slot/SlotReel";
 import SlotSettingsPanel from "@/components/slot/SlotSettingsPanel";
 import SlotPlayerManager from "@/components/slot/SlotPlayerManager";
 import SlotStatsPanel from "@/components/slot/SlotStatsPanel";
-import SlotTemplatePanel from "@/components/slot/SlotTemplatePanel";
 import SlotReelSymbolPanel from "@/components/slot/SlotReelSymbolPanel";
 import SlotPlayerHistoryCard from "@/components/slot/SlotPlayerHistoryCard";
 import RouletteHitEffect from "@/components/roulette/RouletteHitEffect";
@@ -24,7 +23,6 @@ import { useSlotSidebar } from "./hooks/useSlotSidebar";
 import { SlotOrbsBackground } from "./components/SlotOrbsBackground";
 import { 
   resolveReelStrips, 
-  SlotPlayer,
   checkPaylines,
   pickSymbolByWeight,
   calculateTheoreticalPayoutPercent,
@@ -68,7 +66,6 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
   } = useSlotSidebar();
 
   const isDesktop = useMediaQuery("(min-width: 1024px)");
-  const [showSettingsPanel, setShowSettingsPanel] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
   const [shareText, setShareText] = useState("");
@@ -140,9 +137,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
       const inBonus = bonusGamesRemaining > 0;
       
       // 1. Determine bet
-      let currentBet = 0;
       if (!replayFreeSpin && !inBonus) {
-        currentBet = bet;
         totalBet += bet;
       }
       
@@ -241,7 +236,7 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
       actualRTP,
       hitSymbols,
     };
-  }, [resolvedStrips, settings, symbolMaster, activePlayer]);
+  }, [resolvedStrips, settings, activePlayer]);
 
   const handleStartSimulation = useCallback(() => {
     setIsSimulating(true);

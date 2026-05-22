@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     FiGift, 
@@ -61,63 +61,60 @@ export default function GachaDistributionPanel({
     const bgCard = isLightMode ? "bg-white" : "bg-white/5";
     const borderCard = isLightMode ? "border-gray-200" : "border-white/10";
 
-    // データロード
-    useEffect(() => {
-        if (!integrationConfig.integrationToken) return;
-        
-        const loadData = async () => {
-            setLoading(true);
-            try {
-                // 1. キャンペーン一覧を取得
-                const camps = await fetchExternalCampaigns(integrationConfig);
-                setCampaigns(camps);
-                
-                // 2. 選択中のキャンペーンが存在するか確認
-                if (pool.linkedCampaignId) {
-                    const exists = camps.some(c => c.id === pool.linkedCampaignId);
-                    if (!exists) {
-                        // キャンペーンが外部で削除された場合、紐付けをリセット
-                        onPoolChange({ 
-                            ...pool, 
-                            linkedCampaignId: undefined,
-                            items: pool.items.map(it => ({ ...it, linkedAssetId: undefined }))
-                        });
-                        setAssets([]);
-                    } else {
-                        // 存在する場合のみアセットを取得
-                        try {
-                            const asts = await fetchExternalAssets(pool.linkedCampaignId, integrationConfig);
-                            setAssets(asts);
-                        } catch (e) {
-                            if (e instanceof Error && e.message.includes("404")) {
-                                onPoolChange({ 
-                                    ...pool, 
-                                    linkedCampaignId: undefined,
-                                    items: pool.items.map(it => ({ ...it, linkedAssetId: undefined }))
-                                });
-                                setAssets([]);
-                            } else {
-                                throw e;
-                            }
+    const poolRef = useRef(pool);
+    poolRef.current = pool;
+
+    const loadData = useCallback(async () => {
+        const currentPool = poolRef.current;
+        setLoading(true);
+        try {
+            const camps = await fetchExternalCampaigns(integrationConfig);
+            setCampaigns(camps);
+
+            if (currentPool.linkedCampaignId) {
+                const exists = camps.some(c => c.id === currentPool.linkedCampaignId);
+                if (!exists) {
+                    onPoolChange({
+                        ...currentPool,
+                        linkedCampaignId: undefined,
+                        items: currentPool.items.map(it => ({ ...it, linkedAssetId: undefined })),
+                    });
+                    setAssets([]);
+                } else {
+                    try {
+                        const asts = await fetchExternalAssets(currentPool.linkedCampaignId, integrationConfig);
+                        setAssets(asts);
+                    } catch (e) {
+                        if (e instanceof Error && e.message.includes("404")) {
+                            onPoolChange({
+                                ...currentPool,
+                                linkedCampaignId: undefined,
+                                items: currentPool.items.map(it => ({ ...it, linkedAssetId: undefined })),
+                            });
+                            setAssets([]);
+                        } else {
+                            throw e;
                         }
                     }
                 }
-                
-                // 現状の紐付けを State に反映
-                const newMapping: Record<string, string> = {};
-                pool.items.forEach(it => {
-                    if (it.linkedAssetId) newMapping[it.id] = it.linkedAssetId;
-                });
-                setMapping(newMapping);
-            } catch (e) {
-                console.error("Failed to load distribution data:", e);
-            } finally {
-                setLoading(false);
             }
-        };
-        
-        loadData();
-    }, [integrationConfig.integrationToken, pool.linkedCampaignId, integrationConfig.apiBaseUrl]);
+
+            const newMapping: Record<string, string> = {};
+            currentPool.items.forEach(it => {
+                if (it.linkedAssetId) newMapping[it.id] = it.linkedAssetId;
+            });
+            setMapping(newMapping);
+        } catch (e) {
+            console.error("Failed to load distribution data:", e);
+        } finally {
+            setLoading(false);
+        }
+    }, [integrationConfig, onPoolChange]);
+
+    useEffect(() => {
+        if (!integrationConfig.integrationToken) return;
+        void loadData();
+    }, [integrationConfig.integrationToken, loadData]);
 
     const handleOAuthLogin = () => {
         const u = new URL(`${integrationConfig.apiBaseUrl}/settings/integrations/authorize`);

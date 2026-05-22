@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     fetchCampaignAssets, 
@@ -48,20 +48,7 @@ export default function GachaAssetMappingModal({
     const _textPrimary = isLightMode ? "text-gray-800" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-500" : "text-white/60";
 
-    // 初期データロード
-    useEffect(() => {
-        if (open && campaignId) {
-            loadAssets();
-            // 現在の紐付けを初期状態としてセット
-            const initialMapping: Record<string, string> = {};
-            pool.items.forEach(it => {
-                if (it.linkedAssetId) initialMapping[it.id] = it.linkedAssetId;
-            });
-            setMapping(initialMapping);
-        }
-    }, [open, campaignId]);
-
-    const loadAssets = async () => {
+    const loadAssets = useCallback(async () => {
         setLoading(true);
         try {
             const list = await fetchCampaignAssets(campaignId, integrationConfig);
@@ -71,7 +58,19 @@ export default function GachaAssetMappingModal({
         } finally {
             setLoading(false);
         }
-    };
+    }, [campaignId, integrationConfig]);
+
+    // 初期データロード
+    useEffect(() => {
+        if (open && campaignId) {
+            void loadAssets();
+            const initialMapping: Record<string, string> = {};
+            pool.items.forEach(it => {
+                if (it.linkedAssetId) initialMapping[it.id] = it.linkedAssetId;
+            });
+            setMapping(initialMapping);
+        }
+    }, [open, campaignId, loadAssets, pool.items]);
 
     const handleFileChange = async (itemId: string, file: File) => {
         if (!file) return;

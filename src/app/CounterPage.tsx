@@ -144,7 +144,6 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   
   const windowWidth = useWindowWidth();
   const [winH, setWinH] = useState(800);
-  const [positionedContainerSize, setPositionedContainerSize] = useState({ w: 0, h: 0 });
 
   useEffect(() => {
     const id = setTimeout(() => setWinH(window.innerHeight), 0);
@@ -152,19 +151,6 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   }, []);
 
   const isPositionedLayout = Boolean(currentTemplate?.layout === "positioned" && currentTemplate?.backgroundImage);
-
-  useEffect(() => {
-    if (!isPositionedLayout || !positionedContainerRef.current) return;
-    const el = positionedContainerRef.current;
-    const ro = new ResizeObserver(() => {
-      const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) setPositionedContainerSize({ w: r.width, h: r.height });
-    });
-    ro.observe(el);
-    const r = el.getBoundingClientRect();
-    if (r.width > 0 && r.height > 0) setPositionedContainerSize({ w: r.width, h: r.height });
-    return () => ro.disconnect();
-  }, [isPositionedLayout]);
 
   const cardSizeMap: Record<CardSize, { mobile: number; tablet: number; desktop: number }> = {
     S: { mobile: 96, tablet: 136, desktop: 168 },

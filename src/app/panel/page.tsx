@@ -17,7 +17,7 @@ type PageProps = {
 };
 
 export default function PanelPage(props: PageProps) {
-  const { isSplitMode, isRightPane } = props as PageProps & {
+  const { isSplitMode, isRightPane: _isRightPane } = props as PageProps & {
     isSplitMode?: boolean;
     isRightPane?: boolean;
   };

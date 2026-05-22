@@ -1,10 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
-import { 
-  type PanelOverlay, 
-  type OverlayShape 
-} from "../lib/panelTypes";
+import { type PanelOverlay } from "../lib/panelTypes";
 import { 
   snapToGrid, 
   snapToNearestGuide 
@@ -28,7 +25,7 @@ export function useOverlayInteraction({
   setOverlays,
   pushOverlayHistory,
   selectedOverlayId,
-  setSelectedOverlayIdAndClearDraft,
+  setSelectedOverlayIdAndClearDraft: _setSelectedOverlayIdAndClearDraft,
   isEditMode,
   getRect
 }: InteractionProps) {

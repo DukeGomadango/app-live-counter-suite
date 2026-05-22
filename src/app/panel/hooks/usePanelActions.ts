@@ -22,7 +22,6 @@ import {
 import { getRegionsFromSegments } from "../lib/panelRegionDetection";
 import { 
   getTimestampForFilename,
-  generateShareUrl,
   shareImageWithText
 } from "@/lib/share";
 import { isIdbKey } from "../lib/panelImageStore";
@@ -57,7 +56,7 @@ export function usePanelActions({
   imageDataUrl,
   imageAspectRatio,
   captureRef,
-  isLightMode,
+  isLightMode: _isLightMode,
   isDesktop,
   resolvedBgUrl,
   resolvedOverlayUrls,
@@ -184,7 +183,7 @@ export function usePanelActions({
     } finally {
       setIsSharing(false);
     }
-  }, [isLightMode, isSharing, isDesktop, imageDataUrl, resolvedBgUrl, overlays, resolvedOverlayUrls, showToast, captureRef, imageAspectRatio]);
+  }, [isSharing, isDesktop, imageDataUrl, resolvedBgUrl, overlays, resolvedOverlayUrls, showToast, captureRef, imageAspectRatio]);
 
   const handleAddRectGrid = useCallback(
     (cols: number, rows: number) => {

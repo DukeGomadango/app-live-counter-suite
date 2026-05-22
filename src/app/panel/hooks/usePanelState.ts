@@ -2,29 +2,21 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { useToast } from "@/components/Toast";
 import {
-  saveImage,
   resolveImageUrl,
-  deleteImage,
   isIdbKey,
-  dataUrlToBlob,
 } from "../lib/panelImageStore";
 import {
   type PanelState,
   type PanelOverlay,
   type SavedPanel,
   type SavedCustomShape,
-  type PartitionStroke,
-  type PanelEditStep,
-  createOverlayId,
   defaultPanelState,
 } from "../lib/panelTypes";
 
 const OVERLAY_HISTORY_MAX = 50;
 
 export function usePanelState() {
-  const { showToast } = useToast();
   const [panelState, setPanelState] = useLocalStorage<PanelState>("panel-state", defaultPanelState);
   
   /** IndexedDB から解決した背景画像の表示用 URL（ObjectURL or data: URL） */

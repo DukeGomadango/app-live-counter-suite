@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { Trash2 } from "lucide-react";
 import { 
   type PanelOverlay, 
@@ -62,7 +63,7 @@ export function OverlayItem({
 
   return (
     <div
-      className="absolute cursor-pointer select-none flex flex-col items-center justify-center overflow-hidden"
+      className="absolute cursor-pointer select-none flex flex-col items-center justify-center overflow-hidden relative"
       style={{
         left: `${overlay.x}%`,
         top: `${overlay.y}%`,
@@ -105,13 +106,14 @@ export function OverlayItem({
       onPointerLeave={!isFree ? onPointerLeave : undefined}
       onClick={!isFree ? onClick : undefined}
     >
-      {isImage && overlay.imageDataUrl ? (
-        <img 
-          src={resolvedOverlayUrl ?? (overlay.imageDataUrl && !isIdbKey(overlay.imageDataUrl) ? overlay.imageDataUrl : undefined)} 
-          alt="" 
-          className="w-full h-full object-contain pointer-events-none" 
-        />
-      ) : null}
+      {isImage && overlay.imageDataUrl ? (() => {
+        const src =
+          resolvedOverlayUrl ??
+          (overlay.imageDataUrl && !isIdbKey(overlay.imageDataUrl) ? overlay.imageDataUrl : undefined);
+        return src ? (
+          <Image src={src} alt="" fill unoptimized className="object-contain pointer-events-none" />
+        ) : null;
+      })() : null}
       {isFree && (freePathD || freePoints) ? (
         <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
           {freePathD ? (

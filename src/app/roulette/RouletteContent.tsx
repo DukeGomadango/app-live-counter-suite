@@ -81,8 +81,6 @@ export default function RouletteContent({
     const [isShareModalOpen, setIsShareModalOpen] = useState(false);
     const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
     const [shareText, setShareText] = useState("");
-    const [showStatsBreakdown, setShowStatsBreakdown] = useState(false);
-
     const autoSpinModalRef = useRef<HTMLDivElement>(null);
     const wheelCaptureRef = useRef<HTMLDivElement>(null);
 

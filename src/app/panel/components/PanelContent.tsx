@@ -89,7 +89,10 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
   const [addShape, setAddShape] = useState<OverlayShape | null>(null);
   const [lineToolMode, setLineToolMode] = useState<"pen" | "hand">("pen");
   const [lineSegmentMode, setLineSegmentMode] = useState<"line" | "curve">("line");
-  const partitionStrokes = panelState.partitionStrokes ?? [];
+  const partitionStrokes = useMemo(
+    () => panelState.partitionStrokes ?? [],
+    [panelState.partitionStrokes]
+  );
   const setPartitionStrokes = useCallback((value: React.SetStateAction<PartitionStroke[]>) => {
     setPanelState(s => {
       const current = s.partitionStrokes ?? [];

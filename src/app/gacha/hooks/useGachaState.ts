@@ -23,51 +23,89 @@ export function useGachaState() {
   const [players, setPlayers] = useLocalStorage<Player[]>("gacha-players", []);
   const [activePlayerId, setActivePlayerId] = useLocalStorage<string | null>("gacha-active-player", null);
   const [integrationConfig, setIntegrationConfig] = useLocalStorage<IntegrationConfig>("gacha-integration-config", {
-    apiBaseUrl: typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3001' : 'https://share.dango.tools',
+    apiBaseUrl: typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://share.dango.tools',
     integrationToken: "",
   });
   const [latestResults, setLatestResults] = useState<GachaResult[] | null>(null);
   const [gachaSettings, setGachaSettings] = useLocalStorage<GachaSettings>("gacha-settings", DEFAULT_SETTINGS);
   const [hasMigrated, setHasMigrated] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   // 旧品目形式（link）を imageUrl に移すマイグレーション（初回のみ）
   useEffect(() => {
     setPool(prev => migratePoolItemsForLink(prev));
   }, [setPool]);
 
-  // 動的オリジン注入: クエリパラメータ api_base_url を検知して連携先URLを自動更新
+  // ローカルストレージの読み込み完了を待機する初期化制御
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setIsInitializing(false);
+    }, 0);
+    return () => clearTimeout(id);
+  }, []);
+
+  // 動的オリジン注入 & OAuth連携コールバックの統合処理
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const u = new URL(window.location.href);
     const apiUrl = u.searchParams.get("api_base_url");
-    if (apiUrl) {
-      setIntegrationConfig(prev => ({ ...prev, apiBaseUrl: apiUrl }));
-      // リロード時の再上書きを防ぐためパラメータをクレンジング
-      u.searchParams.delete("api_base_url");
-      window.history.replaceState({}, "", u.pathname + u.search);
-    }
-  }, [setIntegrationConfig]);
-
-  // OAuth連携のコールバック処理
-  useEffect(() => {
-    const isIntegrationEnabled = process.env.NEXT_PUBLIC_ENABLE_GACHA_INTEGRATION === 'true';
-    if (!isIntegrationEnabled) return;
-    if (typeof window === 'undefined') return;
-    const u = new URL(window.location.href);
     const token = u.searchParams.get("integration_token");
     const state = u.searchParams.get("state");
-    if (token) {
-      setIntegrationConfig(prev => ({ ...prev, integrationToken: token }));
-      u.searchParams.delete("integration_token");
-      u.searchParams.delete("state");
+    
+    if (apiUrl || token) {
+      // 1. まず localStorage から既存の設定を同期的に読み込む
+      let currentConfig: IntegrationConfig = {
+        apiBaseUrl: window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://share.dango.tools',
+        integrationToken: "",
+      };
+      
+      try {
+        const raw = window.localStorage.getItem("gacha-integration-config");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed) {
+            currentConfig = { ...currentConfig, ...parsed };
+          }
+        }
+      } catch (e) {
+        console.warn("Failed to parse integration config from localStorage:", e);
+      }
+
+      // 2. パラメータがあれば上書きする
+      const updatedConfig = { ...currentConfig };
+      if (apiUrl) {
+        updatedConfig.apiBaseUrl = apiUrl;
+      }
+      if (token) {
+        updatedConfig.integrationToken = token;
+      }
+
+      // 3. ローカルストレージと state を同時に更新する（競合回避のためLocalStorageへ同期書き込み）
+      try {
+        window.localStorage.setItem("gacha-integration-config", JSON.stringify(updatedConfig));
+      } catch (e) {
+        console.warn("Failed to save integration config to localStorage:", e);
+      }
+      setIntegrationConfig(updatedConfig);
+
+      // 4. URLパラメータのクレンジングとリダイレクト
+      if (apiUrl) {
+        u.searchParams.delete("api_base_url");
+      }
       
       let redirectUrl = u.pathname;
-      if (state && state.startsWith("?")) {
-        redirectUrl += state;
+      if (token) {
+        u.searchParams.delete("integration_token");
+        u.searchParams.delete("state");
+        if (state && state.startsWith("?")) {
+          redirectUrl += state;
+        } else {
+          redirectUrl += u.search;
+        }
       } else {
         redirectUrl += u.search;
       }
-      
+
       window.history.replaceState({}, "", redirectUrl);
     }
   }, [setIntegrationConfig]);
@@ -128,6 +166,7 @@ export function useGachaState() {
     integrationConfig, setIntegrationConfig,
     latestResults, setLatestResults,
     gachaSettings, setGachaSettings,
-    hasMigrated, setHasMigrated
+    hasMigrated, setHasMigrated,
+    isInitializing
   };
 }

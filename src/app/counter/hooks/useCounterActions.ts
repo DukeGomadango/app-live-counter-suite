@@ -19,7 +19,7 @@ export function useCounterActions({
   setItems,
   setCurrentTemplateId,
   setAppSettings,
-  customTemplates,
+  customTemplates: _customTemplates,
   setCustomTemplates,
   currentTemplateLayout
 }: CounterActionsProps) {

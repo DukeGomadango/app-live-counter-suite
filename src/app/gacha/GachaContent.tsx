@@ -21,8 +21,11 @@ import {
   type GachaPoolPreset, 
   clonePoolKeepingIds, 
   getSampleTemplates, 
-  migratePoolItemsForLink 
+  migratePoolItemsForLink,
+  type RarityTier,
+  type GachaItem
 } from "@/lib/gacha";
+import { fetchExternalGachaConfig } from "@/lib/gachaDistribution";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 
@@ -47,13 +50,10 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         integrationConfig, setIntegrationConfig,
         latestResults, setLatestResults,
         gachaSettings, setGachaSettings,
+        isInitializing
     } = useGachaState();
     const { isLightMode, toggleTheme } = useTheme();
-    const [isMounted, setIsMounted] = useState(false);
-
-    useEffect(() => {
-        setIsMounted(true);
-    }, []);
+    const [isAuthChecking, setIsAuthChecking] = useState(true);
 
     const {
         mobileTab, setMobileTab,
@@ -102,17 +102,43 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         return () => window.removeEventListener("resize", check);
     }, []);
 
-    // Detect campaign_id in URL, handle auto-authorization, and auto-sync campaign ID
+    // Detect campaign_id in URL, handle auto-authorization, and auto-sync campaign ID & assets
     useEffect(() => {
-        if (!isMounted) return;
+        if (isInitializing) return; // Wait until all useLocalStorage settings have loaded from localStorage
         if (typeof window === 'undefined') return;
         const u = new URL(window.location.href);
         const campaignId = u.searchParams.get("campaign_id");
         const hasIncomingToken = u.searchParams.has("integration_token");
+
+        // URLパラメータまたはLocalStorageから同期的に apiBaseUrl と トークン をチェック
+        let apiBaseUrl = typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://share.dango.tools';
+        let hasToken = false;
+        let token = "";
+
+        if (typeof window !== 'undefined') {
+            const urlParams = new URL(window.location.href).searchParams;
+            const paramApiUrl = urlParams.get("api_base_url");
+            if (paramApiUrl) {
+                apiBaseUrl = paramApiUrl;
+            } else {
+                try {
+                    const stored = window.localStorage.getItem("gacha-integration-config");
+                    if (stored) {
+                        const parsed = JSON.parse(stored);
+                        if (parsed.apiBaseUrl) {
+                            apiBaseUrl = parsed.apiBaseUrl;
+                        }
+                        hasToken = !!parsed.integrationToken;
+                        token = parsed.integrationToken || "";
+                    }
+                } catch {}
+            }
+        }
+
         if (campaignId && !hasIncomingToken) {
             // If OAuth integration is enabled but not authorized yet, redirect to authorize automatically
-            if (isIntegrationEnabled && !integrationConfig.integrationToken) {
-                const authUrl = new URL(`${integrationConfig.apiBaseUrl}/settings/integrations/authorize`);
+            if (isIntegrationEnabled && !integrationConfig.integrationToken && !hasToken) {
+                const authUrl = new URL(`${apiBaseUrl}/settings/integrations/authorize`);
                 authUrl.searchParams.set("client_id", "dango-tools-gacha");
                 authUrl.searchParams.set("redirect_uri", window.location.origin + window.location.pathname);
                 authUrl.searchParams.set("state", window.location.search);
@@ -130,8 +156,56 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             if (isSplitMode) {
                 setSidebarOpen(true);
             }
+
+            // If we are authorized, automatically pull/sync the external gacha config
+            if (isIntegrationEnabled && hasToken) {
+                setIsAuthChecking(true);
+                const syncConfig = async () => {
+                    try {
+                        const config = await fetchExternalGachaConfig(campaignId, {
+                            apiBaseUrl,
+                            integrationToken: token
+                        });
+
+                        if (config.gachaConfig) {
+                            const newRarities: RarityTier[] = config.gachaConfig.rarities.map((r, i) => ({
+                                id: r.id,
+                                name: r.name,
+                                color: r.color,
+                                glowColor: r.color + "66",
+                                bgColor: r.color + "1a",
+                                sortOrder: i + 1,
+                                defaultWeight: r.probability
+                            }));
+
+                            const newItems: GachaItem[] = config.items.map(item => ({
+                                id: item.id,
+                                name: item.label || "無題のアイテム",
+                                rarityId: item.rarityId || newRarities[newRarities.length - 1]!.id,
+                                weight: 100,
+                                linkedAssetId: item.id
+                            }));
+
+                            setPool(prev => ({
+                                ...prev,
+                                linkedCampaignId: campaignId,
+                                rarities: newRarities,
+                                items: newItems
+                            }));
+                        }
+                    } catch (err) {
+                        console.error("Failed to auto-sync external campaign gacha config:", err);
+                    } finally {
+                        setIsAuthChecking(false);
+                    }
+                };
+                syncConfig();
+                return;
+            }
         }
-    }, [isMounted, setSidebarTab, setMobileTab, isSplitMode, setSidebarOpen, isIntegrationEnabled, integrationConfig, pool.linkedCampaignId, setPool]);
+
+        setIsAuthChecking(false);
+    }, [isInitializing, setSidebarTab, setMobileTab, isSplitMode, setSidebarOpen, isIntegrationEnabled, integrationConfig, pool.linkedCampaignId, setPool]);
 
     const activePlayer = useMemo(() => 
         players.find(p => p.id === activePlayerId)
@@ -219,6 +293,18 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             queueMicrotask(() => handleSetShowSettingsPanel(true));
         }
     }, [isIntegrationEnabled, handleSetShowSettingsPanel]);
+
+    if (typeof window !== 'undefined') {
+        console.log("[GachaContent Debug] rendering. isInitializing:", isInitializing, "isAuthChecking:", isAuthChecking);
+    }
+
+    if (isAuthChecking || isInitializing) {
+        return (
+            <div className="flex items-center justify-center min-h-[50vh] text-gray-500 dark:text-white/60">
+                読み込み中…
+            </div>
+        );
+    }
 
     if (isMobile) {
         const mobileHeaderPosition = "relative";

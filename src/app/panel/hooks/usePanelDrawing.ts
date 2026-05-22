@@ -4,8 +4,6 @@ import { useState, useCallback, useRef } from "react";
 import { 
   type PanelOverlay, 
   type PartitionStroke, 
-  type PanelState,
-  type PanelEditStep,
   type OverlayShape,
   isPartitionLine,
   PartitionSegment,

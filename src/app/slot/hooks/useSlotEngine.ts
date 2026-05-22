@@ -12,7 +12,6 @@ import {
   getBonusSymbolIds,
   pickCeilingBonusIndices,
   appendSpinRecord,
-  createDefaultPlayer,
 } from "@/lib/slot";
 
 interface SlotEngineProps {

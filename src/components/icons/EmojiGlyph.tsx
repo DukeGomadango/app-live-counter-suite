@@ -598,9 +598,6 @@ function HeartVariantIcon({ kind, size }: { kind: string; size: number }) {
 }
 
 function StarVariantIcon({ kind, size }: { kind: string; size: number }) {
-  const fillUrl = "url(#star-gold)";
-  const strokeUrl = "url(#star-gold-stroke)";
-
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden>
       <defs>
@@ -1136,15 +1133,6 @@ function PartyIcon({ kind, size }: { kind: string; size: number }) {
       <ellipse cx="50" cy="42" rx="21" ry="26" fill="url(#balloon-red)" stroke="#881337" strokeWidth="2.5" />
       <path d="M50 67v18" stroke="#71717a" strokeWidth="3" strokeLinecap="round" />
       <path d="M50 68l-4 5h8z" fill="#be123c" stroke="#881337" strokeWidth="1" />
-    </svg>
-  );
-}
-
-function SquareIcon(props: { size?: number; strokeWidth?: number; "aria-hidden"?: boolean }) {
-  const s = props.size ?? 24;
-  return (
-    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth ?? 2} aria-hidden>
-      <rect x="4" y="4" width="16" height="16" rx="1.5" />
     </svg>
   );
 }

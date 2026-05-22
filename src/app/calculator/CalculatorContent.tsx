@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "framer-motion";
 import { Sun, Moon, Settings } from "lucide-react";
 import ModeSelector from "@/components/ModeSelector";
 import CalculatorSettingsPanel from "@/components/calculator/CalculatorSettingsPanel";
