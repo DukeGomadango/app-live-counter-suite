@@ -135,12 +135,12 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
 
             const res = await saveExternalGachaConfig(pool.linkedCampaignId, payload, integrationConfig);
             if (res.ok) {
-                showToast("確率設定をシェアリンクに保存・同期しました", "success");
+                showToast("確率設定をだんごシェアリンクに保存・同期しました", "success");
             }
         } catch (e) {
             const err = e as Error;
             console.error("Failed to sync gacha config to Share Link:", err);
-            showToast(err.message || "シェアリンクとの同期に失敗しました", "error");
+            showToast(err.message || "だんごシェアリンクとの同期に失敗しました", "error");
         }
     }, [pool.linkedCampaignId, integrationConfig, showToast]);
     const [pullCountInput, setPullCountInput] = useState<string | null>(null);
@@ -202,7 +202,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         return () => clearTimeout(id);
     }, []);
 
-    // リンクシェア deep link: 同期完了後に親から openBulkModal が立つ
+    // だんごシェアリンク deep link: 同期完了後に親から openBulkModal が立つ
     useEffect(() => {
         if (!openBulkModal) return;
         const id = setTimeout(() => {

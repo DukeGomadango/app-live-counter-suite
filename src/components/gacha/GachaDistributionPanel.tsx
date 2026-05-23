@@ -92,9 +92,9 @@ export default function GachaDistributionPanel({
                 <div className="w-20 h-20 bg-purple-500/10 rounded-3xl flex items-center justify-center mb-6">
                     <FiLink2 className="w-10 h-10 text-purple-500" />
                 </div>
-                <h3 className={`text-xl font-bold mb-2 ${theme.textPrimary}`}>リンクシェアとの連携</h3>
+                <h3 className={`text-xl font-bold mb-2 ${theme.textPrimary}`}>だんごシェアリンクとの連携</h3>
                 <p className={`max-w-md mb-8 ${theme.textSecondary}`}>
-                    だんごリンクシェアと連携すると、ガチャの景品としてデジタルファイルを自動配布できます。
+                    だんごシェアリンクと連携すると、ガチャの景品としてデジタルファイルを自動配布できます。
                 </p>
                 <button
                     type="button"
@@ -211,7 +211,7 @@ export default function GachaDistributionPanel({
                         className="p-3 bg-purple-600 text-white flex items-center justify-center gap-3 text-sm font-bold shrink-0"
                     >
                         <FiRefreshCw className="animate-spin" />
-                        <span>リンクシェアへ同期中...</span>
+                        <span>だんごシェアリンクへ同期中...</span>
                     </motion.div>
                 )}
             </AnimatePresence>

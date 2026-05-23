@@ -309,16 +309,16 @@ export function useGachaDistribution({
 
     const handleDisconnect = async () => {
         const ok = await confirm({
-            title: "リンクシェアとの接続を解除",
+            title: "だんごシェアリンクとの接続を解除",
             message:
-                "この端末に保存した連携トークンを削除します。配布キャンペーンの選択は残ります。リンクシェア側のトークンを完全に無効にするには、リンクシェアの設定 → 外部連携で失効してください。",
+                "この端末に保存した連携トークンを削除します。配布キャンペーンの選択は残ります。だんごシェアリンク側のトークンを完全に無効にするには、だんごシェアリンクの設定 → 外部連携で失効してください。",
             confirmLabel: "接続を解除",
             danger: true,
         });
         if (!ok) return;
         onIntegrationConfigChange({ ...integrationConfig, integrationToken: "" });
         setCampaigns([]);
-        showToast("リンクシェアとの接続を解除しました", "success");
+        showToast("だんごシェアリンクとの接続を解除しました", "success");
     };
 
     const handleCreateCampaign = async () => {
@@ -341,9 +341,9 @@ export function useGachaDistribution({
     const handleImportFromLinkShare = async () => {
         if (!pool.linkedCampaignId) return;
         const ok = await confirm({
-            title: "リンクシェアから構成を取り込む",
+            title: "だんごシェアリンクから構成を取り込む",
             message:
-                "リンクシェアのガチャ構成・品目一覧で、だんごツールのレアリティと品目が上書きされます。品目IDもリンクシェアのアセットIDに置き換わります。よろしいですか？",
+                "だんごシェアリンクのガチャ構成・品目一覧で、だんごツールのレアリティと品目が上書きされます。品目IDもだんごシェアリンクのアセットIDに置き換わります。よろしいですか？",
             confirmLabel: "取り込む",
             danger: true,
         });
@@ -386,7 +386,7 @@ export function useGachaDistribution({
             setMapping(newMapping);
 
             await refreshAssets();
-            showToast("リンクシェアからガチャ構成とアセットを取り込みました", "success");
+            showToast("だんごシェアリンクからガチャ構成とアセットを取り込みました", "success");
         } catch (e) {
             showToast(formatIntegrationApiErrorMessage(e), "error");
         } finally {

@@ -80,7 +80,7 @@ export interface RecipientSlotResult {
     slot_id?: string;
     recipient_id?: string | null;
     external_transaction_id?: string;
-    /** リンクシェア側に紐づけた配布ファイル件数 */
+    /** だんごシェアリンク側に紐づけた配布ファイル件数 */
     linked_asset_count?: number;
     error?: string;
     message?: string;
@@ -134,13 +134,13 @@ export class IntegrationApiError extends Error {
 export function formatIntegrationApiErrorMessage(err: unknown): string {
     if (err instanceof IntegrationApiError) {
         if (err.status === 401 || err.code === "unauthorized") {
-            return "連携トークンが無効です。配布タブからリンクシェアへ再連携してください。";
+            return "連携トークンが無効です。配布タブからだんごシェアリンクへ再連携してください。";
         }
         if (err.code === "integration_paused") {
             return err.message;
         }
         if (err.status === 403) {
-            return err.message || "権限がありません。リンクシェアで再連携してください。";
+            return err.message || "権限がありません。だんごシェアリンクで再連携してください。";
         }
         if (err.status === 429 || err.code === "rate_limited") {
             return "リクエストが多すぎます。しばらく待ってから再試行してください。";
@@ -172,7 +172,7 @@ function authHeaders(config: IntegrationConfig): HeadersInit {
     };
 }
 
-/** リンクシェアのキャンペーン管理画面 URL（マージ確認用フォーカス付き可） */
+/** だんごシェアリンクのキャンペーン管理画面 URL（マージ確認用フォーカス付き可） */
 export function buildLinkShareCampaignUrl(
     config: IntegrationConfig,
     campaignId: string,
@@ -206,7 +206,7 @@ export async function fetchExternalRecipients(
     }
 }
 
-/** 冪等キーでリンクシェア側の Claim がまだあるか確認 */
+/** 冪等キーでだんごシェアリンク側の Claim がまだあるか確認 */
 export async function fetchRecipientSlotStatus(
     campaignId: string,
     externalTransactionId: string,
@@ -416,7 +416,7 @@ export async function uploadAssetAndRegister(
 
 // ========== 受取人スロット（Claim URL）発行 ==========
 
-/** プレイヤー×ガチャプールの冪等キー（リンクシェアの external_transaction_id） */
+/** プレイヤー×ガチャプールの冪等キー（だんごシェアリンクの external_transaction_id） */
 export function buildGachaPlayerExternalTransactionId(poolId: string, playerId: string): string {
     return `gacha-${poolId}-player-${playerId}`;
 }
@@ -489,7 +489,7 @@ export function applyItemAssetMapping(
     };
 }
 
-/** リンクシェア PUT gacha-config 用（現プールのレアリティ＋マッピング済みアセット） */
+/** だんごシェアリンク PUT gacha-config 用（現プールのレアリティ＋マッピング済みアセット） */
 export function buildGachaConfigSyncPayloadFromPool(pool: GachaPool) {
     return {
         gachaConfig: {
@@ -509,7 +509,7 @@ export function buildGachaConfigSyncPayloadFromPool(pool: GachaPool) {
     };
 }
 
-/** 配布マッピング変更後、リンクシェア側のガチャ表示を追従 */
+/** 配布マッピング変更後、だんごシェアリンク側のガチャ表示を追従 */
 export async function syncGachaConfigToExternalFromPool(
     pool: GachaPool,
     config: IntegrationConfig
@@ -568,7 +568,7 @@ function playerInventoryForPool(player: Player, poolId: string) {
 }
 
 /**
- * プレイヤーの当選・所持から、リンクシェアへ送る campaign_asset_ids を集める。
+ * プレイヤーの当選・所持から、だんごシェアリンクへ送る campaign_asset_ids を集める。
  * 品目に linkedAssetId がない当選は含めない（常に当選ベース・fail closed）。
  */
 export function collectDistributionAssetIds(player: Player, pool: GachaPool): string[] {

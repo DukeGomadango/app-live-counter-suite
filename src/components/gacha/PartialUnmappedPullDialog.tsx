@@ -95,7 +95,7 @@ export default function PartialUnmappedPullDialog({
                                     </h2>
                                     <p className={`text-sm ${textSecondary} leading-relaxed px-2 font-medium`}>
                                         {unmappedCount}件の景品に配布ファイルがありません（{mappedCount}件は紐づけ済み）。
-                                        このまま抽選すると、未紐づけの当選はリンクシェアの配布ファイルに含まれません。
+                                        このまま抽選すると、未紐づけの当選はだんごシェアリンクの配布ファイルに含まれません。
                                     </p>
                                 </div>
                             </div>

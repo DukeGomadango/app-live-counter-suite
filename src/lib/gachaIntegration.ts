@@ -1,6 +1,6 @@
 import type { GachaPool, IntegrationConfig } from "@/lib/gacha";
 
-/** ガチャ × リンクシェア連携の準備状態（接続・紐づけの三層のうち UI で使う分類） */
+/** ガチャ × だんごシェアリンク連携の準備状態（接続・紐づけの三層のうち UI で使う分類） */
 export type GachaIntegrationReadiness =
     | "disabled"
     | "needs_oauth"
@@ -68,20 +68,20 @@ export function getIntegrationSetupPrompt(
     switch (readiness) {
         case "needs_oauth":
             return {
-                title: "リンクシェアとの連携が必要です",
-                body: "景品を配布するには、左の「配布」タブから「連携を開始する」でだんごリンクシェアへの許可を完了してください。",
+                title: "だんごシェアリンクとの連携が必要です",
+                body: "景品を配布するには、左の「配布」タブから「連携を開始する」でだんごシェアリンクへの許可を完了してください。",
                 actionLabel: "配布タブを開く",
             };
         case "needs_reconnect":
             return {
-                title: "リンクシェアへの再接続が必要です",
+                title: "だんごシェアリンクへの再接続が必要です",
                 body: "キャンペーンの紐づけは残っていますが、この端末に連携トークンがありません。配布タブから「連携を開始する」を実行してください（データ連携ではトークンは移りません）。",
                 actionLabel: "配布タブを開く",
             };
         case "needs_campaign":
             return {
                 title: "キャンペーンが選ばれていません",
-                body: "配布タブでリンクシェアのキャンペーンを選ぶと、プレイヤーへの配布とリンク集が使えます。",
+                body: "配布タブでだんごシェアリンクのキャンペーンを選ぶと、プレイヤーへの配布とリンク集が使えます。",
                 actionLabel: "配布タブを開く",
             };
         default:

@@ -16,7 +16,7 @@ export type OAuthCallbackNotice = "success" | "access_denied";
 
 
 
-/** リンクシェアの OAuth 同意画面 URL */
+/** だんごシェアリンクの OAuth 同意画面 URL */
 
 export function buildIntegrationAuthorizeUrl(
 
@@ -190,7 +190,7 @@ export function isIntegrationAuthFailure(err: unknown): boolean {
 
 }
 
-/** 保存済み Bearer がリンクシェアでまだ有効か（同期前の軽い確認） */
+/** 保存済み Bearer がだんごシェアリンクでまだ有効か（同期前の軽い確認） */
 export async function isIntegrationTokenValid(
     config: IntegrationConfig
 ): Promise<boolean> {

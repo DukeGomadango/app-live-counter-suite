@@ -64,7 +64,7 @@ export default function GachaDistributionAlerts({
                                     : `${theme.borderCard} ${theme.textSecondary}`
                             }`}
                         >
-                            リンクシェアでファイル済み
+                            だんごシェアリンクでファイル済み
                         </button>
                     </div>
                     <p className={`mt-2 text-xs leading-relaxed ${theme.textSecondary}`}>
@@ -81,7 +81,7 @@ export default function GachaDistributionAlerts({
                 >
                     <p className="font-bold mb-1">景品とファイルの紐づけが未完了です</p>
                     <p className={isLightMode ? "text-red-900/90" : "text-red-50/90"}>
-                        {mappingStats.unmappedCount}件の景品に配布ファイルがありません。未紐づけの当選はリンクシェアへ
+                        {mappingStats.unmappedCount}件の景品に配布ファイルがありません。未紐づけの当選はだんごシェアリンクへ
                         <strong>ファイルは付きません</strong>。
                     </p>
                 </div>
@@ -113,7 +113,7 @@ export default function GachaDistributionAlerts({
                     {!recipientCollapsed && (
                         <div className={`px-4 pb-3 leading-relaxed ${isLightMode ? "text-amber-900/90" : "text-amber-50/90"}`}>
                             <p>
-                                同一人物はリンクシェアの<strong>受取人名簿</strong>で管理します。プレイヤーごとに名簿を紐づけると二重枠を減らせます。
+                                同一人物はだんごシェアリンクの<strong>受取人名簿</strong>で管理します。プレイヤーごとに名簿を紐づけると二重枠を減らせます。
                             </p>
                             {onNavigateToPlayers && (
                                 <button

@@ -227,7 +227,7 @@ sequenceDiagram
 - **ツール追加時**: `src/lib/tools.ts` の `TOOLS` に 1 件追加し、必要なら `HelpModal.tsx`・`SplitModuleType`・sitemap 連携を追随（`.cursor/rules` のヘルプ・更新履歴・**docs 同期**ルール参照）。あわせて `e2e/smoke-paths.ts` の `E2E_MIRROR_TOOL_PATHS` を `TOOLS` の `path` と一致させる（`routes-contract.test.ts` が検証）。
 - **OGP 画像**: `public/ogp.png`。再生成は `npm run ogp:capture`（`scripts/capture-ogp.mjs`）。E2E の静的配信は `npm run start:static`（`scripts/serve-out.mjs`）。
 - **既存の運用ドキュメント**: `docs/git-config-for-vercel.md`（Vercel 向け Git 設定）。
-- **ガチャ × だんごリンクシェア連携**: [docs/gacha-share-link-integration.md](./gacha-share-link-integration.md)（API・冪等キー・同期方向）。
+- **ガチャ × だんごシェアリンク連携**: [docs/gacha-share-link-integration.md](./gacha-share-link-integration.md)（API・冪等キー・同期方向）。
 
 ---
 

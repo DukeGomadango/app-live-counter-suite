@@ -171,7 +171,7 @@ export default function PlayerLinkCollectionModal({
                             <div
                                 className={`p-3 rounded-xl text-[10px] leading-relaxed border ${isLightMode ? "bg-amber-50 border-amber-200 text-amber-900" : "bg-amber-500/10 border-amber-500/30 text-amber-100"}`}
                             >
-                                <strong>推奨運用:</strong> 受取人名簿からキャンペーンに追加し、ガチャでできた枠と重なった場合は管理画面で<strong>マージ</strong>してください。人物の統合はリンクシェア側で行い、ツールは配布内容の同期を担当します。
+                                <strong>推奨運用:</strong> 受取人名簿からキャンペーンに追加し、ガチャでできた枠と重なった場合は管理画面で<strong>マージ</strong>してください。人物の統合はだんごシェアリンク側で行い、ツールは配布内容の同期を担当します。
                             </div>
 
                             {linkStatus === "missing" && (
@@ -179,7 +179,7 @@ export default function PlayerLinkCollectionModal({
                                     className={`p-3 rounded-xl border space-y-2 ${isLightMode ? "bg-amber-50/80 border-amber-300" : "bg-amber-500/15 border-amber-500/35"}`}
                                 >
                                     <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium leading-relaxed">
-                                        配布URLはローカルに残っていますが、リンクシェア側の枠がありません。同じ名前の受取人が2つある場合は、管理画面で<strong>統合（マージ）</strong>してください。
+                                        配布URLはローカルに残っていますが、だんごシェアリンク側の枠がありません。同じ名前の受取人が2つある場合は、管理画面で<strong>統合（マージ）</strong>してください。
                                     </p>
                                     <p className={`text-[9px] font-mono break-all ${textMuted}`}>
                                         ID: {externalTxId}
@@ -240,7 +240,7 @@ export default function PlayerLinkCollectionModal({
                                 <p
                                     className={`text-[10px] px-1 leading-relaxed ${distStats.assetCount === 0 ? "text-amber-600 dark:text-amber-400" : textMuted}`}
                                 >
-                                    リンクシェアへ送る配布ファイル: {distStats.assetCount}件
+                                    だんごシェアリンクへ送る配布ファイル: {distStats.assetCount}件
                                     {distStats.mappedWinCount < distStats.totalWinCount &&
                                         `（当選${distStats.totalWinCount}回のうち、ファイル未紐づけの品目があります）`}
                                 </p>
@@ -251,7 +251,7 @@ export default function PlayerLinkCollectionModal({
                                     type="button"
                                     onClick={() => {
                                         onResync();
-                                        showToast("リンクシェアへ再同期しました", "success");
+                                        showToast("だんごシェアリンクへ再同期しました", "success");
                                     }}
                                     className={`w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 border ${isLightMode ? "border-gray-200 hover:bg-gray-50" : "border-white/15 hover:bg-white/10"}`}
                                 >

@@ -473,7 +473,7 @@ export default function DataSyncPage() {
                 : "bg-amber-500/10 border-amber-500/25 text-amber-50"
             }`}
           >
-            <p className="font-bold mb-1">ガチャのリンクシェア再接続</p>
+            <p className="font-bold mb-1">ガチャのだんごシェアリンク再接続</p>
             <p className={isLightMode ? "text-amber-900/90" : "text-amber-50/90"}>
               配布キャンペーンの設定は復元されましたが、連携トークンはデータ連携に含まれません。
             </p>

@@ -25,7 +25,7 @@ export default function IntegrationReconnectBanner({
 
     return (
         <div className={`rounded-2xl border p-4 text-sm leading-relaxed ${box}`}>
-            <p className="font-bold mb-1">リンクシェアへの再接続が必要です</p>
+            <p className="font-bold mb-1">だんごシェアリンクへの再接続が必要です</p>
             <p className={isLightMode ? "text-amber-900/90" : "text-amber-50/90"}>
                 配布キャンペーンの設定はこの端末にありますが、連携トークンは含まれていません（データ連携ではトークンを移しません）。
             </p>

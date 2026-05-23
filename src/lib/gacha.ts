@@ -161,7 +161,7 @@ export interface Player {
     issuedClaimUrl?: string;
     /** ファイル配布連携: 発行時のキャンペーンID */
     issuedCampaignId?: string;
-    /** リンクシェア受取人名簿（recipients.id）。名簿先行運用で二重枠を減らす */
+    /** だんごシェアリンク受取人名簿（recipients.id）。名簿先行運用で二重枠を減らす */
     linkedRecipientId?: string;
 }
 

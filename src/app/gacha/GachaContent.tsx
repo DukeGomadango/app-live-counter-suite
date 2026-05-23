@@ -86,7 +86,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         }
     }, []);
 
-    /** リンクシェア deep link: 同期完了後に一括設定モーダルを開く（effect 再実行で同期しないよう ref） */
+    /** だんごシェアリンク deep link: 同期完了後に一括設定モーダルを開く（effect 再実行で同期しないよう ref） */
     const pendingBulkModalRef = useRef(false);
     /** 同一 campaign_id でトースト・同期を二重実行しない */
     const noTokenDeepLinkPromptedRef = useRef<string | null>(null);
@@ -311,7 +311,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                 if (noTokenDeepLinkPromptedRef.current !== campaignId) {
                     noTokenDeepLinkPromptedRef.current = campaignId;
                     showToast(
-                        "リンクシェアとの連携が必要です。配布タブの「連携を開始する」から許可してください。",
+                        "だんごシェアリンクとの連携が必要です。配布タブの「連携を開始する」から許可してください。",
                         "info"
                     );
                 }
@@ -347,7 +347,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                 apiBaseUrl: cleared?.apiBaseUrl ?? prev.apiBaseUrl,
                             }));
                             showToast(
-                                "リンクシェアの連携が切れています。許可画面でやり直してください。",
+                                "だんごシェアリンクの連携が切れています。許可画面でやり直してください。",
                                 "info"
                             );
                             openReconnectDialog(
@@ -541,7 +541,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     useEffect(() => {
         if (!oauthCallbackNotice) return;
         if (oauthCallbackNotice === "success") {
-            showToast("リンクシェアとの連携が完了しました", "success");
+            showToast("だんごシェアリンクとの連携が完了しました", "success");
             setSidebarTab("distribute");
             setMobileTab("distribute");
             if (isSplitMode) {
@@ -549,7 +549,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             }
         } else if (oauthCallbackNotice === "access_denied") {
             showToast(
-                "リンクシェアでの連携をキャンセルしました。配布タブから再度お試しください。",
+                "だんごシェアリンクでの連携をキャンセルしました。配布タブから再度お試しください。",
                 "info"
             );
         }
@@ -567,8 +567,8 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     const reconnectDialogEl = (
         <ConfirmDialog
             open={reconnectDialogOpen}
-            title="リンクシェアへの再接続"
-            message="保存されていた連携トークンが無効です（リンクシェアで失効した可能性があります）。許可画面でつなぎ直すと、配布機能を再び使えます。"
+            title="だんごシェアリンクへの再接続"
+            message="保存されていた連携トークンが無効です（だんごシェアリンクで失効した可能性があります）。許可画面でつなぎ直すと、配布機能を再び使えます。"
             confirmLabel="許可画面へ進む"
             cancelLabel="あとで"
             onConfirm={handleConfirmReconnect}

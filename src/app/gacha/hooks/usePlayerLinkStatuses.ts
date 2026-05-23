@@ -9,7 +9,7 @@ import {
 } from "@/lib/gachaDistribution";
 
 /**
- * 連携キャンペーン向け: 各プレイヤーのリンクシェア上の Claim 有無を確認する。
+ * 連携キャンペーン向け: 各プレイヤーのだんごシェアリンク上の Claim 有無を確認する。
  */
 export function usePlayerLinkStatuses(
   players: Player[],

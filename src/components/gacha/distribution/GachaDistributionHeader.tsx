@@ -55,7 +55,7 @@ export default function GachaDistributionHeader({
                             配布管理
                         </h2>
                         <p className={`text-xs sm:text-sm mt-0.5 ${theme.textSecondary}`}>
-                            景品とリンクシェアの配布ファイルを紐づけます
+                            景品とだんごシェアリンクの配布ファイルを紐づけます
                         </p>
                     </div>
                     {pool.linkedCampaignId && mappingStats.itemCount > 0 && (

@@ -36,7 +36,7 @@ export default function GachaDistributionOverflowMenu({
                 }}
             >
                 {syncing ? <FiLoader className="animate-spin shrink-0" /> : <FiRefreshCw className="shrink-0" />}
-                リンクシェアから構成を取り込む
+                だんごシェアリンクから構成を取り込む
             </button>
             <button
                 type="button"

@@ -295,7 +295,7 @@ export default function GachaPlayerManager({
                                                     )}
                                                     {linkSt === "missing" && (
                                                         <p className="text-[10px] text-amber-600 dark:text-amber-400">
-                                                            リンクシェア側で配布枠なし（名簿から追加後にマージを確認）
+                                                            だんごシェアリンク側で配布枠なし（名簿から追加後にマージを確認）
                                                         </p>
                                                     )}
                                                 </>
