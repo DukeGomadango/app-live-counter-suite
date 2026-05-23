@@ -20,6 +20,8 @@ export default function GachaDistributionHeader({
     onImportFromLinkShare,
     onOpenManagement,
     onDisconnect,
+    receptionUrl,
+    onCopyReceptionUrl,
 }: {
     pool: GachaPool;
     campaigns: ExternalCampaign[];
@@ -32,6 +34,8 @@ export default function GachaDistributionHeader({
     onImportFromLinkShare: () => void;
     onOpenManagement: () => void;
     onDisconnect: () => void;
+    receptionUrl?: string;
+    onCopyReceptionUrl?: () => void;
 }) {
     const [menuOpen, setMenuOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -94,6 +98,17 @@ export default function GachaDistributionHeader({
                         {isCreating ? <FiLoader className="animate-spin" /> : <FiPlus />}
                         新規
                     </button>
+
+                    {pool.linkedCampaignId && receptionUrl && onCopyReceptionUrl && (
+                        <button
+                            type="button"
+                            onClick={onCopyReceptionUrl}
+                            className={`p-2 rounded-xl border-2 flex items-center gap-1.5 px-3 text-sm font-bold border-emerald-500/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/10`}
+                            title="会場で案内する受付URLをコピー"
+                        >
+                            受付QR URL
+                        </button>
+                    )}
 
                     {pool.linkedCampaignId && (
                         <div className="relative" ref={menuRef}>

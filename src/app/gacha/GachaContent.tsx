@@ -124,6 +124,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         activePlayerId,
         setActivePlayerId,
         integrationConfig,
+        onIntegrationConfigChange: setIntegrationConfig,
         setLatestResults,
         gachaSettings
     });
@@ -738,7 +739,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                             <motion.div key="distribute" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
                                 <div className="flex-1 min-h-0 overflow-y-auto scroll-touch custom-scrollbar">
                                     <div className="pb-10">
-                                        <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={visiblePlayers} isLightMode={isLightMode} focusItemId={distributionFocusItemId} onNavigateToPlayers={navigateToPlayers} />
+                                        <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={visiblePlayers} onUpdatePlayers={setPlayers} isLightMode={isLightMode} focusItemId={distributionFocusItemId} onNavigateToPlayers={navigateToPlayers} />
                                     </div>
                                 </div>
                             </motion.div>

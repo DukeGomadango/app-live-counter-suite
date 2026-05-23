@@ -113,7 +113,7 @@ export default function GachaDistributionAlerts({
                     {!recipientCollapsed && (
                         <div className={`px-4 pb-3 leading-relaxed ${isLightMode ? "text-amber-900/90" : "text-amber-50/90"}`}>
                             <p>
-                                同一人物はだんごシェアリンクの<strong>受取人名簿</strong>で管理します。プレイヤーごとに名簿を紐づけると二重枠を減らせます。
+                                同一人物はだんごシェアリンクの<strong>受取人名簿</strong>で管理します。プレイヤーごとに名簿を紐づけると、受付とガチャで枠が二重になりにくくなります。会場では<strong>受付QR</strong>（配布タブ）を案内してください。
                             </p>
                             {onNavigateToPlayers && (
                                 <button

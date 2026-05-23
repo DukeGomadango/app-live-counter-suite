@@ -18,6 +18,7 @@ import {
     matchItemIdForFileName,
     buildAutoMappingSuggestions,
     type AutoMappingSuggestion,
+    mergePlayerWithRecipientSlotResult,
 } from "@/lib/gachaDistribution";
 import { clearPartialUnmappedPullDismissIfResolved } from "@/lib/gachaPullGuard";
 import type { GachaPool, IntegrationConfig, GachaItem, Player, RarityTier } from "@/lib/gacha";
@@ -40,12 +41,14 @@ export function useGachaDistribution({
     integrationConfig,
     onIntegrationConfigChange,
     players,
+    onUpdatePlayers,
 }: {
     pool: GachaPool;
     onPoolChange: (pool: GachaPool) => void;
     integrationConfig: IntegrationConfig;
     onIntegrationConfigChange: (config: IntegrationConfig) => void;
     players: Player[];
+    onUpdatePlayers?: (updater: (prev: Player[]) => Player[]) => void;
 }) {
     const { showToast } = useToast();
     const { confirm } = useConfirm();
@@ -164,17 +167,44 @@ export function useGachaDistribution({
             const targetPlayers = players.filter((p) => p.results.length > 0);
             if (targetPlayers.length === 0) return;
 
+            const campaignId = poolRef.current.linkedCampaignId;
             setSyncing(true);
             const tempPool = { ...poolRef.current, items: updatedItems };
             try {
+                let receptionUrl: string | undefined;
+                const syncedByPlayerId = new Map<string, Player>();
                 await runWithConcurrency(targetPlayers, CLAIM_SYNC_CONCURRENCY, async (p) => {
-                    await issueClaimForPlayer(p, tempPool, integrationConfig);
+                    const result = await issueClaimForPlayer(p, tempPool, integrationConfig);
+                    if (result.ok && result.slot_id) {
+                        syncedByPlayerId.set(
+                            p.id,
+                            mergePlayerWithRecipientSlotResult(
+                                p,
+                                { ...result, ok: true, slot_id: result.slot_id },
+                                campaignId
+                            )
+                        );
+                        if (result.reception_url) {
+                            receptionUrl = result.reception_url;
+                        }
+                    }
                 });
+                if (syncedByPlayerId.size > 0 && onUpdatePlayers) {
+                    onUpdatePlayers((prev) =>
+                        prev.map((p) => syncedByPlayerId.get(p.id) ?? p)
+                    );
+                }
+                if (receptionUrl) {
+                    onIntegrationConfigChange({
+                        ...integrationConfig,
+                        campaignReceptionUrl: receptionUrl,
+                    });
+                }
             } finally {
                 setSyncing(false);
             }
         },
-        [players, integrationConfig]
+        [players, integrationConfig, onIntegrationConfigChange, onUpdatePlayers]
     );
 
     const persistMapping = useCallback(

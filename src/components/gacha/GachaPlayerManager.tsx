@@ -316,7 +316,8 @@ export default function GachaPlayerManager({
                                                     className={
                                                         linkStatuses[player.id] === "missing"
                                                             ? "text-amber-500"
-                                                            : player.issuedClaimUrl &&
+                                                            : (player.issuedSlotId ||
+                                                                  player.issuedClaimUrl) &&
                                                                 player.issuedCampaignId === pool.linkedCampaignId &&
                                                                 linkStatuses[player.id] === "linked"
                                                               ? "text-green-500"

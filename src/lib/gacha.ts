@@ -74,6 +74,8 @@ export interface IntegrationConfig {
     apiBaseUrl: string;
     /** OAuth Consent で取得した Integration Token */
     integrationToken: string;
+    /** 連携キャンペーンの共通受付 URL（同期 API から取得） */
+    campaignReceptionUrl?: string;
 }
 
 export const GACHA_BG_COLORS = [
@@ -157,8 +159,10 @@ export interface Player {
     /** @deprecated use poolStates[poolId].pityReachCount */
     pityReachCount?: number;
 
-    /** ファイル配布連携: 発行済みの Claim URL（ローカル保持） */
+    /** ファイル配布連携: 発行済みの Claim URL（per_link レガシー・任意） */
     issuedClaimUrl?: string;
+    /** ファイル配布連携: だんごシェアリンク側のスロット ID */
+    issuedSlotId?: string;
     /** ファイル配布連携: 発行時のキャンペーンID */
     issuedCampaignId?: string;
     /** だんごシェアリンク受取人名簿（recipients.id）。名簿先行運用で二重枠を減らす */

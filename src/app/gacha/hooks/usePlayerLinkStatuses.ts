@@ -35,7 +35,7 @@ export function usePlayerLinkStatuses(
             next[player.id] = "none";
             return;
           }
-          if (!player.issuedClaimUrl) {
+          if (!player.issuedSlotId && !player.issuedClaimUrl) {
             next[player.id] = "none";
             return;
           }

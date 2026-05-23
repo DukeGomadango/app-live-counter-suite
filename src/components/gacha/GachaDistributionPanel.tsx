@@ -21,6 +21,7 @@ interface GachaDistributionPanelProps {
     integrationConfig: IntegrationConfig;
     onIntegrationConfigChange: (config: IntegrationConfig) => void;
     players: Player[];
+    onUpdatePlayers?: (updater: (prev: Player[]) => Player[]) => void;
     isLightMode: boolean;
     focusItemId?: string | null;
     onNavigateToPlayers?: () => void;
@@ -32,6 +33,7 @@ export default function GachaDistributionPanel({
     integrationConfig,
     onIntegrationConfigChange,
     players,
+    onUpdatePlayers,
     isLightMode,
     focusItemId,
     onNavigateToPlayers,
@@ -51,6 +53,7 @@ export default function GachaDistributionPanel({
         integrationConfig,
         onIntegrationConfigChange,
         players,
+        onUpdatePlayers,
     });
 
     const visibleItems = useMemo(() => {
@@ -130,6 +133,16 @@ export default function GachaDistributionPanel({
                     }
                 }}
                 onDisconnect={() => void dist.handleDisconnect()}
+                receptionUrl={integrationConfig.campaignReceptionUrl}
+                onCopyReceptionUrl={
+                    integrationConfig.campaignReceptionUrl
+                        ? () => {
+                              void navigator.clipboard.writeText(
+                                  integrationConfig.campaignReceptionUrl!
+                              );
+                          }
+                        : undefined
+                }
             />
 
             <div className="flex-1 overflow-auto p-4 sm:p-6">

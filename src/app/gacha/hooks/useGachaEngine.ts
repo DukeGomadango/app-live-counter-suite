@@ -15,6 +15,7 @@ import {
   deleteExternalSlot,
   getPlayerDistributionStats,
   getPoolMappingStats,
+  mergePlayerWithRecipientSlotResult,
 } from "@/lib/gachaDistribution";
 import { useToast } from "@/components/Toast";
 interface GachaEngineProps {
@@ -24,6 +25,7 @@ interface GachaEngineProps {
   activePlayerId: string | null;
   setActivePlayerId: (id: string | null) => void;
   integrationConfig: IntegrationConfig;
+  onIntegrationConfigChange?: (config: IntegrationConfig) => void;
   setLatestResults: (r: GachaResult[] | null) => void;
   gachaSettings: GachaSettings;
 }
@@ -35,6 +37,7 @@ export function useGachaEngine({
   activePlayerId,
   setActivePlayerId,
   integrationConfig,
+  onIntegrationConfigChange,
   setLatestResults,
   gachaSettings
 }: GachaEngineProps) {
@@ -47,19 +50,23 @@ export function useGachaEngine({
 
     try {
       const result = await issueClaimForPlayer(player, pool, integrationConfig);
-      if (result.ok && result.claim_url) {
+      if (result.ok && result.slot_id) {
         const campaignId = pool.linkedCampaignId;
+        const slotId = result.slot_id;
+        if (result.reception_url && onIntegrationConfigChange) {
+          onIntegrationConfigChange({
+            ...integrationConfig,
+            campaignReceptionUrl: result.reception_url,
+          });
+        }
         setPlayers((prev) =>
           prev.map((p) =>
             p.id === player.id
-              ? {
-                  ...p,
-                  issuedClaimUrl: result.claim_url,
-                  issuedCampaignId: campaignId ?? p.issuedCampaignId,
-                  ...(result.recipient_id
-                    ? { linkedRecipientId: result.recipient_id }
-                    : {}),
-                }
+              ? mergePlayerWithRecipientSlotResult(
+                  p,
+                  { ...result, ok: true, slot_id: slotId },
+                  campaignId
+                )
               : p
           )
         );
@@ -81,7 +88,7 @@ export function useGachaEngine({
             );
           } else if (dist.totalWinCount === 0) {
             showToast(
-              "配布リンクは作成しましたが、まだ当選品目がありません",
+              "受取枠を同期しました（当選品目はまだありません）",
               "info"
             );
           }
@@ -93,7 +100,7 @@ export function useGachaEngine({
       console.error("Failed to sync player with remote:", e);
       showToast("配布の同期に失敗しました", "error");
     }
-  }, [pool, integrationConfig, setPlayers, showToast]);
+  }, [pool, integrationConfig, onIntegrationConfigChange, setPlayers, showToast]);
 
   const handleRoll = useCallback(() => {
     if (pool.items.length === 0) return;
@@ -157,13 +164,19 @@ export function useGachaEngine({
     syncPlayerWithRemote(newPlayer);
   }, [pool.linkedCampaignId, setPlayers, setActivePlayerId, syncPlayerWithRemote]);
 
-  const removePlayer = useCallback((id: string) => {
-    deleteExternalSlot(id, pool, integrationConfig);
+  const removePlayer = useCallback(async (id: string) => {
+    try {
+      await deleteExternalSlot(id, pool, integrationConfig);
+    } catch (e) {
+      console.error("Failed to delete external slot:", e);
+      showToast("だんごシェアリンク側の連携解除に失敗しました", "error");
+      return;
+    }
     setPlayers((prev) => prev.filter((p) => p.id !== id));
     if (activePlayerId === id) {
       setActivePlayerId(null);
     }
-  }, [activePlayerId, setPlayers, setActivePlayerId, pool, integrationConfig]);
+  }, [activePlayerId, setPlayers, setActivePlayerId, pool, integrationConfig, showToast]);
 
   const resetPlayer = useCallback((id: string) => {
     setPlayers((prev) =>

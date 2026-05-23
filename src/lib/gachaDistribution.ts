@@ -76,12 +76,15 @@ export interface ExternalGachaConfigResponse {
 export interface RecipientSlotResult {
     ok: boolean;
     claim_url?: string;
+    reception_url?: string;
+    delivery_mode?: "reception" | "per_link";
     claim_id?: string;
     slot_id?: string;
     recipient_id?: string | null;
     external_transaction_id?: string;
-    /** だんごシェアリンク側に紐づけた配布ファイル件数 */
     linked_asset_count?: number;
+    slot_status?: "ready" | "unlinked";
+    resolved_existing?: boolean;
     error?: string;
     message?: string;
 }
@@ -108,10 +111,32 @@ export interface ExternalRegistryRecipient {
 
 export type RecipientSlotLinkStatus = "linked" | "missing" | "none";
 
+export type SuccessfulRecipientSlotResult = RecipientSlotResult & {
+    ok: true;
+    slot_id: string;
+};
+
+/** issueClaimForPlayer 成功時の結果を Player に反映する */
+export function mergePlayerWithRecipientSlotResult(
+    player: Player,
+    result: SuccessfulRecipientSlotResult,
+    campaignId: string | undefined
+): Player {
+    return {
+        ...player,
+        issuedSlotId: result.slot_id,
+        ...(result.claim_url ? { issuedClaimUrl: result.claim_url } : {}),
+        issuedCampaignId: campaignId ?? player.issuedCampaignId,
+        ...(result.recipient_id ? { linkedRecipientId: result.recipient_id } : {}),
+    };
+}
+
 export interface RecipientSlotStatusResult {
     ok: boolean;
     linked: boolean;
     claim_url?: string;
+    reception_url?: string;
+    delivery_mode?: "reception" | "per_link";
     recipient_id?: string | null;
 }
 
@@ -231,6 +256,8 @@ export async function fetchRecipientSlotStatus(
             ok: true,
             linked: !!data.linked,
             claim_url: data.claim_url,
+            reception_url: data.reception_url,
+            delivery_mode: data.delivery_mode,
             recipient_id: data.recipient_id,
         };
     } catch {
@@ -690,11 +717,15 @@ export async function issueClaimForPlayer(
         return {
             ok: true,
             claim_url: data.claim_url,
+            reception_url: data.reception_url,
+            delivery_mode: data.delivery_mode,
             claim_id: data.claim_id,
             slot_id: data.slot_id,
             recipient_id: data.recipient_id ?? player.linkedRecipientId,
             external_transaction_id: data.external_transaction_id,
             linked_asset_count: linkedCount,
+            slot_status: data.slot_status,
+            resolved_existing: data.resolved_existing,
         };
     } catch (e) {
         return {
@@ -719,7 +750,7 @@ export async function deleteExternalSlot(
 
     try {
         const res = await fetch(
-            `${config.apiBaseUrl}/api/v1/external/campaigns/${encodeURIComponent(campaignId)}/recipient-slots?external_transaction_id=${encodeURIComponent(externalTxId)}`,
+            `${config.apiBaseUrl}/api/v1/external/campaigns/${encodeURIComponent(campaignId)}/recipient-slots?external_transaction_id=${encodeURIComponent(externalTxId)}&mode=detach`,
             {
                 method: "DELETE",
                 headers: authHeaders(config),
