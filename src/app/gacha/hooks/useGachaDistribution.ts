@@ -64,6 +64,7 @@ export function useGachaDistribution({
     const mappingRef = useRef(mapping);
     mappingRef.current = mapping;
     const gachaConfigSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const loadDataInFlightRef = useRef(false);
 
     const refreshAssets = useCallback(async () => {
         const campaignId = poolRef.current.linkedCampaignId;
@@ -125,9 +126,16 @@ export function useGachaDistribution({
     }, [integrationConfig, onPoolChange, showToast]);
 
     useEffect(() => {
-        if (!integrationConfig.integrationToken) return;
-        void loadData();
-    }, [integrationConfig.integrationToken, pool.linkedCampaignId, loadData]);
+        const token = integrationConfig.integrationToken?.trim();
+        if (!token) return;
+        if (loadDataInFlightRef.current) return;
+        loadDataInFlightRef.current = true;
+        void loadData().finally(() => {
+            loadDataInFlightRef.current = false;
+        });
+        // loadData は poolRef 経由。integrationToken / linkedCampaignId の変化時のみ再取得
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- loadData を deps に入れると連続再実行になる
+    }, [integrationConfig.integrationToken, pool.linkedCampaignId]);
 
     useEffect(() => {
         const newMapping: Record<string, string> = {};

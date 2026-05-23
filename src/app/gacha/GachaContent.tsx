@@ -88,6 +88,9 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
 
     /** リンクシェア deep link: 同期完了後に一括設定モーダルを開く（effect 再実行で同期しないよう ref） */
     const pendingBulkModalRef = useRef(false);
+    /** 同一 campaign_id でトースト・同期を二重実行しない */
+    const noTokenDeepLinkPromptedRef = useRef<string | null>(null);
+    const campaignSyncStartedRef = useRef<string | null>(null);
     const [openBulkModal, setOpenBulkModal] = useState(false);
 
     const {
@@ -236,6 +239,20 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         window.history.replaceState({}, "", u.pathname + u.search);
     }, []);
 
+    useEffect(() => {
+        if (!integrationConfig.integrationToken?.trim()) {
+            campaignSyncStartedRef.current = null;
+        }
+    }, [integrationConfig.integrationToken]);
+
+    const stripCampaignIdFromUrl = useCallback(() => {
+        if (typeof window === "undefined") return;
+        const u = new URL(window.location.href);
+        if (!u.searchParams.has("campaign_id")) return;
+        u.searchParams.delete("campaign_id");
+        window.history.replaceState({}, "", u.pathname + u.search);
+    }, []);
+
     // Detect campaign_id in URL, handle auto-authorization, and auto-sync campaign ID & assets
     useEffect(() => {
         if (typeof window === 'undefined') return;
@@ -269,6 +286,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         if (campaignId && !hasIncomingToken) {
             if (isIntegrationEnabled && !hasToken) {
                 setIsCampaignSyncing(false);
+                stripCampaignIdFromUrl();
                 if (pool.linkedCampaignId !== campaignId) {
                     setPool((prev) => ({ ...prev, linkedCampaignId: campaignId }));
                 }
@@ -277,10 +295,13 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                 if (isSplitMode) {
                     setSidebarOpen(true);
                 }
-                showToast(
-                    "リンクシェアとの連携が必要です。配布タブの「連携を開始する」から許可してください。",
-                    "info"
-                );
+                if (noTokenDeepLinkPromptedRef.current !== campaignId) {
+                    noTokenDeepLinkPromptedRef.current = campaignId;
+                    showToast(
+                        "リンクシェアとの連携が必要です。配布タブの「連携を開始する」から許可してください。",
+                        "info"
+                    );
+                }
                 if (pendingBulkModalRef.current) {
                     pendingBulkModalRef.current = false;
                 }
@@ -288,6 +309,12 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             }
 
             if (isIntegrationEnabled && hasToken) {
+                if (campaignSyncStartedRef.current === campaignId) {
+                    return;
+                }
+                campaignSyncStartedRef.current = campaignId;
+                stripCampaignIdFromUrl();
+
                 const syncConfig = async () => {
                     setIsCampaignSyncing(true);
                     let leaveLoading = false;
@@ -299,6 +326,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                         const tokenStillValid =
                             await isIntegrationTokenValid(integrationProbe);
                         if (!tokenStillValid) {
+                            campaignSyncStartedRef.current = null;
                             const cleared = clearStoredIntegrationToken();
                             setIntegrationConfig((prev) => ({
                                 ...prev,
@@ -313,7 +341,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                 buildIntegrationAuthorizeUrl(
                                     apiBaseUrl,
                                     window.location.pathname,
-                                    u.search
+                                    u.search ? u.search : `?campaign_id=${encodeURIComponent(campaignId)}`
                                 )
                             );
                             return;
@@ -397,6 +425,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             }
 
             setIsCampaignSyncing(false);
+            stripCampaignIdFromUrl();
             if (pool.linkedCampaignId !== campaignId) {
                 setPool(prev => ({ ...prev, linkedCampaignId: campaignId }));
             }
@@ -417,7 +446,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             setOpenBulkModal(true);
             pendingBulkModalRef.current = false;
         }
-    }, [setSidebarTab, setMobileTab, isSplitMode, setSidebarOpen, isIntegrationEnabled, integrationConfig.integrationToken, integrationConfig.apiBaseUrl, pool.linkedCampaignId, setPool, setIntegrationConfig, showToast, openReconnectDialog]);
+    }, [setSidebarTab, setMobileTab, isSplitMode, setSidebarOpen, isIntegrationEnabled, integrationConfig.integrationToken, integrationConfig.apiBaseUrl, pool.linkedCampaignId, setPool, setIntegrationConfig, showToast, openReconnectDialog, stripCampaignIdFromUrl]);
 
     const activePlayer = useMemo(() => 
         visiblePlayers.find(p => p.id === activePlayerId)
