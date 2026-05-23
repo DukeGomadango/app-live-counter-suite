@@ -70,7 +70,7 @@ export interface GachaSettings {
 
 /** ファイル配布連携（dango link share）の接続情報。OAuth Consent で取得する。 */
 export interface IntegrationConfig {
-    /** 連携先の API ベースURL（例: "https://share.dango.tools"） */
+    /** 連携先の API ベースURL（例: "https://dango-share-link.vercel.app"） */
     apiBaseUrl: string;
     /** OAuth Consent で取得した Integration Token */
     integrationToken: string;

@@ -29,6 +29,10 @@ import {
 } from "@/lib/gacha";
 import { fetchExternalGachaConfig, resolveExternalGachaItemDisplayName, getPoolMappingStats } from "@/lib/gachaDistribution";
 import { isGachaDistributionReady } from "@/lib/gachaIntegration";
+import {
+    normalizeShareLinkApiBaseUrl,
+    resolveShareLinkApiBaseUrl,
+} from "@/lib/integrationConstants";
 import GachaIntegrationStatusBanner from "@/components/gacha/GachaIntegrationStatusBanner";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import {
@@ -273,18 +277,19 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         if (fromUrlRef) pendingCampaignFromUrlRef.current = null;
         const hasIncomingToken = u.searchParams.has("integration_token");
 
-        const defaultApiBase =
-            window.location.hostname === "localhost"
-                ? "http://localhost:3000"
-                : "https://share.dango.tools";
-        let apiBaseUrl = integrationConfig.apiBaseUrl || defaultApiBase;
+        const defaultApiBase = resolveShareLinkApiBaseUrl(window.location.hostname);
+        let apiBaseUrl = normalizeShareLinkApiBaseUrl(
+            integrationConfig.apiBaseUrl || defaultApiBase
+        );
         let token = integrationConfig.integrationToken || "";
 
         try {
             const stored = window.localStorage.getItem("gacha-integration-config");
             if (stored) {
                 const parsed = JSON.parse(stored) as IntegrationConfig;
-                if (parsed.apiBaseUrl) apiBaseUrl = parsed.apiBaseUrl;
+                if (parsed.apiBaseUrl) {
+                    apiBaseUrl = normalizeShareLinkApiBaseUrl(parsed.apiBaseUrl);
+                }
                 if (parsed.integrationToken) token = parsed.integrationToken;
             }
         } catch { /* ignore */ }

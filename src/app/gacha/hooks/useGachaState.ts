@@ -6,6 +6,10 @@ import {
   consumeOAuthReturnFromUrl,
   type OAuthCallbackNotice,
 } from "@/lib/integrationAuthRedirect";
+import {
+  normalizeShareLinkApiBaseUrl,
+  resolveShareLinkApiBaseUrl,
+} from "@/lib/integrationConstants";
 import { 
   type GachaPool, 
   type Player, 
@@ -27,7 +31,10 @@ export function useGachaState() {
   const [players, setPlayers] = useLocalStorage<Player[]>("gacha-players", []);
   const [activePlayerId, setActivePlayerId] = useLocalStorage<string | null>("gacha-active-player", null);
   const [integrationConfig, setIntegrationConfig] = useLocalStorage<IntegrationConfig>("gacha-integration-config", {
-    apiBaseUrl: typeof window !== 'undefined' && window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://share.dango.tools',
+    apiBaseUrl:
+      typeof window !== "undefined"
+        ? resolveShareLinkApiBaseUrl(window.location.hostname)
+        : "https://dango-share-link.vercel.app",
     integrationToken: "",
   });
   const [latestResults, setLatestResults] = useState<GachaResult[] | null>(null);
@@ -40,6 +47,14 @@ export function useGachaState() {
   useEffect(() => {
     setPool(prev => migratePoolItemsForLink(prev));
   }, [setPool]);
+
+  // 旧デフォルト share.dango.tools（DNS 未設定）を本番 Vercel URL に置き換え
+  useEffect(() => {
+    const next = normalizeShareLinkApiBaseUrl(integrationConfig.apiBaseUrl);
+    if (next !== integrationConfig.apiBaseUrl) {
+      setIntegrationConfig((prev) => ({ ...prev, apiBaseUrl: next }));
+    }
+  }, [integrationConfig.apiBaseUrl, setIntegrationConfig]);
 
   // 動的オリジン注入 & OAuth コールバック（token / access_denied）
   useEffect(() => {
@@ -55,10 +70,7 @@ export function useGachaState() {
       consumeOAuthReturnFromUrl(u);
 
     let currentConfig: IntegrationConfig = {
-      apiBaseUrl:
-        window.location.hostname === "localhost"
-          ? "http://localhost:3000"
-          : "https://share.dango.tools",
+      apiBaseUrl: resolveShareLinkApiBaseUrl(window.location.hostname),
       integrationToken: "",
     };
 
@@ -76,7 +88,9 @@ export function useGachaState() {
 
     const updatedConfig = { ...currentConfig };
     if (apiBaseUrl) {
-      updatedConfig.apiBaseUrl = apiBaseUrl;
+      updatedConfig.apiBaseUrl = normalizeShareLinkApiBaseUrl(apiBaseUrl);
+    } else {
+      updatedConfig.apiBaseUrl = normalizeShareLinkApiBaseUrl(updatedConfig.apiBaseUrl);
     }
     if (integrationToken) {
       updatedConfig.integrationToken = integrationToken;
