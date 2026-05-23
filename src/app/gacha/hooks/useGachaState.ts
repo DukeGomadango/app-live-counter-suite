@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import {
+  consumeOAuthReturnFromUrl,
+  type OAuthCallbackNotice,
+} from "@/lib/integrationAuthRedirect";
 import { 
   type GachaPool, 
   type Player, 
@@ -29,76 +33,70 @@ export function useGachaState() {
   const [latestResults, setLatestResults] = useState<GachaResult[] | null>(null);
   const [gachaSettings, setGachaSettings] = useLocalStorage<GachaSettings>("gacha-settings", DEFAULT_SETTINGS);
   const [hasMigrated, setHasMigrated] = useState(false);
+  const [oauthCallbackNotice, setOauthCallbackNotice] =
+    useState<OAuthCallbackNotice | null>(null);
 
   // 旧品目形式（link）を imageUrl に移すマイグレーション（初回のみ）
   useEffect(() => {
     setPool(prev => migratePoolItemsForLink(prev));
   }, [setPool]);
 
-  // 動的オリジン注入 & OAuth連携コールバックの統合処理
+  // 動的オリジン注入 & OAuth コールバック（token / access_denied）
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     const u = new URL(window.location.href);
-    const apiUrl = u.searchParams.get("api_base_url");
-    const token = u.searchParams.get("integration_token");
-    const state = u.searchParams.get("state");
-    
-    if (apiUrl || token) {
-      // 1. まず localStorage から既存の設定を同期的に読み込む
-      let currentConfig: IntegrationConfig = {
-        apiBaseUrl: window.location.hostname === 'localhost' ? 'http://localhost:3000' : 'https://share.dango.tools',
-        integrationToken: "",
-      };
-      
-      try {
-        const raw = window.localStorage.getItem("gacha-integration-config");
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (parsed) {
-            currentConfig = { ...currentConfig, ...parsed };
-          }
+    const hasOAuthParams =
+      u.searchParams.has("integration_token") ||
+      u.searchParams.get("error") === "access_denied" ||
+      u.searchParams.has("api_base_url");
+    if (!hasOAuthParams) return;
+
+    const { apiBaseUrl, integrationToken, notice, cleanedPath } =
+      consumeOAuthReturnFromUrl(u);
+
+    let currentConfig: IntegrationConfig = {
+      apiBaseUrl:
+        window.location.hostname === "localhost"
+          ? "http://localhost:3000"
+          : "https://share.dango.tools",
+      integrationToken: "",
+    };
+
+    try {
+      const raw = window.localStorage.getItem("gacha-integration-config");
+      if (raw) {
+        const parsed = JSON.parse(raw) as IntegrationConfig;
+        if (parsed) {
+          currentConfig = { ...currentConfig, ...parsed };
         }
-      } catch (e) {
-        console.warn("Failed to parse integration config from localStorage:", e);
       }
-
-      // 2. パラメータがあれば上書きする
-      const updatedConfig = { ...currentConfig };
-      if (apiUrl) {
-        updatedConfig.apiBaseUrl = apiUrl;
-      }
-      if (token) {
-        updatedConfig.integrationToken = token;
-      }
-
-      // 3. ローカルストレージと state を同時に更新する（競合回避のためLocalStorageへ同期書き込み）
-      try {
-        window.localStorage.setItem("gacha-integration-config", JSON.stringify(updatedConfig));
-      } catch (e) {
-        console.warn("Failed to save integration config to localStorage:", e);
-      }
-      setIntegrationConfig(updatedConfig);
-
-      // 4. URLパラメータのクレンジングとリダイレクト
-      if (apiUrl) {
-        u.searchParams.delete("api_base_url");
-      }
-      
-      let redirectUrl = u.pathname;
-      if (token) {
-        u.searchParams.delete("integration_token");
-        u.searchParams.delete("state");
-        if (state && state.startsWith("?")) {
-          redirectUrl += state;
-        } else {
-          redirectUrl += u.search;
-        }
-      } else {
-        redirectUrl += u.search;
-      }
-
-      window.history.replaceState({}, "", redirectUrl);
+    } catch (e) {
+      console.warn("Failed to parse integration config from localStorage:", e);
     }
+
+    const updatedConfig = { ...currentConfig };
+    if (apiBaseUrl) {
+      updatedConfig.apiBaseUrl = apiBaseUrl;
+    }
+    if (integrationToken) {
+      updatedConfig.integrationToken = integrationToken;
+    }
+
+    try {
+      window.localStorage.setItem(
+        "gacha-integration-config",
+        JSON.stringify(updatedConfig)
+      );
+    } catch (e) {
+      console.warn("Failed to save integration config to localStorage:", e);
+    }
+    setIntegrationConfig(updatedConfig);
+
+    if (notice) {
+      setOauthCallbackNotice(notice);
+    }
+
+    window.history.replaceState({}, "", cleanedPath);
   }, [setIntegrationConfig]);
 
   // 設定に orbIntensity / orbColor がない古い保存データにデフォルトを付与
@@ -158,5 +156,7 @@ export function useGachaState() {
     latestResults, setLatestResults,
     gachaSettings, setGachaSettings,
     hasMigrated, setHasMigrated,
+    oauthCallbackNotice,
+    clearOauthCallbackNotice: () => setOauthCallbackNotice(null),
   };
 }

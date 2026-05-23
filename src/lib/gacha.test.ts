@@ -111,18 +111,37 @@ describe("distributePercentagesProportionally", () => {
     expect(res.find(it => it.id === "c")?.value).toBe(30);
   });
 
-  it("handles locked values summing over 100%", () => {
+  it("strictly protects locked values by clamping target values", () => {
     const items = [
       { id: "a", value: 50 },
       { id: "b", value: 60 },
       { id: "c", value: 10 },
     ];
-    // Lock 'b' (value 60). Set 'a' to 60.
-    // Total locked = 120. 'a' is preserved at 60. Other locked 'b' scales down to 100 - 60 = 40.
-    // Unlocked 'c' gets 0.
+    // Lock 'b' (value 60). Try to set 'a' to 60.
+    // Max allowed for 'a' is 100 - 60 = 40.
+    // 'a' must be clamped to 40. Locked 'b' must remain 60. Unlocked 'c' becomes 0.
     const res = distributePercentagesProportionally(items, new Set(["b"]), "a", 60);
-    expect(res.find(it => it.id === "a")?.value).toBe(60);
-    expect(res.find(it => it.id === "b")?.value).toBe(40);
+    expect(res.find(it => it.id === "a")?.value).toBe(40);
+    expect(res.find(it => it.id === "b")?.value).toBe(60);
     expect(res.find(it => it.id === "c")?.value).toBe(0);
+  });
+
+  it("handles multiple locks and clamps target value to remaining percentage", () => {
+    const items = [
+      { id: "a", value: 20 },
+      { id: "b", value: 30 },
+      { id: "c", value: 40 },
+      { id: "d", value: 10 },
+    ];
+    // Lock 'b' (30) and 'c' (40) -> sum of locked = 70.
+    // Set target 'a' to 50.
+    // Max allowed for 'a' is 100 - 70 = 30.
+    // 'a' must be clamped to 30. Locked 'b' (30) and 'c' (40) must be untouched.
+    // Unlocked 'd' becomes 0.
+    const res = distributePercentagesProportionally(items, new Set(["b", "c"]), "a", 50);
+    expect(res.find(it => it.id === "a")?.value).toBe(30);
+    expect(res.find(it => it.id === "b")?.value).toBe(30);
+    expect(res.find(it => it.id === "c")?.value).toBe(40);
+    expect(res.find(it => it.id === "d")?.value).toBe(0);
   });
 });

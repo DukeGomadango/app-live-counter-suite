@@ -61,6 +61,21 @@ function labelForGroups(ids: SyncGroupId[]): string {
     .join("、");
 }
 
+function needsGachaReconnectAfterImport(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const pool = JSON.parse(window.localStorage.getItem("gacha-pool") || "null") as {
+      linkedCampaignId?: string;
+    } | null;
+    const cfg = JSON.parse(
+      window.localStorage.getItem("gacha-integration-config") || "null"
+    ) as { integrationToken?: string } | null;
+    return !!pool?.linkedCampaignId?.trim() && !cfg?.integrationToken?.trim();
+  } catch {
+    return false;
+  }
+}
+
 export default function DataSyncPage() {
   const { isLightMode, toggleTheme } = useTheme();
   const searchParams = useSearchParams();
@@ -75,6 +90,7 @@ export default function DataSyncPage() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [qrNote, setQrNote] = useState<string | null>(null);
   const [pendingImport, setPendingImport] = useState<SyncBundle | null>(null);
+  const [showGachaReconnectHint, setShowGachaReconnectHint] = useState(false);
   const { confirm } = useConfirm();
   const [nfcSupported, setNfcSupported] = useState(false);
 
@@ -226,6 +242,7 @@ export default function DataSyncPage() {
         },
       });
       setPendingImport(null);
+      setShowGachaReconnectHint(needsGachaReconnectAfterImport());
       setStatusMsg("取り込みが完了しました。各ツールページを開き直すと反映されます。");
     } catch (e) {
       setErrorMsg(e instanceof Error ? e.message : String(e));
@@ -447,6 +464,27 @@ export default function DataSyncPage() {
           setGroupEnabled={setGroupEnabled}
           isLightMode={isLightMode}
         />
+
+        {showGachaReconnectHint ? (
+          <div
+            className={`rounded-2xl border p-4 text-sm leading-relaxed ${
+              isLightMode
+                ? "bg-amber-50 border-amber-200 text-amber-950"
+                : "bg-amber-500/10 border-amber-500/25 text-amber-50"
+            }`}
+          >
+            <p className="font-bold mb-1">ガチャのリンクシェア再接続</p>
+            <p className={isLightMode ? "text-amber-900/90" : "text-amber-50/90"}>
+              配布キャンペーンの設定は復元されましたが、連携トークンはデータ連携に含まれません。
+            </p>
+            <Link
+              href="/gacha"
+              className="inline-block mt-2 text-xs font-bold underline"
+            >
+              ガチャの配布タブで連携を開始する
+            </Link>
+          </div>
+        ) : null}
 
         <section className={`rounded-2xl border p-4 ${isLightMode ? "bg-white/90 border-neutral-200" : "bg-white/5 border-white/10"}`}>
           <h2 className={`text-sm font-bold ${textPri}`}>取り込みモード</h2>

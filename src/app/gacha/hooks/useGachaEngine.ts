@@ -10,7 +10,13 @@ import {
   performGachaPull,
   createDefaultPlayer
 } from "@/lib/gacha";
-import { issueClaimForPlayer, deleteExternalSlot } from "@/lib/gachaDistribution";
+import {
+  issueClaimForPlayer,
+  deleteExternalSlot,
+  getPlayerDistributionStats,
+  getPoolMappingStats,
+} from "@/lib/gachaDistribution";
+import { useToast } from "@/components/Toast";
 import { type MobileTab } from "./useGachaSidebar";
 
 interface GachaEngineProps {
@@ -40,6 +46,7 @@ export function useGachaEngine({
 }: GachaEngineProps) {
   const [isRolling, setIsRolling] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const { showToast } = useToast();
 
   const syncPlayerWithRemote = useCallback(async (player: Player) => {
     if (!pool.linkedCampaignId || !integrationConfig.integrationToken) return;
@@ -62,11 +69,37 @@ export function useGachaEngine({
               : p
           )
         );
+
+        const dist = getPlayerDistributionStats(player, pool);
+        const mapping = getPoolMappingStats(pool);
+        const linkedCount = result.linked_asset_count ?? dist.assetCount;
+
+        if (linkedCount === 0) {
+          if (dist.totalWinCount > 0 && dist.mappedWinCount === 0) {
+            showToast(
+              "当選はありますが配布ファイルが0件です。配布タブで景品とファイルを紐づけてから再同期してください",
+              "error"
+            );
+          } else if (mapping.mappedCount === 0 && pool.items.length > 0) {
+            showToast(
+              "景品とファイルの紐づけがありません。配布タブで設定してから抽選・再同期してください",
+              "error"
+            );
+          } else if (dist.totalWinCount === 0) {
+            showToast(
+              "配布リンクは作成しましたが、まだ当選品目がありません",
+              "info"
+            );
+          }
+        }
+      } else if (!result.ok) {
+        showToast(result.message ?? result.error ?? "配布の同期に失敗しました", "error");
       }
     } catch (e) {
       console.error("Failed to sync player with remote:", e);
+      showToast("配布の同期に失敗しました", "error");
     }
-  }, [pool, integrationConfig, setPlayers]);
+  }, [pool, integrationConfig, setPlayers, showToast]);
 
   const handleRoll = useCallback(() => {
     if (pool.items.length === 0) return;

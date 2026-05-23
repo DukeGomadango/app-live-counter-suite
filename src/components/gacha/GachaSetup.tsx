@@ -55,6 +55,10 @@ interface GachaSetupProps {
     /** 親が同期完了後に一括設定モーダルを開く */
     openBulkModal?: boolean;
     onBulkModalOpened?: () => void;
+    /** 配布タブへ遷移（品目 ID をフォーカス可能） */
+    onNavigateToDistribution?: (itemId: string) => void;
+    /** キャンペーン選択済みかつ連携トークンあり */
+    distributionIntegrationActive?: boolean;
 }
 
 function SectionHeader({
@@ -98,7 +102,7 @@ function SectionHeader({
     );
 }
 
-export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false, integrationConfig, openBulkModal = false, onBulkModalOpened }: GachaSetupProps) {
+export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false, integrationConfig, openBulkModal = false, onBulkModalOpened, onNavigateToDistribution, distributionIntegrationActive = false }: GachaSetupProps) {
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
@@ -310,6 +314,17 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         if (updates.defaultWeight !== undefined) {
             const temp = pool.rarities.map(r => r.id === id ? { ...r, ...updates } : r);
             const nextRarities = normalizeRarityTiers(temp, id, updates.defaultWeight);
+            
+            const updatedRarity = nextRarities.find(r => r.id === id);
+            if (updatedRarity && updatedRarity.defaultWeight !== undefined) {
+                const diff = updates.defaultWeight - updatedRarity.defaultWeight;
+                if (Math.abs(diff) > 1e-7) {
+                    showToast(
+                        `他のレア度がロックされているため、${updatedRarity.name}の確率は上限の${formatProb(updatedRarity.defaultWeight)}%に制限されました`,
+                        "info"
+                    );
+                }
+            }
             onPoolChange({ ...pool, rarities: nextRarities });
         } else {
             onPoolChange({
@@ -370,6 +385,17 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         const targetItem = pool.items[itemIndex];
         if (!targetItem) return;
         const nextItems = normalizeRarityWeights(pool.items, targetItem.rarityId, targetItem.id, newWeight);
+        
+        const updatedItem = nextItems.find(it => it.id === targetItem.id);
+        if (updatedItem) {
+            const diff = newWeight - updatedItem.weight;
+            if (Math.abs(diff) > 1e-7) {
+                showToast(
+                    `他の品目がロックされているため、${targetItem.name || "（名称未設定）"}の確率は上限の${formatProb(updatedItem.weight)}%に制限されました`,
+                    "info"
+                );
+            }
+        }
         onPoolChange({ ...pool, items: nextItems });
     };
 
@@ -385,6 +411,18 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
             weight: w,
         };
         const nextItems = normalizeRarityWeights([...pool.items, newItem], newItemRarityId, newItem.id, w);
+        
+        const updatedItem = nextItems.find(it => it.id === newItem.id);
+        if (updatedItem) {
+            const diff = w - updatedItem.weight;
+            if (Math.abs(diff) > 1e-7) {
+                showToast(
+                    `他の品目がロックされているため、${newItem.name}の確率は上限の${formatProb(updatedItem.weight)}%に制限されました`,
+                    "info"
+                );
+            }
+        }
+        
         onPoolChange({ ...pool, items: nextItems });
         setNewItemName("");
         setNewItemProb("100");
@@ -806,6 +844,12 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         isLocked={lockedItemIds.has(item.id)}
                                                         onToggleLock={toggleItemLock}
                                                         showCostSimulator={showCostSimulator}
+                                                        showDistributionStatus={distributionIntegrationActive}
+                                                        onOpenDistribution={
+                                                            onNavigateToDistribution
+                                                                ? () => onNavigateToDistribution(item.id)
+                                                                : undefined
+                                                        }
                                                     />
                                                 );
                                             })}
@@ -1027,6 +1071,8 @@ interface SortableItemProps {
     /** ロック状態をトグルするコールバック */
     onToggleLock: (id: string) => void;
     showCostSimulator?: boolean;
+    showDistributionStatus?: boolean;
+    onOpenDistribution?: () => void;
 }
 
 function SortableItem({
@@ -1051,6 +1097,8 @@ function SortableItem({
     isLocked,
     onToggleLock,
     showCostSimulator,
+    showDistributionStatus,
+    onOpenDistribution,
 }: SortableItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
     const isEditing = editingItemId === item.id;
@@ -1189,6 +1237,28 @@ function SortableItem({
                     />
                     <span className={`text-[9px] ${textMuted}`}>円</span>
                 </div>
+            )}
+
+            {showDistributionStatus && onOpenDistribution && (
+                <button
+                    type="button"
+                    onClick={e => {
+                        e.stopPropagation();
+                        onOpenDistribution();
+                    }}
+                    className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold border transition-all ${
+                        item.linkedAssetId
+                            ? isLightMode
+                                ? "border-emerald-300 text-emerald-700 bg-emerald-50"
+                                : "border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
+                            : isLightMode
+                              ? "border-amber-300 text-amber-700 bg-amber-50"
+                              : "border-amber-500/40 text-amber-200 bg-amber-500/10"
+                    }`}
+                    title={item.linkedAssetId ? "配布ファイル済み — 配布タブで確認" : "配布ファイル未設定 — 配布タブで紐づけ"}
+                >
+                    {item.linkedAssetId ? "配布済" : "未配布"}
+                </button>
             )}
 
             {/* 🔒ロックボタン */}

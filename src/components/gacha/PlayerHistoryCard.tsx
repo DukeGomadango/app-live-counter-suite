@@ -2,7 +2,13 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { X, Link, ChevronDown, Trash2 } from "lucide-react";
-import type { Player, GachaPool, RunSummary } from "@/lib/gacha";
+import type { Player, GachaPool, RunSummary, IntegrationConfig } from "@/lib/gacha";
+import type { RecipientSlotLinkStatus } from "@/lib/gachaDistribution";
+import {
+    getGachaIntegrationReadiness,
+    getLinkCollectionButtonTitle,
+    mergeDistributionPool,
+} from "@/lib/gachaIntegration";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 import PlayerLinkCollectionModal from "./PlayerLinkCollectionModal";
 import GachaHistorySummary from "./GachaHistorySummary";
@@ -18,9 +24,28 @@ interface PlayerHistoryCardProps {
     shareHashtags: string;
     onClose: () => void;
     onDeleteHistoryForPool?: (poolId: string) => void;
+    integrationEnabled?: boolean;
+    integrationConfig?: IntegrationConfig;
+    linkStatus?: RecipientSlotLinkStatus;
+    onLinkedRecipientChange?: (recipientId: string | null) => void;
+    onResync?: () => void;
+    onNavigateToDistribution?: () => void;
 }
 
-export default function PlayerHistoryCard({ player, pool, isLightMode, shareHashtags, onClose, onDeleteHistoryForPool }: PlayerHistoryCardProps) {
+export default function PlayerHistoryCard({
+    player,
+    pool,
+    isLightMode,
+    shareHashtags,
+    onClose,
+    onDeleteHistoryForPool,
+    integrationEnabled = false,
+    integrationConfig,
+    linkStatus,
+    onLinkedRecipientChange,
+    onResync,
+    onNavigateToDistribution,
+}: PlayerHistoryCardProps) {
     const [activeTab, setActiveTab] = useState<"summary" | "runs">("summary");
     const [selectedRunIndex, setSelectedRunIndex] = useState<number | null>(null);
     const [showLinkCollection, setShowLinkCollection] = useState(false);
@@ -78,6 +103,19 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
         fallback.conceptName = savedName ? `(削除済) ${savedName}` : "削除されたガチャ";
         return fallback;
     }, [viewingPoolId, poolMap, player.runHistory]);
+
+    const distributionPool = useMemo(
+        () => mergeDistributionPool(pool, resolvedPool),
+        [pool, resolvedPool]
+    );
+
+    const linkReadiness = useMemo(
+        () =>
+            getGachaIntegrationReadiness(integrationEnabled, integrationConfig, distributionPool),
+        [integrationEnabled, integrationConfig, distributionPool]
+    );
+
+    const linkButtonTitle = getLinkCollectionButtonTitle(linkReadiness);
 
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
@@ -202,8 +240,17 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
                     <div className="flex items-center gap-1 shrink-0">
                         <button
                             onClick={() => setShowLinkCollection(true)}
-                            className={`p-2 rounded-lg transition-all ${isLightMode ? "hover:bg-purple-50 text-purple-600" : "hover:bg-purple-500/10 text-purple-400"}`}
-                            title="リンク集"
+                            className={`p-2 rounded-lg transition-all ${
+                                linkReadiness === "ready"
+                                    ? isLightMode
+                                        ? "hover:bg-purple-50 text-purple-600"
+                                        : "hover:bg-purple-500/10 text-purple-400"
+                                    : isLightMode
+                                      ? "hover:bg-amber-50 text-amber-700"
+                                      : "hover:bg-amber-500/10 text-amber-400"
+                            }`}
+                            title={linkButtonTitle}
+                            aria-label={linkButtonTitle}
                         >
                             <Link size={16} />
                         </button>
@@ -222,7 +269,14 @@ export default function PlayerHistoryCard({ player, pool, isLightMode, shareHash
                 <PlayerLinkCollectionModal
                     player={player}
                     pool={resolvedPool}
+                    activePool={pool}
                     isLightMode={isLightMode}
+                    integrationEnabled={integrationEnabled}
+                    integrationConfig={integrationConfig}
+                    linkStatus={linkStatus}
+                    onLinkedRecipientChange={onLinkedRecipientChange}
+                    onResync={onResync}
+                    onNavigateToDistribution={onNavigateToDistribution}
                     onClose={() => setShowLinkCollection(false)}
                 />
             )}

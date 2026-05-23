@@ -27,7 +27,17 @@ import {
   type IntegrationConfig,
   playersForLinkedPool,
 } from "@/lib/gacha";
-import { fetchExternalGachaConfig, resolveExternalGachaItemDisplayName } from "@/lib/gachaDistribution";
+import { fetchExternalGachaConfig, resolveExternalGachaItemDisplayName, getPoolMappingStats } from "@/lib/gachaDistribution";
+import { isGachaDistributionReady } from "@/lib/gachaIntegration";
+import GachaIntegrationStatusBanner from "@/components/gacha/GachaIntegrationStatusBanner";
+import ConfirmDialog from "@/components/ConfirmDialog";
+import {
+    buildIntegrationAuthorizeUrl,
+    clearStoredIntegrationToken,
+    isIntegrationAuthFailure,
+    isIntegrationTokenValid,
+} from "@/lib/integrationAuthRedirect";
+import { useToast } from "@/components/Toast";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
 
@@ -35,6 +45,7 @@ import { useGlassStyle } from "@/hooks/useGlassStyle";
 import { useGachaState } from "./hooks/useGachaState";
 import { useGachaEngine } from "./hooks/useGachaEngine";
 import { useGachaSidebar } from "./hooks/useGachaSidebar";
+import { usePartialUnmappedPullGuard } from "./hooks/usePartialUnmappedPullGuard";
 import { usePlayerLinkStatuses } from "./hooks/usePlayerLinkStatuses";
 
 // Components
@@ -45,6 +56,7 @@ type MobileTab = "setup" | "gacha" | "results" | "players" | "items" | "distribu
 type SidebarTab = "setup" | "players" | "items" | "presets" | "distribute";
 
 export default function GachaContent({ isSplitMode = false, isRightPane: _isRightPane = false }: { isSplitMode?: boolean; isRightPane?: boolean } = {}) {
+    const { showToast } = useToast();
     // -- Hooks --
     const {
         pool, setPool,
@@ -53,9 +65,27 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         integrationConfig, setIntegrationConfig,
         latestResults, setLatestResults,
         gachaSettings, setGachaSettings,
+        oauthCallbackNotice,
+        clearOauthCallbackNotice,
     } = useGachaState();
     const { isLightMode, toggleTheme } = useTheme();
-    const [isAuthChecking, setIsAuthChecking] = useState(false);
+    const [isCampaignSyncing, setIsCampaignSyncing] = useState(false);
+    const [reconnectDialogOpen, setReconnectDialogOpen] = useState(false);
+    const reconnectUrlRef = useRef<string | null>(null);
+
+    const openReconnectDialog = useCallback((authorizeUrl: string) => {
+        reconnectUrlRef.current = authorizeUrl;
+        setReconnectDialogOpen(true);
+    }, []);
+
+    const handleConfirmReconnect = useCallback(() => {
+        setReconnectDialogOpen(false);
+        const url = reconnectUrlRef.current;
+        if (url) {
+            window.location.href = url;
+        }
+    }, []);
+
     /** リンクシェア deep link: 同期完了後に一括設定モーダルを開く（effect 再実行で同期しないよう ref） */
     const pendingBulkModalRef = useRef(false);
     const [openBulkModal, setOpenBulkModal] = useState(false);
@@ -76,6 +106,8 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     
     const isIntegrationEnabled = process.env.NEXT_PUBLIC_ENABLE_GACHA_INTEGRATION === 'true';
 
+    const [isMobile, setIsMobile] = useState(false);
+
     const engine = useGachaEngine({
         pool,
         players,
@@ -85,14 +117,56 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         integrationConfig,
         setLatestResults,
         gachaSettings,
-        isMobile: false, // Will be updated below
+        isMobile,
         setMobileTab: setMobileTab
     });
 
-    const [isMobile, setIsMobile] = useState(false);
+    const integrationActive = isGachaDistributionReady(
+        isIntegrationEnabled,
+        integrationConfig,
+        pool
+    );
+
+    const distributionMappingStats = useMemo(() => getPoolMappingStats(pool), [pool]);
+    const [distributionFocusItemId, setDistributionFocusItemId] = useState<string | null>(null);
+
+    const navigateToDistribution = useCallback(
+        (itemId?: string) => {
+            setDistributionFocusItemId(itemId ?? null);
+            if (isMobile) {
+                setMobileTab("distribute");
+            } else {
+                setSidebarTab("distribute");
+                if (isSplitMode) setSidebarOpen(true);
+            }
+        },
+        [isMobile, setMobileTab, setSidebarTab, setSidebarOpen, isSplitMode]
+    );
+
+    const navigateToPlayers = useCallback(() => {
+        if (isMobile) setMobileTab("players");
+        else setSidebarTab("players");
+    }, [isMobile, setMobileTab, setSidebarTab]);
+
+    useEffect(() => {
+        const onDistribute =
+            (isMobile && mobileTab === "distribute") || (!isMobile && sidebarTab === "distribute");
+        if (!onDistribute || !distributionFocusItemId) return;
+        const t = setTimeout(() => setDistributionFocusItemId(null), 4000);
+        return () => clearTimeout(t);
+    }, [isMobile, mobileTab, sidebarTab, distributionFocusItemId]);
+
+    const pullGuard = usePartialUnmappedPullGuard({
+        pool,
+        integrationActive,
+        onRoll: engine.handleRoll,
+        isMobile,
+        setMobileTab,
+        setSidebarTab,
+        setSidebarOpen,
+    });
     const [showSettingsPanel, setShowSettingsPanel] = useState(false);
-    const handleSetShowSettingsPanel = useCallback((val: boolean) => setShowSettingsPanel(val), []);
-    
+
     const [presetsRaw] = useLocalStorage<GachaPoolPreset[]>("gacha-presets", []);
     const presets = useMemo(() => presetsRaw || [], [presetsRaw]);
 
@@ -193,32 +267,58 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         const hasToken = !!token;
 
         if (campaignId && !hasIncomingToken) {
-            // If OAuth integration is enabled but not authorized yet, redirect to authorize automatically
             if (isIntegrationEnabled && !hasToken) {
-                const authUrl = new URL(`${apiBaseUrl}/settings/integrations/authorize`);
-                authUrl.searchParams.set("client_id", "dango-tools-gacha");
-                authUrl.searchParams.set("redirect_uri", window.location.origin + window.location.pathname);
-                authUrl.searchParams.set("state", window.location.search);
-                window.location.href = authUrl.toString();
+                setIsCampaignSyncing(false);
+                if (pool.linkedCampaignId !== campaignId) {
+                    setPool((prev) => ({ ...prev, linkedCampaignId: campaignId }));
+                }
+                setSidebarTab("distribute");
+                setMobileTab("distribute");
+                if (isSplitMode) {
+                    setSidebarOpen(true);
+                }
+                showToast(
+                    "リンクシェアとの連携が必要です。配布タブの「連携を開始する」から許可してください。",
+                    "info"
+                );
+                if (pendingBulkModalRef.current) {
+                    pendingBulkModalRef.current = false;
+                }
                 return;
             }
 
-            // Sync campaign ID to pool if they differ
-            if (pool.linkedCampaignId !== campaignId) {
-                setPool(prev => ({ ...prev, linkedCampaignId: campaignId }));
-            }
-
-            setSidebarTab("setup");
-            setMobileTab("setup");
-            if (isSplitMode) {
-                setSidebarOpen(true);
-            }
-
-            // If we are authorized, automatically pull/sync the external gacha config
             if (isIntegrationEnabled && hasToken) {
-                setIsAuthChecking(true);
                 const syncConfig = async () => {
+                    setIsCampaignSyncing(true);
+                    let leaveLoading = false;
                     try {
+                        const integrationProbe: IntegrationConfig = {
+                            apiBaseUrl,
+                            integrationToken: token,
+                        };
+                        const tokenStillValid =
+                            await isIntegrationTokenValid(integrationProbe);
+                        if (!tokenStillValid) {
+                            const cleared = clearStoredIntegrationToken();
+                            setIntegrationConfig((prev) => ({
+                                ...prev,
+                                integrationToken: "",
+                                apiBaseUrl: cleared?.apiBaseUrl ?? prev.apiBaseUrl,
+                            }));
+                            showToast(
+                                "リンクシェアの連携が切れています。許可画面でやり直してください。",
+                                "info"
+                            );
+                            openReconnectDialog(
+                                buildIntegrationAuthorizeUrl(
+                                    apiBaseUrl,
+                                    window.location.pathname,
+                                    u.search
+                                )
+                            );
+                            return;
+                        }
+
                         const config = await fetchExternalGachaConfig(campaignId, {
                             apiBaseUrl,
                             integrationToken: token
@@ -249,28 +349,75 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                 rarities: newRarities,
                                 items: newItems
                             }));
+                        } else {
+                            setPool(prev => ({ ...prev, linkedCampaignId: campaignId }));
                         }
+
+                        setSidebarTab("setup");
+                        setMobileTab("setup");
+                        if (isSplitMode) {
+                            setSidebarOpen(true);
+                        }
+                        leaveLoading = true;
                     } catch (err) {
                         console.error("Failed to auto-sync external campaign gacha config:", err);
+                        if (isIntegrationAuthFailure(err)) {
+                            const cleared = clearStoredIntegrationToken();
+                            setIntegrationConfig((prev) => ({
+                                ...prev,
+                                integrationToken: "",
+                                apiBaseUrl: cleared?.apiBaseUrl ?? prev.apiBaseUrl,
+                            }));
+                            showToast(
+                                "連携トークンが無効です。許可画面で再度つなぎ直してください。",
+                                "info"
+                            );
+                            openReconnectDialog(
+                                buildIntegrationAuthorizeUrl(
+                                    apiBaseUrl,
+                                    window.location.pathname,
+                                    u.search
+                                )
+                            );
+                            return;
+                        }
+                        leaveLoading = true;
                     } finally {
-                        setIsAuthChecking(false);
-                        if (pendingBulkModalRef.current) {
-                            setOpenBulkModal(true);
-                            pendingBulkModalRef.current = false;
+                        setIsCampaignSyncing(false);
+                        if (leaveLoading) {
+                            if (pendingBulkModalRef.current) {
+                                setOpenBulkModal(true);
+                                pendingBulkModalRef.current = false;
+                            }
                         }
                     }
                 };
-                syncConfig();
+                void syncConfig();
                 return;
             }
+
+            setIsCampaignSyncing(false);
+            if (pool.linkedCampaignId !== campaignId) {
+                setPool(prev => ({ ...prev, linkedCampaignId: campaignId }));
+            }
+            setSidebarTab(isIntegrationEnabled ? "distribute" : "setup");
+            setMobileTab(isIntegrationEnabled ? "distribute" : "setup");
+            if (isSplitMode) {
+                setSidebarOpen(true);
+            }
+            if (pendingBulkModalRef.current) {
+                setOpenBulkModal(true);
+                pendingBulkModalRef.current = false;
+            }
+            return;
         }
 
-        setIsAuthChecking(false);
+        setIsCampaignSyncing(false);
         if (pendingBulkModalRef.current && !campaignId) {
             setOpenBulkModal(true);
             pendingBulkModalRef.current = false;
         }
-    }, [setSidebarTab, setMobileTab, isSplitMode, setSidebarOpen, isIntegrationEnabled, integrationConfig.integrationToken, integrationConfig.apiBaseUrl, pool.linkedCampaignId, setPool]);
+    }, [setSidebarTab, setMobileTab, isSplitMode, setSidebarOpen, isIntegrationEnabled, integrationConfig.integrationToken, integrationConfig.apiBaseUrl, pool.linkedCampaignId, setPool, setIntegrationConfig, showToast, openReconnectDialog]);
 
     const activePlayer = useMemo(() => 
         visiblePlayers.find(p => p.id === activePlayerId)
@@ -349,27 +496,60 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         activePlayerName: activePlayer?.name ?? "ゲスト",
     };
 
-    // OAuth callback handling inside useGachaState but need to show settings panel if token was present
     useEffect(() => {
-        if (!isIntegrationEnabled) return;
-        if (typeof window === 'undefined') return;
-        const u = new URL(window.location.href);
-        if (u.searchParams.get("integration_token")) {
-            queueMicrotask(() => handleSetShowSettingsPanel(true));
+        if (!oauthCallbackNotice) return;
+        if (oauthCallbackNotice === "success") {
+            showToast("リンクシェアとの連携が完了しました", "success");
+            setSidebarTab("distribute");
+            setMobileTab("distribute");
+            if (isSplitMode) {
+                setSidebarOpen(true);
+            }
+        } else if (oauthCallbackNotice === "access_denied") {
+            showToast(
+                "リンクシェアでの連携をキャンセルしました。配布タブから再度お試しください。",
+                "info"
+            );
         }
-    }, [isIntegrationEnabled, handleSetShowSettingsPanel]);
+        clearOauthCallbackNotice();
+    }, [
+        oauthCallbackNotice,
+        clearOauthCallbackNotice,
+        showToast,
+        setSidebarTab,
+        setMobileTab,
+        isSplitMode,
+        setSidebarOpen,
+    ]);
 
-    if (isAuthChecking) {
+    const reconnectDialogEl = (
+        <ConfirmDialog
+            open={reconnectDialogOpen}
+            title="リンクシェアへの再接続"
+            message="保存されていた連携トークンが無効です（リンクシェアで失効した可能性があります）。許可画面でつなぎ直すと、配布機能を再び使えます。"
+            confirmLabel="許可画面へ進む"
+            cancelLabel="あとで"
+            onConfirm={handleConfirmReconnect}
+            onCancel={() => setReconnectDialogOpen(false)}
+        />
+    );
+
+    if (isCampaignSyncing) {
         return (
-            <div className="flex items-center justify-center min-h-[50vh] text-gray-500 dark:text-white/60">
-                読み込み中…
-            </div>
+            <>
+                {reconnectDialogEl}
+                <div className="flex flex-col items-center justify-center min-h-[50vh] gap-2 text-gray-500 dark:text-white/60">
+                    <p>キャンペーン設定を同期しています…</p>
+                </div>
+            </>
         );
     }
 
     if (isMobile) {
         const mobileHeaderPosition = "relative";
         return (
+            <>
+            {reconnectDialogEl}
             <div className="h-screen w-screen flex flex-col overflow-hidden relative z-10">
                 {orbsLayer}
                 <div
@@ -423,11 +603,29 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                     shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} 
                                     onClose={() => setPlayerHistoryViewId(null)} 
                                     onDeleteHistoryForPool={handleDeleteHistoryForPool}
+                                    integrationEnabled={isIntegrationEnabled}
+                                    integrationConfig={integrationConfig}
+                                    linkStatus={playerLinkStatuses[player.id]}
+                                    onLinkedRecipientChange={(recipientId) =>
+                                        handleLinkedRecipientChange(player.id, recipientId)
+                                    }
+                                    onResync={() => handleResyncPlayer(player.id)}
+                                    onNavigateToDistribution={navigateToDistribution}
                                 />
                             </div>
                         </div>
                     );
                 })()}
+
+                {!playerHistoryViewId && isIntegrationEnabled ? (
+                    <GachaIntegrationStatusBanner
+                        integrationEnabled={isIntegrationEnabled}
+                        integrationConfig={integrationConfig}
+                        pool={pool}
+                        isLightMode={isLightMode}
+                        onOpenDistribution={navigateToDistribution}
+                    />
+                ) : null}
 
                 <div
                     ref={mobileTab === "setup" ? setupScrollRef : undefined}
@@ -446,12 +644,12 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     <AnimatePresence mode="wait">
                         {mobileTab === "setup" && (
                             <motion.div key="setup" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="px-3 pt-2 min-h-full pb-10">
-                                <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} integrationConfig={integrationConfig} openBulkModal={openBulkModal} onBulkModalOpened={() => setOpenBulkModal(false)} />
+                                <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} integrationConfig={integrationConfig} openBulkModal={openBulkModal} onBulkModalOpened={() => setOpenBulkModal(false)} onNavigateToDistribution={navigateToDistribution} distributionIntegrationActive={integrationActive} />
                             </motion.div>
                         )}
                         {mobileTab === "gacha" && (
                             <motion.div key="gacha" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full">
-                                <GachaRollAnimation {...rollAnimationProps} results={engine.isRolling ? latestResults : null} isRolling={engine.isRolling} onRollStart={engine.handleRoll} onAnimationComplete={engine.handleAnimationComplete} />
+                                <GachaRollAnimation {...rollAnimationProps} results={engine.isRolling ? latestResults : null} isRolling={engine.isRolling} onRollStart={pullGuard.requestRoll} onAnimationComplete={engine.handleAnimationComplete} />
                             </motion.div>
                         )}
                         {mobileTab === "results" && (
@@ -463,7 +661,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                             <motion.div key="players" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
                                 <div className="flex-1 min-h-0 overflow-y-auto scroll-touch custom-scrollbar">
                                     <div className="pb-10">
-                                        <GachaPlayerManager players={visiblePlayers} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} linkStatuses={playerLinkStatuses} onLinkedRecipientChange={handleLinkedRecipientChange} onResyncPlayer={handleResyncPlayer} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} />
+                                        <GachaPlayerManager players={visiblePlayers} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} integrationEnabled={isIntegrationEnabled} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} linkStatuses={playerLinkStatuses} onLinkedRecipientChange={handleLinkedRecipientChange} onResyncPlayer={handleResyncPlayer} onNavigateToDistribution={navigateToDistribution} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} />
                                     </div>
                                 </div>
                             </motion.div>
@@ -481,7 +679,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                             <motion.div key="distribute" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full min-h-0 flex flex-col overflow-hidden px-3 pt-2">
                                 <div className="flex-1 min-h-0 overflow-y-auto scroll-touch custom-scrollbar">
                                     <div className="pb-10">
-                                        <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={visiblePlayers} isLightMode={isLightMode} />
+                                        <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={visiblePlayers} isLightMode={isLightMode} focusItemId={distributionFocusItemId} onNavigateToPlayers={navigateToPlayers} />
                                     </div>
                                 </div>
                             </motion.div>
@@ -508,13 +706,26 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                     })}
                 </div>
             </div>
+            {pullGuard.dialog}
+            </>
         );
     }
 
     // -- Desktop Layout --
     return (
+        <>
+        {reconnectDialogEl}
         <div className={`flex flex-col overflow-hidden relative z-10 ${isSplitMode ? "h-full w-full min-w-0" : "h-screen w-screen"}`} style={{ "--accent-color": gachaSettings.accentColor ?? "#a855f7" } as React.CSSProperties}>
             {orbsLayer}
+            {!playerHistoryViewId && isIntegrationEnabled ? (
+                <GachaIntegrationStatusBanner
+                    integrationEnabled={isIntegrationEnabled}
+                    integrationConfig={integrationConfig}
+                    pool={pool}
+                    isLightMode={isLightMode}
+                    onOpenDistribution={navigateToDistribution}
+                />
+            ) : null}
             <div className={`relative shrink-0 flex items-center justify-between px-3 py-2 min-h-[52px]`} style={{ background: headerBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${glassBorder}`, zIndex: Z_INDEX.HEADER }}>
                 <div className="flex items-center gap-2">
                     {isSplitMode && (
@@ -576,6 +787,9 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                                 <button key={tab.id} onClick={() => setSidebarTab(tab.id)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${sidebarTab === tab.id ? (displayLight ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400") : (displayLight ? "text-purple-600 hover:bg-purple-50" : "text-white/60 hover:bg-white/5")}`}>
                                                     <Icon size={14} /> {tab.label}
                                                     {tab.id === "players" && visiblePlayers.length > 0 && <span className={`text-[10px] px-1 rounded-full ${displayLight ? "bg-purple-100 text-purple-700" : "bg-white/10 text-white/85"}`}>{visiblePlayers.length}</span>}
+                                                    {tab.id === "distribute" && isIntegrationEnabled && !!integrationConfig.integrationToken && distributionMappingStats.unmappedCount > 0 && (
+                                                        <span className={`text-[10px] px-1 rounded-full ${displayLight ? "bg-amber-100 text-amber-800" : "bg-amber-500/25 text-amber-200"}`}>未{distributionMappingStats.unmappedCount}</span>
+                                                    )}
                                                 </button>
                                             );
                                         })}
@@ -586,7 +800,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                     <div className="flex-1 min-h-0 relative flex flex-col">
                                         {showSidebarScrollHint && <div className="absolute left-0 right-0 bottom-0 z-10 flex items-center justify-center gap-1.5 py-2 pointer-events-none" style={{ background: isLightMode ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, transparent 100%)" : "linear-gradient(to top, rgba(10,5,30,0.95) 0%, transparent 100%)" }}><ChevronDown size={12} className={`animate-bounce ${displayLight ? "text-gray-700" : "text-white/75"}`} /></div>}
                                         <div ref={sidebarScrollRef} onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth scroll-touch custom-scrollbar">
-                                            {sidebarTab === "setup" ? <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} integrationConfig={integrationConfig} openBulkModal={openBulkModal} onBulkModalOpened={() => setOpenBulkModal(false)} /> : sidebarTab === "players" ? <GachaPlayerManager players={visiblePlayers} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} linkStatuses={playerLinkStatuses} onLinkedRecipientChange={handleLinkedRecipientChange} onResyncPlayer={handleResyncPlayer} /> : sidebarTab === "items" ? <ItemHistoryPanel players={visiblePlayers} pool={pool} isLightMode={isLightMode} textContrastLight={false} /> : sidebarTab === "distribute" ? <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={visiblePlayers} isLightMode={isLightMode} /> : <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />}
+                                            {sidebarTab === "setup" ? <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} integrationConfig={integrationConfig} openBulkModal={openBulkModal} onBulkModalOpened={() => setOpenBulkModal(false)} onNavigateToDistribution={navigateToDistribution} distributionIntegrationActive={integrationActive} /> : sidebarTab === "players" ? <GachaPlayerManager players={visiblePlayers} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} integrationEnabled={isIntegrationEnabled} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} linkStatuses={playerLinkStatuses} onLinkedRecipientChange={handleLinkedRecipientChange} onResyncPlayer={handleResyncPlayer} onNavigateToDistribution={navigateToDistribution} /> : sidebarTab === "items" ? <ItemHistoryPanel players={visiblePlayers} pool={pool} isLightMode={isLightMode} textContrastLight={false} /> : sidebarTab === "distribute" ? <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={visiblePlayers} isLightMode={isLightMode} focusItemId={distributionFocusItemId} onNavigateToPlayers={navigateToPlayers} /> : <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />}
                                         </div>
                                     </div>
                                 </motion.aside>
@@ -609,6 +823,9 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                         <button key={tab.id} onClick={() => setSidebarTab(tab.id)} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${sidebarTab === tab.id ? (displayLight ? "bg-purple-100 text-purple-700" : "bg-purple-500/20 text-purple-400") : (displayLight ? "text-purple-600 hover:bg-purple-50" : "text-white/60 hover:bg-white/5")}`}>
                                             <Icon size={14} /> {tab.label}
                                             {tab.id === "players" && visiblePlayers.length > 0 && <span className={`text-[10px] px-1 rounded-full ${displayLight ? "bg-purple-100 text-purple-700" : "bg-white/10"}`}>{visiblePlayers.length}</span>}
+                                            {tab.id === "distribute" && isIntegrationEnabled && !!integrationConfig.integrationToken && distributionMappingStats.unmappedCount > 0 && (
+                                                <span className={`text-[10px] px-1 rounded-full ${displayLight ? "bg-amber-100 text-amber-800" : "bg-amber-500/25 text-amber-200"}`}>未{distributionMappingStats.unmappedCount}</span>
+                                            )}
                                         </button>
                                     );
                                 })}
@@ -619,7 +836,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                             <div className="flex-1 min-h-0 relative flex flex-col">
                                 {showSidebarScrollHint && <div className="absolute left-0 right-0 bottom-0 z-10 flex items-center justify-center gap-1.5 py-2 pointer-events-none" style={{ background: isLightMode ? "linear-gradient(to top, rgba(255,255,255,0.96) 0%, transparent 100%)" : "linear-gradient(to top, rgba(10,5,30,0.95) 0%, transparent 100%)" }}><ChevronDown size={12} className={`animate-bounce ${displayLight ? "text-gray-700" : "text-white/75"}`} /></div>}
                                 <div ref={sidebarScrollRef} onScroll={(e) => { if ((e.target as HTMLDivElement).scrollTop > 40) setShowSidebarScrollHint(false); }} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 pr-2 pb-6 scroll-smooth scroll-touch custom-scrollbar">
-                                    {sidebarTab === "setup" ? <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={false} integrationConfig={integrationConfig} openBulkModal={openBulkModal} onBulkModalOpened={() => setOpenBulkModal(false)} /> : sidebarTab === "players" ? <GachaPlayerManager players={visiblePlayers} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} linkStatuses={playerLinkStatuses} onLinkedRecipientChange={handleLinkedRecipientChange} onResyncPlayer={handleResyncPlayer} /> : sidebarTab === "items" ? <ItemHistoryPanel players={visiblePlayers} pool={pool} isLightMode={isLightMode} textContrastLight={false} /> : sidebarTab === "distribute" ? <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={visiblePlayers} isLightMode={isLightMode} /> : <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />}
+                                    {sidebarTab === "setup" ? <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={false} integrationConfig={integrationConfig} openBulkModal={openBulkModal} onBulkModalOpened={() => setOpenBulkModal(false)} onNavigateToDistribution={navigateToDistribution} distributionIntegrationActive={integrationActive} /> : sidebarTab === "players" ? <GachaPlayerManager players={visiblePlayers} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} integrationEnabled={isIntegrationEnabled} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} linkStatuses={playerLinkStatuses} onLinkedRecipientChange={handleLinkedRecipientChange} onResyncPlayer={handleResyncPlayer} onNavigateToDistribution={navigateToDistribution} /> : sidebarTab === "items" ? <ItemHistoryPanel players={visiblePlayers} pool={pool} isLightMode={isLightMode} textContrastLight={false} /> : sidebarTab === "distribute" ? <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={visiblePlayers} isLightMode={isLightMode} focusItemId={distributionFocusItemId} onNavigateToPlayers={navigateToPlayers} /> : <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />}
                                 </div>
                             </div>
                         </aside>
@@ -643,12 +860,20 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                         shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} 
                                         onClose={() => setPlayerHistoryViewId(null)} 
                                         onDeleteHistoryForPool={handleDeleteHistoryForPool}
+                                        integrationEnabled={isIntegrationEnabled}
+                                        integrationConfig={integrationConfig}
+                                        linkStatus={playerLinkStatuses[player.id]}
+                                        onLinkedRecipientChange={(recipientId) =>
+                                            handleLinkedRecipientChange(player.id, recipientId)
+                                        }
+                                        onResync={() => handleResyncPlayer(player.id)}
+                                        onNavigateToDistribution={navigateToDistribution}
                                     />
                                 </motion.div>
                             );
                         })() : engine.isRolling ? (
                             <motion.div key="rolling" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                                <GachaRollAnimation {...rollAnimationProps} results={latestResults} isRolling={engine.isRolling} onRollStart={engine.handleRoll} onAnimationComplete={engine.handleAnimationComplete} />
+                                <GachaRollAnimation {...rollAnimationProps} results={latestResults} isRolling={engine.isRolling} onRollStart={pullGuard.requestRoll} onAnimationComplete={engine.handleAnimationComplete} />
                             </motion.div>
                         ) : engine.showResults && latestResults ? (
                             <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full flex flex-col">
@@ -656,12 +881,14 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                             </motion.div>
                         ) : (
                             <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                                <GachaRollAnimation {...rollAnimationProps} results={null} isRolling={false} onRollStart={engine.handleRoll} onAnimationComplete={engine.handleAnimationComplete} />
+                                <GachaRollAnimation {...rollAnimationProps} results={null} isRolling={false} onRollStart={pullGuard.requestRoll} onAnimationComplete={engine.handleAnimationComplete} />
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </main>
             </div>
+            {pullGuard.dialog}
         </div>
+        </>
     );
 }

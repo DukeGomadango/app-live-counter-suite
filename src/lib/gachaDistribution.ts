@@ -6,6 +6,7 @@
  */
 
 import type { Player, GachaPool, IntegrationConfig } from "./gacha";
+import { FOCUS_EXTERNAL_TX_QUERY } from "./integrationConstants";
 
 // ========== 型定義 ==========
 
@@ -79,9 +80,26 @@ export interface RecipientSlotResult {
     slot_id?: string;
     recipient_id?: string | null;
     external_transaction_id?: string;
+    /** リンクシェア側に紐づけた配布ファイル件数 */
+    linked_asset_count?: number;
     error?: string;
     message?: string;
 }
+
+export type PoolMappingStats = {
+    itemCount: number;
+    mappedCount: number;
+    unmappedCount: number;
+};
+
+export type PlayerDistributionStats = {
+    /** POST する campaign_asset_ids の件数 */
+    assetCount: number;
+    /** 当選品目の合計個数（inventory） */
+    totalWinCount: number;
+    /** ファイルマッピング済み品目の当選個数 */
+    mappedWinCount: number;
+};
 
 export interface ExternalRegistryRecipient {
     id: string;
@@ -99,12 +117,73 @@ export interface RecipientSlotStatusResult {
 
 // ========== API ヘルパー ==========
 
+/** 外部連携 API のエラー（HTTP ステータス・error コード付き） */
+export class IntegrationApiError extends Error {
+    readonly status: number;
+    readonly code: string;
+
+    constructor(status: number, code: string, message: string) {
+        super(message);
+        this.name = "IntegrationApiError";
+        this.status = status;
+        this.code = code;
+    }
+}
+
+/** UI 向けに連携 API エラーを平易化 */
+export function formatIntegrationApiErrorMessage(err: unknown): string {
+    if (err instanceof IntegrationApiError) {
+        if (err.status === 401 || err.code === "unauthorized") {
+            return "連携トークンが無効です。配布タブからリンクシェアへ再連携してください。";
+        }
+        if (err.code === "integration_paused") {
+            return err.message;
+        }
+        if (err.status === 403) {
+            return err.message || "権限がありません。リンクシェアで再連携してください。";
+        }
+        if (err.status === 429 || err.code === "rate_limited") {
+            return "リクエストが多すぎます。しばらく待ってから再試行してください。";
+        }
+        return err.message;
+    }
+    if (err instanceof Error) return err.message;
+    return "連携APIでエラーが発生しました";
+}
+
+async function assertIntegrationOk(res: Response): Promise<void> {
+    if (res.ok) return;
+    const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        message?: string;
+    };
+    throw new IntegrationApiError(
+        res.status,
+        data.error ?? "api_error",
+        data.message ?? `HTTP ${res.status}`
+    );
+}
+
 /** 認証ヘッダーを構築する共通ヘルパー */
 function authHeaders(config: IntegrationConfig): HeadersInit {
     return {
         "Content-Type": "application/json",
         Authorization: `Bearer ${config.integrationToken}`,
     };
+}
+
+/** リンクシェアのキャンペーン管理画面 URL（マージ確認用フォーカス付き可） */
+export function buildLinkShareCampaignUrl(
+    config: IntegrationConfig,
+    campaignId: string,
+    opts?: { focusExternalTx?: string }
+): string {
+    const base = config.apiBaseUrl.replace(/\/$/, "");
+    const u = new URL(`${base}/campaigns/${campaignId}`);
+    if (opts?.focusExternalTx?.trim()) {
+        u.searchParams.set(FOCUS_EXTERNAL_TX_QUERY, opts.focusExternalTx.trim());
+    }
+    return u.toString();
 }
 
 // ========== 受取人名簿 ==========
@@ -118,10 +197,11 @@ export async function fetchExternalRecipients(
         const res = await fetch(`${config.apiBaseUrl}/api/v1/external/recipients`, {
             headers: authHeaders(config),
         });
-        if (!res.ok) return [];
+        await assertIntegrationOk(res);
         const data = (await res.json()) as { recipients?: ExternalRegistryRecipient[] };
         return data.recipients ?? [];
-    } catch {
+    } catch (e) {
+        if (e instanceof IntegrationApiError) throw e;
         return [];
     }
 }
@@ -190,9 +270,7 @@ export async function fetchExternalCampaigns(
         `${config.apiBaseUrl}/api/v1/external/campaigns`,
         { headers: authHeaders(config) }
     );
-    if (!res.ok) {
-        throw new Error(`キャンペーン取得に失敗しました (HTTP ${res.status})`);
-    }
+    await assertIntegrationOk(res);
     return res.json() as Promise<ExternalCampaign[]>;
 }
 
@@ -209,9 +287,7 @@ export async function fetchExternalAssets(
         `${config.apiBaseUrl}/api/v1/external/campaigns/${encodeURIComponent(campaignId)}/assets`,
         { headers: authHeaders(config) }
     );
-    if (!res.ok) {
-        throw new Error(`アセット取得に失敗しました (HTTP ${res.status})`);
-    }
+    await assertIntegrationOk(res);
     const data = await res.json();
     return data.assets as ExternalAsset[];
 }
@@ -237,9 +313,7 @@ export async function fetchExternalGachaConfig(
         `${config.apiBaseUrl}/api/v1/external/campaigns/${encodeURIComponent(campaignId)}/gacha-config`,
         { headers: authHeaders(config) }
     );
-    if (!res.ok) {
-        throw new Error(`ガチャ設定の取得に失敗しました (HTTP ${res.status})`);
-    }
+    await assertIntegrationOk(res);
     return res.json() as Promise<ExternalGachaConfigResponse>;
 }
 
@@ -253,7 +327,7 @@ export async function getAssetUploadUrl(campaignId: string, filename: string, si
         },
         body: JSON.stringify({ filename, size, contentType: mimeType }),
     });
-    if (!res.ok) throw new Error("アップロードURLの取得に失敗しました");
+    await assertIntegrationOk(res);
     return await res.json();
 }
 
@@ -273,7 +347,7 @@ export async function registerCampaignAsset(campaignId: string, payload: {
         },
         body: JSON.stringify(payload),
     });
-    if (!res.ok) throw new Error("アセットの登録に失敗しました");
+    await assertIntegrationOk(res);
     return await res.json();
 }
 
@@ -347,11 +421,216 @@ export function buildGachaPlayerExternalTransactionId(poolId: string, playerId: 
     return `gacha-${poolId}-player-${playerId}`;
 }
 
+// ========== 配布マッピング支援 ==========
+
+/** ファイル名・表示名の照合用正規化 */
+export function normalizeDistributionLabel(s: string): string {
+    return s
+        .trim()
+        .toLowerCase()
+        .replace(/\.[^./\\]+$/, "")
+        .replace(/\s+/g, " ");
+}
+
+export type AutoMappingSuggestion = {
+    itemId: string;
+    itemName: string;
+    assetId: string;
+    assetName: string;
+};
+
+/** 未紐づけ品目に対し、表示名一致のアセットを1:1で提案（曖昧・二重は除外） */
+export function buildAutoMappingSuggestions(
+    pool: GachaPool,
+    assets: ExternalAsset[],
+    currentMapping: Record<string, string>
+): AutoMappingSuggestion[] {
+    const usedAssetIds = new Set(Object.values(currentMapping).filter(Boolean));
+    const suggestions: AutoMappingSuggestion[] = [];
+
+    for (const item of pool.items) {
+        if (currentMapping[item.id]) continue;
+        const normItem = normalizeDistributionLabel(item.name);
+        if (!normItem) continue;
+
+        let match: ExternalAsset | null = null;
+        for (const asset of assets) {
+            if (usedAssetIds.has(asset.id)) continue;
+            const normAsset = normalizeDistributionLabel(resolveExternalAssetDisplayName(asset));
+            if (normItem === normAsset) {
+                match = asset;
+                break;
+            }
+        }
+        if (match) {
+            suggestions.push({
+                itemId: item.id,
+                itemName: item.name,
+                assetId: match.id,
+                assetName: resolveExternalAssetDisplayName(match),
+            });
+            usedAssetIds.add(match.id);
+        }
+    }
+    return suggestions;
+}
+
+/** マッピング表からプールの linkedAssetId を更新 */
+export function applyItemAssetMapping(
+    pool: GachaPool,
+    mapping: Record<string, string>
+): GachaPool {
+    return {
+        ...pool,
+        items: pool.items.map((it) => ({
+            ...it,
+            linkedAssetId: mapping[it.id] || undefined,
+        })),
+    };
+}
+
+/** リンクシェア PUT gacha-config 用（現プールのレアリティ＋マッピング済みアセット） */
+export function buildGachaConfigSyncPayloadFromPool(pool: GachaPool) {
+    return {
+        gachaConfig: {
+            rarities: pool.rarities.map((r) => ({
+                id: r.id,
+                name: r.name,
+                probability: r.defaultWeight ?? 0,
+                color: r.color,
+            })),
+        },
+        assetRarityMappings: pool.items
+            .filter((it) => !!it.linkedAssetId)
+            .map((it) => ({
+                assetId: it.linkedAssetId!,
+                gachaRarityId: it.rarityId || null,
+            })),
+    };
+}
+
+/** 配布マッピング変更後、リンクシェア側のガチャ表示を追従 */
+export async function syncGachaConfigToExternalFromPool(
+    pool: GachaPool,
+    config: IntegrationConfig
+): Promise<void> {
+    if (!pool.linkedCampaignId || !config.integrationToken) return;
+    const payload = buildGachaConfigSyncPayloadFromPool(pool);
+    await saveExternalGachaConfig(pool.linkedCampaignId, payload, config);
+}
+
+/** ファイル名から未紐づけ品目 ID を推定（一括登録用） */
+export function matchItemIdForFileName(
+    pool: GachaPool,
+    fileName: string,
+    mapping: Record<string, string>
+): string | null {
+    const norm = normalizeDistributionLabel(fileName);
+    if (!norm) return null;
+    for (const item of pool.items) {
+        if (mapping[item.id]) continue;
+        if (normalizeDistributionLabel(item.name) === norm) return item.id;
+    }
+    return null;
+}
+
+/** 並列数を制限して非同期処理 */
+export async function runWithConcurrency<T>(
+    items: T[],
+    limit: number,
+    fn: (item: T) => Promise<void>
+): Promise<void> {
+    if (items.length === 0) return;
+    const queue = [...items];
+    const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {
+        while (queue.length > 0) {
+            const item = queue.shift();
+            if (item === undefined) break;
+            await fn(item);
+        }
+    });
+    await Promise.all(workers);
+}
+
+/** 配布タブの品目↔ファイルマッピング状況 */
+export function getPoolMappingStats(pool: GachaPool): PoolMappingStats {
+    const itemCount = pool.items.length;
+    const mappedCount = pool.items.filter((it) => !!it.linkedAssetId).length;
+    return {
+        itemCount,
+        mappedCount,
+        unmappedCount: Math.max(0, itemCount - mappedCount),
+    };
+}
+
+function playerInventoryForPool(player: Player, poolId: string) {
+    return player.poolStates?.[poolId]?.inventory ?? player.inventory;
+}
+
+/**
+ * プレイヤーの当選・所持から、リンクシェアへ送る campaign_asset_ids を集める。
+ * 品目に linkedAssetId がない当選は含めない（常に当選ベース・fail closed）。
+ */
+export function collectDistributionAssetIds(player: Player, pool: GachaPool): string[] {
+    const ids = new Set<string>();
+    const addFromItemId = (itemId: string) => {
+        const item = pool.items.find((it) => it.id === itemId);
+        if (item?.linkedAssetId) ids.add(item.linkedAssetId);
+    };
+
+    const inventory = playerInventoryForPool(player, pool.id);
+    if (inventory) {
+        Object.keys(inventory).forEach(addFromItemId);
+    }
+    if (player.results?.length) {
+        player.results.forEach((r) => addFromItemId(r.itemId));
+    }
+    return Array.from(ids).sort();
+}
+
+/** プレイヤー行・配布モーダル用の配布サマリ */
+export function getPlayerDistributionStats(player: Player, pool: GachaPool): PlayerDistributionStats {
+    const assetIds = collectDistributionAssetIds(player, pool);
+    const inventory = playerInventoryForPool(player, pool.id);
+    let totalWinCount = 0;
+    let mappedWinCount = 0;
+    if (inventory) {
+        for (const [itemId, entry] of Object.entries(inventory)) {
+            const count = entry.count ?? 0;
+            totalWinCount += count;
+            const item = pool.items.find((it) => it.id === itemId);
+            if (item?.linkedAssetId) mappedWinCount += count;
+        }
+    }
+    return {
+        assetCount: assetIds.length,
+        totalWinCount,
+        mappedWinCount,
+    };
+}
+
+function hashAssetIdsForIdempotency(assetIds: string[]): string {
+    let h = 2166136261;
+    for (const id of assetIds) {
+        for (let i = 0; i < id.length; i++) {
+            h ^= id.charCodeAt(i);
+            h = Math.imul(h, 16777619);
+        }
+        h ^= 0x7c;
+    }
+    return (h >>> 0).toString(36);
+}
+
+/** 当選アセット集合が変わったときだけ Idempotency キャッシュが分岐するキー */
+export function buildClaimIdempotencyKey(externalTxId: string, assetIds: string[]): string {
+    return `idem-${externalTxId}-${hashAssetIdsForIdempotency(assetIds)}`;
+}
+
 /**
  * プレイヤーの配布URLを発行する。
  *
  * file-share-app の `POST /api/v1/external/campaigns/[id]/recipient-slots`
- * を呼び出し、キャンペーンの全アセットが紐づいた Claim URL を取得する。
+ * を呼び出す。campaign_asset_ids は当選かつマッピング済み品目のみ（空配列可）。
  *
  * external_transaction_id で冪等性を保証：同じプレイヤー×同じガチャなら
  * 何度呼んでも同じ URL が返る。
@@ -370,41 +649,9 @@ export async function issueClaimForPlayer(
     }
 
     const externalTxId = buildGachaPlayerExternalTransactionId(pool.id, player.id);
-
-    // 当選アイテム（インベントリ）から配布対象のアセットIDを抽出（重複排除）
-    const hasAnyMapping = pool.items.some(it => !!it.linkedAssetId);
-    let assetIds: string[] | undefined = undefined;
-
-    if (hasAnyMapping) {
-        const ids = new Set<string>();
-        
-        // 1. 全所持品（inventory）から抽出
-        if (player.inventory) {
-            Object.keys(player.inventory).forEach(itemId => {
-                const item = pool.items.find(it => it.id === itemId);
-                if (item?.linkedAssetId) {
-                    ids.add(item.linkedAssetId);
-                }
-            });
-        }
-        
-        // 2. 直近の結果（results）からも抽出（念のため）
-        if (player.results && player.results.length > 0) {
-            player.results.forEach(r => {
-                const item = pool.items.find(it => it.id === r.itemId);
-                if (item?.linkedAssetId) {
-                    ids.add(item.linkedAssetId);
-                }
-            });
-        }
-
-        assetIds = Array.from(ids);
-    }
+    const assetIds = collectDistributionAssetIds(player, pool);
 
     try {
-        // デバッグ用: 何件のアセットを送ろうとしているかコンソールに出力
-        console.log(`[GachaSync] Sending ${assetIds?.length ?? "ALL"} assets for player ${player.name}`);
-
         const res = await fetch(
             `${config.apiBaseUrl}/api/v1/external/campaigns/${encodeURIComponent(campaignId)}/recipient-slots`,
             {
@@ -412,8 +659,7 @@ export async function issueClaimForPlayer(
                 headers: {
                     "Content-Type": "application/json",
                     "Authorization": `Bearer ${config.integrationToken}`,
-                    // 所持品が変わった時にキャッシュを無効化するため、IDのリストをキーに含める
-                    "Idempotency-Key": `idem-${externalTxId}-${assetIds?.length ?? 0}`,
+                    "Idempotency-Key": buildClaimIdempotencyKey(externalTxId, assetIds),
                 },
                 body: JSON.stringify({
                     listener_display_name: player.name,
@@ -436,6 +682,11 @@ export async function issueClaimForPlayer(
             };
         }
 
+        const linkedCount =
+            typeof data.linked_asset_count === "number"
+                ? data.linked_asset_count
+                : assetIds.length;
+
         return {
             ok: true,
             claim_url: data.claim_url,
@@ -443,6 +694,7 @@ export async function issueClaimForPlayer(
             slot_id: data.slot_id,
             recipient_id: data.recipient_id ?? player.linkedRecipientId,
             external_transaction_id: data.external_transaction_id,
+            linked_asset_count: linkedCount,
         };
     } catch (e) {
         return {
@@ -518,10 +770,7 @@ export async function createExternalCampaign(
             body: JSON.stringify({ name }),
         }
     );
-    if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || `キャンペーン作成に失敗しました (HTTP ${res.status})`);
-    }
+    await assertIntegrationOk(res);
     return res.json() as Promise<ExternalCampaign>;
 }
 
@@ -548,10 +797,7 @@ export async function saveExternalGachaConfig(
             body: JSON.stringify(payload),
         }
     );
-    if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || `ガチャ設定の同期に失敗しました (HTTP ${res.status})`);
-    }
+    await assertIntegrationOk(res);
     return res.json() as Promise<{ ok: boolean }>;
 }
 

@@ -19,6 +19,7 @@ import {
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
 import { generateId, distributePercentagesProportionally } from "@/lib/gacha";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/components/Toast";
 import GachaProfitChart, { SimDataPoint } from "./GachaProfitChart";
 import { GACHA_MOBILE_HEADER_HEIGHT, GACHA_MOBILE_TAB_BAR_HEIGHT } from "@/lib/layoutConstants";
 
@@ -661,6 +662,7 @@ export default function GachaBulkSetupModal({
     onToggleCostSimulator,
 }: GachaBulkSetupModalProps) {
     const { confirm } = useConfirm();
+    const { showToast } = useToast();
     const [openSnapshot, setOpenSnapshot] = useState<DraftSnapshot | null>(null);
 
     /** 下書き行リスト */
@@ -747,9 +749,21 @@ export default function GachaBulkSetupModal({
             const row = prev.find(r => r.id === id);
             if (!row) return prev;
             const updated = prev.map(r => r.id === id ? { ...r, weight: val } : r);
-            return normalizeDraftForRarity(updated, row.rarityId, id, val);
+            const normalized = normalizeDraftForRarity(updated, row.rarityId, id, val);
+            
+            const updatedRow = normalized.find(r => r.id === id);
+            if (updatedRow) {
+                const diff = val - updatedRow.weight;
+                if (Math.abs(diff) > 1e-7) {
+                    showToast(
+                        `他の品目がロックされているため、${row.name || "（名称未設定）"}の確率は上限の${fmtW(updatedRow.weight)}%に制限されました`,
+                        "info"
+                    );
+                }
+            }
+            return normalized;
         });
-    }, []);
+    }, [showToast]);
 
     const handleCostChange = useCallback((id: string, rawVal: string) => {
         const n = parseInt(rawVal, 10);
@@ -834,12 +848,24 @@ export default function GachaBulkSetupModal({
             );
             const valueMap = new Map(distributed.map(item => [item.id, item.value]));
 
+            const updatedRarity = distributed.find(item => item.id === rarityId);
+            if (updatedRarity) {
+                const diff = val - updatedRarity.value;
+                if (Math.abs(diff) > 1e-7) {
+                    const originalRarity = activePrev.find(r => r.id === rarityId);
+                    showToast(
+                        `他のレア度がロックされているため、${originalRarity?.name || ""}の確率は上限の${fmtW(updatedRarity.value)}%に制限されました`,
+                        "info"
+                    );
+                }
+            }
+
             return activePrev.map(r => ({
                 ...r,
                 defaultWeight: valueMap.get(r.id) ?? r.defaultWeight,
             }));
         });
-    }, [lockedRarityIds, pool.rarities]);
+    }, [lockedRarityIds, pool.rarities, showToast]);
 
     const handleToggleLockRarity = useCallback((rarityId: string) => {
         setLockedRarityIds(prev => {
@@ -1187,7 +1213,7 @@ export default function GachaBulkSetupModal({
     const selectOptionStyle = isLightMode
         ? { background: "#fff", color: "#111827" }
         : { background: "#1e1b4b", color: "#e2e8f0" };
-    const rowHoverBg = isLightMode ? "rgba(139,92,246,0.04)" : "rgba(139,92,246,0.06)";
+
 
     return (
         <AnimatePresence>
@@ -1658,11 +1684,11 @@ export default function GachaBulkSetupModal({
 
                             {/* md以上: テーブル */}
                             <div className="hidden md:block overflow-x-auto scroll-touch">
-                            <table className="w-full text-xs border-collapse min-w-[700px]">
+                            <table className={`w-full text-xs border-collapse ${showCostSimulator ? "min-w-[850px]" : "min-w-[700px]"}`}>
                                 <thead className="sticky top-0 z-10" style={{ background: bgHeader }}>
                                     <tr style={{ borderBottom: `1px solid ${borderColor}` }}>
-                                        <th className="px-3 py-2.5 text-left font-semibold w-24" style={{ color: textMuted }}>レア度</th>
-                                        <th className="px-3 py-2.5 text-left font-semibold" style={{ color: textMuted }}>景品名</th>
+                                        <th className="sticky left-0 top-0 z-20 px-3 py-2.5 text-left font-semibold w-24" style={{ color: textMuted, background: bgHeader }}>レア度</th>
+                                        <th className="sticky left-[96px] top-0 z-20 px-3 py-2.5 text-left font-semibold min-w-[160px] border-r" style={{ color: textMuted, background: bgHeader, borderColor }}>景品名</th>
                                         <th className="px-3 py-2.5 text-center font-semibold w-8" style={{ color: textMuted }} title="ロック中は均等割り・比例配分から除外">
                                             <Lock size={10} />
                                         </th>
@@ -1699,6 +1725,11 @@ export default function GachaBulkSetupModal({
                                             const rarityProb = rarity?.defaultWeight ?? 0;
                                             const globalProb = (rarityProb * row.weight) / 100;
 
+                                            const baseRowBg = idx % 2 === 0
+                                                ? bgMain
+                                                : isLightMode ? "#f9fafb" : "#140f25";
+                                            const hoverRowBg = isLightMode ? "#f8f5ff" : "#191230";
+
                                             return (
                                                 <motion.tr
                                                     key={row.id}
@@ -1709,17 +1740,14 @@ export default function GachaBulkSetupModal({
                                                     className="group"
                                                     style={{
                                                         borderBottom: `1px solid ${borderColor}`,
-                                                        background: idx % 2 === 0
-                                                            ? "transparent"
-                                                            : isLightMode ? "rgba(0,0,0,0.015)" : "rgba(255,255,255,0.015)",
-                                                    }}
-                                                    onMouseOver={e => (e.currentTarget.style.background = rowHoverBg)}
-                                                    onMouseOut={e => (e.currentTarget.style.background = idx % 2 === 0
-                                                        ? "transparent"
-                                                        : isLightMode ? "rgba(0,0,0,0.015)" : "rgba(255,255,255,0.015)")}
+                                                        background: "var(--row-bg)",
+                                                        ["--row-bg" as unknown as keyof React.CSSProperties]: baseRowBg,
+                                                    } as React.CSSProperties}
+                                                    onMouseOver={e => e.currentTarget.style.setProperty("--row-bg", hoverRowBg)}
+                                                    onMouseOut={e => e.currentTarget.style.setProperty("--row-bg", baseRowBg)}
                                                 >
                                                     {/* レア度プルダウン */}
-                                                    <td className="px-3 py-2">
+                                                    <td className="sticky left-0 z-10 px-3 py-2 transition-colors w-24" style={{ background: "var(--row-bg)" }}>
                                                         <select
                                                             value={row.rarityId}
                                                             onChange={e => handleRarityChange(row.id, e.target.value)}
@@ -1737,7 +1765,14 @@ export default function GachaBulkSetupModal({
                                                     </td>
 
                                                     {/* 景品名 */}
-                                                    <td className="px-3 py-2">
+                                                    <td 
+                                                        className="sticky left-[96px] z-10 px-3 py-2 min-w-[160px] transition-colors border-r"
+                                                        style={{ 
+                                                            background: "var(--row-bg)",
+                                                            borderColor,
+                                                            boxShadow: "4px 0 8px -4px rgba(0,0,0,0.15)",
+                                                        }}
+                                                    >
                                                         <input
                                                             type="text"
                                                             value={row.name}

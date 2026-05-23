@@ -824,36 +824,49 @@ export function distributePercentagesProportionally<T extends RatioItem>(
 ): T[] {
     if (items.length === 0) return [];
 
-    // 1. コピーを作成し、targetId がある場合はその値を更新・クランプ
+    // 1. コピーを作成
     const result = items.map(item => ({ ...item }));
-    
+
+    // 2. targetId（現在編集中）以外のロック中項目を特定する
+    const otherLocked = new Set(lockedIds);
+    if (targetId) {
+        otherLocked.delete(targetId);
+    }
+
+    // 3. 自分以外のロックされた項目の合計値を計算
+    const otherLockedItems = result.filter(it => otherLocked.has(it.id));
+    const otherLockedSum = otherLockedItems.reduce((sum, it) => sum + it.value, 0);
+
+    // 4. targetId に新しい値を適用。ただし自分以外のロック項目の合計を引いた上限値でクランプする
+    let clampedTargetVal = 0;
     if (targetId && targetVal !== undefined) {
-        const clampedVal = Math.max(0, Math.min(100, targetVal));
+        const maxAllowed = Math.max(0, 100 - otherLockedSum);
+        clampedTargetVal = Math.max(0, Math.min(maxAllowed, targetVal));
+        
         const targetItem = result.find(it => it.id === targetId);
         if (targetItem) {
-            targetItem.value = clampedVal;
+            targetItem.value = clampedTargetVal;
         }
     }
 
-    // 2. ロックされた項目（ユーザーが編集中の targetId も実質的にロック対象）を特定
+    // 5. ロックされた項目（ユーザーが編集中の targetId も実質的にロック対象）を特定
     const allLocked = new Set(lockedIds);
     if (targetId) {
         allLocked.add(targetId);
     }
 
-    // 3. ロックされた項目の合計値を計算
-    const lockedItems = result.filter(it => allLocked.has(it.id));
     const unlockedItems = result.filter(it => !allLocked.has(it.id));
 
-    const totalLockedVal = lockedItems.reduce((sum, it) => sum + it.value, 0);
+    // ロックされた項目（他ロック + クランプ後のターゲット）の合計
+    const totalLockedVal = otherLockedSum + (targetId ? clampedTargetVal : 0);
 
-    // 4. ロック項目だけで 100% を超えている場合の処理
+    // 6. ロック項目（ターゲット含む）が 100% を超えている場合の処理（初期の不正データの回復用）
     if (totalLockedVal >= 100) {
         const activeTargetVal = targetId ? (result.find(it => it.id === targetId)?.value ?? 0) : 0;
-        const otherLockedSum = totalLockedVal - activeTargetVal;
+        const otherLockedSumInResult = totalLockedVal - activeTargetVal;
 
-        if (otherLockedSum > 0) {
-            const scale = (100 - activeTargetVal) / otherLockedSum;
+        if (otherLockedSumInResult > 0) {
+            const scale = (100 - activeTargetVal) / otherLockedSumInResult;
             for (const it of result) {
                 if (it.id === targetId) {
                     // targetId は保護
@@ -874,7 +887,7 @@ export function distributePercentagesProportionally<T extends RatioItem>(
             }
         }
     } else {
-        // 5. ロック項目が 100% 未満の場合、残余分を未ロック項目で比例配分
+        // 7. ロック項目が 100% 未満の場合、残余分を未ロック項目で比例配分
         const remainingVal = 100 - totalLockedVal;
         const unlockedSum = unlockedItems.reduce((sum, it) => sum + it.value, 0);
 
@@ -898,7 +911,8 @@ export function distributePercentagesProportionally<T extends RatioItem>(
         }
     }
 
-    // 6. 丸め誤差の調整（合計が正確に 100 になるようにする）
+    // 8. 丸め誤差の調整（合計が正確に 100 になるようにする）
+    // 誤差の調整は、ロック項目に影響しないよう、可能な限り「未ロック項目」を優先する
     const currentSum = result.reduce((sum, it) => sum + it.value, 0);
     const diff = 100 - currentSum;
     
