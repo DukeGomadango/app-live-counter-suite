@@ -91,6 +91,8 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
     /** 同一 campaign_id でトースト・同期を二重実行しない */
     const noTokenDeepLinkPromptedRef = useRef<string | null>(null);
     const campaignSyncStartedRef = useRef<string | null>(null);
+    /** 静的 export 初回マウント用（SSR 後の useState 初期化では URL を読めない） */
+    const pendingCampaignFromUrlRef = useRef<string | null>(null);
     const [openBulkModal, setOpenBulkModal] = useState(false);
 
     const {
@@ -250,14 +252,26 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         const u = new URL(window.location.href);
         if (!u.searchParams.has("campaign_id")) return;
         u.searchParams.delete("campaign_id");
-        window.history.replaceState({}, "", u.pathname + u.search);
+        const next = u.search ? `${u.pathname}?${u.search}` : u.pathname;
+        window.history.replaceState({}, "", next);
     }, []);
+
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const u = new URL(window.location.href);
+        const id = u.searchParams.get("campaign_id");
+        if (!id || u.searchParams.has("integration_token")) return;
+        pendingCampaignFromUrlRef.current = id;
+        stripCampaignIdFromUrl();
+    }, [stripCampaignIdFromUrl]);
 
     // Detect campaign_id in URL, handle auto-authorization, and auto-sync campaign ID & assets
     useEffect(() => {
         if (typeof window === 'undefined') return;
         const u = new URL(window.location.href);
-        const campaignId = u.searchParams.get("campaign_id");
+        const fromUrlRef = pendingCampaignFromUrlRef.current;
+        const campaignId = fromUrlRef ?? u.searchParams.get("campaign_id");
+        if (fromUrlRef) pendingCampaignFromUrlRef.current = null;
         const hasIncomingToken = u.searchParams.has("integration_token");
 
         const defaultApiBase =

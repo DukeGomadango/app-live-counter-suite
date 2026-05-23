@@ -35,7 +35,7 @@ jobs:
       - run: npm run lint
       - run: npm audit --audit-level=high
       - run: npm run test:unit:coverage
-      - run: npm run build
+      - run: npm run build:e2e
 
       - run: npx playwright install chromium --with-deps
 
@@ -43,6 +43,7 @@ jobs:
         env:
           CI: true
           PLAYWRIGHT_PREBUILT: true
+          NEXT_PUBLIC_ENABLE_GACHA_INTEGRATION: "true"
 
       - uses: actions/upload-artifact@v4
         if: failure()

@@ -19,10 +19,12 @@ export default defineConfig({
     command:
       process.env.PLAYWRIGHT_PREBUILT === "true"
         ? "npm run start:static"
-        : "npm run build && npm run start:static",
+        : "npm run build:e2e && npm run start:static",
     url: "http://127.0.0.1:3001",
     env: {
       PORT: "3001",
+      NEXT_PUBLIC_ENABLE_GACHA_INTEGRATION:
+        process.env.NEXT_PUBLIC_ENABLE_GACHA_INTEGRATION ?? "true",
     },
     reuseExistingServer: !process.env.CI,
     timeout: 180000,
