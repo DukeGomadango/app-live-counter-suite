@@ -75,7 +75,7 @@ export function getIntegrationSetupPrompt(
         case "needs_reconnect":
             return {
                 title: "だんごシェアリンクへの再接続が必要です",
-                body: "キャンペーンの紐づけは残っていますが、この端末に連携トークンがありません。配布タブから「連携を開始する」を実行してください（データ連携ではトークンは移りません）。",
+                body: "キャンペーンの紐づけは残っていますが、この端末ではだんごシェアリンクへの許可がありません。配布タブから「連携を開始する」を実行してください（データ連携では接続情報は移りません）。",
                 actionLabel: "配布タブを開く",
             };
         case "needs_campaign":

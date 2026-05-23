@@ -15,6 +15,15 @@ export type ChangelogEntry = {
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-05-23",
+    importance: "normal",
+    title: "画面の言葉遣いをわかりやすく",
+    items: [
+      "だんごシェアリンク連携まわりで「トークン」「OAuth」などの専門用語を減らし、「接続」「許可」「解除」などの言い方にそろえました",
+      "ガチャのヘルプやエラー案内も同様に読みやすくしました",
+    ],
+  },
+  {
+    date: "2026-05-23",
     importance: "minor",
     title: "だんごシェアリンク表記の統一",
     items: [

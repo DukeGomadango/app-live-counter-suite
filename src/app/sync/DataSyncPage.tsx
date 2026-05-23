@@ -153,7 +153,7 @@ export default function DataSyncPage() {
             return;
           }
           if (!resp.access_token) {
-            reject(new Error("アクセストークンを取得できませんでした"));
+            reject(new Error("Google への接続に失敗しました"));
             return;
           }
           resolve(resp.access_token);
@@ -475,7 +475,7 @@ export default function DataSyncPage() {
           >
             <p className="font-bold mb-1">ガチャのだんごシェアリンク再接続</p>
             <p className={isLightMode ? "text-amber-900/90" : "text-amber-50/90"}>
-              配布キャンペーンの設定は復元されましたが、連携トークンはデータ連携に含まれません。
+              配布キャンペーンの設定は復元されましたが、だんごシェアリンクへの接続はデータ連携に含まれません。
             </p>
             <Link
               href="/gacha"

@@ -415,7 +415,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                 apiBaseUrl: cleared?.apiBaseUrl ?? prev.apiBaseUrl,
                             }));
                             showToast(
-                                "連携トークンが無効です。許可画面で再度つなぎ直してください。",
+                                "だんごシェアリンクとの接続が無効です。許可画面で再度つなぎ直してください。",
                                 "info"
                             );
                             openReconnectDialog(
@@ -573,7 +573,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         <ConfirmDialog
             open={reconnectDialogOpen}
             title="だんごシェアリンクへの再接続"
-            message="保存されていた連携トークンが無効です（だんごシェアリンクで失効した可能性があります）。許可画面でつなぎ直すと、配布機能を再び使えます。"
+            message="この端末のだんごシェアリンクへの接続が無効です（管理画面で解除された可能性があります）。許可画面でつなぎ直すと、配布機能を再び使えます。"
             confirmLabel="許可画面へ進む"
             cancelLabel="あとで"
             onConfirm={handleConfirmReconnect}

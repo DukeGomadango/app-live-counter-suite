@@ -134,7 +134,7 @@ export class IntegrationApiError extends Error {
 export function formatIntegrationApiErrorMessage(err: unknown): string {
     if (err instanceof IntegrationApiError) {
         if (err.status === 401 || err.code === "unauthorized") {
-            return "連携トークンが無効です。配布タブからだんごシェアリンクへ再連携してください。";
+            return "だんごシェアリンクとの接続が無効です。配布タブから再連携してください。";
         }
         if (err.code === "integration_paused") {
             return err.message;
@@ -148,7 +148,7 @@ export function formatIntegrationApiErrorMessage(err: unknown): string {
         return err.message;
     }
     if (err instanceof Error) return err.message;
-    return "連携APIでエラーが発生しました";
+    return "だんごシェアリンクでエラーが発生しました";
 }
 
 async function assertIntegrationOk(res: Response): Promise<void> {
