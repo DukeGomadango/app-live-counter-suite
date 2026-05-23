@@ -17,8 +17,6 @@ import {
   getPoolMappingStats,
 } from "@/lib/gachaDistribution";
 import { useToast } from "@/components/Toast";
-import { type MobileTab } from "./useGachaSidebar";
-
 interface GachaEngineProps {
   pool: GachaPool;
   players: Player[];
@@ -28,8 +26,6 @@ interface GachaEngineProps {
   integrationConfig: IntegrationConfig;
   setLatestResults: (r: GachaResult[] | null) => void;
   gachaSettings: GachaSettings;
-  isMobile: boolean;
-  setMobileTab: (tab: MobileTab) => void;
 }
 
 export function useGachaEngine({
@@ -40,9 +36,7 @@ export function useGachaEngine({
   setActivePlayerId,
   integrationConfig,
   setLatestResults,
-  gachaSettings,
-  isMobile,
-  setMobileTab
+  gachaSettings
 }: GachaEngineProps) {
   const [isRolling, setIsRolling] = useState(false);
   const [showResults, setShowResults] = useState(false);
@@ -124,7 +118,6 @@ export function useGachaEngine({
       queueMicrotask(() => {
         setIsRolling(false);
         setShowResults(true);
-        if (isMobile) setMobileTab("results");
       });
     } else {
       setIsRolling(true);
@@ -145,15 +138,14 @@ export function useGachaEngine({
     }
 
     syncPlayerWithRemote(updatedPlayer);
-  }, [pool, players, activePlayerId, setLatestResults, setPlayers, setActivePlayerId, gachaSettings.enableAnimation, isMobile, setMobileTab, syncPlayerWithRemote]);
+  }, [pool, players, activePlayerId, setLatestResults, setPlayers, setActivePlayerId, gachaSettings.enableAnimation, syncPlayerWithRemote]);
 
   const handleAnimationComplete = useCallback(() => {
     queueMicrotask(() => {
       setIsRolling(false);
       setShowResults(true);
-      if (isMobile) setMobileTab("results");
     });
-  }, [isMobile, setMobileTab]);
+  }, []);
 
   const addPlayer = useCallback((name: string) => {
     const newPlayer = {
