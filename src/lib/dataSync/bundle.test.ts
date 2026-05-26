@@ -61,6 +61,24 @@ describe("buildSyncBundle / applySyncBundle", () => {
     expect(storage.getItem("flowchart-nodes")).toBe("[2]");
   });
 
+  it("ignores out-of-scope keys when applying a bundle", async () => {
+    const bundle: SyncBundle = {
+      schemaVersion: SYNC_SCHEMA_VERSION,
+      exportedAt: new Date().toISOString(),
+      scope: { groups: ["counter"] },
+      localStorage: {
+        "counter-items": "[9]",
+        "gacha-integration-config": '{"apiBaseUrl":"https://evil.example"}',
+      },
+    };
+    await applySyncBundle(bundle, storage, {
+      mode: "partial",
+      scopeForReplace: { enabledGroups: new Set() },
+    });
+    expect(storage.getItem("counter-items")).toBe("[9]");
+    expect(storage.getItem("gacha-integration-config")).toBeNull();
+  });
+
   it("replace_scope clears selected groups then applies", async () => {
     const bundle: SyncBundle = {
       schemaVersion: SYNC_SCHEMA_VERSION,
@@ -87,6 +105,30 @@ describe("parseSyncBundleJson", () => {
     };
     const parsed = parseSyncBundleJson(JSON.stringify(b));
     expect(parsed.exportedAt).toBe(b.exportedAt);
+  });
+
+  it("rejects bundles with out-of-scope localStorage keys", () => {
+    const b: SyncBundle = {
+      schemaVersion: SYNC_SCHEMA_VERSION,
+      exportedAt: "2020-01-01T00:00:00.000Z",
+      scope: { groups: ["counter"] },
+      localStorage: { "gacha-integration-config": "{}" },
+    };
+    expect(() => parseSyncBundleJson(JSON.stringify(b))).toThrow(
+      /対象外のキー/
+    );
+  });
+
+  it("rejects unknown scope groups", () => {
+    const b = {
+      schemaVersion: SYNC_SCHEMA_VERSION,
+      exportedAt: "2020-01-01T00:00:00.000Z",
+      scope: { groups: ["unknown"] },
+      localStorage: {},
+    };
+    expect(() => parseSyncBundleJson(JSON.stringify(b))).toThrow(
+      /未対応の項目/
+    );
   });
 });
 

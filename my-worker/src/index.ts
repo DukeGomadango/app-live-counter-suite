@@ -5,8 +5,13 @@
  */
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_ANONYMOUS_ID_LENGTH = 128;
+const MAX_PATH_LENGTH = 256;
+const MAX_TOOL_ID_LENGTH = 64;
+const EVENT_RATE_LIMIT = { max: 120, windowMs: 60_000 };
+const UPLOAD_RATE_LIMIT = { max: 30, windowMs: 10 * 60_000 };
 const ALLOWED_IMAGE_TYPES = new Set([
-	"image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/svg+xml", "image/x-icon",
+	"image/png", "image/jpeg", "image/gif", "image/webp", "image/bmp", "image/x-icon",
 ]);
 const ALLOWED_AUDIO_TYPES = new Set([
 	"audio/mpeg", "audio/mp3", "audio/wav", "audio/ogg", "audio/x-m4a", "audio/aac", "audio/webm", "audio/flac",
@@ -17,6 +22,7 @@ const ALLOWED_ORIGINS = new Set([
 	"http://localhost:3000",
 	"http://127.0.0.1:3000",
 ]);
+const rateLimitBuckets = new Map<string, number[]>();
 
 function corsHeaders(origin: string | null): HeadersInit {
 	const allowOrigin = origin && ALLOWED_ORIGINS.has(origin) ? origin : ALLOWED_ORIGINS.values().next().value;
@@ -35,9 +41,40 @@ function jsonResponse(body: object, status: number, origin: string | null): Resp
 	});
 }
 
+function isAllowedRequestOrigin(origin: string | null): boolean {
+	return Boolean(origin && ALLOWED_ORIGINS.has(origin));
+}
+
+function clientKey(request: Request, origin: string | null): string {
+	const cfConnectingIp = request.headers.get("CF-Connecting-IP");
+	const forwardedFor = request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim();
+	return cfConnectingIp || forwardedFor || origin || "unknown";
+}
+
+function rateLimitAllowed(key: string, max: number, windowMs: number): boolean {
+	const now = Date.now();
+	const bucket = (rateLimitBuckets.get(key) ?? []).filter((ts) => now - ts < windowMs);
+	if (bucket.length >= max) {
+		rateLimitBuckets.set(key, bucket);
+		return false;
+	}
+	bucket.push(now);
+	rateLimitBuckets.set(key, bucket);
+
+	if (rateLimitBuckets.size > 5000) {
+		for (const [bucketKey, timestamps] of rateLimitBuckets.entries()) {
+			const recent = timestamps.filter((ts) => now - ts < windowMs);
+			if (recent.length === 0) rateLimitBuckets.delete(bucketKey);
+			else rateLimitBuckets.set(bucketKey, recent);
+		}
+	}
+
+	return true;
+}
+
 function getExt(name: string, contentType: string): string {
 	const fromName = name.includes(".") ? name.slice(name.lastIndexOf(".")).toLowerCase().slice(0, 5) : "";
-	if (/^\.(png|jpe?g|gif|webp|bmp|svg|ico)$/.test(fromName)) return fromName;
+	if (/^\.(png|jpe?g|gif|webp|bmp|ico)$/.test(fromName)) return fromName;
 	if (/^\.(mp3|wav|ogg|m4a|aac|webm|flac)$/.test(fromName)) return fromName;
 	if (contentType === "image/png") return ".png";
 	if (contentType === "image/jpeg" || contentType === "image/jpg") return ".jpg";
@@ -77,22 +114,41 @@ export default {
 			if (!object) return new Response("Not Found", { status: 404, headers: corsHeaders(origin) });
 			const contentType = object.httpMetadata?.contentType ?? "application/octet-stream";
 			return new Response(object.body, {
-				headers: { "Content-Type": contentType, ...corsHeaders(origin) },
+				headers: {
+					"Content-Type": contentType,
+					"Content-Security-Policy": "default-src 'none'; img-src 'self'; media-src 'self'; sandbox",
+					"X-Content-Type-Options": "nosniff",
+					...corsHeaders(origin),
+				},
 			});
 		}
 
 		// POST /api/events — usage analytics (page_view | session_start)
 		if (request.method === "POST" && url.pathname === "/api/events") {
+			if (!isAllowedRequestOrigin(origin)) {
+				return jsonResponse({ error: "Forbidden origin" }, 403, origin);
+			}
+			if (!rateLimitAllowed(`events:${clientKey(request, origin)}`, EVENT_RATE_LIMIT.max, EVENT_RATE_LIMIT.windowMs)) {
+				return jsonResponse({ error: "Too many requests" }, 429, origin);
+			}
 			try {
 				const body = (await request.json()) as { anonymousId?: string; path?: string; toolId?: string; eventType?: string };
-				const anonymousId = typeof body.anonymousId === "string" ? body.anonymousId : "";
-				const path = typeof body.path === "string" ? body.path : "";
-				const toolId = typeof body.toolId === "string" ? body.toolId : "";
+				const anonymousId = typeof body.anonymousId === "string" ? body.anonymousId.trim() : "";
+				const path = typeof body.path === "string" ? body.path.trim() : "";
+				const toolId = typeof body.toolId === "string" ? body.toolId.trim() : "";
 				const eventType = typeof body.eventType === "string" && (body.eventType === "page_view" || body.eventType === "session_start")
 					? body.eventType
 					: "page_view";
 				if (!anonymousId || !path) {
 					return jsonResponse({ error: "anonymousId and path required" }, 400, origin);
+				}
+				if (
+					anonymousId.length > MAX_ANONYMOUS_ID_LENGTH ||
+					path.length > MAX_PATH_LENGTH ||
+					toolId.length > MAX_TOOL_ID_LENGTH ||
+					!path.startsWith("/")
+				) {
+					return jsonResponse({ error: "Invalid analytics payload" }, 400, origin);
 				}
 				const ts = new Date().toISOString();
 				await env.DB.prepare(
@@ -157,8 +213,10 @@ export default {
 					.bind(bindDays)
 					.all();
 				const totalSessions = (sessionsResult.results?.[0] as { total?: number } | undefined)?.total ?? 0;
-				const sessionMap = new Map<string, number>((byDaySessions.results ?? []).map((r: { day: string; sessions: number }) => [r.day, r.sessions]));
-				const byDay = (byDayViews.results ?? []).map((r: { day: string; views: number; users: number }) => ({
+				const sessionRows = (byDaySessions.results ?? []) as Array<{ day: string; sessions: number }>;
+				const viewRows = (byDayViews.results ?? []) as Array<{ day: string; views: number; users: number }>;
+				const sessionMap = new Map<string, number>(sessionRows.map((r) => [r.day, r.sessions]));
+				const byDay = viewRows.map((r) => ({
 					day: r.day,
 					views: r.views,
 					users: r.users,
@@ -246,6 +304,12 @@ export default {
 
 		// POST /upload
 		if (request.method === "POST" && url.pathname === "/upload") {
+			if (!isAllowedRequestOrigin(origin)) {
+				return jsonResponse({ error: "Forbidden origin" }, 403, origin);
+			}
+			if (!rateLimitAllowed(`upload:${clientKey(request, origin)}`, UPLOAD_RATE_LIMIT.max, UPLOAD_RATE_LIMIT.windowMs)) {
+				return jsonResponse({ error: "Too many requests" }, 429, origin);
+			}
 			try {
 				const contentType = request.headers.get("Content-Type") ?? "";
 				if (!contentType.includes("multipart/form-data")) {
@@ -258,7 +322,7 @@ export default {
 					return jsonResponse({ error: "Missing file field" }, 400, origin);
 				}
 				const f = file as File;
-				if (f.size > MAX_FILE_SIZE) {
+				if (f.size < 1 || f.size > MAX_FILE_SIZE) {
 					return jsonResponse({ error: `File too large (max ${MAX_FILE_SIZE / 1024 / 1024}MB)` }, 400, origin);
 				}
 				const type = f.type || "application/octet-stream";

@@ -1,6 +1,9 @@
 import { LOCAL_DRIVE_FILE_ID_KEY, SYNC_SCHEMA_VERSION } from "./constants";
-import { getKeysForGroups, type SyncGroupId } from "./storageKeys";
+import { ALL_SYNC_GROUP_IDS, getKeysForGroups, type SyncGroupId } from "./storageKeys";
 import type { ImportMode, SyncBundle, SyncScopeSnapshot } from "./types";
+
+const MAX_SYNC_VALUE_BYTES = 512 * 1024;
+const MAX_SYNC_BUNDLE_BYTES = 5 * 1024 * 1024;
 
 /** バンドルに含めない内部キー */
 export const EXCLUDED_FROM_SYNC_EXPORT_KEYS = new Set<string>([
@@ -45,6 +48,9 @@ export function buildScopeSnapshot(
 }
 
 export function parseSyncBundleJson(text: string): SyncBundle {
+  if (new TextEncoder().encode(text).length > MAX_SYNC_BUNDLE_BYTES) {
+    throw new Error("バンドルのサイズが大きすぎます");
+  }
   let raw: unknown;
   try {
     raw = JSON.parse(text) as unknown;
@@ -60,21 +66,38 @@ export function parseSyncBundleJson(text: string): SyncBundle {
   if (!o.scope || typeof o.scope !== "object") throw new Error("scope がありません");
   const sc = o.scope as Record<string, unknown>;
   if (!Array.isArray(sc.groups)) throw new Error("scope.groups がありません");
+  const validGroups = new Set<string>(ALL_SYNC_GROUP_IDS);
+  const groups: SyncGroupId[] = [];
+  for (const group of sc.groups) {
+    if (typeof group !== "string" || !validGroups.has(group)) {
+      throw new Error(`scope.groups に未対応の項目があります: ${String(group)}`);
+    }
+    groups.push(group as SyncGroupId);
+  }
   if (typeof o.localStorage !== "object" || o.localStorage === null) {
     throw new Error("localStorage がありません");
   }
   const ls = o.localStorage as Record<string, unknown>;
+  const allowedKeys = new Set(getKeysForGroups(groups));
   const localStorage: Record<string, string | null> = {};
   for (const [k, v] of Object.entries(ls)) {
+    if (!allowedKeys.has(k) || EXCLUDED_FROM_SYNC_EXPORT_KEYS.has(k)) {
+      throw new Error(`localStorage に対象外のキーがあります: ${k}`);
+    }
     if (v === null) localStorage[k] = null;
-    else if (typeof v === "string") localStorage[k] = v;
+    else if (typeof v === "string") {
+      if (new TextEncoder().encode(v).length > MAX_SYNC_VALUE_BYTES) {
+        throw new Error(`localStorage の値が大きすぎます: ${k}`);
+      }
+      localStorage[k] = v;
+    }
     else throw new Error(`localStorage の値が不正です: ${k}`);
   }
   return {
     schemaVersion: SYNC_SCHEMA_VERSION,
     exportedAt: o.exportedAt,
     scope: {
-      groups: sc.groups as SyncGroupId[],
+      groups,
     },
     localStorage,
   };
@@ -131,7 +154,9 @@ export async function applySyncBundle(
     }
   }
 
+  const allowedKeys = new Set(getKeysForGroups(bundle.scope.groups));
   for (const [key, value] of Object.entries(bundle.localStorage)) {
+    if (!allowedKeys.has(key)) continue;
     if (EXCLUDED_FROM_SYNC_EXPORT_KEYS.has(key)) continue;
     try {
       if (value === null) storage.removeItem(key);

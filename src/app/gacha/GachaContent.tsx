@@ -30,6 +30,7 @@ import {
 import { fetchExternalGachaConfig, resolveExternalGachaItemDisplayName, getPoolMappingStats } from "@/lib/gachaDistribution";
 import { isGachaDistributionReady } from "@/lib/gachaIntegration";
 import {
+    isLocalhost,
     normalizeShareLinkApiBaseUrl,
     resolveShareLinkApiBaseUrl,
 } from "@/lib/integrationConstants";
@@ -279,8 +280,10 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
         const hasIncomingToken = u.searchParams.has("integration_token");
 
         const defaultApiBase = resolveShareLinkApiBaseUrl(window.location.hostname);
+        const allowLocalhost = isLocalhost(window.location.hostname);
         let apiBaseUrl = normalizeShareLinkApiBaseUrl(
-            integrationConfig.apiBaseUrl || defaultApiBase
+            integrationConfig.apiBaseUrl || defaultApiBase,
+            { allowLocalhost }
         );
         let token = integrationConfig.integrationToken || "";
 
@@ -289,16 +292,24 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
             if (stored) {
                 const parsed = JSON.parse(stored) as IntegrationConfig;
                 if (parsed.apiBaseUrl) {
-                    apiBaseUrl = normalizeShareLinkApiBaseUrl(parsed.apiBaseUrl);
+                    apiBaseUrl = normalizeShareLinkApiBaseUrl(parsed.apiBaseUrl, {
+                        allowLocalhost,
+                    });
                 }
                 if (parsed.integrationToken) token = parsed.integrationToken;
             }
         } catch { /* ignore */ }
 
         const paramApiUrl = u.searchParams.get("api_base_url");
-        if (paramApiUrl) apiBaseUrl = paramApiUrl;
+        if (paramApiUrl) {
+            apiBaseUrl = normalizeShareLinkApiBaseUrl(paramApiUrl, { allowLocalhost });
+        }
         if (integrationConfig.integrationToken) token = integrationConfig.integrationToken;
-        if (integrationConfig.apiBaseUrl && !paramApiUrl) apiBaseUrl = integrationConfig.apiBaseUrl;
+        if (integrationConfig.apiBaseUrl && !paramApiUrl) {
+            apiBaseUrl = normalizeShareLinkApiBaseUrl(integrationConfig.apiBaseUrl, {
+                allowLocalhost,
+            });
+        }
 
         const hasToken = !!token;
 

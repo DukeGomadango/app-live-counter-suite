@@ -7,6 +7,7 @@ import {
   type OAuthCallbackNotice,
 } from "@/lib/integrationAuthRedirect";
 import {
+  isLocalhost,
   normalizeShareLinkApiBaseUrl,
   resolveShareLinkApiBaseUrl,
 } from "@/lib/integrationConstants";
@@ -50,7 +51,11 @@ export function useGachaState() {
 
   // 旧デフォルト share.dango.tools（DNS 未設定）を本番 Vercel URL に置き換え
   useEffect(() => {
-    const next = normalizeShareLinkApiBaseUrl(integrationConfig.apiBaseUrl);
+    const allowLocalhost =
+      typeof window !== "undefined" && isLocalhost(window.location.hostname);
+    const next = normalizeShareLinkApiBaseUrl(integrationConfig.apiBaseUrl, {
+      allowLocalhost,
+    });
     if (next !== integrationConfig.apiBaseUrl) {
       setIntegrationConfig((prev) => ({ ...prev, apiBaseUrl: next }));
     }
@@ -87,10 +92,15 @@ export function useGachaState() {
     }
 
     const updatedConfig = { ...currentConfig };
+    const allowLocalhost = isLocalhost(window.location.hostname);
     if (apiBaseUrl) {
-      updatedConfig.apiBaseUrl = normalizeShareLinkApiBaseUrl(apiBaseUrl);
+      updatedConfig.apiBaseUrl = normalizeShareLinkApiBaseUrl(apiBaseUrl, {
+        allowLocalhost,
+      });
     } else {
-      updatedConfig.apiBaseUrl = normalizeShareLinkApiBaseUrl(updatedConfig.apiBaseUrl);
+      updatedConfig.apiBaseUrl = normalizeShareLinkApiBaseUrl(updatedConfig.apiBaseUrl, {
+        allowLocalhost,
+      });
     }
     if (integrationToken) {
       updatedConfig.integrationToken = integrationToken;

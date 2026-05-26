@@ -14,6 +14,15 @@ export type ChangelogEntry = {
 
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-05-26",
+    importance: "minor",
+    title: "データ連携とガチャ連携の安全性改善",
+    items: [
+      "データ連携の取り込み時に、対象範囲外の設定キーが反映されないようにしました",
+      "ガチャ連携の接続先URLをだんごシェアリンクの許可済みURLに限定しました",
+    ],
+  },
+  {
     date: "2026-05-23",
     importance: "minor",
     title: "ガチャ配布連携の安定性改善",

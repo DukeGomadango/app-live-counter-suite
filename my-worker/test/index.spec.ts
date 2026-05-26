@@ -42,6 +42,39 @@ describe("CORS", () => {
 });
 
 describe("POST /api/events", () => {
+  it("403 for disallowed origin", async () => {
+    const ctx = createExecutionContext();
+    const r = await worker.fetch(
+      request("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Origin: "https://evil.example" },
+        body: JSON.stringify({ anonymousId: "anon-test-1", path: "/counter" }),
+      }),
+      env,
+      ctx,
+    );
+    await waitOnExecutionContext(ctx);
+    expect(r.status).toBe(403);
+  });
+
+  it("400 when payload is too long", async () => {
+    const ctx = createExecutionContext();
+    const r = await worker.fetch(
+      request("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          anonymousId: "a".repeat(129),
+          path: "/counter",
+        }),
+      }),
+      env,
+      ctx,
+    );
+    await waitOnExecutionContext(ctx);
+    expect(r.status).toBe(400);
+  });
+
   it("400 when anonymousId missing", async () => {
     const ctx = createExecutionContext();
     const r = await worker.fetch(
@@ -184,6 +217,19 @@ describe("GET /api/stats/visitor/:id", () => {
 });
 
 describe("POST /upload", () => {
+  it("403 for disallowed origin", async () => {
+    const form = new FormData();
+    form.append("file", new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], "t.png", { type: "image/png" }));
+    const r = await SELF.fetch(
+      request("/upload", {
+        method: "POST",
+        headers: { Origin: "https://evil.example" },
+        body: form,
+      }),
+    );
+    expect(r.status).toBe(403);
+  });
+
   it("400 when Content-Type is not multipart", async () => {
     const r = await SELF.fetch(
       request("/upload", {
@@ -223,11 +269,24 @@ describe("POST /upload", () => {
     const getRes = await SELF.fetch(request(pathOnly));
     expect(getRes.status).toBe(200);
     expect(getRes.headers.get("Content-Type")).toContain("image");
+    expect(getRes.headers.get("X-Content-Type-Options")).toBe("nosniff");
   });
 
   it("400 for disallowed mime", async () => {
     const form = new FormData();
     form.append("file", new File([new Uint8Array([1, 2, 3])], "x.exe", { type: "application/octet-stream" }));
+    const r = await SELF.fetch(
+      request("/upload", {
+        method: "POST",
+        body: form,
+      }),
+    );
+    expect(r.status).toBe(400);
+  });
+
+  it("400 for SVG uploads", async () => {
+    const form = new FormData();
+    form.append("file", new File(["<svg />"], "x.svg", { type: "image/svg+xml" }));
     const r = await SELF.fetch(
       request("/upload", {
         method: "POST",

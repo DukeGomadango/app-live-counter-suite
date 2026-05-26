@@ -1,6 +1,10 @@
 import type { IntegrationConfig } from "@/lib/gacha";
 
 import { IntegrationApiError, testConnection } from "@/lib/gachaDistribution";
+import {
+    isLocalhost,
+    normalizeShareLinkApiBaseUrl,
+} from "@/lib/integrationConstants";
 
 
 
@@ -28,7 +32,9 @@ export function buildIntegrationAuthorizeUrl(
 
 ): string {
 
-    const base = apiBaseUrl.replace(/\/$/, "");
+    const allowLocalhost =
+        typeof window !== "undefined" && isLocalhost(window.location.hostname);
+    const base = normalizeShareLinkApiBaseUrl(apiBaseUrl, { allowLocalhost });
 
     const authUrl = new URL(`${base}/settings/integrations/authorize`);
 
