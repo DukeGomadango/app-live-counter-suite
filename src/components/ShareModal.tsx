@@ -13,7 +13,9 @@ import {
 import { 
   generateShareUrl, 
   copyImageToClipboard, 
-  getTimestampForFilename 
+  getTimestampForFilename,
+  shareImageWithText,
+  canShareImageFiles
 } from "@/lib/share";
 import { Z_INDEX } from "@/lib/layoutConstants";
 import ShareReplyToField from "./ShareReplyToField";
@@ -215,11 +217,27 @@ export default function ShareModal({
   }, [toolId, getEditedCanvas]);
 
   const handleOpenX = useCallback(async () => {
-    await handleDownload();
+    const canvas = await getEditedCanvas();
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL("image/png");
+    const filename = `${toolId}-${getTimestampForFilename()}.png`;
     setIsXOpening(true);
-    window.open(generateShareUrl(shareText, { toolId }), "_blank", "noopener,noreferrer");
-    setTimeout(() => setIsXOpening(false), 1000);
-  }, [handleDownload, shareText, toolId]);
+    try {
+      if (canShareImageFiles()) {
+        const shared = await shareImageWithText(dataUrl, shareText, filename);
+        if (shared) return;
+      }
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.open(generateShareUrl(shareText, { toolId }), "_blank", "noopener,noreferrer");
+    } finally {
+      setIsXOpening(false);
+    }
+  }, [getEditedCanvas, toolId, shareText]);
 
   if (!isOpen) return null;
 
@@ -412,7 +430,7 @@ export default function ShareModal({
                   }`}
                 >
                   <Download size={24} className="opacity-40" /> 
-                  <span>切り抜いてXへ投稿する</span> 
+                  <span>{canShareImageFiles() ? "切り抜いて共有シートを開く" : "切り抜いてXへ投稿する"}</span> 
                   <ExternalLink size={16} className="opacity-40" />
                 </button>
               </div>

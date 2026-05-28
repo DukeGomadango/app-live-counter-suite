@@ -178,13 +178,44 @@ export async function shareImageWithText(
       console.warn(tag, "dataUrlToFile failed");
       return false;
     }
+    if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+      console.log(tag, "navigator.canShare({files}) returned false");
+      return false;
+    }
     const shareData: ShareData = { text, files: [file] };
     await navigator.share(shareData);
     console.log(tag, "share succeeded");
     return true;
   } catch (err) {
     const e = err as Error & { name?: string };
-    console.warn(tag, "share failed:", e?.name, e?.message, e);
+    console.warn(tag, "share failed with text+file:", e?.name, e?.message, e);
+    try {
+      const file = dataUrlToFile(dataUrl, filename);
+      if (!file) return false;
+      if (navigator.canShare && !navigator.canShare({ files: [file] })) {
+        return false;
+      }
+      // iOS Safari の一部環境では text + files の同時共有に失敗する場合があるため、files のみでも再試行する
+      await navigator.share({ files: [file] });
+      console.log(tag, "share succeeded with file-only retry");
+      return true;
+    } catch (retryErr) {
+      const retry = retryErr as Error & { name?: string };
+      console.warn(tag, "share retry failed:", retry?.name, retry?.message, retry);
+      return false;
+    }
+  }
+}
+
+/** 画像ファイル共有（Web Share files）が利用可能かどうかを判定する。 */
+export function canShareImageFiles(): boolean {
+  if (typeof navigator === "undefined" || !navigator.share || !navigator.canShare) {
+    return false;
+  }
+  try {
+    const testFile = new File(["x"], "test.png", { type: "image/png" });
+    return navigator.canShare({ files: [testFile] });
+  } catch {
     return false;
   }
 }

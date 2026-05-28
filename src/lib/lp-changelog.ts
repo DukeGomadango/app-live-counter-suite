@@ -14,6 +14,25 @@ export type ChangelogEntry = {
 
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-05-28",
+    importance: "minor",
+    title: "iPad共有で画像添付されない場合の導線を改善",
+    items: [
+      "画像共有モーダルで、対応端末は共有シートを優先して開くようにしました",
+      "共有シートが使えない端末では、従来どおり画像保存後にXの投稿画面を開くフォールバックを維持しました",
+      "共有ボタンの文言を端末対応に合わせて切り替え、動作の誤解を減らしました",
+    ],
+  },
+  {
+    date: "2026-05-27",
+    importance: "minor",
+    title: "本番セキュリティヘッダを強化",
+    items: [
+      "本番の CSP から `unsafe-eval` を外し、スクリプト実行の余地を減らしました",
+      "本番 CSP の connect-src からローカル検証用の `http://localhost:3000` を外しました",
+    ],
+  },
+  {
     date: "2026-05-26",
     importance: "minor",
     title: "データ連携とガチャ連携の安全性改善",
