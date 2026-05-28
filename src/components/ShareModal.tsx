@@ -178,7 +178,7 @@ export default function ShareModal({
 
   const getEditedCanvas = useCallback((): HTMLCanvasElement | null => {
     const img = imageRef.current;
-    if (!img || !cropRect || !img.naturalWidth) {
+    if (!img || !img.naturalWidth || !img.offsetWidth || !img.offsetHeight) {
       console.warn("[ShareModal] getEditedCanvas: Image not ready", { img: !!img, cropRect: !!cropRect });
       return null;
     }
@@ -187,12 +187,25 @@ export default function ShareModal({
     console.log("[ShareModal] Generating canvas. OriginalWidth:", img.naturalWidth, "DisplayWidth:", img.offsetWidth, "Scale:", scale.toFixed(3));
 
     try {
+      // cropRect が未初期化の瞬間（iPadで共有ボタンを即タップした場合など）は、
+      // 失敗させずに画像全体を出力して共有導線を維持する。
+      const effectiveCrop = cropRect ?? { x: 0, y: 0, w: img.offsetWidth, h: img.offsetHeight };
       const canvas = document.createElement("canvas");
-      canvas.width = Math.floor(cropRect.w * scale);
-      canvas.height = Math.floor(cropRect.h * scale);
+      canvas.width = Math.floor(effectiveCrop.w * scale);
+      canvas.height = Math.floor(effectiveCrop.h * scale);
       const ctx = canvas.getContext("2d");
       if (!ctx) return null;
-      ctx.drawImage(img, cropRect.x * scale, cropRect.y * scale, cropRect.w * scale, cropRect.h * scale, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(
+        img,
+        effectiveCrop.x * scale,
+        effectiveCrop.y * scale,
+        effectiveCrop.w * scale,
+        effectiveCrop.h * scale,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
       return canvas;
     } catch (err) {
       console.error("[ShareModal] Canvas failed:", err);
