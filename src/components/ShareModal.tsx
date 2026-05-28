@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, 
@@ -16,7 +16,10 @@ import {
   getTimestampForFilename,
   shareImageWithText,
   canShareImageFiles,
-  isIPad
+  isIPad,
+  getShareReplyTo,
+  parseTweetId,
+  subscribeShareReplyTo
 } from "@/lib/share";
 import { Z_INDEX } from "@/lib/layoutConstants";
 import ShareReplyToField from "./ShareReplyToField";
@@ -45,6 +48,12 @@ export default function ShareModal({
   const [shareText, setShareText] = useState(initialText);
   const [copied, setCopied] = useState(false);
   const [isXOpening, setIsXOpening] = useState(false);
+  const replyToValue = useSyncExternalStore(
+    subscribeShareReplyTo,
+    () => (toolId ? getShareReplyTo(toolId) ?? "" : ""),
+    () => ""
+  );
+  const hasReplyTo = !!parseTweetId(replyToValue);
   
   // Crop states (Only things that can't be derived from the image itself)
   const [aspectRatio, setAspectRatio] = useState<"free" | "16:9" | "1:1">("free");
@@ -243,7 +252,7 @@ export default function ShareModal({
     setIsXOpening(true);
     void (async () => {
       try {
-        const shouldTryWebShare = isMobileOrTablet && canShareImageFiles();
+        const shouldTryWebShare = !hasReplyTo && isMobileOrTablet && canShareImageFiles();
         if (shouldTryWebShare) {
           const shared = await shareImageWithText(dataUrl, shareText, filename);
           if (shared) return;
@@ -259,7 +268,7 @@ export default function ShareModal({
         setIsXOpening(false);
       }
     })();
-  }, [getEditedCanvas, toolId, shareText, isMobileOrTablet]);
+  }, [getEditedCanvas, toolId, shareText, isMobileOrTablet, hasReplyTo]);
 
   if (!isOpen) return null;
 
@@ -452,7 +461,13 @@ export default function ShareModal({
                   }`}
                 >
                   <Download size={24} className="opacity-40" /> 
-                  <span>{isMobileOrTablet && canShareImageFiles() ? "切り抜いて共有シートを開く" : "画像を保存してX投稿画面を開く"}</span> 
+                  <span>
+                    {hasReplyTo
+                      ? "画像を保存してX返信画面を開く"
+                      : isMobileOrTablet && canShareImageFiles()
+                        ? "切り抜いて共有シートを開く"
+                        : "画像を保存してX投稿画面を開く"}
+                  </span> 
                   <ExternalLink size={16} className="opacity-40" />
                 </button>
               </div>
