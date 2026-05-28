@@ -15,7 +15,8 @@ import {
   copyImageToClipboard, 
   getTimestampForFilename,
   shareImageWithText,
-  canShareImageFiles
+  canShareImageFiles,
+  isIPad
 } from "@/lib/share";
 import { Z_INDEX } from "@/lib/layoutConstants";
 import ShareReplyToField from "./ShareReplyToField";
@@ -36,6 +37,11 @@ export default function ShareModal({
   toolId,
   isLightMode
 }: ShareModalProps) {
+  const isMobileOrTablet = (() => {
+    if (typeof navigator === "undefined") return false;
+    return /Android|iPhone|iPod|Windows Phone|Mobile/i.test(navigator.userAgent) || isIPad();
+  })();
+
   const [shareText, setShareText] = useState(initialText);
   const [copied, setCopied] = useState(false);
   const [isXOpening, setIsXOpening] = useState(false);
@@ -237,22 +243,23 @@ export default function ShareModal({
     setIsXOpening(true);
     void (async () => {
       try {
-      if (canShareImageFiles()) {
-        const shared = await shareImageWithText(dataUrl, shareText, filename);
-        if (shared) return;
-      }
-      const a = document.createElement("a");
-      a.href = dataUrl;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.open(generateShareUrl(shareText, { toolId }), "_blank", "noopener,noreferrer");
+        const shouldTryWebShare = isMobileOrTablet && canShareImageFiles();
+        if (shouldTryWebShare) {
+          const shared = await shareImageWithText(dataUrl, shareText, filename);
+          if (shared) return;
+        }
+        const a = document.createElement("a");
+        a.href = dataUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.open(generateShareUrl(shareText, { toolId }), "_blank", "noopener,noreferrer");
       } finally {
         setIsXOpening(false);
       }
     })();
-  }, [getEditedCanvas, toolId, shareText]);
+  }, [getEditedCanvas, toolId, shareText, isMobileOrTablet]);
 
   if (!isOpen) return null;
 
@@ -445,7 +452,7 @@ export default function ShareModal({
                   }`}
                 >
                   <Download size={24} className="opacity-40" /> 
-                  <span>{canShareImageFiles() ? "切り抜いて共有シートを開く" : "切り抜いてXへ投稿する"}</span> 
+                  <span>{isMobileOrTablet && canShareImageFiles() ? "切り抜いて共有シートを開く" : "画像を保存してX投稿画面を開く"}</span> 
                   <ExternalLink size={16} className="opacity-40" />
                 </button>
               </div>

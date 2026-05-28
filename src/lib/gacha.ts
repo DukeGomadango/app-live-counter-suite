@@ -637,7 +637,7 @@ export function formatResultsForShare(
     }
     const trimmedPlayerName = playerName?.trim();
     if (trimmedPlayerName) {
-        lines.push(`🎰 ${trimmedPlayerName} のガチャ結果`);
+        lines.push(`🎰 ${trimmedPlayerName}ガチャ結果`);
     } else {
         lines.push("🎰 ガチャ結果");
     }
@@ -668,7 +668,7 @@ export function formatResultsHeaderForShare(
     }
     const trimmedPlayerName = playerName?.trim();
     if (trimmedPlayerName) {
-        lines.push(`🎰 ${trimmedPlayerName} のガチャ結果`);
+        lines.push(`🎰 ${trimmedPlayerName}ガチャ結果`);
     } else {
         lines.push("🎰 ガチャ結果");
     }
@@ -693,7 +693,7 @@ export function formatRunSummaryForShare(
     }
     const trimmedPlayerName = playerName?.trim();
     if (trimmedPlayerName) {
-        lines.push(`🎰 ${trimmedPlayerName} のガチャ結果`);
+        lines.push(`🎰 ${trimmedPlayerName}ガチャ結果`);
     } else {
         lines.push("🎰 ガチャ結果");
     }
