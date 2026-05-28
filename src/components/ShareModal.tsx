@@ -176,7 +176,7 @@ export default function ShareModal({
     dragStartRef.current = null;
   };
 
-  const getEditedCanvas = useCallback(async (): Promise<HTMLCanvasElement | null> => {
+  const getEditedCanvas = useCallback((): HTMLCanvasElement | null => {
     const img = imageRef.current;
     if (!img || !cropRect || !img.naturalWidth) {
       console.warn("[ShareModal] getEditedCanvas: Image not ready", { img: !!img, cropRect: !!cropRect });
@@ -201,14 +201,14 @@ export default function ShareModal({
   }, [cropRect]);
 
   const handleCopyImage = useCallback(async () => {
-    const canvas = await getEditedCanvas();
+    const canvas = getEditedCanvas();
     if (!canvas) return;
     const success = await copyImageToClipboard(canvas.toDataURL("image/png"));
     if (success) { setCopied(true); setTimeout(() => setCopied(false), 2000); }
   }, [getEditedCanvas]);
 
-  const handleDownload = useCallback(async () => {
-    const canvas = await getEditedCanvas();
+  const handleDownload = useCallback(() => {
+    const canvas = getEditedCanvas();
     if (!canvas) return;
     const a = document.createElement("a");
     a.href = canvas.toDataURL("image/png");
@@ -216,13 +216,14 @@ export default function ShareModal({
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
   }, [toolId, getEditedCanvas]);
 
-  const handleOpenX = useCallback(async () => {
-    const canvas = await getEditedCanvas();
+  const handleOpenX = useCallback(() => {
+    const canvas = getEditedCanvas();
     if (!canvas) return;
     const dataUrl = canvas.toDataURL("image/png");
     const filename = `${toolId}-${getTimestampForFilename()}.png`;
     setIsXOpening(true);
-    try {
+    void (async () => {
+      try {
       if (canShareImageFiles()) {
         const shared = await shareImageWithText(dataUrl, shareText, filename);
         if (shared) return;
@@ -234,9 +235,10 @@ export default function ShareModal({
       a.click();
       document.body.removeChild(a);
       window.open(generateShareUrl(shareText, { toolId }), "_blank", "noopener,noreferrer");
-    } finally {
-      setIsXOpening(false);
-    }
+      } finally {
+        setIsXOpening(false);
+      }
+    })();
   }, [getEditedCanvas, toolId, shareText]);
 
   if (!isOpen) return null;
