@@ -5,10 +5,6 @@ import { toPng } from "html-to-image";
 import { 
   formatSlotShareText, 
 } from "@/lib/slot";
-import { 
-  shareImageWithText,
-  getTimestampForFilename,
-} from "@/lib/share";
 
 interface SlotShareProps {
   activePlayerName: string | undefined;
@@ -47,20 +43,7 @@ export function useSlotShare({
           pixelRatio: 2,
         });
         const shareText = formatSlotShareText(activePlayerName, reelLabels, resultLine);
-        const filename = `slot-result-${getTimestampForFilename()}.png`;
-        
-        // モバイル判定
-        const isMobile = window.innerWidth < 1024;
-
-        if (isMobile) {
-          const shared = await shareImageWithText(dataUrl, shareText, filename);
-          if (shared) {
-            setIsCapturing(false);
-            return;
-          }
-        }
-        
-        // PCまたは共有失敗時はモーダルを開く
+        // 共有は常にモーダル経由で行う（モーダル内ボタンで Web Share / フォールバック）。
         setCapturedDataUrl(dataUrl);
         setTweetText(shareText);
         setIsShareModalOpen(true);

@@ -5,11 +5,11 @@ import { createPortal } from "react-dom";
 import { Share2, Copy, Check, ImageDown } from "lucide-react";
 import type { GachaPool, RunSummary, GachaResult } from "@/lib/gacha";
 import { formatRunSummaryForShare, formatResultsHeaderForShare } from "@/lib/gacha";
-import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
+import { generateShareUrl } from "@/lib/share";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { toPng } from "html-to-image";
 import GachaShareSummary from "@/components/gacha/GachaShareSummary";
+import ShareModal from "@/components/ShareModal";
 
 interface GachaRunSummaryDisplayProps {
     run: RunSummary;
@@ -31,15 +31,16 @@ export default function GachaRunSummaryDisplay({
     runsForPool,
     onSelectRunIndex,
 }: GachaRunSummaryDisplayProps) {
-    const isDesktop = useMediaQuery("(min-width: 768px)");
     const { glassBg, glassBorder } = useGlassStyle(isLightMode);
     const textPrimary = isLightMode ? "text-gray-900" : "text-white/95";
     const textSecondary = isLightMode ? "text-gray-700" : "text-white/75";
     const textMuted = isLightMode ? "text-gray-500" : "text-white/65";
     const [copied, setCopied] = useState(false);
     const [isCapturingShareImage, setIsCapturingShareImage] = useState(false);
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
+    const [shareText, setShareText] = useState("");
     const shareAreaRef = useRef<HTMLDivElement | null>(null);
-    const tweetUrlAfterDownloadRef = useRef<string | null>(null);
 
     const expandedResults: GachaResult[] = useMemo(() => {
         const results: GachaResult[] = [];
@@ -87,8 +88,6 @@ export default function GachaRunSummaryDisplay({
 
     const handleShareAsImage = () => {
         if (expandedResults.length === 0) return;
-        const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
-        tweetUrlAfterDownloadRef.current = generateShareUrl(headerText, { toolId: "gacha" });
         setIsCapturingShareImage(true);
     };
 
@@ -106,24 +105,10 @@ export default function GachaRunSummaryDisplay({
                     pixelRatio: 2,
                 });
                 const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
-                const filename = `gacha-run-${run.runIndex}-${getTimestampForFilename()}.png`;
-                // PCでは共有シート（モーダル）を出さず、ダウンロード＋ツイートURLを開く
-                if (!isDesktop) {
-                    const shared = await shareImageWithText(dataUrl, headerText, filename);
-                    if (shared) {
-                        tweetUrlAfterDownloadRef.current = null;
-                        return;
-                    }
-                }
-                const a = document.createElement("a");
-                a.href = dataUrl;
-                a.download = filename;
-                a.click();
-                const urlToOpen = tweetUrlAfterDownloadRef.current;
-                if (urlToOpen) {
-                    tweetUrlAfterDownloadRef.current = null;
-                    window.open(urlToOpen, "_blank", "noopener,noreferrer");
-                }
+                // 共有は常にモーダル経由で行う（モーダル内ボタンで Web Share / フォールバック）。
+                setCapturedDataUrl(dataUrl);
+                setShareText(headerText);
+                setIsShareModalOpen(true);
             } catch (err) {
                 console.warn("Run image export failed:", err);
             } finally {
@@ -131,7 +116,7 @@ export default function GachaRunSummaryDisplay({
             }
         }, 50);
         return () => clearTimeout(id);
-    }, [isCapturingShareImage, isDesktop, isLightMode, run.runIndex, pool, shareHashtags, playerName]);
+    }, [isCapturingShareImage, isLightMode, pool, shareHashtags, playerName]);
 
     const rarityMap = new Map(pool.rarities.map(r => [r.id, r]));
     const sortOrderMap = new Map(pool.rarities.map(r => [r.id, r.sortOrder]));
@@ -345,6 +330,14 @@ export default function GachaRunSummaryDisplay({
                     })}
             </div>
         </div>
+        <ShareModal
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            dataUrl={capturedDataUrl}
+            initialText={shareText}
+            toolId="gacha"
+            isLightMode={isLightMode}
+        />
         </>
     );
 }

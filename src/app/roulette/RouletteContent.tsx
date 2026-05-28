@@ -29,7 +29,6 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 // Image Share
 import { toPng } from "html-to-image";
 import ShareModal from "@/components/ShareModal";
-import { shareImageWithText, getTimestampForFilename } from "@/lib/share";
 
 // Hooks
 import { useRouletteState } from "./hooks/useRouletteState";
@@ -95,21 +94,13 @@ export default function RouletteContent({
             });
             const resultLabel = slots[engine.resultIndex] ?? "";
             const text = `🎡 ルーレットを回しました！\n結果: 【${resultLabel}】\n#だんごツール`;
-            const filename = `roulette-result-${getTimestampForFilename()}.png`;
-            const isMobile = !isDesktop || isSplitMode;
-
-            if (isMobile) {
-                const shared = await shareImageWithText(dataUrl, text, filename);
-                if (shared) return;
-            }
-
             setCapturedDataUrl(dataUrl);
             setShareText(text);
             setIsShareModalOpen(true);
         } catch (err) {
             console.error("Failed to export roulette result image:", err);
         }
-    }, [engine.resultIndex, slots, isLightMode, isDesktop, isSplitMode]);
+    }, [engine.resultIndex, slots, isLightMode]);
 
     // オートスピン集計結果の画像共有ハンドラ
     const handleShareAutoSpinResult = useCallback(async () => {
@@ -121,21 +112,13 @@ export default function RouletteContent({
                 skipFonts: true,
             });
             const text = `🎡 ルーレットオートプレイ結果（${engine.autoSpinStats.spins}回転）\n#だんごツール`;
-            const filename = `roulette-autospin-${getTimestampForFilename()}.png`;
-            const isMobile = !isDesktop || isSplitMode;
-
-            if (isMobile) {
-                const shared = await shareImageWithText(dataUrl, text, filename);
-                if (shared) return;
-            }
-
             setCapturedDataUrl(dataUrl);
             setShareText(text);
             setIsShareModalOpen(true);
         } catch (err) {
             console.error("Failed to export roulette autospin result image:", err);
         }
-    }, [engine.autoSpinStats, isLightMode, isDesktop, isSplitMode]);
+    }, [engine.autoSpinStats, isLightMode]);
 
     useLayoutEffect(() => {
         const el = wheelAreaRef.current;

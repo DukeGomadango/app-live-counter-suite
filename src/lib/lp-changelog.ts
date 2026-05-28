@@ -15,6 +15,16 @@ export type ChangelogEntry = {
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
     date: "2026-05-28",
+    importance: "normal",
+    title: "画像共有の導線をモーダル起点に統一",
+    items: [
+      "「画像で共有」を押したとき、先に共有シートを開かず、まず共有モーダルが開くように統一しました",
+      "モーダル内の投稿ボタンから共有シート（対応端末）または保存＋X投稿画面（未対応端末）へ進む流れに揃えました",
+      "ガチャ履歴カードの「結果を画像で共有」も同じモーダル導線で使えるようになりました",
+    ],
+  },
+  {
+    date: "2026-05-28",
     importance: "minor",
     title: "iPad共有で画像添付されない場合の導線を改善",
     items: [

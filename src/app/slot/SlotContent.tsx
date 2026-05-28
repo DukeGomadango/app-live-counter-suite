@@ -34,10 +34,6 @@ import {
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
 import { toPng } from "html-to-image";
 import { 
-  getTimestampForFilename, 
-  shareImageWithText 
-} from "@/lib/share";
-import { 
   handleApplyNumbers17Preset,
   handleApplyDefaultSymbolsPreset,
   handleLoadSlotTemplate,
@@ -278,22 +274,13 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
       });
       
       const text = `🎰 ${activePlayer?.name ?? "ゲスト"}の結果: ${engine.lastWin ? (engine.lastWin.label || "WIN!") : "ハズレ..."}\n#だんごツール`;
-      const filename = `slot-result-${getTimestampForFilename()}.png`;
-      
-      const isMobile = !isDesktop || isSplitMode;
-
-      if (isMobile) {
-        const shared = await shareImageWithText(dataUrl, text, filename);
-        if (shared) return;
-      }
-
       setCapturedDataUrl(dataUrl);
       setShareText(text);
       setIsShareModalOpen(true);
     } catch (err) {
       console.error("Failed to export slot image:", err);
     }
-  }, [engine.lastWin, activePlayer, isDesktop, isSplitMode]);
+  }, [engine.lastWin, activePlayer]);
 
   const handleShareAutoSpinResult = useCallback(async () => {
     if (!autoSpinModalRef.current || !engine.autoSpinStats) return;
@@ -306,22 +293,13 @@ export default function SlotContent({ isSplitMode = false, isRightPane: _isRight
       });
       
       const text = `🎰 ${engine.currentPlayer.name}のオートプレイ結果（${engine.autoSpinStats.spins}回転）\n純増: ${engine.autoSpinStats.net > 0 ? "+" : ""}${engine.autoSpinStats.net}枚\n#だんごツール`;
-      const filename = `slot-autospin-${getTimestampForFilename()}.png`;
-      
-      const isMobile = !isDesktop || isSplitMode;
-
-      if (isMobile) {
-        const shared = await shareImageWithText(dataUrl, text, filename);
-        if (shared) return;
-      }
-
       setCapturedDataUrl(dataUrl);
       setShareText(text);
       setIsShareModalOpen(true);
     } catch (err) {
       console.error("Failed to export slot autospin image:", err);
     }
-  }, [engine.currentPlayer, engine.autoSpinStats, isDesktop, isSplitMode, displayLight]);
+  }, [engine.currentPlayer, engine.autoSpinStats, displayLight]);
 
   const addPlayer = useCallback((name: string) => {
     setPlayers(prev => [...prev, {

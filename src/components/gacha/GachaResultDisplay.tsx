@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode } from "@/lib/gacha";
 import { organizeResults, formatResultsForShare, formatResultsHeaderForShare } from "@/lib/gacha";
-import { generateShareUrl, getTimestampForFilename, shareImageWithText } from "@/lib/share";
+import { generateShareUrl } from "@/lib/share";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
 import { useGlassStyle } from "@/hooks/useGlassStyle";
@@ -110,21 +110,7 @@ export default function GachaResultDisplay({
                     backgroundColor: isLightMode ? "#f5f3ff" : "#0f0a1e",
                     pixelRatio: 2,
                 });
-                const headerText = formatResultsHeaderForShare(pool, shareHashtags, playerName);
-                const filename = `gacha-result-${getTimestampForFilename()}.png`;
-                
-                // モバイル判定
-                const mobileMode = isMobile || (typeof window !== "undefined" && window.innerWidth < 1024);
-
-                if (mobileMode) {
-                    const shared = await shareImageWithText(dataUrl, headerText, filename);
-                    if (shared) {
-                        setIsCapturingShareImage(false);
-                        return;
-                    }
-                }
-                
-                // PCまたは共有失敗時はモーダルを開く
+                // 共有は常にモーダル経由で行う（モーダル内ボタンで Web Share / フォールバック）。
                 setCapturedDataUrl(dataUrl);
                 setIsShareModalOpen(true);
             } catch (err) {
@@ -134,7 +120,7 @@ export default function GachaResultDisplay({
             }
         }, 50);
         return () => clearTimeout(id);
-    }, [isCapturingShareImage, isLightMode, isMobile, pool, shareHashtags, playerName]);
+    }, [isCapturingShareImage, isLightMode]);
 
     const handleCopy = async () => {
         const text = formatResultsForShare(results, pool, shareHashtags, playerName);

@@ -20,10 +20,6 @@ import {
   getImageBoundsPct,
 } from "../lib/panelUtils";
 import { getRegionsFromSegments } from "../lib/panelRegionDetection";
-import { 
-  getTimestampForFilename,
-  shareImageWithText
-} from "@/lib/share";
 import { isIdbKey } from "../lib/panelImageStore";
 
 interface PanelActionsProps {
@@ -57,7 +53,7 @@ export function usePanelActions({
   imageAspectRatio,
   captureRef,
   isLightMode: _isLightMode,
-  isDesktop,
+  isDesktop: _isDesktop,
   resolvedBgUrl,
   resolvedOverlayUrls,
   savedPanels,
@@ -149,7 +145,6 @@ export function usePanelActions({
     }
 
     setIsSharing(true);
-    const shareText = "パネル開け進捗";
     try {
       // 1. まず全体のキャプチャを取得
       const fullDataUrl = await toPng(el, {
@@ -164,17 +159,7 @@ export function usePanelActions({
 
       // 3. クロップ処理
       const dataUrl = await cropDataUrl(fullDataUrl, bounds);
-      const filename = `panel-${getTimestampForFilename()}.png`;
-
-      if (!isDesktop) {
-        const shared = await shareImageWithText(dataUrl, shareText, filename);
-        if (shared) {
-          setIsSharing(false);
-          return;
-        }
-      }
-
-      // PCまたは共有失敗時はモーダルを開く
+      // 共有は常にモーダル経由で行う（モーダル内ボタンで Web Share / フォールバック）。
       setCapturedDataUrl(dataUrl);
       setIsShareModalOpen(true);
     } catch (err) {
@@ -183,7 +168,7 @@ export function usePanelActions({
     } finally {
       setIsSharing(false);
     }
-  }, [isSharing, isDesktop, imageDataUrl, resolvedBgUrl, overlays, resolvedOverlayUrls, showToast, captureRef, imageAspectRatio]);
+  }, [isSharing, imageDataUrl, resolvedBgUrl, overlays, resolvedOverlayUrls, showToast, captureRef, imageAspectRatio]);
 
   const handleAddRectGrid = useCallback(
     (cols: number, rows: number) => {
