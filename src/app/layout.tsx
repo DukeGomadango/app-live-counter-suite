@@ -4,6 +4,7 @@ import "./globals.css";
 import Script from "next/script";
 import JsonLd from "@/components/JsonLd";
 import HelpButton from "@/components/HelpButton";
+import FloatingThemeToggle from "@/components/FloatingThemeToggle";
 import AnalyticsSender from "@/components/AnalyticsSender";
 import { SplitModuleProvider } from "@/context/SplitModuleContext";
 import { ToastProvider } from "@/components/Toast";
@@ -128,8 +129,8 @@ export default function RootLayout({
               }
             }
           `}} />
-          <dango-header active-tool="counter" portal-url="http://localhost:3000"></dango-header>
-          <Script src="http://localhost:3000/dango-header.js" strategy="afterInteractive" />
+          <dango-header active-tool="counter" portal-url={process.env.NODE_ENV === "production" ? "https://dango-portal.vercel.app" : "http://localhost:3000"}></dango-header>
+          <Script src={process.env.NODE_ENV === "production" ? "https://dango-portal.vercel.app/dango-header.js" : "http://localhost:3000/dango-header.js"} strategy="afterInteractive" />
           <SplitModuleProvider>
             <ToastProvider>
               <ConfirmProvider>
@@ -138,6 +139,7 @@ export default function RootLayout({
                   {children}
                 </div>
                 <HelpButton />
+                <FloatingThemeToggle />
               </ConfirmProvider>
               <footer className="fixed bottom-2 right-2 pointer-events-none z-[5]">
                 <span className="text-[10px] text-zinc-500 dark:text-zinc-600 opacity-70">
