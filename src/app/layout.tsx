@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Montserrat } from "next/font/google";
 import "./globals.css";
+import Script from "next/script";
 import JsonLd from "@/components/JsonLd";
 import HelpButton from "@/components/HelpButton";
 import AnalyticsSender from "@/components/AnalyticsSender";
@@ -111,6 +112,24 @@ export default function RootLayout({
       <body className={`${montserrat.variable} antialiased`}>
         <ThemeProvider>
           <JsonLd />
+          <style dangerouslySetInnerHTML={{ __html: `
+            dango-header {
+              display: none !important;
+            }
+            body:has(.lp-root) dango-header {
+              display: block !important;
+            }
+            body:has(.lp-root) header {
+              display: none !important;
+            }
+            @media (min-width: 768px) {
+              body:has(.lp-root) .lp-root {
+                padding-top: 92px;
+              }
+            }
+          `}} />
+          <dango-header active-tool="counter" portal-url="http://localhost:3000"></dango-header>
+          <Script src="http://localhost:3000/dango-header.js" strategy="afterInteractive" />
           <SplitModuleProvider>
             <ToastProvider>
               <ConfirmProvider>

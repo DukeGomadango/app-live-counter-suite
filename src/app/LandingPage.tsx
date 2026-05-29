@@ -49,7 +49,7 @@ export default function LandingPage() {
   const glassBorder = effectiveLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.1)";
 
   return (
-    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col relative">
+    <div className="min-h-screen md:h-screen md:overflow-hidden flex flex-col relative lp-root">
       <header className="relative shrink-0 z-50 flex items-center justify-between px-3 py-2 min-h-[52px]" style={{ background: headerBg, backdropFilter: "blur(12px)", borderBottom: `1px solid ${glassBorder}` }}>
         <ModeSelector isLightMode={effectiveLight} />
         <div className="flex items-center gap-2">
@@ -223,6 +223,25 @@ export default function LandingPage() {
           <p className={`mt-3 text-[11px] sm:text-xs ${effectiveLight ? "text-neutral-400" : "text-white/35"}`}>© 2026 だんごツール</p>
         </footer>
       </main>
+      
+      {/* フローティングテーマ切り替えボタン (LP専用) */}
+      <button
+        onClick={toggleTheme}
+        className={`fixed bottom-6 right-6 z-40 p-3.5 rounded-full border shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 dango-btn-tier3 ${
+          isLightMode
+            ? "bg-white/90 border-gray-200 text-gray-700 hover:bg-white"
+            : "bg-black/80 border-white/10 text-white hover:bg-black"
+        }`}
+        style={{ backdropFilter: "blur(12px)", "--btn-glow-color": isLightMode ? "rgba(234,179,8,0.3)" : "rgba(168,85,247,0.3)" } as React.CSSProperties}
+        aria-label="テーマ切り替え"
+      >
+        {isLightMode ? (
+          <Sun size={20} className="text-yellow-500" />
+        ) : (
+          <Moon size={20} className="text-purple-400" />
+        )}
+      </button>
+
       <DataLinkModal isOpen={lp.dataLinkOpen} onClose={() => lp.setDataLinkOpen(false)} isLightMode={effectiveLight} />
     </div>
   );
