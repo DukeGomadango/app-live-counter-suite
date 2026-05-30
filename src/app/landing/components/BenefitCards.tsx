@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Monitor, Smartphone, ShieldCheck } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
 
 /* ───── Types & Constants ───── */
 
@@ -42,6 +43,8 @@ const BENEFITS: BenefitItem[] = [
 ];
 
 export default function BenefitCards({ isMobile = false }: { isMobile?: boolean }) {
+  const { isLightMode } = useTheme();
+
   if (isMobile) {
     // Mobile layout: Stacked in 1 column, icon + content in flex-row for compactness
     return (
@@ -55,7 +58,9 @@ export default function BenefitCards({ isMobile = false }: { isMobile?: boolean 
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.4, delay: idx * 0.05 }}
-              className="w-full p-4 rounded-2xl border border-white/10 bg-zinc-950/40 flex items-start gap-4"
+              className={`w-full p-4 rounded-2xl border flex items-start gap-4 transition-colors duration-300 ${
+                isLightMode ? "border-black/5 bg-white/45" : "border-white/10 bg-zinc-950/40"
+              }`}
             >
               <span
                 className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 mt-0.5"
@@ -67,10 +72,14 @@ export default function BenefitCards({ isMobile = false }: { isMobile?: boolean 
                 <Icon size={20} />
               </span>
               <div className="flex-1">
-                <h4 className="text-sm font-bold text-white font-[family-name:var(--font-syne)] mb-1">
+                <h4 className={`text-sm font-bold font-[family-name:var(--font-plus-jakarta)] mb-1 ${
+                  isLightMode ? "text-slate-900" : "text-white"
+                }`}>
                   {benefit.title}
                 </h4>
-                <p className="text-xs text-zinc-400 font-[family-name:var(--font-outfit)] leading-relaxed font-medium">
+                <p className={`text-xs font-[family-name:var(--font-outfit)] leading-relaxed font-medium ${
+                  isLightMode ? "text-slate-600" : "text-zinc-400"
+                }`}>
                   {benefit.body}
                 </p>
               </div>
@@ -94,7 +103,9 @@ export default function BenefitCards({ isMobile = false }: { isMobile?: boolean 
             viewport={{ once: true, margin: "-100px" }}
             transition={{ duration: 0.5, delay: idx * 0.1 }}
             whileHover={{ y: -6, transition: { duration: 0.2 } }}
-            className="p-6 rounded-3xl border border-white/5 bg-zinc-950/30 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between group"
+            className={`p-6 rounded-3xl border backdrop-blur-xl relative overflow-hidden flex flex-col justify-between group transition-colors duration-300 ${
+              isLightMode ? "border-black/5 bg-white/35" : "border-white/5 bg-zinc-950/30"
+            }`}
           >
             {/* Top accent glow line */}
             <div
@@ -116,18 +127,26 @@ export default function BenefitCards({ isMobile = false }: { isMobile?: boolean 
                 <Icon size={24} />
               </span>
 
-              <h4 className="text-lg font-black text-white font-[family-name:var(--font-syne)] mb-3">
+              <h4 className={`text-lg font-black font-[family-name:var(--font-plus-jakarta)] mb-3 ${
+                isLightMode ? "text-slate-900" : "text-white"
+              }`}>
                 {benefit.title}
               </h4>
 
-              <p className="text-sm text-zinc-400 font-[family-name:var(--font-outfit)] leading-relaxed font-medium">
+              <p className={`text-sm font-[family-name:var(--font-outfit)] leading-relaxed font-medium ${
+                isLightMode ? "text-slate-600" : "text-zinc-400"
+              }`}>
                 {benefit.body}
               </p>
             </div>
 
-            <div className="mt-8 pt-4 border-t border-white/5 flex items-center justify-between text-[11px] text-zinc-500">
+            <div className={`mt-8 pt-4 border-t flex items-center justify-between text-[11px] text-zinc-500 transition-colors duration-300 ${
+              isLightMode ? "border-slate-200" : "border-white/5"
+            }`}>
               <span>Ready in 1 second</span>
-              <span className="font-bold tracking-wider uppercase opacity-50 group-hover:opacity-100 group-hover:text-white transition-all">
+              <span className={`font-bold tracking-wider uppercase opacity-50 group-hover:opacity-100 transition-all ${
+                isLightMode ? "group-hover:text-slate-900" : "group-hover:text-white"
+              }`}>
                 {benefit.id}
               </span>
             </div>

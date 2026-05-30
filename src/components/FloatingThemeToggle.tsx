@@ -22,31 +22,35 @@ export default function FloatingThemeToggle() {
   if (!mounted) return null;
 
   return (
-    <button
-      onClick={toggleTheme}
-      className={`p-3.5 rounded-full border shadow-2xl flex items-center justify-center transition-all duration-300 hover:scale-110 dango-btn-tier3 ${
-        isLightMode
-          ? "bg-white/90 border-gray-200 text-gray-700 hover:bg-white"
-          : "bg-black/80 border-white/10 text-white hover:bg-black"
-      }`}
+    <div
       style={{
         position: "fixed",
         bottom: "96px",
         right: "24px",
-        zIndex: 40,
+        zIndex: 50,
         width: "48px",
         height: "48px",
-        backdropFilter: "blur(12px)",
-        WebkitBackdropFilter: "blur(12px)",
-        "--btn-glow-color": isLightMode ? "rgba(234,179,8,0.3)" : "rgba(168,85,247,0.3)"
-      } as React.CSSProperties}
-      aria-label="テーマ切り替え"
+      }}
     >
-      {isLightMode ? (
-        <Sun size={20} className="text-yellow-500" />
-      ) : (
-        <Moon size={20} className="text-purple-400" />
-      )}
-    </button>
+      <button
+        onClick={toggleTheme}
+        className={`w-full h-full rounded-full border flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95 ${
+          isLightMode
+            ? "bg-white/80 border-slate-200 text-slate-700 hover:bg-white hover:text-purple-600 hover:border-purple-300 shadow-[0_8px_30px_rgba(0,0,0,0.08)]"
+            : "bg-zinc-950/80 border-white/10 text-white hover:bg-zinc-900 hover:text-purple-400 hover:border-purple-900/50 shadow-[0_8px_30px_rgba(0,0,0,0.4)]"
+        }`}
+        style={{
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+        }}
+        aria-label="テーマ切り替え"
+      >
+        {isLightMode ? (
+          <Sun size={20} className="text-yellow-500 animate-spin-slow" />
+        ) : (
+          <Moon size={20} className="text-purple-400" />
+        )}
+      </button>
+    </div>
   );
 }

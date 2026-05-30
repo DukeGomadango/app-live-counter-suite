@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Montserrat, Syne, Outfit } from "next/font/google";
+import { Montserrat, Plus_Jakarta_Sans, Outfit } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import JsonLd from "@/components/JsonLd";
@@ -16,9 +16,9 @@ const montserrat = Montserrat({
   weight: ["400", "500", "600", "700", "800", "900"],
 });
 
-const syne = Syne({
+const plusJakartaSans = Plus_Jakarta_Sans({
   subsets: ["latin"],
-  variable: "--font-syne",
+  variable: "--font-plus-jakarta",
   weight: ["400", "500", "600", "700", "800"],
 });
 
@@ -122,7 +122,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${montserrat.variable} ${syne.variable} ${outfit.variable} antialiased`}>
+      <body className={`${montserrat.variable} ${plusJakartaSans.variable} ${outfit.variable} antialiased`}>
         <ThemeProvider>
           <JsonLd />
           <style dangerouslySetInnerHTML={{ __html: `

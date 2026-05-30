@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Calculator, Clock, PanelTopOpen, LayoutGrid, CircleDot, Dices, ArrowRight } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
 
 /* ───── Types & Constants ───── */
 
@@ -83,6 +84,7 @@ const OTHER_TOOLS: ToolItem[] = [
 
 export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }) {
   const [activeTab, setActiveTab] = useState(0);
+  const { isLightMode } = useTheme();
 
   if (isMobile) {
     // Mobile: CSS-only Snap Carousel (overflow-x auto + scroll-snap-type + peep adjacent cards w-[82vw])
@@ -96,9 +98,13 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
           return (
             <div
               key={tool.id}
-              className="w-[82vw] shrink-0 snap-center rounded-3xl border border-white/10 bg-zinc-950/40 p-6 flex flex-col justify-between"
+              className={`w-[82vw] shrink-0 snap-center rounded-3xl border p-6 flex flex-col justify-between transition-colors duration-300 ${
+                isLightMode ? "border-black/5" : "border-white/10"
+              }`}
               style={{
-                background: `linear-gradient(135deg, rgba(24, 24, 27, 0.6) 0%, rgba(9, 9, 11, 0.8) 100%)`,
+                background: isLightMode
+                  ? `linear-gradient(135deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.7) 100%)`
+                  : `linear-gradient(135deg, rgba(24, 24, 27, 0.6) 0%, rgba(9, 9, 11, 0.8) 100%)`,
               }}
             >
               <div>
@@ -119,10 +125,14 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
                     {tool.labelEn}
                   </span>
                 </div>
-                <h3 className="text-lg font-black text-white mb-2 font-[family-name:var(--font-syne)]">
+                <h3 className={`text-lg font-black mb-2 font-[family-name:var(--font-plus-jakarta)] ${
+                  isLightMode ? "text-slate-900" : "text-white"
+                }`}>
                   {tool.labelJa}
                 </h3>
-                <p className="text-xs text-zinc-400 font-[family-name:var(--font-outfit)] leading-relaxed font-medium">
+                <p className={`text-xs font-[family-name:var(--font-outfit)] leading-relaxed font-medium ${
+                  isLightMode ? "text-slate-600" : "text-zinc-400"
+                }`}>
                   {tool.description}
                 </p>
               </div>
@@ -130,7 +140,11 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
               <div className="mt-6 flex justify-end">
                 <Link
                   href={tool.path}
-                  className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-xs font-bold text-white flex items-center gap-1.5 active:scale-95 transition-transform"
+                  className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 active:scale-95 transition-all ${
+                    isLightMode
+                      ? "bg-slate-900/5 border border-slate-900/10 text-slate-900 hover:bg-slate-900/10"
+                      : "bg-white/5 border border-white/10 text-white hover:bg-white/10"
+                  }`}
                 >
                   使ってみる <ArrowRight size={12} />
                 </Link>
@@ -161,8 +175,12 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
               onMouseEnter={() => setActiveTab(idx)}
               className={`w-full flex items-center justify-between p-4 rounded-2xl border text-left transition-all duration-300 group focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 ${
                 isActive
-                  ? "border-white/15 bg-white/5 shadow-[0_4px_20px_rgba(255,255,255,0.02)]"
-                  : "border-transparent bg-transparent hover:bg-white/2 hover:border-white/5"
+                  ? isLightMode
+                    ? "border-black/10 bg-black/5 shadow-[0_4px_20px_rgba(0,0,0,0.02)]"
+                    : "border-white/15 bg-white/5 shadow-[0_4px_20px_rgba(255,255,255,0.02)]"
+                  : isLightMode
+                    ? "border-transparent bg-transparent hover:bg-black/2 hover:border-black/5"
+                    : "border-transparent bg-transparent hover:bg-white/2 hover:border-white/5"
               }`}
             >
               <div className="flex items-center gap-4">
@@ -171,8 +189,8 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
                     isActive ? "scale-105" : "group-hover:scale-105"
                   }`}
                   style={{
-                    background: isActive ? `${tool.accentHex}25` : "rgba(255, 255, 255, 0.03)",
-                    color: isActive ? tool.accentHex : "rgba(255,255,255,0.4)",
+                    background: isActive ? `${tool.accentHex}25` : (isLightMode ? "rgba(0, 0, 0, 0.03)" : "rgba(255, 255, 255, 0.03)"),
+                    color: isActive ? tool.accentHex : (isLightMode ? "rgba(0,0,0,0.4)" : "rgba(255,255,255,0.4)"),
                   }}
                 >
                   <Icon size={20} />
@@ -180,7 +198,9 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
                 <div>
                   <h4
                     className={`text-sm font-black transition-colors duration-300 ${
-                      isActive ? "text-white" : "text-zinc-400 group-hover:text-zinc-200"
+                      isActive
+                        ? isLightMode ? "text-slate-900" : "text-white"
+                        : isLightMode ? "text-slate-500 group-hover:text-slate-700" : "text-zinc-400 group-hover:text-zinc-200"
                     }`}
                   >
                     {tool.labelJa}
@@ -192,8 +212,14 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
               </div>
 
               <span
-                className={`w-6 h-6 rounded-full border border-white/5 flex items-center justify-center text-zinc-500 transition-all duration-300 ${
-                  isActive ? "bg-white text-black scale-100 opacity-100" : "scale-75 opacity-0 group-hover:opacity-100 group-hover:scale-90"
+                className={`w-6 h-6 rounded-full border flex items-center justify-center transition-all duration-300 ${
+                  isLightMode ? "border-black/5" : "border-white/5"
+                } ${
+                  isActive 
+                    ? isLightMode
+                      ? "bg-slate-900 text-white scale-100 opacity-100"
+                      : "bg-white text-black scale-100 opacity-100"
+                    : "scale-75 opacity-0 group-hover:opacity-100 group-hover:scale-90"
                 }`}
               >
                 <ArrowRight size={10} />
@@ -204,7 +230,9 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
       </div>
 
       {/* Right side: Dynamic details display with spring-slide transition */}
-      <div className="col-span-7 rounded-3xl border border-white/5 bg-zinc-950/30 backdrop-blur-xl relative overflow-hidden flex flex-col justify-between p-8">
+      <div className={`col-span-7 rounded-3xl border backdrop-blur-xl relative overflow-hidden flex flex-col justify-between p-8 transition-colors duration-300 ${
+        isLightMode ? "border-black/5 bg-white/35" : "border-white/5 bg-zinc-950/30"
+      }`}>
         {/* Decorative corner glows */}
         <AnimatePresence mode="wait">
           <motion.div
@@ -243,7 +271,9 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
                 >
                   {currentTool.labelEn} Toolkit
                 </span>
-                <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1 font-[family-name:var(--font-syne)]">
+                <h3 className={`text-2xl sm:text-3xl font-black tracking-tight mt-1 font-[family-name:var(--font-plus-jakarta)] ${
+                  isLightMode ? "text-slate-900" : "text-white"
+                }`}>
                   {currentTool.labelJa}
                 </h3>
               </div>
@@ -257,14 +287,18 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -10, opacity: 0 }}
               transition={{ type: "spring", damping: 25, stiffness: 200, delay: 0.05 }}
-              className="text-base text-zinc-400 font-[family-name:var(--font-outfit)] leading-relaxed font-medium max-w-xl"
+              className={`text-base font-[family-name:var(--font-outfit)] leading-relaxed font-medium max-w-xl ${
+                isLightMode ? "text-slate-600" : "text-zinc-400"
+              }`}
             >
               {currentTool.description}
             </motion.p>
           </AnimatePresence>
         </div>
 
-        <div className="relative z-10 flex items-center justify-between pt-6 border-t border-white/5">
+        <div className={`relative z-10 flex items-center justify-between pt-6 border-t transition-colors duration-300 ${
+          isLightMode ? "border-slate-200" : "border-white/5"
+        }`}>
           <span className="text-xs font-semibold text-zinc-500">完全無料・登録なし・100%ローカル</span>
           
           <AnimatePresence mode="wait">
@@ -277,7 +311,11 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
             >
               <Link
                 href={currentTool.path}
-                className="px-6 py-3 rounded-2xl bg-white text-black text-sm font-bold flex items-center gap-2 hover:bg-zinc-200 transition-all duration-300 shadow-[0_10px_30px_rgba(255,255,255,0.05)] hover:shadow-[0_10px_30px_rgba(255,255,255,0.1)] active:scale-98"
+                className={`px-6 py-3 rounded-2xl text-sm font-bold flex items-center gap-2 transition-all duration-300 active:scale-98 ${
+                  isLightMode
+                    ? "bg-slate-900 text-white hover:bg-slate-800 shadow-[0_10px_30px_rgba(0,0,0,0.05)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.1)]"
+                    : "bg-white text-black hover:bg-zinc-200 shadow-[0_10px_30px_rgba(255,255,255,0.05)] hover:shadow-[0_10px_30px_rgba(255,255,255,0.1)]"
+                }`}
               >
                 今すぐツールを起動 <ArrowRight size={16} />
               </Link>

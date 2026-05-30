@@ -125,7 +125,7 @@ export default function LandingPage() {
   const glassBorder = isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.1)";
 
   return (
-    <div className="lp-root min-h-screen flex flex-col relative overflow-x-hidden select-none bg-zinc-950 font-[family-name:var(--font-outfit)]">
+    <div className="lp-root min-h-screen flex flex-col relative overflow-x-hidden select-none bg-transparent font-[family-name:var(--font-outfit)]">
       
       {/* Welcome loading screen (session-aware loader) */}
       <WelcomeLoader 
@@ -198,13 +198,13 @@ export default function LandingPage() {
             <span className="text-xs font-black tracking-[0.2em] text-purple-400 uppercase mb-3 block">
               100% Free & No Setup Required
             </span>
-            <h1 className="text-3xl sm:text-5xl md:text-6xl font-black leading-[1.1] text-white tracking-tight font-[family-name:var(--font-syne)] mb-6">
+            <h1 className={`text-3xl sm:text-5xl md:text-6xl font-black leading-[1.1] tracking-tight font-[family-name:var(--font-plus-jakarta)] mb-6 transition-colors duration-300 ${isLightMode ? "text-slate-900" : "text-white"}`}>
               配信をもっと身近に、<br className="hidden sm:inline" />
               <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-blue-400 bg-clip-text text-transparent">
                 リスナーともっと近くに。
               </span>
             </h1>
-            <p className="text-sm sm:text-base md:text-lg text-zinc-400 leading-relaxed max-w-xl font-medium mb-8">
+            <p className={`text-sm sm:text-base md:text-lg leading-relaxed max-w-xl font-medium mb-8 transition-colors duration-300 ${isLightMode ? "text-slate-600" : "text-zinc-400"}`}>
               人数カウントからガチャ演出まで、ブラウザひとつで今日の配信枠に「楽しい」をプラスする。完全無料・登録不要のクリエイターツールキット。
             </p>
             
@@ -273,7 +273,7 @@ export default function LandingPage() {
         <section id="benefits" className="w-full max-w-7xl mx-auto px-6 py-16 md:py-24">
           <div className="mb-12 text-center md:text-left">
             <span className="text-xs font-black uppercase tracking-[0.2em] text-purple-400">Stream optimized</span>
-            <h2 className="text-2xl sm:text-4xl font-black text-white font-[family-name:var(--font-syne)] mt-2">
+            <h2 className={`text-2xl sm:text-4xl font-black mt-2 font-[family-name:var(--font-plus-jakarta)] transition-colors duration-300 ${isLightMode ? "text-slate-900" : "text-white"}`}>
               なぜ「だんごツール」が選ばれるのか？
             </h2>
           </div>
@@ -287,7 +287,7 @@ export default function LandingPage() {
         <section id="main-tools" className="w-full max-w-7xl mx-auto px-6 py-16 md:py-24">
           <div className="mb-12 text-center md:text-left">
             <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-400">Core Toolkit</span>
-            <h2 className="text-2xl sm:text-4xl font-black text-white font-[family-name:var(--font-syne)] mt-2">
+            <h2 className={`text-2xl sm:text-4xl font-black mt-2 font-[family-name:var(--font-plus-jakarta)] transition-colors duration-300 ${isLightMode ? "text-slate-900" : "text-white"}`}>
               もっとも使われる3大配信ツール
             </h2>
           </div>
@@ -301,7 +301,7 @@ export default function LandingPage() {
         <section id="other-tools" className="w-full max-w-7xl mx-auto px-6 py-16 md:py-24">
           <div className="mb-12 text-center md:text-left">
             <span className="text-xs font-black uppercase tracking-[0.2em] text-emerald-400">Extra Utilities</span>
-            <h2 className="text-2xl sm:text-4xl font-black text-white font-[family-name:var(--font-syne)] mt-2">
+            <h2 className={`text-2xl sm:text-4xl font-black mt-2 font-[family-name:var(--font-plus-jakarta)] transition-colors duration-300 ${isLightMode ? "text-slate-900" : "text-white"}`}>
               配信を支える他6種のユーティリティ
             </h2>
           </div>
@@ -312,26 +312,6 @@ export default function LandingPage() {
         <div className="w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent my-10" />
 
         <section className="w-full max-w-4xl mx-auto px-6 py-8 flex flex-col items-center">
-          <div className="w-fit flex items-center justify-center gap-1 rounded-2xl p-1.5 bg-white/5 border border-white/5 mb-6">
-            <button 
-              type="button" 
-              onClick={() => lp.setLayoutMode("cards")} 
-              className={`rounded-xl px-5 py-2 text-xs font-bold transition-all cursor-pointer ${
-                lp.effectiveLayout === "cards" ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              カード表示
-            </button>
-            <button 
-              type="button" 
-              onClick={() => lp.setLayoutMode("strip")} 
-              className={`rounded-xl px-5 py-2 text-xs font-bold transition-all cursor-pointer ${
-                lp.effectiveLayout === "strip" ? "bg-white text-black shadow-sm" : "text-zinc-400 hover:text-white"
-              }`}
-            >
-              ストリップ表示
-            </button>
-          </div>
           <PwaInstallChip effectiveLight={isLightMode} />
         </section>
 
@@ -366,7 +346,7 @@ export default function LandingPage() {
         </section>
 
         {/* Global Footer */}
-        <footer className="w-full border-t border-white/5 bg-zinc-950/60 py-12 shrink-0">
+        <footer className={`w-full border-t py-12 shrink-0 transition-colors duration-300 ${isLightMode ? "border-slate-200 bg-white/60" : "border-white/5 bg-zinc-950/60"}`}>
           <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex flex-wrap justify-center items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-zinc-500 font-bold">
               <Link href="/terms" className="hover:text-white transition-colors">利用規約</Link>

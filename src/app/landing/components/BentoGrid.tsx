@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Users, Network, Sparkles, ArrowRight } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
 
 /* ───── Types & Constants ───── */
 
@@ -33,6 +34,7 @@ function BentoCard({
 }: BentoCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
+  const { isLightMode } = useTheme();
 
   // Framer Motion values for PC 3D Tilt
   const x = useMotionValue(0);
@@ -60,7 +62,9 @@ function BentoCard({
 
   const glowStyle = isHovered && !isMobile
     ? {
-        boxShadow: `0 0 35px 2px ${glowColor}, inset 0 1px 0 rgba(255,255,255,0.15)`,
+        boxShadow: isLightMode 
+          ? `0 0 35px 2px ${glowColor}50, inset 0 1px 0 rgba(255,255,255,0.7)`
+          : `0 0 35px 2px ${glowColor}, inset 0 1px 0 rgba(255,255,255,0.15)`,
         borderColor: glowColor,
       }
     : {};
@@ -74,9 +78,13 @@ function BentoCard({
       style={isMobile ? {} : { rotateX, rotateY, transformStyle: "preserve-3d" }}
       whileTap={isMobile ? { scale: 0.98 } : { scale: 0.99 }}
       className={`relative rounded-3xl overflow-hidden transition-all duration-300 border backdrop-blur-xl group flex flex-col justify-between ${spanClass} ${
-        isMobile
-          ? "border-white/10 bg-zinc-950/40"
-          : "border-white/5 bg-zinc-950/30 hover:border-white/20"
+        isLightMode
+          ? isMobile
+            ? "border-black/5 bg-white/45"
+            : "border-black/5 bg-white/35 hover:border-black/10"
+          : isMobile
+            ? "border-white/10 bg-zinc-950/40"
+            : "border-white/5 bg-zinc-950/30 hover:border-white/20"
       }`}
     >
       {/* Background glass shine / mesh */}
@@ -119,11 +127,11 @@ function BentoCard({
             </span>
           </div>
 
-          <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight mb-2 font-[family-name:var(--font-syne)]">
+          <h3 className={`text-xl sm:text-2xl font-black tracking-tight mb-2 font-[family-name:var(--font-plus-jakarta)] ${isLightMode ? "text-slate-900" : "text-white"}`}>
             {title}
           </h3>
 
-          <p className="text-sm text-zinc-400 font-[family-name:var(--font-outfit)] leading-relaxed font-medium">
+          <p className={`text-sm font-[family-name:var(--font-outfit)] leading-relaxed font-medium ${isLightMode ? "text-slate-600" : "text-zinc-400"}`}>
             {description}
           </p>
         </div>
@@ -133,11 +141,15 @@ function BentoCard({
           className="mt-6 flex items-center justify-between"
           style={isMobile ? {} : { transform: "translateZ(20px)" }}
         >
-          <span className="text-xs font-bold text-zinc-500 group-hover:text-white transition-colors duration-300 flex items-center gap-1">
+          <span className={`text-xs font-bold text-zinc-500 transition-colors duration-300 flex items-center gap-1 ${isLightMode ? "group-hover:text-slate-900" : "group-hover:text-white"}`}>
             Explore Tool <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-300" />
           </span>
           <span
-            className={`w-8 h-8 rounded-full border border-white/10 flex items-center justify-center transition-all duration-300 group-hover:bg-white group-hover:text-black`}
+            className={`w-8 h-8 rounded-full border flex items-center justify-center transition-all duration-300 ${
+              isLightMode
+                ? "border-black/10 group-hover:bg-slate-900 group-hover:text-white"
+                : "border-white/10 group-hover:bg-white group-hover:text-black"
+            }`}
           >
             <ArrowRight size={14} />
           </span>

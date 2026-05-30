@@ -163,7 +163,7 @@ export default function WelcomeLoader({
             transition={{ delay: 0.2, duration: 0.5 }}
             className="flex flex-col items-center gap-2 text-center"
           >
-            <h1 className="text-xl font-bold tracking-[0.2em] text-zinc-100 font-[family-name:var(--font-syne)] uppercase">
+            <h1 className="text-xl font-bold tracking-[0.2em] text-zinc-100 font-[family-name:var(--font-plus-jakarta)] uppercase">
               Dango Tool Kit
             </h1>
             <p className="text-xs text-zinc-500 font-[family-name:var(--font-outfit)] tracking-wider">

@@ -85,7 +85,7 @@ function CounterWidget({
               stiffness: 500,
               damping: 25,
             }}
-            className={`inline-block w-9 h-12 leading-[48px] text-center text-2xl font-black rounded-lg ${
+            className={`inline-flex items-center justify-center w-9 h-12 text-center text-2xl font-black rounded-lg ${
               isLightMode
                 ? "bg-neutral-100/80 text-neutral-800"
                 : "bg-white/5 text-white"
