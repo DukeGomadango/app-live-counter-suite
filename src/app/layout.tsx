@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Montserrat } from "next/font/google";
+import { Montserrat, Syne, Outfit } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import JsonLd from "@/components/JsonLd";
@@ -14,6 +14,18 @@ const montserrat = Montserrat({
   subsets: ["latin"],
   variable: "--font-montserrat",
   weight: ["400", "500", "600", "700", "800", "900"],
+});
+
+const syne = Syne({
+  subsets: ["latin"],
+  variable: "--font-syne",
+  weight: ["400", "500", "600", "700", "800"],
+});
+
+const outfit = Outfit({
+  subsets: ["latin"],
+  variable: "--font-outfit",
+  weight: ["300", "400", "500", "600", "700", "800"],
 });
 
 export const metadata: Metadata = {
@@ -110,7 +122,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${montserrat.variable} antialiased`}>
+      <body className={`${montserrat.variable} ${syne.variable} ${outfit.variable} antialiased`}>
         <ThemeProvider>
           <JsonLd />
           <style dangerouslySetInnerHTML={{ __html: `

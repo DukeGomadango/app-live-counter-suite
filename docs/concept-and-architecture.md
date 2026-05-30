@@ -185,7 +185,7 @@ flowchart TB
 
 - **目的**: ガチャ向けに **画像・音声を R2 にアップロード**（`POST /upload`）し **GET /u/:key** でプロキシするほか、設定されている場合は **利用状況の記録・集計**（`POST /api/events`、`GET /api/stats`、管理者向けの visitors 系など。実装の一覧は `my-worker/src/index.ts`）を提供する。SVG はアップロード対象外。
 - **CORS / 濫用対策**: 本番ドメイン・ローカルホストを許可（`my-worker/src/index.ts` の `ALLOWED_ORIGINS`）。`POST /upload` と `POST /api/events` は許可 Origin と簡易レート制限、入力長制限で保護する。
-- **フロントからの接続**: 本番の CSP は `vercel.json` の `Content-Security-Policy` において `connect-src` に Worker の URL（例: `https://my-worker.gacha-upload.workers.dev`）、だんごシェアリンク API（`https://dango-share-link.vercel.app`、ローカル連携検証用 `http://localhost:3000`）、データ連携用に `https://www.googleapis.com`・`https://oauth2.googleapis.com`・`https://accounts.google.com` が含まれる。`script-src` に `https://accounts.google.com`・`https://apis.google.com`、`frame-src` に `https://accounts.google.com`（Google Identity Services 用）。Worker 側の許可オリジンは `my-worker/src/index.ts` の `ALLOWED_ORIGINS`。
+- **フロントからの接続**: 本番の CSP は `vercel.json` の `Content-Security-Policy` において `connect-src` に Worker の URL（例: `https://my-worker.gacha-upload.workers.dev`）、だんごシェアリンク API（`https://dango-share-link.vercel.app`）、データ連携用に `https://www.googleapis.com`・`https://oauth2.googleapis.com`・`https://accounts.google.com` が含まれる。`script-src` に `https://accounts.google.com`・`https://apis.google.com`（本番では `unsafe-eval` を許可しない）、`frame-src` に `https://accounts.google.com`（Google Identity Services 用）。Worker 側の許可オリジンは `my-worker/src/index.ts` の `ALLOWED_ORIGINS`。
 
 ```mermaid
 sequenceDiagram

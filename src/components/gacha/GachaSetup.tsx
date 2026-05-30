@@ -72,7 +72,7 @@ function SectionHeader({
     textPrimary,
 }: {
     id: string;
-    icon: React.ElementType;
+    icon: React.ComponentType<{ size?: number; className?: string }>;
     title: string;
     badge?: string;
     expandedSection: string | null;
