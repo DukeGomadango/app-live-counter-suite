@@ -82,6 +82,188 @@ const OTHER_TOOLS: ToolItem[] = [
   },
 ];
 
+/* ───── SVG Animated Previews for each tool ───── */
+
+function PanelPreviewSvg({ color }: { color: string }) {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 120 80" fill="none" className="opacity-60">
+      {/* Image frame */}
+      <rect x="10" y="5" width="100" height="70" rx="6" stroke={color} strokeWidth="1" opacity="0.3" />
+      {/* Panel tiles peeling away */}
+      <rect x="10" y="5" width="25" height="23" rx="2" fill={color} opacity="0.15" />
+      <rect x="35" y="5" width="25" height="23" rx="2" fill={color} opacity="0.25">
+        <animate attributeName="opacity" values="0.25;0.05;0.25" dur="3s" repeatCount="indefinite" />
+      </rect>
+      <rect x="60" y="5" width="25" height="23" rx="2" fill={color} opacity="0.08" />
+      <rect x="85" y="5" width="25" height="23" rx="2" fill={color} opacity="0.2">
+        <animate attributeName="opacity" values="0.2;0.02;0.2" dur="2.5s" repeatCount="indefinite" begin="0.5s" />
+      </rect>
+      <rect x="10" y="28" width="25" height="23" rx="2" fill={color} opacity="0.12">
+        <animate attributeName="opacity" values="0.12;0.02;0.12" dur="2s" repeatCount="indefinite" begin="1s" />
+      </rect>
+      <rect x="35" y="28" width="25" height="23" rx="2" fill={color} opacity="0.05" />
+      {/* Sparkle icon */}
+      <text x="60" y="60" fill={color} fontSize="16" opacity="0.3">✨</text>
+    </svg>
+  );
+}
+
+function CalculatorPreviewSvg({ color }: { color: string }) {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 120 80" fill="none" className="opacity-60">
+      {/* Calculator body */}
+      <rect x="25" y="5" width="70" height="70" rx="8" stroke={color} strokeWidth="1" opacity="0.3" />
+      {/* Display */}
+      <rect x="32" y="12" width="56" height="16" rx="4" fill={color} opacity="0.1" />
+      <text x="82" y="25" textAnchor="end" fill={color} fontSize="11" fontWeight="bold" opacity="0.6">
+        42.5
+        <animate attributeName="opacity" values="0.6;0.9;0.6" dur="2s" repeatCount="indefinite" />
+      </text>
+      {/* Buttons grid */}
+      {[0, 1, 2, 3].map((row) =>
+        [0, 1, 2, 3].map((col) => (
+          <rect
+            key={`${row}-${col}`}
+            x={32 + col * 15}
+            y={34 + row * 11}
+            width="11"
+            height="8"
+            rx="2"
+            fill={color}
+            opacity={0.08 + (row === 0 && col === 3 ? 0.15 : 0)}
+          >
+            {row === 1 && col === 2 && (
+              <animate attributeName="opacity" values="0.08;0.25;0.08" dur="1.5s" repeatCount="indefinite" />
+            )}
+          </rect>
+        ))
+      )}
+    </svg>
+  );
+}
+
+function ClockPreviewSvg({ color }: { color: string }) {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 120 80" fill="none" className="opacity-60">
+      {/* Clock face */}
+      <circle cx="60" cy="40" r="30" stroke={color} strokeWidth="1" opacity="0.3" />
+      <circle cx="60" cy="40" r="2" fill={color} opacity="0.5" />
+      {/* Hour markers */}
+      {Array.from({ length: 12 }).map((_, i) => {
+        const angle = (i * 30 - 90) * (Math.PI / 180);
+        const x1 = 60 + Math.cos(angle) * 25;
+        const y1 = 40 + Math.sin(angle) * 25;
+        const x2 = 60 + Math.cos(angle) * 28;
+        const y2 = 40 + Math.sin(angle) * 28;
+        return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={color} strokeWidth="1.5" opacity="0.3" />;
+      })}
+      {/* Hour hand */}
+      <line x1="60" y1="40" x2="60" y2="22" stroke={color} strokeWidth="2" opacity="0.5" strokeLinecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="0 60 40" to="360 60 40" dur="43200s" repeatCount="indefinite" />
+      </line>
+      {/* Minute hand */}
+      <line x1="60" y1="40" x2="60" y2="16" stroke={color} strokeWidth="1.5" opacity="0.4" strokeLinecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="0 60 40" to="360 60 40" dur="3600s" repeatCount="indefinite" />
+      </line>
+      {/* Second hand */}
+      <line x1="60" y1="40" x2="60" y2="14" stroke={color} strokeWidth="0.8" opacity="0.6" strokeLinecap="round">
+        <animateTransform attributeName="transform" type="rotate" from="0 60 40" to="360 60 40" dur="10s" repeatCount="indefinite" />
+      </line>
+    </svg>
+  );
+}
+
+function SplitPreviewSvg({ color }: { color: string }) {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 120 80" fill="none" className="opacity-60">
+      {/* Split layout frames */}
+      <rect x="10" y="8" width="48" height="64" rx="4" stroke={color} strokeWidth="1" opacity="0.3" />
+      <rect x="62" y="8" width="48" height="30" rx="4" stroke={color} strokeWidth="1" opacity="0.3" />
+      <rect x="62" y="42" width="48" height="30" rx="4" stroke={color} strokeWidth="1" opacity="0.3" />
+      {/* Content indicators */}
+      <rect x="18" y="20" width="32" height="3" rx="1.5" fill={color} opacity="0.15" />
+      <rect x="18" y="28" width="24" height="3" rx="1.5" fill={color} opacity="0.1" />
+      <circle cx="34" cy="50" r="8" stroke={color} strokeWidth="1" opacity="0.2">
+        <animate attributeName="r" values="8;10;8" dur="2s" repeatCount="indefinite" />
+      </circle>
+      <rect x="70" y="16" width="24" height="14" rx="2" fill={color} opacity="0.08">
+        <animate attributeName="opacity" values="0.08;0.18;0.08" dur="2.5s" repeatCount="indefinite" />
+      </rect>
+      <rect x="70" y="50" width="32" height="3" rx="1.5" fill={color} opacity="0.12" />
+      <rect x="70" y="56" width="20" height="3" rx="1.5" fill={color} opacity="0.08" />
+    </svg>
+  );
+}
+
+function RoulettePreviewSvg({ color }: { color: string }) {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 120 80" fill="none" className="opacity-60">
+      {/* Wheel */}
+      <circle cx="60" cy="40" r="28" stroke={color} strokeWidth="1" opacity="0.3" />
+      {/* Segments */}
+      {[0, 60, 120, 180, 240, 300].map((angle, i) => {
+        const rad = (angle - 90) * (Math.PI / 180);
+        const x = 60 + Math.cos(rad) * 28;
+        const y = 40 + Math.sin(rad) * 28;
+        return <line key={i} x1="60" y1="40" x2={x} y2={y} stroke={color} strokeWidth="0.8" opacity="0.2" />;
+      })}
+      {/* Spinning indicator */}
+      <g>
+        <animateTransform attributeName="transform" type="rotate" from="0 60 40" to="360 60 40" dur="4s" repeatCount="indefinite" />
+        <circle cx="60" cy="14" r="3" fill={color} opacity="0.5" />
+      </g>
+      {/* Center dot */}
+      <circle cx="60" cy="40" r="4" fill={color} opacity="0.3" />
+      {/* Pointer */}
+      <polygon points="60,8 56,2 64,2" fill={color} opacity="0.5" />
+    </svg>
+  );
+}
+
+function SlotPreviewSvg({ color }: { color: string }) {
+  return (
+    <svg width="100%" height="100%" viewBox="0 0 120 80" fill="none" className="opacity-60">
+      {/* Slot machine frame */}
+      <rect x="15" y="10" width="90" height="60" rx="6" stroke={color} strokeWidth="1" opacity="0.3" />
+      {/* 3 reels */}
+      {[0, 1, 2].map((i) => (
+        <g key={i}>
+          <rect x={25 + i * 28} y="18" width="22" height="44" rx="3" stroke={color} strokeWidth="0.8" opacity="0.2" />
+          {/* Reel symbol */}
+          <text
+            x={36 + i * 28}
+            y="44"
+            textAnchor="middle"
+            fill={color}
+            fontSize="14"
+            fontWeight="bold"
+            opacity="0.4"
+          >
+            {["7", "★", "♦"][i]}
+            <animate
+              attributeName="y"
+              values="44;38;44"
+              dur={`${1.5 + i * 0.3}s`}
+              repeatCount="indefinite"
+            />
+          </text>
+        </g>
+      ))}
+      {/* Horizontal line (payline) */}
+      <line x1="22" y1="40" x2="98" y2="40" stroke={color} strokeWidth="0.8" opacity="0.15" />
+    </svg>
+  );
+}
+
+const TOOL_PREVIEWS: Record<string, React.ComponentType<{ color: string }>> = {
+  panel: PanelPreviewSvg,
+  calculator: CalculatorPreviewSvg,
+  clock: ClockPreviewSvg,
+  split: SplitPreviewSvg,
+  roulette: RoulettePreviewSvg,
+  slot: SlotPreviewSvg,
+};
+
 export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }) {
   const [activeTab, setActiveTab] = useState(0);
   const { isLightMode } = useTheme();
@@ -159,6 +341,7 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
   // PC: Tab Switcher with spring transitions and AnimatePresence
   const currentTool = (OTHER_TOOLS[activeTab] ?? OTHER_TOOLS[0]) as unknown as ToolItem;
   const ActiveIcon = currentTool.icon;
+  const PreviewSvg = TOOL_PREVIEWS[currentTool.id];
 
   return (
     <div className="w-full grid grid-cols-12 gap-8 items-stretch">
@@ -293,6 +476,22 @@ export default function ToolRotator({ isMobile = false }: { isMobile?: boolean }
             >
               {currentTool.description}
             </motion.p>
+          </AnimatePresence>
+
+          {/* SVG Animated Preview */}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={`preview-${currentTool.id}`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1], delay: 0.1 }}
+              className="mt-4 flex justify-center items-center h-[160px] md:h-[200px]"
+            >
+              <div className="w-[80%] max-w-[280px] aspect-[3/2] flex items-center justify-center">
+                {PreviewSvg && <PreviewSvg color={currentTool.accentHex} />}
+              </div>
+            </motion.div>
           </AnimatePresence>
         </div>
 

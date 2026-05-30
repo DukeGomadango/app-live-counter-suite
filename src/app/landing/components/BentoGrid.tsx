@@ -1,10 +1,117 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { Users, Network, Sparkles, ArrowRight } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+
+/* ───── Animated preview backgrounds ───── */
+
+/** Mini counter UI preview - auto counting digits with OBS-style frame */
+function CounterPreview() {
+  const [val, setVal] = useState(42);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setVal((prev) => prev + Math.floor(Math.random() * 3) + 1);
+    }, 1800);
+    return () => clearInterval(interval);
+  }, []);
+
+  const digits = String(val).padStart(4, "0").split("");
+
+  return (
+    <div 
+      className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-0"
+      style={{ containerType: "inline-size" }}
+    >
+      <div className="flex flex-col items-center gap-[2cqi]">
+        {/* OBS-style frame outline */}
+        <div className="relative border border-purple-500/20 rounded-[2cqi] p-[3cqi] bg-purple-500/5 backdrop-blur-sm">
+          <div className="absolute top-[1cqi] left-[2cqi] flex gap-[1cqi]">
+            <div className="w-[1.2cqi] h-[1.2cqi] rounded-full bg-red-400/50" />
+            <div className="w-[1.2cqi] h-[1.2cqi] rounded-full bg-yellow-400/50" />
+            <div className="w-[1.2cqi] h-[1.2cqi] rounded-full bg-green-400/50" />
+          </div>
+          <div className="flex gap-[0.5cqi] mt-[2.5cqi]">
+            {digits.map((d, i) => (
+              <span
+                key={`${i}-${d}`}
+                className="inline-flex items-center justify-center w-[6.5cqi] h-[8.5cqi] text-[4.5cqi] font-black rounded-[1.5cqi] bg-purple-500/10 text-purple-300 lp-preview-counter-digit"
+                style={{ animationDelay: `${i * 0.15}s`, fontVariantNumeric: "tabular-nums" }}
+              >
+                {d}
+              </span>
+            ))}
+          </div>
+        </div>
+        <span className="text-[2.5cqi] text-purple-400/50 font-bold uppercase tracking-widest">OBS Overlay</span>
+      </div>
+    </div>
+  );
+}
+
+/** Mini chart preview - pulsing nodes connected by animated lines */
+function ChartPreview() {
+  return (
+    <div 
+      className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-0"
+      style={{ containerType: "inline-size" }}
+    >
+      <div className="w-[60cqi] max-w-[300px] flex items-center justify-center">
+        <svg viewBox="0 0 140 80" fill="none" className="w-full h-auto">
+          {/* Node connections */}
+          <line x1="25" y1="25" x2="70" y2="40" className="lp-preview-node-line" stroke="rgba(96,165,250,0.4)" strokeWidth="1.5" />
+          <line x1="70" y1="40" x2="115" y2="20" className="lp-preview-node-line" stroke="rgba(96,165,250,0.4)" strokeWidth="1.5" style={{ animationDelay: "0.3s" }} />
+          <line x1="70" y1="40" x2="115" y2="60" className="lp-preview-node-line" stroke="rgba(96,165,250,0.4)" strokeWidth="1.5" style={{ animationDelay: "0.6s" }} />
+          {/* Nodes */}
+          <circle cx="25" cy="25" r="6" fill="rgba(96,165,250,0.15)" stroke="rgba(96,165,250,0.5)" strokeWidth="1.5">
+            <animate attributeName="r" values="6;8;6" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <circle cx="70" cy="40" r="8" fill="rgba(96,165,250,0.2)" stroke="rgba(96,165,250,0.6)" strokeWidth="1.5">
+            <animate attributeName="r" values="8;10;8" dur="2s" repeatCount="indefinite" begin="0.3s" />
+          </circle>
+          <circle cx="115" cy="20" r="5" fill="rgba(96,165,250,0.15)" stroke="rgba(96,165,250,0.4)" strokeWidth="1.5">
+            <animate attributeName="r" values="5;7;5" dur="2s" repeatCount="indefinite" begin="0.6s" />
+          </circle>
+          <circle cx="115" cy="60" r="5" fill="rgba(96,165,250,0.15)" stroke="rgba(96,165,250,0.4)" strokeWidth="1.5">
+            <animate attributeName="r" values="5;7;5" dur="2s" repeatCount="indefinite" begin="0.9s" />
+          </circle>
+          {/* Labels */}
+          <text x="25" y="29" textAnchor="middle" fill="rgba(96,165,250,0.7)" fontSize="7" fontWeight="bold">+5</text>
+          <text x="70" y="44" textAnchor="middle" fill="rgba(96,165,250,0.8)" fontSize="8" fontWeight="bold">Σ</text>
+          <text x="115" y="24" textAnchor="middle" fill="rgba(96,165,250,0.6)" fontSize="6" fontWeight="bold">×2</text>
+          <text x="115" y="64" textAnchor="middle" fill="rgba(96,165,250,0.6)" fontSize="6" fontWeight="bold">÷3</text>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+/** Mini gacha preview - slowly spinning 3D card */
+function GachaPreview() {
+  return (
+    <div 
+      className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-0"
+      style={{ containerType: "inline-size" }}
+    >
+      <div style={{ perspective: "400px" }}>
+        <div
+          className="lp-preview-gacha-card rounded-[3cqi] flex items-center justify-center border border-yellow-400/20"
+          style={{
+            width: "25cqi",
+            height: "38cqi",
+            background: "linear-gradient(135deg, rgba(250,204,21,0.1) 0%, rgba(234,179,8,0.05) 100%)",
+            boxShadow: "0 0 5cqi rgba(250,204,21,0.15)",
+            backfaceVisibility: "hidden",
+          }}
+        >
+          <span className="text-yellow-400/70 font-black" style={{ fontSize: "8cqi" }}>SSR</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ───── Types & Constants ───── */
 
@@ -19,6 +126,7 @@ interface BentoCardProps {
   glowColor: string; // Hex or rgba for neon glow shadow
   spanClass: string; // PC grid column/row span class
   isMobile: boolean;
+  previewComponent?: React.ReactNode;
 }
 
 function BentoCard({
@@ -31,6 +139,7 @@ function BentoCard({
   glowColor,
   spanClass,
   isMobile,
+  previewComponent,
 }: BentoCardProps) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isHovered, setIsHovered] = useState(false);
@@ -77,7 +186,7 @@ function BentoCard({
       onMouseLeave={handleMouseLeave}
       style={isMobile ? {} : { rotateX, rotateY, transformStyle: "preserve-3d" }}
       whileTap={isMobile ? { scale: 0.98 } : { scale: 0.99 }}
-      className={`relative rounded-3xl overflow-hidden transition-all duration-300 border backdrop-blur-xl group flex flex-col justify-between ${spanClass} ${
+      className={`relative rounded-3xl overflow-hidden transition-all duration-300 border backdrop-blur-xl group flex flex-col justify-between lp-cursor-cta ${spanClass} ${
         isLightMode
           ? isMobile
             ? "border-black/5 bg-white/45"
@@ -90,6 +199,9 @@ function BentoCard({
       {/* Background glass shine / mesh */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none" />
       
+      {/* Animated preview background (PC only) */}
+      {!isMobile && previewComponent}
+
       {/* Active Glowing Border on PC */}
       {!isMobile && (
         <div
@@ -108,7 +220,7 @@ function BentoCard({
 
       <Link
         href={path}
-        className="flex-1 p-6 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded-3xl"
+        className="flex-1 p-6 flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-500/50 rounded-3xl relative z-10"
       >
         {/* Card Header */}
         <div style={isMobile ? {} : { transform: "translateZ(30px)" }}>
@@ -223,9 +335,9 @@ export default function BentoGrid({ isMobile = false }: { isMobile?: boolean }) 
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 auto-rows-[210px] w-full">
-      <BentoCard {...counterCard} isMobile={false} />
-      <BentoCard {...chartCard} isMobile={false} />
-      <BentoCard {...gachaCard} isMobile={false} />
+      <BentoCard {...counterCard} isMobile={false} previewComponent={<CounterPreview />} />
+      <BentoCard {...chartCard} isMobile={false} previewComponent={<ChartPreview />} />
+      <BentoCard {...gachaCard} isMobile={false} previewComponent={<GachaPreview />} />
     </div>
   );
 }

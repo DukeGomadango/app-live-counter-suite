@@ -17,26 +17,75 @@ interface FloatingParticle {
   x: number;
 }
 
+/* ───── Burst Particle (DOM-based neon sparkle) ───── */
+
+interface BurstParticle {
+  id: number;
+  x: number;
+  y: number;
+  endX: number;
+  endY: number;
+  color: string;
+  size: number;
+}
+
+const BURST_COLORS = ["#a855f7", "#ec4899", "#06b6d4", "#eab308", "#22c55e"];
+
+function BurstEffect({ particles, onComplete }: { particles: BurstParticle[]; onComplete: (id: number) => void }) {
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+      <AnimatePresence>
+        {particles.map((p) => {
+          return (
+            <motion.div
+              key={p.id}
+              initial={{ opacity: 1, x: p.x, y: p.y, scale: 1 }}
+              animate={{ opacity: 0, x: p.x + p.endX, y: p.y + p.endY, scale: 0.3 }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+              onAnimationComplete={() => onComplete(p.id)}
+              className="absolute rounded-full"
+              style={{
+                width: p.size,
+                height: p.size,
+                background: p.color,
+                boxShadow: `0 0 8px ${p.color}, 0 0 16px ${p.color}50`,
+              }}
+            />
+          );
+        })}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /* ───── Counter Widget ───── */
 
 function CounterWidget({
   count,
   onIncrement,
   isLightMode,
+  onBurst,
 }: {
   count: number;
   onIncrement: () => void;
   isLightMode: boolean;
+  onBurst?: (rect: DOMRect) => void;
 }) {
   const [particles, setParticles] = useState<FloatingParticle[]>([]);
   const nextId = useRef(0);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
   const handleClick = useCallback(() => {
     onIncrement();
     const id = nextId.current++;
     const x = Math.random() * 60 - 30;
     setParticles((prev) => [...prev, { id, value: "+1", x }]);
-  }, [onIncrement]);
+
+    // Trigger burst particles from button position
+    if (onBurst && btnRef.current) {
+      onBurst(btnRef.current.getBoundingClientRect());
+    }
+  }, [onIncrement, onBurst]);
 
   const removeParticle = useCallback((id: number) => {
     setParticles((prev) => prev.filter((p) => p.id !== id));
@@ -102,6 +151,7 @@ function CounterWidget({
 
       {/* Increment button */}
       <button
+        ref={btnRef}
         onClick={handleClick}
         className={`group flex items-center gap-1.5 rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 active:scale-95 dango-btn-tier1 ${
           isLightMode
@@ -283,6 +333,9 @@ export default function StreamConsole({
   const [count, setCount] = useState(0);
   const [history, setHistory] = useState<number[]>([0, 0, 0, 0, 0, 0, 0, 0]);
   const [isLightMode, setIsLightMode] = useState(false);
+  const [burstParticles, setBurstParticles] = useState<BurstParticle[]>([]);
+  const consoleRef = useRef<HTMLDivElement>(null);
+  const burstIdRef = useRef(0);
 
   useEffect(() => {
     const frameId = requestAnimationFrame(() => {
@@ -315,10 +368,43 @@ export default function StreamConsole({
     });
   }, [count, onCountChange]);
 
+  // Create burst particles at click position relative to console container
+  const handleBurst = useCallback((btnRect: DOMRect) => {
+    if (!consoleRef.current) return;
+    const containerRect = consoleRef.current.getBoundingClientRect();
+    const cx = btnRect.left + btnRect.width / 2 - containerRect.left;
+    const cy = btnRect.top + btnRect.height / 2 - containerRect.top;
+
+    const newParticles: BurstParticle[] = [];
+    const particleCount = isMobile ? 5 : 8;
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (Math.PI * 2 * i) / particleCount + (Math.random() - 0.5) * 0.5;
+      const distance = 40 + Math.random() * 60;
+      const endX = Math.cos(angle) * distance;
+      const endY = Math.sin(angle) * distance;
+
+      newParticles.push({
+        id: burstIdRef.current++,
+        x: cx,
+        y: cy,
+        endX,
+        endY,
+        color: BURST_COLORS[i % BURST_COLORS.length] as string,
+        size: 3 + Math.random() * 4,
+      });
+    }
+    setBurstParticles((prev) => [...prev, ...newParticles]);
+  }, [isMobile]);
+
+  const removeBurstParticle = useCallback((id: number) => {
+    setBurstParticles((prev) => prev.filter((p) => p.id !== id));
+  }, []);
+
   /* ── Mobile: horizontal swipe cards ── */
   if (isMobile) {
     return (
-      <div className="w-full mt-6">
+      <div ref={consoleRef} className="w-full mt-6 relative">
+        <BurstEffect particles={burstParticles} onComplete={removeBurstParticle} />
         <div className="snap-carousel px-[4vw] gap-3 pb-3">
           {/* Counter Card */}
           <div
@@ -330,6 +416,7 @@ export default function StreamConsole({
               count={count}
               onIncrement={handleIncrement}
               isLightMode={isLightMode}
+              onBurst={handleBurst}
             />
           </div>
           {/* Chart Card */}
@@ -347,7 +434,8 @@ export default function StreamConsole({
 
   /* ── PC: 2-column grid layout ── */
   return (
-    <div className="w-full">
+    <div ref={consoleRef} className="w-full relative">
+      <BurstEffect particles={burstParticles} onComplete={removeBurstParticle} />
       <p
         className={`text-[10px] font-semibold uppercase tracking-widest mb-3 ${
           isLightMode ? "text-neutral-400" : "text-white/40"
@@ -362,6 +450,7 @@ export default function StreamConsole({
             count={count}
             onIncrement={handleIncrement}
             isLightMode={isLightMode}
+            onBurst={handleBurst}
           />
         </div>
         {/* Chart top-right */}

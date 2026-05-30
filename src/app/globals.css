@@ -493,4 +493,181 @@ body::before {
   scroll-snap-align: center;
 }
 
+/* 
+   ===== AWWWARDS-GRADE LP ENHANCEMENT STYLES =====
+*/
+
+/* Hero text gradient animation - slowly shifting gradient */
+@keyframes lp-gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.lp-gradient-text-animated {
+  background-size: 200% 200%;
+  animation: lp-gradient-shift 6s ease infinite;
+}
+
+/* Scroll progress bar at top of page */
+.lp-scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #a855f7, #ec4899, #06b6d4, #a855f7);
+  background-size: 300% 100%;
+  animation: lp-gradient-shift 4s ease infinite;
+  z-index: 9999;
+  transform-origin: left;
+  pointer-events: none;
+  border-radius: 0 2px 2px 0;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.5), 0 0 30px rgba(168, 85, 247, 0.2);
+}
+
+.light .lp-scroll-progress {
+  box-shadow: 0 0 8px rgba(168, 85, 247, 0.35), 0 0 20px rgba(168, 85, 247, 0.15);
+}
+
+/* Welcome loader morphing progress bar */
+@keyframes lp-loader-progress {
+  0% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+
+.lp-loader-progress-bar {
+  transform-origin: left;
+  animation: lp-loader-progress 2.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Welcome loader dango merge animation */
+@keyframes lp-dango-merge {
+  0% { gap: 1rem; }
+  60% { gap: 1rem; }
+  85% { gap: 0; }
+  100% { gap: 0; }
+}
+
+.lp-dango-merge {
+  animation: lp-dango-merge 2.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Custom cursor styles (LP only) */
+.lp-cursor-dot {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  background: white;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 99999;
+  mix-blend-mode: difference;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              border-radius 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.lp-cursor-dot.is-hovering {
+  width: 56px;
+  height: 56px;
+}
+
+.lp-cursor-dot.is-hovering-cta {
+  width: 72px;
+  height: 72px;
+}
+
+.lp-cursor-label {
+  position: fixed;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 100000;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: white;
+  mix-blend-mode: difference;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  will-change: transform;
+}
+
+.lp-cursor-label.is-visible {
+  opacity: 1;
+}
+
+/* Hide system cursor on LP when custom cursor is active */
+.lp-custom-cursor-active,
+.lp-custom-cursor-active * {
+  cursor: none !important;
+}
+
+/* BentoGrid animated preview backgrounds */
+@keyframes lp-counter-pulse {
+  0%, 100% { opacity: 0.7; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+@keyframes lp-node-connect {
+  0% { stroke-dashoffset: 100; opacity: 0; }
+  50% { opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
+}
+
+@keyframes lp-card-spin {
+  0% { transform: rotateY(0deg); }
+  100% { transform: rotateY(360deg); }
+}
+
+.lp-preview-counter-digit {
+  animation: lp-counter-pulse 2s ease-in-out infinite;
+}
+
+.lp-preview-node-line {
+  stroke-dasharray: 100;
+  animation: lp-node-connect 2s ease-in-out infinite;
+}
+
+.lp-preview-gacha-card {
+  animation: lp-card-spin 4s linear infinite;
+  transform-style: preserve-3d;
+}
+
+/* Section heading reveal accent line */
+@keyframes lp-line-draw {
+  0% { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+
+.lp-accent-line {
+  transform-origin: left;
+  transform: scaleX(0);
+}
+
+.lp-accent-line.is-visible {
+  animation: lp-line-draw 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-gradient-text-animated,
+  .lp-scroll-progress,
+  .lp-loader-progress-bar,
+  .lp-dango-merge,
+  .lp-preview-counter-digit,
+  .lp-preview-node-line,
+  .lp-preview-gacha-card,
+  .lp-accent-line {
+    animation: none !important;
+  }
+  .lp-cursor-dot,
+  .lp-cursor-label {
+    display: none !important;
+  }
+}
+
 
