@@ -14,24 +14,42 @@ const useFile = process.argv.includes("--file");
 
 const url = useFile
   ? pathToFileURL(join(root, "public", "ogp-preview-a.html")).href
-  : "http://localhost:3000/ogp-preview-a.html";
+  : "http://localhost:3001/og-template";
 
 const outPath = join(root, "public", "ogp.png");
 
 async function main() {
   const browser = await launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    headless: "new",
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--enable-webgl",
+      "--disable-gpu-sandbox",
+      "--disable-dev-shm-usage",
+      "--use-gl=swiftshader",
+      "--ignore-gpu-blocklist",
+      "--enable-gpu-rasterization",
+    ],
   });
   try {
     const page = await browser.newPage();
+    
+    // ページ側のエラーとログをキャプチャしてコンソールに出力するリスナーを追加
+    page.on("console", (msg) => console.log(`[BROWSER LOG] ${msg.text()}`));
+    page.on("pageerror", (err) => console.error(`[BROWSER ERROR] ${err.message}`));
+    
     await page.setViewport({ width: 1200, height: 630 });
     await page.goto(url, {
-      waitUntil: useFile ? "domcontentloaded" : "networkidle0",
-      timeout: useFile ? 15000 : 15000,
+      waitUntil: "networkidle0",
+      timeout: 30000,
     });
-    await page.waitForSelector(".ogp", { timeout: 5000 });
-    if (useFile) await new Promise((r) => setTimeout(r, 800));
+    await page.waitForSelector(".ogp", { timeout: 15000 });
+    
+    // WebGLマテリアルと環境マップ（Sunset preset）の非同期読み込み・描画完了を確実にするための3秒ウェイト
+    console.log("Waiting 3 seconds for Three.js WebGL compile & Environment maps to render...");
+    await new Promise((r) => setTimeout(r, 3000));
+    
     const el = await page.$(".ogp");
     if (!el) throw new Error(".ogp が見つかりません");
     await el.screenshot({ path: outPath, type: "png" });
