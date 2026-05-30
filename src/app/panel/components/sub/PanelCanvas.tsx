@@ -8,9 +8,12 @@ import {
   type PartitionStroke, 
   isPartitionLine,
   PartitionCurve,
-  OverlayShape
+  OverlayShape,
+  getCustomOverlayCentroid,
+  getFreeOverlayCentroid
 } from "../../lib/panelTypes";
 import { smoothPoints, pointsToBezierChain } from "../../lib/panelStrokeUtils";
+import { getTriangleTextAnchor } from "../../lib/panelUtils";
 import { OverlayItem } from "./OverlayItem";
 
 interface PanelCanvasProps {
@@ -290,6 +293,144 @@ export function PanelCanvas({
               pointerEvents: isLineStep ? "none" : undefined,
             }}
           >
+            {/* SVG Vector Drawing Layer for all overlays */}
+            {!isLineStep && (
+              <svg
+                className="absolute inset-0 w-full h-full pointer-events-none overflow-visible"
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
+                {overlays.map((o) => {
+                  const rotation = o.rotation ?? 0;
+                  const opacity = (o.opacity ?? 100) / 100;
+                  const isFree = o.shape === "free";
+                  const isImage = o.shape === "image";
+                  const isCustom = o.shape === "custom" && o.parts && o.parts.length > 0;
+
+                  const freePoints = isFree && !o.pathD && o.points && o.points.length >= 2
+                    ? o.points.map((p) => `${p.x},${p.y}`).join(" ")
+                    : "";
+
+                  const centroid = getLocalCentroid(o);
+                  const labelText = o.label;
+                  const countText = o.targetType === "number"
+                    ? `${o.count}${o.target > 0 ? `/${o.target}` : ""}`
+                    : o.targetText || "";
+
+                  const fontSizeLabel = o.labelFontSize ? `${o.labelFontSize}pt` : "0.55rem";
+                  const fontSizeCount = o.fontSize ? `${o.fontSize}pt` : "0.75rem";
+                  const textColor = isLightMode ? "#1f2937" : "#f3f4f6";
+
+                  const resolvedOverlayUrl = resolvedOverlayUrls[o.id];
+
+                  return (
+                    <g
+                      key={o.id}
+                      transform={`translate(${o.x}, ${o.y}) rotate(${rotation}, ${o.width / 2}, ${o.height / 2})`}
+                      opacity={opacity}
+                      style={{ pointerEvents: isFree ? "none" : "auto", cursor: "pointer" }}
+                      onClick={(e) => onOverlayClick(o.id, e)}
+                      onPointerDown={(e) => onOverlayPointerDown(o, e)}
+                      onPointerMove={(e) => onOverlayPointerMove(o, e)}
+                      onPointerUp={(e) => onOverlayPointerUp(o, e)}
+                      onPointerLeave={onOverlayPointerLeave}
+                    >
+                      {o.shape === "rect" && (
+                        <rect x={0} y={0} width={o.width} height={o.height} fill={o.color} stroke="rgba(255,255,255,0.3)" strokeWidth={0.3} />
+                      )}
+                      {o.shape === "circle" && (
+                        <ellipse cx={o.width / 2} cy={o.height / 2} rx={o.width / 2} ry={o.height / 2} fill={o.color} stroke="rgba(255,255,255,0.3)" strokeWidth={0.3} />
+                      )}
+                      {o.shape === "triangle" && (
+                        <polygon points={getTrianglePoints(0, 0, o.width, o.height, o.triangleKind)} fill={o.color} stroke="rgba(255,255,255,0.3)" strokeWidth={0.3} />
+                      )}
+                      {isFree && o.pathD && (
+                        <g transform={`scale(${o.width / 100}, ${o.height / 100})`}>
+                          <path
+                            d={o.pathD}
+                            fill={o.color}
+                            stroke="rgba(255,255,255,0.3)"
+                            strokeWidth={0.5}
+                            style={{ pointerEvents: "auto" }}
+                          />
+                        </g>
+                      )}
+                      {isFree && freePoints && (
+                        <polygon
+                          points={freePoints}
+                          fill={o.color}
+                          stroke="rgba(255,255,255,0.3)"
+                          strokeWidth={0.5}
+                          style={{ pointerEvents: "auto" }}
+                        />
+                      )}
+                      {isImage && resolvedOverlayUrl && (
+                        <image href={resolvedOverlayUrl} x={0} y={0} width={o.width} height={o.height} preserveAspectRatio="xMidYMid meet" />
+                      )}
+                      {isCustom && o.parts && o.parts.map((part) => {
+                        const color = part.color ?? o.color;
+                        const rot = part.rotation ?? 0;
+                        const cx = part.x + part.width / 2;
+                        const cy = part.y + part.height / 2;
+                        return (
+                          <g key={part.id} transform={`rotate(${rot}, ${cx}, ${cy})`}>
+                            {part.shape === "rect" && (
+                              <rect x={part.x} y={part.y} width={part.width} height={part.height} fill={color} />
+                            )}
+                            {part.shape === "circle" && (
+                              <ellipse cx={cx} cy={cy} rx={part.width / 2} ry={part.height / 2} fill={color} />
+                            )}
+                            {part.shape === "triangle" && (
+                              <polygon points={getTrianglePoints(part.x, part.y, part.width, part.height, part.triangleKind)} fill={color} />
+                            )}
+                          </g>
+                        );
+                      })}
+
+                      {/* Text Renderings */}
+                      {labelText && (
+                        <text
+                          x={centroid.x}
+                          y={countText ? centroid.y - (o.labelFontSize ? o.labelFontSize * 0.4 : 1.5) : centroid.y}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill={textColor}
+                          fontWeight="500"
+                          style={{
+                            pointerEvents: "none",
+                            userSelect: "none",
+                            fontSize: fontSizeLabel,
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          {labelText}
+                        </text>
+                      )}
+                      {countText && (
+                        <text
+                          x={centroid.x}
+                          y={labelText ? centroid.y + (o.fontSize ? o.fontSize * 0.4 : 2) : centroid.y}
+                          textAnchor="middle"
+                          dominantBaseline="central"
+                          fill={textColor}
+                          fontWeight="700"
+                          style={{
+                            pointerEvents: "none",
+                            userSelect: "none",
+                            fontSize: fontSizeCount,
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          {countText}
+                        </text>
+                      )}
+                    </g>
+                  );
+                })}
+              </svg>
+            )}
+
+            {/* HTML Edit Handles Layer (Renders ONLY for the selected overlay) */}
             {!isLineStep && overlays.map((overlay) => (
               <OverlayItem
                 key={overlay.id}
@@ -307,6 +448,7 @@ export function PanelCanvas({
                 pushOverlayHistory={pushOverlayHistory}
               />
             ))}
+
             {isDrawingFree && freeDrawPreviewPoints.length > 1 && (
               <svg className="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 100 100" preserveAspectRatio="none">
                 <polygon points={freeDrawPreviewPoints.map((p) => `${p.x},${p.y}`).join(" ")} fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.8)" strokeWidth={0.5} />
@@ -317,4 +459,44 @@ export function PanelCanvas({
       )}
     </div>
   );
+}
+
+// Geometric helpers for unified SVG drawing
+function getTrianglePoints(x: number, y: number, w: number, h: number, kind: string | undefined): string {
+  switch (kind) {
+    case "rightTop":
+    case "diagDownUpper":
+      return `${x},${y} ${x + w},${y} ${x},${y + h}`;
+    case "rightBottom":
+    case "diagUpLower":
+      return `${x},${y} ${x + w},${y + h} ${x},${y + h}`;
+    case "isoLeft":
+      return `${x},${y + h * 0.5} ${x + w},${y} ${x + w},${y + h}`;
+    case "isoRight":
+      return `${x + w},${y + h * 0.5} ${x},${y} ${x},${y + h}`;
+    case "diagDownLower":
+      return `${x + w},${y} ${x + w},${y + h} ${x},${y + h}`;
+    case "diagUpUpper":
+      return `${x},${y} ${x + w},${y} ${x + w},${y + h}`;
+    default: // "iso" or standard triangle
+      return `${x + w * 0.5},${y} ${x + w},${y + h} ${x},${y + h}`;
+  }
+}
+
+function getLocalCentroid(o: PanelOverlay): { x: number; y: number } {
+  if (o.shape === "custom" && o.parts?.length) {
+    const c = getCustomOverlayCentroid(o.parts);
+    return { x: (c.x * o.width) / 100, y: (c.y * o.height) / 100 };
+  }
+  if (o.shape === "free" && o.width && o.height) {
+    const c = getFreeOverlayCentroid(o);
+    if (c) {
+      return { x: c.x - o.x, y: c.y - o.y };
+    }
+  }
+  if (o.shape === "triangle") {
+    const anchor = getTriangleTextAnchor(o.triangleKind);
+    return { x: (anchor.x * o.width) / 100, y: (anchor.y * o.height) / 100 };
+  }
+  return { x: o.width / 2, y: o.height / 2 };
 }

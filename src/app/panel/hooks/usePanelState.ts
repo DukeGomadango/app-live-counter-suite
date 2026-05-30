@@ -73,14 +73,36 @@ export function usePanelState() {
     let cancelled = false;
     const ref = imageDataUrl;
     if (!ref) { setResolvedBgUrl(null); return; }
-    if (!isIdbKey(ref)) { setResolvedBgUrl(ref); return; }
+
+    const measureAndSetAspectRatio = (url: string) => {
+      const img = new Image();
+      img.onload = () => {
+        if (!cancelled) {
+          const ar = img.naturalWidth / img.naturalHeight;
+          setPanelState((s) => {
+            if (s.imageAspectRatio === ar) return s;
+            return { ...s, imageAspectRatio: ar };
+          });
+        }
+      };
+      img.src = url;
+    };
+
+    if (!isIdbKey(ref)) {
+      setResolvedBgUrl(ref);
+      measureAndSetAspectRatio(ref);
+      return;
+    }
     resolveImageUrl(ref).then((url) => {
-      if (!cancelled) setResolvedBgUrl(url);
+      if (!cancelled) {
+        setResolvedBgUrl(url);
+        if (url) measureAndSetAspectRatio(url);
+      }
     }).catch(() => {
       if (!cancelled) setResolvedBgUrl(null);
     });
     return () => { cancelled = true; };
-  }, [imageDataUrl]);
+  }, [imageDataUrl, setPanelState]);
 
   // 覆い画像オーバーレイの解決
   useEffect(() => {

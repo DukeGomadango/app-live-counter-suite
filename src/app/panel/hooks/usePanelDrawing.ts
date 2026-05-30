@@ -140,7 +140,6 @@ export function usePanelDrawing({
         return;
       }
       const end = clientToPctForLine(e.clientX, e.clientY);
-      const clampPct = (v: number) => Math.max(0, Math.min(100, v));
 
       if (lineDrawStart && (lineDrawStart.x !== end.x || lineDrawStart.y !== end.y)) {
         if (lineSegmentMode === "curve") {
@@ -153,10 +152,10 @@ export function usePanelDrawing({
             }
           }
         } else {
-          const x1 = clampPct(lineDrawStart.x);
-          const y1 = clampPct(lineDrawStart.y);
-          const x2 = clampPct(end.x);
-          const y2 = clampPct(end.y);
+          const x1 = lineDrawStart.x;
+          const y1 = lineDrawStart.y;
+          const x2 = end.x;
+          const y2 = end.y;
           setPartitionStrokes((prev) => [...prev, { segments: [{ x1, y1, x2, y2 }] }]);
         }
       }

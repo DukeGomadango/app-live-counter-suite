@@ -1009,69 +1009,34 @@ export function getRegionsFromLines(lines: PartitionLine[]): CurvedRegion[] {
     const area = signedArea(vertices, face, edges);
     let poly = faceToPolygon(vertices, face, edges);
     poly = simplifyPolygon(poly);
-    if (poly.length < 3) {
-      console.log(LOG_PREFIX, `面${fi}`, "簡素化で頂点不足 → スキップ");
-      continue;
-    }
+    if (poly.length < 3) continue;
     const areaAbs = polygonAreaAbs(poly);
     const isOuter = snapped.length > 0 && isOuterFramePolygon(poly);
-    if (area < -EPS) {
-      console.log(LOG_PREFIX, `面${fi}`, "面積", area.toFixed(2), "(CW・外側) → スキップ");
-      continue;
-    }
-    if (face.length < MIN_POLYGON_POINTS) {
-      console.log(LOG_PREFIX, `面${fi}`, "頂点数不足 → スキップ");
-      continue;
-    }
-    if (areaAbs <= EPS) {
-      console.log(LOG_PREFIX, `面${fi}`, "面積ほぼ0（degenerate） → スキップ");
-      continue;
-    }
-    if (isOuter) {
-      console.log(LOG_PREFIX, `面${fi}`, "外枠全体と判定(面積", areaAbs.toFixed(2), "bbox 等) → スキップ");
-      continue;
-    }
-    if (areaAbs >= OUTER_FACE_AREA_HALF) {
-      console.log(LOG_PREFIX, `面${fi}`, "面積が画像の半分以上(外側相当) → スキップ");
-      continue;
-    }
-    if (polygonContainsAnyVertexStrictly(poly, vertices)) {
-      console.log(LOG_PREFIX, `面${fi}`, "他頂点を内側に含む(非最小面) → スキップ");
-      continue;
-    }
+    if (area < -EPS) continue;
+    if (face.length < MIN_POLYGON_POINTS) continue;
+    if (areaAbs <= EPS) continue;
+    if (isOuter) continue;
+    if (areaAbs >= OUTER_FACE_AREA_HALF) continue;
+    if (polygonContainsAnyVertexStrictly(poly, vertices)) continue;
     candidates.push({ fi, poly, areaAbs });
   }
   candidates.sort((a, b) => a.areaAbs - b.areaAbs || a.poly.length - b.poly.length);
 
   const polygons: Polygon100[] = [];
   for (let ci = 0; ci < candidates.length; ci++) {
-    const { fi, poly, areaAbs } = candidates[ci]!;
-    if (polygonContainsSmallerOutputCentroid(poly, areaAbs, polygons)) {
-      console.log(LOG_PREFIX, `面${fi}`, "より小さい既出領域の重心を内側に含む(融合面) → スキップ");
-      continue;
-    }
-    if (polygonContainsSmallerCandidateCentroid(poly, areaAbs, candidates, ci)) {
-      console.log(LOG_PREFIX, `面${fi}`, "より小さい候補の重心を内側に含む(融合面) → スキップ");
-      continue;
-    }
+    const { poly, areaAbs } = candidates[ci]!;
+    if (polygonContainsSmallerOutputCentroid(poly, areaAbs, polygons)) continue;
+    if (polygonContainsSmallerCandidateCentroid(poly, areaAbs, candidates, ci)) continue;
     const replaceIdx = findFusedDuplicateIn(poly, areaAbs, polygons);
     if (replaceIdx >= 0) {
       polygons.splice(replaceIdx, 1);
-      console.log(LOG_PREFIX, `面${fi}`, "→ 領域として出力(既出の融合面を置換)", poly.length, "頂点", "面積", areaAbs.toFixed(2), poly.map((p) => `(${p.x.toFixed(2)},${p.y.toFixed(2)})`).join(" "));
       polygons.push(poly);
       continue;
     }
-    if (isDuplicateOfExisting(poly, areaAbs, polygons)) {
-      console.log(LOG_PREFIX, `面${fi}`, "既出の領域と重複 → スキップ");
-      continue;
-    }
+    if (isDuplicateOfExisting(poly, areaAbs, polygons)) continue;
     const outCentroid = polygonCentroid(poly);
     const containedInLarger = polygons.some((e) => polygonAreaAbs(e) > areaAbs && pointInPolygonStrict(outCentroid, e));
-    if (containedInLarger) {
-      console.log(LOG_PREFIX, `面${fi}`, "より大きい既出領域の内側にある → スキップ");
-      continue;
-    }
-    console.log(LOG_PREFIX, `面${fi}`, "→ 領域として出力", poly.length, "頂点", "面積", areaAbs.toFixed(2), poly.map((p) => `(${p.x.toFixed(2)},${p.y.toFixed(2)})`).join(" "));
+    if (containedInLarger) continue;
     polygons.push(poly);
   }
   console.log(LOG_PREFIX, "出力領域数", polygons.length);
