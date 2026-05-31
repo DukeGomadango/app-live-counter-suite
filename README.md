@@ -32,6 +32,6 @@
 ユーザー向けの変更（リリース・機能追加・機能改善・UI改善・バグ修正）を入れたら、LP の更新履歴を更新する。
 
 - **ファイル**: [src/lib/lp-changelog.ts](src/lib/lp-changelog.ts)
-- **やり方**: 配列の**先頭**に 1 エントリ追加。`date`（YYYY-MM-DD）、`importance`（major / normal / minor）、`title`、`items`（箇条書き）を書く。
-- **載せない**: lint・SEO・細かいコード修正など、ユーザーに直接関係ない変更。
+- **やり方**: 配列の**先頭**に追加。同じ日・同テーマは既存エントリに追記してまとめる（1コミット1行にしない）。`date`、`importance`（major / normal / minor）、`title`、`items`（最大5件程度）を書く。
+- **載せない**: lint・SEO・CI・セキュリティヘッダ・細かいコード修正など、ユーザーに直接関係ない変更。
 - 直近の変更を確認するとき: `git log --format="%ad %s" --date=short -20`

@@ -218,11 +218,11 @@ sequenceDiagram
 ## 7. 開発者向けメモ
 
 - **直近のユーザー向け更新（`src/lib/lp-changelog.ts` と同期）**:
-  - `2026-04-25`（minor）: パネルで参照中画像の保護と未使用画像データの自動整理を実施（保存データの安定化）。
-  - `2026-04-19`（normal）: テンプレート管理 UI を統一。スロットではテンプレートの削除・上書きを追加。
-  - `2026-04-16`（normal）: ガチャ画像アップロードの容量制約を緩和し、自動圧縮を導入。
-  - `2026-04-12`（normal）: ガチャ確率入力時の自動補正を見直し、確率調整ロジックの不整合を修正。
-  - `2026-04-11`（major）: ガチャをレア度＋アイテムの 2 段階抽選へ刷新し、% 直接編集＋自動再配分に対応。
+  - `2026-05-30`（normal）: トップページ刷新（スクロール修正・3Dオーブ演出・フォント/ライトテーマ）、パネル領域表示の改善。
+  - `2026-05-29`（normal）: だんごポータル共通ヘッダー統合とテーマ切替。
+  - `2026-05-28`（normal）: 画像共有をモーダル起点に統一し、端末別の共有導線とガチャ共有文面を整理。
+  - `2026-05-23`（major）: ガチャ連携・配布タブを刷新（共通受付中心、ファイル紐づけ・配布状態の改善）。
+  - `2026-05-22`（normal）: だんごシェアリンク連携の安定性・配布操作・エラー案内を改善。
 - **品質ゲート・テスト**: [docs/testing.md](./testing.md)（CI ジョブ、`npm run test:*`、Worker 用 `wrangler.vitest.jsonc` と本番 `wrangler.jsonc` の役割、D1 は Vitest セットアップで `migrations/` を適用）。
 - **ツール追加時**: `src/lib/tools.ts` の `TOOLS` に 1 件追加し、必要なら `HelpModal.tsx`・`SplitModuleType`・sitemap 連携を追随（`.cursor/rules` のヘルプ・更新履歴・**docs 同期**ルール参照）。あわせて `e2e/smoke-paths.ts` の `E2E_MIRROR_TOOL_PATHS` を `TOOLS` の `path` と一致させる（`routes-contract.test.ts` が検証）。
 - **OGP 画像**: `public/ogp.png`。再生成は `npm run ogp:capture`（`scripts/capture-ogp.mjs`）。E2E の静的配信は `npm run start:static`（`scripts/serve-out.mjs`）。
