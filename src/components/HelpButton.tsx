@@ -68,6 +68,7 @@ export default function HelpButton() {
             {/* ルーレット=右下、ガチャ=右下(フッター避け)、それ以外=ヘッダー右下。z-[100]で他要素より前面に */}
             <button
                 onClick={() => setIsOpen(true)}
+                data-app-chrome
                 className={`fixed z-[100] w-9 h-9 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 group`}
                 style={style}
                 title="使い方を見る"

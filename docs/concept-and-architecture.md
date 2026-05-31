@@ -91,6 +91,7 @@ flowchart TB
 - **法務**: `/privacy-policy`・`/terms` は [src/app/privacy-policy/page.tsx](../src/app/privacy-policy/page.tsx) 等の静的ページ（LP フッター等からリンク）。
 - **管理画面** `/admin`: 利用状況などの内部向け。`AnalyticsSender` では計測対象外。
 - **データ連携** `/sync`: ツール設定のバックアップ・復元（JSON ファイル、任意の Google ドライブ appDataFolder、QR、NFC）。実装は `src/lib/dataSync/`・`src/app/sync/`・`src/lib/googleDriveSync.ts`。公開用環境変数 `NEXT_PUBLIC_GOOGLE_CLIENT_ID`（`.env.example` 参照）。
+- **人数カウンター OBS 透過** `/counter?obs=1`: ブラウザソース向けに UI クロームを隠し、ページ背景を透過する表示モード。URL 組み立ては [src/lib/counterObsOverlay.ts](../src/lib/counterObsOverlay.ts)、クラス付与は [src/hooks/useCounterObsOverlayMode.ts](../src/hooks/useCounterObsOverlayMode.ts)、スタイルは [src/app/globals.css](../src/app/globals.css) の `.counter-obs-overlay-mode`。設定からのコピーは [src/components/SettingsModal.tsx](../src/components/SettingsModal.tsx)。
 
 ---
 

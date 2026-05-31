@@ -276,7 +276,7 @@ export default function BentoGrid({ isMobile = false }: { isMobile?: boolean }) 
     id: "counter",
     title: "人数カウンター",
     subtitle: "Multi-Counter",
-    description: "加算・減算、目標値との連動、そしてOBS透過用URL発行。耐久配信や企画集計をスマートに完遂する最重要ツール。",
+    description: "加算・減算、目標値との連動、OBS向け透過表示（?obs=1）。耐久配信や企画集計をサポートする最重要ツール。",
     icon: Users,
     path: "/counter",
     accentColor: "purple-400",

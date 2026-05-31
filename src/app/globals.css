@@ -670,4 +670,22 @@ body::before {
   }
 }
 
+/* 人数カウンター OBS ブラウザソース（/counter?obs=1） */
+html.counter-obs-overlay-mode,
+html.counter-obs-overlay-mode body {
+  background: transparent !important;
+}
+
+html.counter-obs-overlay-mode body .h-screen.overflow-y-auto {
+  background: transparent !important;
+}
+
+html.counter-obs-overlay-mode [data-app-chrome] {
+  display: none !important;
+}
+
+html.counter-obs-overlay-mode .counter-obs-exit-link {
+  display: block;
+}
+
 

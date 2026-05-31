@@ -1,8 +1,10 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Check, Type, Palette, Maximize, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { X, Check, Type, Palette, Maximize, Sparkles, Copy, Monitor } from "lucide-react";
+import { useCallback, useState } from "react";
+import { buildCounterObsOverlayUrl } from "@/lib/counterObsOverlay";
+import { useToast } from "@/components/Toast";
 import { createPortal } from "react-dom";
 import { Z_INDEX } from "@/lib/layoutConstants";
 import EmojiGlyph from "@/components/icons/EmojiGlyph";
@@ -122,6 +124,17 @@ export default function SettingsModal({
     const bgSubtleHover = isLightMode ? "hover:bg-black/10" : "hover:bg-white/10";
 
     const accentColor = settings.accentColor;
+    const { showToast } = useToast();
+
+    const handleCopyObsUrl = useCallback(async () => {
+        const url = buildCounterObsOverlayUrl();
+        try {
+            await navigator.clipboard.writeText(url);
+            showToast("OBS用URLをコピーしました", "success");
+        } catch {
+            showToast("コピーに失敗しました", "error");
+        }
+    }, [showToast]);
 
     return createPortal(
         <AnimatePresence>
@@ -810,6 +823,29 @@ export default function SettingsModal({
                                 ))}
                             </div>
                         </div>
+
+                        {mode === "counter" && (
+                            <div>
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Monitor size={14} className={textSecondary} />
+                                    <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider`}>
+                                        OBSブラウザソース
+                                    </label>
+                                </div>
+                                <p className={`text-xs ${textMuted} mb-3 leading-relaxed`}>
+                                    設定画面の「OBS用URL」をコピーし、OBSのブラウザソースに貼り付けます。メニューや背景を隠した透過表示になります（通常の操作・設定は /counter で行ってください）。
+                                </p>
+                                <button
+                                    type="button"
+                                    onClick={() => void handleCopyObsUrl()}
+                                    className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border ${bgSubtle} ${textPrimary} dango-btn-tier3 ${isLightMode ? "border-black/10" : "border-white/10"}`}
+                                    style={{ "--btn-glow-color": accentColor } as React.CSSProperties}
+                                >
+                                    <Copy size={16} />
+                                    OBS用URLをコピー
+                                </button>
+                            </div>
+                        )}
                     </div>
 
                     {/* Footer */}

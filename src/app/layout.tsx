@@ -153,7 +153,7 @@ export default function RootLayout({
                 <HelpButton />
                 <FloatingThemeToggle />
               </ConfirmProvider>
-              <footer className="fixed bottom-2 right-2 pointer-events-none z-[5]">
+              <footer className="fixed bottom-2 right-2 pointer-events-none z-[5]" data-app-chrome>
                 <span className="text-[10px] text-zinc-500 dark:text-zinc-600 opacity-70">
                   ごまだんご伯爵
                 </span>

@@ -18,6 +18,16 @@ export const LP_CHANGELOG_INITIAL_VISIBLE = 12;
 
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-05-31",
+    importance: "normal",
+    title: "人数カウンターのOBS向け表示",
+    items: [
+      "設定からOBS用URL（?obs=1）をコピーし、ブラウザソースに貼って透過表示できます",
+      "OBS表示ではメニューや背景を隠し、項目のタップ操作に絞った画面になります",
+      "LPのOBSに関する説明を、実際の使い方に合わせて更新しました",
+    ],
+  },
+  {
     date: "2026-05-30",
     importance: "normal",
     title: "トップページ（LP）を刷新",

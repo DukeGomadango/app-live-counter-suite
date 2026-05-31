@@ -31,6 +31,8 @@ import { useCounterDrag } from "./counter/hooks/useCounterDrag";
 import { useCounterShare } from "./counter/hooks/useCounterShare";
 
 import { useTheme } from "@/context/ThemeContext";
+import { useCounterObsOverlayMode } from "@/hooks/useCounterObsOverlayMode";
+import Link from "next/link";
 
 // Components
 import { CounterOrbsBackground } from "./counter/components/CounterOrbsBackground";
@@ -62,6 +64,7 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
   });
   const drag = useCounterDrag(state.items, state.setItems);
   const { isLightMode, toggleTheme } = useTheme();
+  const isObsOverlay = useCounterObsOverlayMode() && !isSplitMode;
   const { 
     handleShareAsImage, 
     isCapturingShareImage, 
@@ -249,6 +252,16 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
       {isSplitMode && isLightMode && <div className="absolute inset-0 pointer-events-none z-0" style={{ background: splitLightBg }} />}
       {isSplitMode && <CounterOrbsBackground isLightMode={isLightMode} />}
 
+      {isObsOverlay && (
+        <Link
+          href="/counter"
+          className="counter-obs-exit-link fixed bottom-3 left-3 z-[90] rounded-lg px-2 py-1 text-[10px] font-medium opacity-40 hover:opacity-80 transition-opacity border border-white/10 bg-black/30 text-white/80 backdrop-blur-sm"
+        >
+          通常表示へ
+        </Link>
+      )}
+
+      {!isObsOverlay && (
       <HamburgerMenu
         isOpen={state.isMenuOpen}
         onToggle={() => state.setIsMenuOpen(!state.isMenuOpen)}
@@ -380,10 +393,9 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
           </div>
         }
       />
+      )}
 
-
-
-      <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-4 custom-scrollbar relative z-10 flex flex-col" style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}>
+      <main className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar relative z-10 flex flex-col ${isObsOverlay ? "p-2 sm:p-3" : "p-3 sm:p-4"}`} style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom, 0px))" }}>
         <div className="mx-auto flex-1 flex flex-col items-center justify-center gap-6 w-full" style={{ maxWidth: isPositionedLayout ? "none" : `${gridMaxWidth}px` }}>
           {state.appSettings.showProjectName && (state.appSettings.projectName || "").trim() && (
             <div className="w-full flex justify-center mb-2"><h2 className={`font-black tracking-tighter ${state.appSettings.projectNameSize === "S" ? "text-xl" : state.appSettings.projectNameSize === "L" ? "text-4xl" : "text-2xl"}`} style={{ color: state.appSettings.projectNameColor }}>{state.appSettings.projectName}</h2></div>
@@ -391,10 +403,12 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
           {state.currentTemplateId === "prefectures" ? (
             <div className="w-full max-w-4xl aspect-square sm:aspect-video flex flex-col gap-4">
               <div className="flex-1 min-h-0"><PrefectureShapeMap items={state.items} onIncrement={(idx) => { const id = state.items[idx]?.id; if (id) actions.handleIncrement(id); }} onDecrement={(idx) => { const id = state.items[idx]?.id; if (id) actions.handleDecrement(id); }} isLightMode={isLightMode} accentColor={state.appSettings.accentColor} showCountLabels={state.showPrefectureCountLabels} showPrefectureNames={state.showPrefectureNames} /></div>
+              {!isObsOverlay && (
               <div className="flex items-center justify-center gap-4 py-2"><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={state.showPrefectureCountLabels} onChange={(e) => state.setShowPrefectureCountLabels(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5" /><span className="text-xs opacity-70">数字を表示</span></label><label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={state.showPrefectureNames} onChange={(e) => state.setShowPrefectureNames(e.target.checked)} className="w-4 h-4 rounded border-white/20 bg-white/5" /><span className="text-xs opacity-70">県名を表示</span></label></div>
+              )}
             </div>
           ) : isPositionedLayout ? (
-            <div ref={positionedContainerRef} className="relative w-full aspect-square sm:aspect-video rounded-3xl overflow-hidden border border-white/10" style={{ backgroundImage: `url(${currentTemplate?.backgroundImage})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
+            <div ref={positionedContainerRef} className={`relative w-full aspect-square sm:aspect-video rounded-3xl overflow-hidden ${isObsOverlay ? "" : "border border-white/10"}`} style={{ backgroundImage: `url(${currentTemplate?.backgroundImage})`, backgroundSize: "contain", backgroundPosition: "center", backgroundRepeat: "no-repeat" }}>
               {state.items.map((item) => (
                 <div key={item.id} className="absolute" style={{ left: `${item.x ?? 50}%`, top: `${item.y ?? 50}%`, width: effectiveColMaxPx, height: effectiveColMaxPx, transform: "translate(-50%, -50%)" }}>
                   <CounterPanel id={item.id} label={item.label} emoji={item.emoji} color={item.color} count={item.count} target={item.target} onIncrement={actions.handleIncrement} onDecrement={actions.handleDecrement} onSetCount={actions.handleSetCount} onAdjustBy={actions.handleAdjustBy} showStep5={state.appSettings.showStep5} showStep10={state.appSettings.showStep10} showStepFree={state.appSettings.showStepFree} stepFreeValue={state.appSettings.stepFreeValue} onDeleteItem={async (id) => {
@@ -417,7 +431,9 @@ export default function Home({ isSplitMode = false, isRightPane: _isRightPane = 
                     }} onEditItem={(id) => setEditingItemId(id)} isLightMode={isLightMode} showEditDeleteOnCard={state.appSettings.showCardEditDelete} onRequestAchieveTarget={actions.handleAchieveTarget} showAchieveTargetButton={state.appSettings.showAchieveTargetButtonOnCard} cardSize={state.appSettings.cardSize} />
                   ))}
                 </SortableContext>
+                {!isObsOverlay && (
                 <div className="list-none rounded-2xl" style={{ touchAction: "none" }}><AddItemPanel isLightMode={isLightMode} onAddItem={actions.handleAddItem} onExpand={() => {}} onCollapse={() => {}} /></div>
+                )}
               </div>
               {typeof document !== "undefined" && createPortal(<DragOverlay dropAnimation={{ sideEffects: defaultDropAnimationSideEffects({ styles: { active: { opacity: "0.5" } } }) }}>{drag.activeItem ? <div style={{ width: effectiveColMaxPx }}><CounterPanel id={drag.activeItem.id} label={drag.activeItem.label} emoji={drag.activeItem.emoji} color={drag.activeItem.color} count={drag.activeItem.count} target={drag.activeItem.target} onIncrement={() => {}} onDecrement={() => {}} onDeleteItem={() => {}} onEditItem={() => {}} isLightMode={isLightMode} isOverlay cardSize={state.appSettings.cardSize} /></div> : null}</DragOverlay>, document.body)}
             </DndContext>

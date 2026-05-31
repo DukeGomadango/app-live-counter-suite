@@ -18,8 +18,8 @@ interface BenefitItem {
 const BENEFITS: BenefitItem[] = [
   {
     id: "obs",
-    title: "OBSブラウザソース完全透過",
-    body: "専用URLを貼り付けるだけ。グリーンバック不要で、美しく滑らかなオーバーレイが配信画面に溶け込みます。",
+    title: "OBS向け透過表示",
+    body: "設定からコピーしたURL（?obs=1）をブラウザソースに貼ると、メニューや背景を隠してカウンターだけ載せられます。",
     icon: Monitor,
     colorClass: "text-purple-400",
     accentHex: "#a855f7",
