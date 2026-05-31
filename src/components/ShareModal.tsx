@@ -110,20 +110,17 @@ export default function ShareModal({
     }
 
     const newRect = { x: (w - cw) / 2, y: (h - ch) / 2, w: cw, h: ch };
-    console.log("[ShareModal] initCrop success:", ratio, newRect);
     setCropRect(newRect);
     setAspectRatio(ratio);
   }, []);
 
   const onImageLoad = () => {
-    console.log("[ShareModal] Image loaded event fired");
     initCrop("free");
   };
 
   // Immediate check if image is already cached
   useEffect(() => {
     if (isOpen && imageRef.current?.complete) {
-      console.log("[ShareModal] Image already complete on mount");
       initCrop("free");
     }
   }, [isOpen, initCrop]);
@@ -199,7 +196,6 @@ export default function ShareModal({
     }
 
     const scale = img.naturalWidth / img.offsetWidth;
-    console.log("[ShareModal] Generating canvas. OriginalWidth:", img.naturalWidth, "DisplayWidth:", img.offsetWidth, "Scale:", scale.toFixed(3));
 
     try {
       // cropRect が未初期化の瞬間（iPadで共有ボタンを即タップした場合など）は、

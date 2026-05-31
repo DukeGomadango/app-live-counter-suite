@@ -870,8 +870,6 @@ function clipSegmentToBox(seg: PartitionLine): PartitionLine | null {
  * 幾何ベース: 交差で線分を分割し、面を列挙。外側面（負の符号付き面積）は除外する。
  * ユーザー線は 0–100 の外枠でクリップし、外側は領域にならない。
  */
-const LOG_PREFIX = "[panel-region]";
-
 /**
  * 直線＋曲線のセグメントから領域を検出。曲線が含まれる場合は交差で分割して CurvedRegion を返す。
  */
@@ -960,14 +958,10 @@ export function getRegionsFromSegments(segments: PartitionSegment[]): CurvedRegi
 
 export function getRegionsFromLines(lines: PartitionLine[]): CurvedRegion[] {
   if (lines.length === 0) {
-    console.log(LOG_PREFIX, "入力線 0 本 → 画像全体 1 領域を返す");
     return [polygonToCurvedRegion([{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }, { x: 0, y: 100 }])];
   }
 
-  console.log(LOG_PREFIX, "入力線", lines.length, "本:", lines.map((s) => `(${s.x1.toFixed(2)},${s.y1.toFixed(2)})-(${s.x2.toFixed(2)},${s.y2.toFixed(2)})`));
-
   const clipped = lines.map((seg) => clipSegmentToBox(seg)).filter((s): s is PartitionLine => s !== null);
-  console.log(LOG_PREFIX, "クリップ後", clipped.length, "本:", clipped.length ? clipped.map((s) => `(${s.x1.toFixed(2)},${s.y1.toFixed(2)})-(${s.x2.toFixed(2)},${s.y2.toFixed(2)})`) : "(なし)");
 
   let snapped = clipped
     .map((seg) => {
@@ -980,27 +974,21 @@ export function getRegionsFromLines(lines: PartitionLine[]): CurvedRegion[] {
       const dy = seg.y2 - seg.y1;
       return dx * dx + dy * dy > EPS * EPS;
     });
-  console.log(LOG_PREFIX, "スナップ後(枠)", snapped.length, "本:", snapped.length ? snapped.map((s) => `(${s.x1},${s.y1})-(${s.x2},${s.y2})`) : "(なし・ degenerate で除外)");
 
   snapped = snapEndpointsToOtherLines(snapped);
-  console.log(LOG_PREFIX, "スナップ後(他線)", snapped.length, "本:", snapped.length ? snapped.map((s) => `(${s.x1.toFixed(2)},${s.y1.toFixed(2)})-(${s.x2.toFixed(2)},${s.y2.toFixed(2)})`) : "(なし)");
 
   const allLines = [...IMAGE_FRAME_LINES, ...snapped];
   const segments = buildSplitSegments(allLines);
-  console.log(LOG_PREFIX, "外枠+ユーザー線を交差で分割した辺", segments.length, "本");
 
   const { vertices, edges } = normalizeVerticesAndEdges(segments);
   snapVerticesToSegmentLines(vertices, segments);
-  console.log(LOG_PREFIX, "頂点数", vertices.length, "辺数", edges.length / 2, "頂点一覧:", vertices.map((p, i) => `${i}:(${p.x.toFixed(2)},${p.y.toFixed(2)})`).join(" "), "※頂点は「スナップ後」の線を交差で分割した辺の端点＋交差点です");
 
   if (edges.length === 0) {
-    console.log(LOG_PREFIX, "辺が 0 のため領域なし");
     return [];
   }
 
   const outgoingByVertex = buildOutgoingByAngle(vertices, edges);
   const faces = traceFaces(edges, vertices, outgoingByVertex);
-  console.log(LOG_PREFIX, "トレースした面の数", faces.length, "(各有向辺の左・右両側をトレースするため、幾何的な領域数より多くなります)");
 
   type Candidate = { fi: number; poly: Polygon100; areaAbs: number };
   const candidates: Candidate[] = [];
@@ -1039,6 +1027,5 @@ export function getRegionsFromLines(lines: PartitionLine[]): CurvedRegion[] {
     if (containedInLarger) continue;
     polygons.push(poly);
   }
-  console.log(LOG_PREFIX, "出力領域数", polygons.length);
   return polygons.map(polygonToCurvedRegion);
 }

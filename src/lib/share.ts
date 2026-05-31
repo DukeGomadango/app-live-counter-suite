@@ -163,14 +163,11 @@ export async function shareImageWithText(
 ): Promise<boolean> {
   const tag = "[share]";
   if (typeof navigator === "undefined") {
-    console.log(tag, "navigator undefined (SSR?)");
     return false;
   }
   if (!navigator.share) {
-    console.log(tag, "navigator.share not available");
     return false;
   }
-  console.log(tag, "navigator.share OK, dataUrl length:", dataUrl?.length ?? 0);
   try {
     // data: URL は CSP の connect-src で fetch がブロックされやすいため、base64 を直接デコードして Blob 化する
     const file = dataUrlToFile(dataUrl, filename);
@@ -179,12 +176,10 @@ export async function shareImageWithText(
       return false;
     }
     if (navigator.canShare && !navigator.canShare({ files: [file] })) {
-      console.log(tag, "navigator.canShare({files}) returned false");
       return false;
     }
     const shareData: ShareData = { text, files: [file] };
     await navigator.share(shareData);
-    console.log(tag, "share succeeded");
     return true;
   } catch (err) {
     const e = err as Error & { name?: string };
@@ -197,7 +192,6 @@ export async function shareImageWithText(
       }
       // iOS Safari の一部環境では text + files の同時共有に失敗する場合があるため、files のみでも再試行する
       await navigator.share({ files: [file] });
-      console.log(tag, "share succeeded with file-only retry");
       return true;
     } catch (retryErr) {
       const retry = retryErr as Error & { name?: string };
