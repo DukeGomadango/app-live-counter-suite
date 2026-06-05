@@ -117,6 +117,99 @@ export default function PanelEditSidebar({
   const [renamingOverlayId, setRenamingOverlayId] = useState<string | null>(null);
   const [renameInput, setRenameInput] = useState<string>("");
   const { confirm } = useConfirm();
+
+  // Local state for overlay label editing
+  const [localLabel, setLocalLabel] = useState("");
+  const [labelComposing, setLabelComposing] = useState(false);
+
+  // Local state for overlay targetText editing
+  const [localTargetText, setLocalTargetText] = useState("");
+  const [targetTextComposing, setTargetTextComposing] = useState(false);
+
+  // Tracking states to detect prop changes in render
+  const [prevOverlayId, setPrevOverlayId] = useState<string | null>(null);
+  const [prevLabel, setPrevLabel] = useState("");
+  const [prevTargetText, setPrevTargetText] = useState("");
+
+  const currentOverlayId = o?.id ?? null;
+  const currentLabel = o?.label ?? "";
+  const currentTargetText = o?.targetText ?? "";
+
+  if (currentOverlayId !== prevOverlayId) {
+    setPrevOverlayId(currentOverlayId);
+    setPrevLabel(currentLabel);
+    setPrevTargetText(currentTargetText);
+    setLocalLabel(currentLabel);
+    setLocalTargetText(currentTargetText);
+  } else {
+    if (currentLabel !== prevLabel) {
+      setPrevLabel(currentLabel);
+      if (!labelComposing) {
+        setLocalLabel(currentLabel);
+      }
+    }
+    if (currentTargetText !== prevTargetText) {
+      setPrevTargetText(currentTargetText);
+      if (!targetTextComposing) {
+        setLocalTargetText(currentTargetText);
+      }
+    }
+  }
+
+  const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLocalLabel(val);
+    if (o && !labelComposing) {
+      setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, label: val } : p)));
+    }
+  };
+
+  const handleLabelCompositionStart = () => {
+    setLabelComposing(true);
+  };
+
+  const handleLabelCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+    setLabelComposing(false);
+    const val = e.currentTarget.value;
+    setLocalLabel(val);
+    if (o) {
+      setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, label: val } : p)));
+    }
+  };
+
+  const handleLabelBlur = () => {
+    if (o) {
+      setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, label: localLabel } : p)));
+    }
+  };
+
+  const handleTargetTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setLocalTargetText(val);
+    if (o && !targetTextComposing) {
+      setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, targetText: val } : p)));
+    }
+  };
+
+  const handleTargetTextCompositionStart = () => {
+    setTargetTextComposing(true);
+  };
+
+  const handleTargetTextCompositionEnd = (e: React.CompositionEvent<HTMLInputElement>) => {
+    setTargetTextComposing(false);
+    const val = e.currentTarget.value;
+    setLocalTargetText(val);
+    if (o) {
+      setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, targetText: val } : p)));
+    }
+  };
+
+  const handleTargetTextBlur = () => {
+    if (o) {
+      setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, targetText: localTargetText } : p)));
+    }
+  };
+
   return (
     <div
       ref={editSidebarRef}
@@ -309,8 +402,11 @@ export default function PanelEditSidebar({
                       <span className="text-sm font-medium shrink-0">何を:</span>
                       <input
                         type="text"
-                        value={o.label ?? ""}
-                        onChange={(e) => setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, label: e.target.value } : p)))}
+                        value={localLabel}
+                        onChange={handleLabelChange}
+                        onCompositionStart={handleLabelCompositionStart}
+                        onCompositionEnd={handleLabelCompositionEnd}
+                        onBlur={handleLabelBlur}
                         placeholder="例: 景品、コメント"
                         className="flex-1 min-w-[7rem] px-2 py-1 rounded border text-sm"
                       />
@@ -379,8 +475,11 @@ export default function PanelEditSidebar({
                     ) : (
                       <input
                         type="text"
-                        value={o.targetText}
-                        onChange={(e) => setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, targetText: e.target.value } : p)))}
+                        value={localTargetText}
+                        onChange={handleTargetTextChange}
+                        onCompositionStart={handleTargetTextCompositionStart}
+                        onCompositionEnd={handleTargetTextCompositionEnd}
+                        onBlur={handleTargetTextBlur}
                         placeholder="目標テキスト"
                         className="flex-1 min-w-[120px] px-2 py-1 rounded border text-sm"
                       />

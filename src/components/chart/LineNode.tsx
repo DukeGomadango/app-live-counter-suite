@@ -53,6 +53,40 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
     const [isEditingCount, setIsEditingCount] = useState(false);
     const [editCountValue, setEditCountValue] = useState("");
 
+    const [prevLabel, setPrevLabel] = useState(data.label);
+    const [localLabel, setLocalLabel] = useState(data.label);
+    const [isComposing, setIsComposing] = useState(false);
+
+    if (data.label !== prevLabel) {
+        setPrevLabel(data.label);
+        if (!isComposing) {
+            setLocalLabel(data.label);
+        }
+    }
+
+    const handleLabelChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+        const val = e.target.value;
+        setLocalLabel(val);
+        if (!isComposing) {
+            env.onUpdateLineConfig(id, { label: val });
+        }
+    }, [id, env, isComposing]);
+
+    const handleCompositionStart = useCallback(() => {
+        setIsComposing(true);
+    }, []);
+
+    const handleCompositionEnd = useCallback((e: React.CompositionEvent<HTMLInputElement>) => {
+        setIsComposing(false);
+        const val = e.currentTarget.value;
+        setLocalLabel(val);
+        env.onUpdateLineConfig(id, { label: val });
+    }, [id, env]);
+
+    const handleLabelBlur = useCallback(() => {
+        env.onUpdateLineConfig(id, { label: localLabel });
+    }, [id, env, localLabel]);
+
     const isDesktop = useMediaQuery(`(min-width: ${CHART_LAYOUT_BREAKPOINT_PX}px)`);
     const cardSize = (appSettings.cardSize ?? "L") as CardSize;
     const effectiveCardSizeForKeypad: CardSize = isDesktop && (cardSize === "S" || cardSize === "M") ? "L" : cardSize;
@@ -308,9 +342,12 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                         </div>
                         <input
                             type="text"
-                            value={data.label}
-                            onChange={(e) => env.onUpdateLineConfig(id, { label: e.target.value })}
-                            className="text-sm font-semibold bg-transparent outline-none min-w-0 flex-1 truncate"
+                            value={localLabel}
+                            onChange={handleLabelChange}
+                            onCompositionStart={handleCompositionStart}
+                            onCompositionEnd={handleCompositionEnd}
+                            onBlur={handleLabelBlur}
+                            className="text-sm font-semibold bg-transparent outline-none min-w-0 flex-1 truncate nodrag"
                             style={{ color: isLightMode ? "#1f2937" : "#f3f4f6" }}
                         />
                     </div>
@@ -334,7 +371,7 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                         value={data.step === 0 ? "" : data.step}
                         onChange={(e) => env.onUpdateLineConfig(id, { step: Math.max(0, parseFloat(e.target.value) || 0) })}
                         placeholder="幅"
-                        className="flex-1 w-full bg-transparent font-mono text-lg font-bold outline-none tabular-nums text-right px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                        className="flex-1 w-full bg-transparent font-mono text-lg font-bold outline-none tabular-nums text-right px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none nodrag"
                         style={{ color: isLightMode ? "#1f2937" : "#f3f4f6" }}
                     />
 
@@ -451,7 +488,7 @@ function LineNode({ id, data }: NodeProps<LineNodeType>) {
                                         if (e.key === "Enter") e.currentTarget.blur();
                                     }}
                                     autoFocus
-                                    className="w-full max-w-[6rem] text-center text-xl font-bold font-mono tabular-nums leading-none bg-transparent border-b-2 outline-none px-1"
+                                    className="w-full max-w-[6rem] text-center text-xl font-bold font-mono tabular-nums leading-none bg-transparent border-b-2 outline-none px-1 nodrag"
                                     style={{ borderColor: accentColor, color: accentColor }}
                                     onClick={(e) => e.stopPropagation()}
                                     onPointerDown={(e) => e.stopPropagation()}

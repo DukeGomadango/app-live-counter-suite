@@ -128,7 +128,7 @@ function TotalNode({ id, data, selected }: NodeProps<TotalNodeType>) {
                 onBlur={saveEdit}
                 onKeyDown={(e) => e.key === "Enter" && saveEdit()}
                 autoFocus
-                className={`text-xs font-bold uppercase tracking-wider text-center bg-transparent border-b border-purple-400 outline-none w-full max-w-[200px] font-medium ${isLightMode ? "text-gray-700" : "text-white"}`}
+                className={`text-xs font-bold uppercase tracking-wider text-center bg-transparent border-b border-purple-400 outline-none w-full max-w-[200px] font-medium nodrag ${isLightMode ? "text-gray-700" : "text-white"}`}
             />
         ) : (
             <span
