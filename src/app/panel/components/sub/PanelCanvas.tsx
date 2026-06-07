@@ -119,7 +119,9 @@ export function PanelCanvas({
   return (
     <div
       ref={captureRef}
-      className={`relative w-full flex items-center justify-center overflow-hidden rounded-xl ${
+      className={`relative w-full flex items-center justify-center rounded-xl ${
+        isLineStep ? "overflow-visible" : "overflow-hidden"
+      } ${
         isEditMode ? "max-w-full max-h-full" : "max-w-4xl min-h-[45vmin]"
       }`}
       style={{
@@ -271,10 +273,10 @@ export function PanelCanvas({
                 style={(() => {
                   const margin = 10;
                   if (!imageBoundsPct || imageBoundsPct.width <= 0 || imageBoundsPct.height <= 0) return { left: 0, top: 0, width: "100%", height: "100%" };
-                  const left = Math.max(0, imageBoundsPct.x - margin);
-                  const top = Math.max(0, imageBoundsPct.y - margin);
-                  const width = Math.min(100 - left, imageBoundsPct.width + margin * 2);
-                  const height = Math.min(100 - top, imageBoundsPct.height + margin * 2);
+                  const left = imageBoundsPct.x - margin;
+                  const top = imageBoundsPct.y - margin;
+                  const width = imageBoundsPct.width + margin * 2;
+                  const height = imageBoundsPct.height + margin * 2;
                   return { left: `${left}%`, top: `${top}%`, width: `${width}%`, height: `${height}%` };
                 })()}
                 onPointerDown={onLineDrawPointerDown}
@@ -389,40 +391,54 @@ export function PanelCanvas({
 
                       {/* Text Renderings */}
                       {labelText && (
-                        <text
-                          x={centroid.x}
-                          y={countText ? centroid.y - (o.labelFontSize ? o.labelFontSize * 0.4 : 1.5) : centroid.y}
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          fill={textColor}
-                          fontWeight="500"
-                          style={{
-                            pointerEvents: "none",
-                            userSelect: "none",
-                            fontSize: fontSizeLabel,
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          {labelText}
-                        </text>
+                        (() => {
+                          const defaultY = countText ? centroid.y - (o.labelFontSize ? o.labelFontSize * 0.4 : 1.5) : centroid.y;
+                          const x = centroid.x + (o.labelOffsetX ?? 0);
+                          const y = defaultY + (o.labelOffsetY ?? 0);
+                          return (
+                            <text
+                              x={x}
+                              y={y}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill={textColor}
+                              fontWeight="500"
+                              style={{
+                                pointerEvents: "none",
+                                userSelect: "none",
+                                fontSize: fontSizeLabel,
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              {labelText}
+                            </text>
+                          );
+                        })()
                       )}
                       {countText && (
-                        <text
-                          x={centroid.x}
-                          y={labelText ? centroid.y + (o.fontSize ? o.fontSize * 0.4 : 2) : centroid.y}
-                          textAnchor="middle"
-                          dominantBaseline="central"
-                          fill={textColor}
-                          fontWeight="700"
-                          style={{
-                            pointerEvents: "none",
-                            userSelect: "none",
-                            fontSize: fontSizeCount,
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          {countText}
-                        </text>
+                        (() => {
+                          const defaultY = labelText ? centroid.y + (o.fontSize ? o.fontSize * 0.4 : 2) : centroid.y;
+                          const x = centroid.x + (o.countOffsetX ?? 0);
+                          const y = defaultY + (o.countOffsetY ?? 0);
+                          return (
+                            <text
+                              x={x}
+                              y={y}
+                              textAnchor="middle"
+                              dominantBaseline="central"
+                              fill={textColor}
+                              fontWeight="700"
+                              style={{
+                                pointerEvents: "none",
+                                userSelect: "none",
+                                fontSize: fontSizeCount,
+                                fontFamily: "inherit",
+                              }}
+                            >
+                              {countText}
+                            </text>
+                          );
+                        })()
                       )}
                     </g>
                   );

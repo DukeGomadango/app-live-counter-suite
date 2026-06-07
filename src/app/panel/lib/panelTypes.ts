@@ -73,6 +73,14 @@ export interface PanelOverlay {
   fontSize?: number;
   /** 「何を」（ラベル）の文字サイズ（pt）。未指定時はデフォルト（10px 相当） */
   labelFontSize?: number;
+  /** ラベル文字位置の左右オフセット（重心基準の%ズレ、通常 -100〜100） */
+  labelOffsetX?: number;
+  /** ラベル文字位置の上下オフセット（重心基準の%ズレ、通常 -100〜100） */
+  labelOffsetY?: number;
+  /** 数値文字位置の左右オフセット（重心基準の%ズレ、通常 -100〜100） */
+  countOffsetX?: number;
+  /** 数値文字位置の上下オフセット（重心基準の%ズレ、通常 -100〜100） */
+  countOffsetY?: number;
   /** shape === "custom" のとき。複数パーツで1つの図形を構成。 */
   parts?: CustomPart[];
 }

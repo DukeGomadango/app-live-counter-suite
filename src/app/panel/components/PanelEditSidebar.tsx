@@ -499,6 +499,72 @@ export default function PanelEditSidebar({
                       />
                       <span className="text-xs opacity-70 shrink-0">pt</span>
                     </div>
+                    <div className="w-full flex flex-col gap-1.5 p-2 rounded border border-dotted border-slate-500/30">
+                      <span className="text-xs font-semibold opacity-80">「名前（ラベル）」の位置微調整</span>
+                      <div className="w-full flex items-center gap-2">
+                        <span className="text-xs w-10 shrink-0">左右 (X):</span>
+                        <input
+                          type="range"
+                          min={-50}
+                          max={50}
+                          value={o.labelOffsetX ?? 0}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10) || 0;
+                            setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, labelOffsetX: val } : p)));
+                          }}
+                          className="flex-1 min-w-[5rem] h-1 accent-violet-500"
+                        />
+                        <span className="text-xs font-mono tabular-nums w-8 text-right shrink-0">{o.labelOffsetX ?? 0}%</span>
+                      </div>
+                      <div className="w-full flex items-center gap-2">
+                        <span className="text-xs w-10 shrink-0">上下 (Y):</span>
+                        <input
+                          type="range"
+                          min={-50}
+                          max={50}
+                          value={o.labelOffsetY ?? 0}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10) || 0;
+                            setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, labelOffsetY: val } : p)));
+                          }}
+                          className="flex-1 min-w-[5rem] h-1 accent-violet-500"
+                        />
+                        <span className="text-xs font-mono tabular-nums w-8 text-right shrink-0">{o.labelOffsetY ?? 0}%</span>
+                      </div>
+                    </div>
+                    <div className="w-full flex flex-col gap-1.5 p-2 rounded border border-dotted border-slate-500/30">
+                      <span className="text-xs font-semibold opacity-80">「目標・数値」の位置微調整</span>
+                      <div className="w-full flex items-center gap-2">
+                        <span className="text-xs w-10 shrink-0">左右 (X):</span>
+                        <input
+                          type="range"
+                          min={-50}
+                          max={50}
+                          value={o.countOffsetX ?? 0}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10) || 0;
+                            setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, countOffsetX: val } : p)));
+                          }}
+                          className="flex-1 min-w-[5rem] h-1 accent-violet-500"
+                        />
+                        <span className="text-xs font-mono tabular-nums w-8 text-right shrink-0">{o.countOffsetX ?? 0}%</span>
+                      </div>
+                      <div className="w-full flex items-center gap-2">
+                        <span className="text-xs w-10 shrink-0">上下 (Y):</span>
+                        <input
+                          type="range"
+                          min={-50}
+                          max={50}
+                          value={o.countOffsetY ?? 0}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10) || 0;
+                            setOverlays((prev) => prev.map((p) => (p.id === o.id ? { ...p, countOffsetY: val } : p)));
+                          }}
+                          className="flex-1 min-w-[5rem] h-1 accent-violet-500"
+                        />
+                        <span className="text-xs font-mono tabular-nums w-8 text-right shrink-0">{o.countOffsetY ?? 0}%</span>
+                      </div>
+                    </div>
                   </>
                 ) : null}
                 <div className="w-full flex flex-wrap items-center gap-2">
