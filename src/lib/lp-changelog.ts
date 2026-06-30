@@ -18,6 +18,17 @@ export const LP_CHANGELOG_INITIAL_VISIBLE = 12;
 
 export const LP_CHANGELOG: ChangelogEntry[] = [
   {
+    date: "2026-06-29",
+    importance: "normal",
+    title: "パネル：立ち絵の形で覆いを作れるように",
+    items: [
+      "透過PNGの立ち絵を背景にしたとき、「立ち絵の形で全体を覆う」で輪郭に沿った覆いを自動作成できます",
+      "線で切り分けたあと「立ち絵の形で覆いにする」と、区切った領域を立ち絵の形に合わせて覆いにできます",
+      "覆いを追加する前にキャンバス上でプレビューして確認できます",
+      "輪郭のずれ・膨らみ・覆いが0件になる不具合、プレビューの見づらさを修正しました",
+    ],
+  },
+  {
     date: "2026-05-31",
     importance: "normal",
     title: "人数カウンターのOBS向け表示",

@@ -27,6 +27,7 @@ import { usePanelState } from "../hooks/usePanelState";
 import { useOverlayInteraction } from "../hooks/useOverlayInteraction";
 import { usePanelDrawing } from "../hooks/usePanelDrawing";
 import { usePanelActions } from "../hooks/usePanelActions";
+import { usePanelSilhouette } from "../hooks/usePanelSilhouette";
 import { useToast } from "@/components/Toast";
 import { useIsDesktop } from "../../../hooks/useIsDesktop";
 import { useTheme } from "@/context/ThemeContext";
@@ -40,6 +41,7 @@ import { useConfirm } from "@/context/ConfirmContext";
 import ImageCropModal from "@/components/ImageCropModal";
 import CustomShapeEditorModal from "@/components/CustomShapeEditorModal";
 import ShareModal from "@/components/ShareModal";
+import PanelSilhouettePreviewModal from "./PanelSilhouettePreviewModal";
 
 interface PanelContentProps {
   isSplitMode?: boolean;
@@ -155,6 +157,17 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     setSelectedOverlayIdAndClearDraft, imageDataUrl, imageAspectRatio,
     captureRef, isLightMode, isDesktop, resolvedBgUrl, resolvedOverlayUrls,
     savedPanels, setSavedPanels, setSavedCustomShapes, showToast
+  });
+
+  const silhouette = usePanelSilhouette({
+    imageDataUrl,
+    resolvedBgUrl,
+    panelState,
+    overlays,
+    setOverlays,
+    setPanelState,
+    pushOverlayHistory,
+    showToast,
   });
 
   // -- Handlers --
@@ -292,6 +305,9 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     partitionStrokes, setPartitionStrokes,
     selectedLineIndex: drawing.selectedLineIndex, setSelectedLineIndex: drawing.setSelectedLineIndex,
     onGenerateRegions: actions.handleGenerateRegions,
+    onGenerateMaskedRegions: silhouette.handleGenerateMaskedRegions,
+    onGenerateWholeSilhouette: silhouette.handleGenerateWholeSilhouette,
+    hasTransparentBackground: silhouette.hasTransparentBackground,
     selectedOverlay, overlays, setOverlays,
     targetNumberDraft, setTargetNumberDraft,
     favoriteColors: state.favoriteColors, setFavoriteColors: state.setFavoriteColors,
@@ -404,6 +420,8 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
               activeFilters={activeFilters} filterIntensity={filterIntensity} filterShowLabel={filterShowLabel}
               overlays={overlays} selectedOverlayId={selectedOverlayId} resolvedOverlayUrls={resolvedOverlayUrls}
               imageBoundsPct={imageBoundsPct}
+              silhouettePreviewPolygons={silhouette.previewOpen ? silhouette.previewPolygons : []}
+              silhouettePreviewRasterUrl={silhouette.previewOpen ? silhouette.previewRasterUrl : null}
               onPointerDownCapture={interaction.handleCapturePointerDown}
               onPointerMoveCapture={interaction.handleCapturePointerMove}
               onPointerUpCapture={interaction.handleCapturePointerUp}
@@ -448,6 +466,17 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
         initialText="パネル開け進捗" 
         toolId="panel" 
         isLightMode={isLightMode} 
+      />
+      <PanelSilhouettePreviewModal
+        open={silhouette.previewOpen}
+        polygonCount={silhouette.previewPolygons.length}
+        isComputing={silhouette.isComputing}
+        errorMessage={silhouette.errorMessage}
+        title={silhouette.previewTitle}
+        description={silhouette.previewDescription}
+        onConfirm={silhouette.handleConfirmPreview}
+        onCancel={silhouette.handleCancelPreview}
+        isLightMode={isLightMode}
       />
     </div>
   );

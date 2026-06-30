@@ -15,6 +15,7 @@ import {
 import { smoothPoints, pointsToBezierChain } from "../../lib/panelStrokeUtils";
 import { getTriangleTextAnchor } from "../../lib/panelUtils";
 import { OverlayItem } from "./OverlayItem";
+import type { Point100 } from "../../lib/panelSilhouetteMask";
 
 interface PanelCanvasProps {
   captureRef: React.RefObject<HTMLDivElement | null>;
@@ -31,6 +32,10 @@ interface PanelCanvasProps {
   selectedOverlayId: string | null;
   resolvedOverlayUrls: Record<string, string>;
   imageBoundsPct: { x: number; y: number; width: number; height: number } | null;
+  /** 立ち絵マスク覆いのプレビュー（0–100、画像表示領域内） */
+  silhouettePreviewPolygons?: Point100[][];
+  /** ピクセル正確なラスタープレビュー（SVG ポリゴンより優先） */
+  silhouettePreviewRasterUrl?: string | null;
   
   // Handlers from useOverlayInteraction
   onPointerDownCapture: (e: React.PointerEvent) => void;
@@ -85,6 +90,8 @@ export function PanelCanvas({
   selectedOverlayId,
   resolvedOverlayUrls,
   imageBoundsPct,
+  silhouettePreviewPolygons = [],
+  silhouettePreviewRasterUrl = null,
   onPointerDownCapture,
   onPointerMoveCapture,
   onPointerUpCapture,
@@ -470,6 +477,30 @@ export function PanelCanvas({
                 <polygon points={freeDrawPreviewPoints.map((p) => `${p.x},${p.y}`).join(" ")} fill="rgba(139,92,246,0.3)" stroke="rgba(139,92,246,0.8)" strokeWidth={0.5} />
               </svg>
             )}
+
+            {silhouettePreviewRasterUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- 動的 Canvas プレビュー
+              <img
+                src={silhouettePreviewRasterUrl}
+                alt=""
+                className="absolute inset-0 w-full h-full pointer-events-none z-[45]"
+                style={{ imageRendering: "pixelated", objectFit: "fill" }}
+              />
+            ) : silhouettePreviewPolygons.length > 0 ? (
+              <svg className="absolute inset-0 w-full h-full pointer-events-none z-[45]" viewBox="0 0 100 100" preserveAspectRatio="none">
+                {silhouettePreviewPolygons.map((poly, idx) => (
+                  <polygon
+                    key={`silhouette-preview-${idx}`}
+                    points={poly.map((p) => `${p.x},${p.y}`).join(" ")}
+                    fill="rgba(139,92,246,0.5)"
+                    stroke="rgba(251,191,36,1)"
+                    strokeWidth={0.35}
+                    vectorEffect="non-scaling-stroke"
+                    shapeRendering="geometricPrecision"
+                  />
+                ))}
+              </svg>
+            ) : null}
           </div>
         </>
       )}

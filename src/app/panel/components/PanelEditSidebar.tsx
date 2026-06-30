@@ -33,6 +33,9 @@ export interface PanelEditSidebarProps {
   selectedLineIndex: number | null;
   setSelectedLineIndex: (i: number | null) => void;
   onGenerateRegions: () => void;
+  onGenerateMaskedRegions: () => void;
+  onGenerateWholeSilhouette: () => void;
+  hasTransparentBackground: boolean | null;
   // 覆いタブ
   selectedOverlay: PanelOverlay | null;
   overlays: PanelOverlay[];
@@ -81,6 +84,9 @@ export default function PanelEditSidebar({
   selectedLineIndex,
   setSelectedLineIndex,
   onGenerateRegions,
+  onGenerateMaskedRegions,
+  onGenerateWholeSilhouette,
+  hasTransparentBackground,
   selectedOverlay: o,
   overlays,
   setOverlays,
@@ -273,6 +279,20 @@ export default function PanelEditSidebar({
                   画像のトリミング
                 </button>
               ) : null}
+              {imageDataUrl && hasTransparentBackground ? (
+                <button
+                  type="button"
+                  onClick={onGenerateWholeSilhouette}
+                  className={`w-full flex items-center justify-center gap-1 px-2 py-2 rounded-lg text-sm font-medium border ${isLightMode ? "border-violet-400 bg-violet-50 text-violet-800 hover:bg-violet-100" : "border-violet-500/50 bg-violet-500/15 text-violet-300 hover:bg-violet-500/25"}`}
+                >
+                  立ち絵の形で全体を覆う
+                </button>
+              ) : null}
+              {imageDataUrl && hasTransparentBackground === false ? (
+                <p className="text-[11px] opacity-60 px-1">
+                  立ち絵の形で覆うには透過PNGの背景画像を使えます。
+                </p>
+              ) : null}
             </div>
           </>
         )}
@@ -287,6 +307,26 @@ export default function PanelEditSidebar({
             >
               線で切り分けを開始
             </button>
+            {!isLineStep && partitionStrokes.length > 0 ? (
+              <div className="w-full flex flex-col gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={onGenerateRegions}
+                  className={`w-full px-3 py-2 rounded text-sm font-medium border transition-colors ${isLightMode ? "border-violet-400 bg-violet-500 text-white hover:bg-violet-600 shadow-sm" : "border-violet-500/40 bg-violet-500/20 text-violet-300 hover:bg-violet-500/30"}`}
+                >
+                  領域を生成
+                </button>
+                {hasTransparentBackground ? (
+                  <button
+                    type="button"
+                    onClick={onGenerateMaskedRegions}
+                    className={`w-full px-3 py-2 rounded text-sm font-medium border transition-colors ${isLightMode ? "border-amber-400 bg-amber-500 text-white hover:bg-amber-600 shadow-sm" : "border-amber-500/40 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"}`}
+                  >
+                    立ち絵の形で覆いにする
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
             {isLineStep ? (
               <div className="w-full flex flex-col gap-2 pt-2 border-t" style={{ borderColor: isLightMode ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.08)" }}>
                 <div className="text-sm font-medium opacity-80">線の編集</div>
@@ -379,6 +419,20 @@ export default function PanelEditSidebar({
                 >
                   領域を生成
                 </button>
+                {hasTransparentBackground ? (
+                  <button
+                    type="button"
+                    onClick={onGenerateMaskedRegions}
+                    className={`w-full px-3 py-2 rounded text-sm font-medium border transition-colors ${isLightMode ? "border-amber-400 bg-amber-500 text-white hover:bg-amber-600 shadow-sm" : "border-amber-500/40 bg-amber-500/20 text-amber-300 hover:bg-amber-500/30"}`}
+                  >
+                    立ち絵の形で覆いにする
+                  </button>
+                ) : null}
+                {hasTransparentBackground === false ? (
+                  <p className="text-[11px] opacity-60">
+                    立ち絵の形で覆うには透過PNGの背景画像が必要です。
+                  </p>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => { setSelectedLineIndex(null); setPanelState((s) => ({ ...s, panelEditStep: "overlays" })); }}
