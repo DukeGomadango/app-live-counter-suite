@@ -190,7 +190,7 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
   const handleOverlayTap = useCallback(async (overlay: PanelOverlay) => {
     if (overlay.targetType === "text" || overlay.count >= overlay.target) {
       if (await confirm({ message: "達成しますか？" })) {
-        setOverlays(prev => prev.filter(o => o.id === overlay.id));
+        setOverlays(prev => prev.filter(o => o.id !== overlay.id));
       }
     } else {
       setOverlays(prev => prev.map(o => o.id === overlay.id ? { ...o, count: o.count + 1 } : o));
@@ -315,7 +315,13 @@ export default function PanelContent({ isSplitMode = false }: PanelContentProps)
     setCustomShapeEditingId, setCustomShapeModalOpen,
     addShape, setAddShape, setIsDrawingFree: drawing.setIsDrawingFree,
     captureRef,
-    onAddOverlayAtPoint: (shape: OverlayShape, x: number, y: number) => actions.handleAddOverlayAtPoint(shape, x, y),
+    onAddOverlayAtPoint: (shape: OverlayShape, clientX: number, clientY: number) => {
+      const rect = captureRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const x = ((clientX - rect.left) / rect.width) * 100;
+      const y = ((clientY - rect.top) / rect.height) * 100;
+      actions.handleAddOverlayAtPoint(shape, x, y);
+    },
     onAddRectGrid: actions.handleAddRectGrid,
     onAddTriangleStripes: actions.handleAddTriangleStripes,
     activeFilters, toggleFilter: (f: FilterType) => setPanelState(s => ({ ...s, activeFilters: s.activeFilters.includes(f) ? s.activeFilters.filter(x => x !== f) : [...s.activeFilters, f] })),
