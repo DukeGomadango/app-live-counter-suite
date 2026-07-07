@@ -27,12 +27,11 @@ export default function LpCustomCursor() {
     return () => mq.removeEventListener("change", update);
   }, []);
 
-  // Animation loop: smooth lag following the mouse
+  // Animation loop: instant following of mouse cursor (no delay)
   useEffect(() => {
     animateRef.current = () => {
-      const lerp = 0.15;
-      posRef.current.x += (targetRef.current.x - posRef.current.x) * lerp;
-      posRef.current.y += (targetRef.current.y - posRef.current.y) * lerp;
+      posRef.current.x = targetRef.current.x;
+      posRef.current.y = targetRef.current.y;
 
       if (dotRef.current) {
         dotRef.current.style.transform = `translate3d(${posRef.current.x - dotRef.current.offsetWidth / 2}px, ${posRef.current.y - dotRef.current.offsetHeight / 2}px, 0)`;

@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Sparkles, BarChart3 } from "lucide-react";
+import { Plus, Sparkles, BarChart3, ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 
 /* ───── Types ───── */
 
@@ -96,15 +97,19 @@ function CounterWidget({
 
   return (
     <div className="flex flex-col items-center gap-3 w-full">
-      <div className="flex items-center gap-1">
+      <Link
+        href="/counter"
+        className="flex items-center gap-1 group/link hover:opacity-80 transition-opacity lp-cursor-expand"
+      >
         <span
-          className={`text-[10px] font-semibold uppercase tracking-widest ${
-            isLightMode ? "text-neutral-400" : "text-white/40"
+          className={`text-[10px] font-black uppercase tracking-widest transition-colors ${
+            isLightMode ? "text-neutral-400 group-hover/link:text-purple-600" : "text-white/40"
           }`}
         >
           Counter
         </span>
-      </div>
+        <ArrowUpRight size={10} className={`opacity-0 group-hover/link:opacity-100 transition-opacity ${isLightMode ? "text-purple-600" : "text-purple-400"}`} />
+      </Link>
 
       {/* Drum-roll display */}
       <div className="relative flex items-center justify-center gap-[2px]">
@@ -177,19 +182,23 @@ function ChartWidget({ history, isLightMode }: { history: number[]; isLightMode:
 
   return (
     <div className="flex flex-col items-center gap-3 w-full">
-      <div className="flex items-center gap-1">
+      <Link
+        href="/flowchart"
+        className="flex items-center gap-1 group/link hover:opacity-80 transition-opacity lp-cursor-expand"
+      >
         <BarChart3
           size={12}
-          className={isLightMode ? "text-blue-500" : "text-blue-400"}
+          className={`${isLightMode ? "text-blue-500 group-hover/link:text-blue-600" : "text-blue-400"}`}
         />
         <span
-          className={`text-[10px] font-semibold uppercase tracking-widest ${
-            isLightMode ? "text-neutral-400" : "text-white/40"
+          className={`text-[10px] font-black uppercase tracking-widest transition-colors ${
+            isLightMode ? "text-neutral-400 group-hover/link:text-blue-600" : "text-white/40"
           }`}
         >
           Live Chart
         </span>
-      </div>
+        <ArrowUpRight size={10} className={`opacity-0 group-hover/link:opacity-100 transition-opacity ${isLightMode ? "text-blue-600" : "text-blue-400"}`} />
+      </Link>
 
       {/* Mini bar chart */}
       <div className="flex items-end gap-[3px] h-16 w-full max-w-[180px]">
@@ -266,19 +275,23 @@ function GachaWidget({ isLightMode }: { isLightMode: boolean }) {
 
   return (
     <div className="flex flex-col items-center gap-3 w-full">
-      <div className="flex items-center gap-1">
+      <Link
+        href="/gacha"
+        className="flex items-center gap-1 group/link hover:opacity-80 transition-opacity lp-cursor-expand"
+      >
         <Sparkles
           size={12}
-          className={isLightMode ? "text-yellow-500" : "text-yellow-400"}
+          className={`${isLightMode ? "text-yellow-500 group-hover/link:text-yellow-600" : "text-yellow-400"}`}
         />
         <span
-          className={`text-[10px] font-semibold uppercase tracking-widest ${
-            isLightMode ? "text-neutral-400" : "text-white/40"
+          className={`text-[10px] font-black uppercase tracking-widest transition-colors ${
+            isLightMode ? "text-neutral-400 group-hover/link:text-yellow-600" : "text-white/40"
           }`}
         >
           Gacha
         </span>
-      </div>
+        <ArrowUpRight size={10} className={`opacity-0 group-hover/link:opacity-100 transition-opacity ${isLightMode ? "text-yellow-600" : "text-yellow-400"}`} />
+      </Link>
 
       {/* 3D Flip Card */}
       <div className="relative w-20 h-24" style={{ perspective: "600px" }}>

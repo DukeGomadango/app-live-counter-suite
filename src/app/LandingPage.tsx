@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { Sun, Moon, ArrowRight, Heart } from "lucide-react";
+import { Sun, Moon, Heart, Users, Network, Sparkles, PanelTopOpen, Calculator, Clock, LayoutGrid, CircleDot, Dices } from "lucide-react";
 import { motion } from "framer-motion";
 import Lenis from "lenis";
 
@@ -119,6 +119,20 @@ function ScrollProgressBar() {
     />
   );
 }
+
+/* ───── Quick Link Items for Hero Area ───── */
+
+const QUICK_TOOLS = [
+  { id: "counter", path: "/counter", labelJa: "Counter", icon: Users, accentHex: "#a855f7" },
+  { id: "flowchart", path: "/flowchart", labelJa: "Chart", icon: Network, accentHex: "#60a5fa" },
+  { id: "gacha", path: "/gacha", labelJa: "Gacha", icon: Sparkles, accentHex: "#eab308" },
+  { id: "panel", path: "/panel", labelJa: "Panel", icon: PanelTopOpen, accentHex: "#8b5cf6" },
+  { id: "slot", path: "/slot", labelJa: "Slot", icon: Dices, accentHex: "#14b8a6" },
+  { id: "roulette", path: "/roulette", labelJa: "Roulette", icon: CircleDot, accentHex: "#fbbf24" },
+  { id: "split", path: "/split", labelJa: "Split", icon: LayoutGrid, accentHex: "#34d399" },
+  { id: "clock", path: "/clock", labelJa: "Clock", icon: Clock, accentHex: "#f97316" },
+  { id: "calculator", path: "/calculator", labelJa: "Calculator", icon: Calculator, accentHex: "#22d3ee" }
+];
 
 export default function LandingPage() {
   const lp = useLpState();
@@ -341,30 +355,54 @@ export default function LandingPage() {
               人数カウントからガチャ演出まで、ブラウザひとつで今日の配信枠に「楽しい」をプラスする。完全無料・登録不要のクリエイターツールキット。
             </motion.p>
             
+            {/* Quick Launch Panel */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 1.2 }}
-              className="flex flex-wrap justify-center md:justify-start gap-4 mb-10"
+              className="mb-10 w-full max-w-xl text-left"
             >
-              <button
-                onClick={() => {
-                  const target = document.getElementById("main-tools");
-                  target?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="px-8 py-4 rounded-2xl bg-white text-black font-extrabold text-base sm:text-lg shadow-xl shadow-white/5 flex items-center gap-2 hover:bg-zinc-200 transition-all active:scale-98 cursor-pointer lp-cursor-cta"
-              >
-                無料で使ってみる <ArrowRight size={18} />
-              </button>
-              <button
-                onClick={() => {
-                  const target = document.getElementById("other-tools");
-                  target?.scrollIntoView({ behavior: "smooth" });
-                }}
-                className="px-8 py-4 rounded-2xl bg-zinc-900 border border-white/10 text-white font-extrabold text-base sm:text-lg hover:bg-zinc-800 transition-all active:scale-98 cursor-pointer"
-              >
-                その他の機能を見る
-              </button>
+              <span className={`text-[10px] font-black uppercase tracking-[0.2em] mb-3 block ${isLightMode ? "text-slate-500" : "text-zinc-400"}`}>
+                クイックツール起動
+              </span>
+              <div className="grid grid-cols-3 gap-2.5">
+                {QUICK_TOOLS.map((t) => {
+                  const Icon = t.icon;
+                  return (
+                    <Link
+                      key={t.id}
+                      href={t.path}
+                      className={`flex flex-col items-center justify-center p-3 rounded-2xl border text-center transition-all duration-200 active:scale-95 group relative overflow-hidden lp-cursor-expand`}
+                      style={{
+                        background: isLightMode
+                          ? "rgba(15,23,42,0.02)"
+                          : "rgba(255,255,255,0.02)",
+                        borderColor: isLightMode
+                          ? "rgba(15,23,42,0.06)"
+                          : "rgba(255,255,255,0.06)"
+                      }}
+                    >
+                      {/* Glow background on hover */}
+                      <div
+                        className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none"
+                        style={{ background: t.accentHex }}
+                      />
+                      <span
+                        className="w-8 h-8 rounded-xl flex items-center justify-center mb-1.5 transition-transform duration-300 group-hover:scale-110"
+                        style={{
+                          background: `${t.accentHex}15`,
+                          color: t.accentHex
+                        }}
+                      >
+                        <Icon size={18} />
+                      </span>
+                      <span className={`text-xs font-black tracking-tight transition-colors duration-200 ${isLightMode ? "text-slate-800 group-hover:text-black" : "text-zinc-300 group-hover:text-white"}`}>
+                        {t.labelJa}
+                      </span>
+                    </Link>
+                  );
+                })}
+              </div>
             </motion.div>
 
             {/* Embedded interactive StreamConsole HUD */}
@@ -409,30 +447,11 @@ export default function LandingPage() {
         {/* Divider accent */}
         <div className="w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent my-4" />
 
-        {/* ================= SECTION 1: BENEFITS (Unique value props) ================= */}
-        <section
-          id="benefits"
-          className="w-full max-w-7xl mx-auto px-6 py-16 md:py-24"
-          ref={(el) => { sectionRefs.current[0] = el; }}
-        >
-          <div className="mb-12 text-center md:text-left">
-            <span className="text-xs font-black uppercase tracking-[0.2em] text-purple-400">Stream optimized</span>
-            <h2 className={`text-2xl sm:text-4xl font-black mt-2 font-[family-name:var(--font-plus-jakarta)] transition-colors duration-300 ${isLightMode ? "text-slate-900" : "text-white"}`}>
-              なぜ「だんごツール」が選ばれるのか？
-            </h2>
-            <div className="lp-accent-line h-[2px] w-16 mt-3 rounded-full" style={{ background: "linear-gradient(90deg, #a855f7, #ec4899)" }} />
-          </div>
-          <BenefitCards isMobile={isMobile} />
-        </section>
-
-        {/* Divider accent */}
-        <div className="w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent my-4" />
-
-        {/* ================= SECTION 2: 3 MAJOR TOOLS BENTO GRID ================= */}
+        {/* ================= SECTION 1: 3 MAJOR TOOLS BENTO GRID ================= */}
         <section
           id="main-tools"
           className="w-full max-w-7xl mx-auto px-6 py-16 md:py-24"
-          ref={(el) => { sectionRefs.current[1] = el; }}
+          ref={(el) => { sectionRefs.current[0] = el; }}
         >
           <div className="mb-12 text-center md:text-left">
             <span className="text-xs font-black uppercase tracking-[0.2em] text-blue-400">Core Toolkit</span>
@@ -447,11 +466,11 @@ export default function LandingPage() {
         {/* Divider accent */}
         <div className="w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent my-4" />
 
-        {/* ================= SECTION 3: OTHER 6 TOOLS ================= */}
+        {/* ================= SECTION 2: OTHER 6 TOOLS ================= */}
         <section
           id="other-tools"
           className="w-full max-w-7xl mx-auto px-6 py-16 md:py-24"
-          ref={(el) => { sectionRefs.current[2] = el; }}
+          ref={(el) => { sectionRefs.current[1] = el; }}
         >
           <div className="mb-12 text-center md:text-left">
             <span className="text-xs font-black uppercase tracking-[0.2em] text-emerald-400">Extra Utilities</span>
@@ -461,6 +480,25 @@ export default function LandingPage() {
             <div className="lp-accent-line h-[2px] w-16 mt-3 rounded-full" style={{ background: "linear-gradient(90deg, #34d399, #22c55e)" }} />
           </div>
           <ToolRotator isMobile={isMobile} />
+        </section>
+
+        {/* Divider accent */}
+        <div className="w-full h-px bg-gradient-to-r from-transparent via-white/5 to-transparent my-4" />
+
+        {/* ================= SECTION 3: BENEFITS (Unique value props) ================= */}
+        <section
+          id="benefits"
+          className="w-full max-w-7xl mx-auto px-6 py-16 md:py-24"
+          ref={(el) => { sectionRefs.current[2] = el; }}
+        >
+          <div className="mb-12 text-center md:text-left">
+            <span className="text-xs font-black uppercase tracking-[0.2em] text-purple-400">Stream optimized</span>
+            <h2 className={`text-2xl sm:text-4xl font-black mt-2 font-[family-name:var(--font-plus-jakarta)] transition-colors duration-300 ${isLightMode ? "text-slate-900" : "text-white"}`}>
+              なぜ「だんごツール」が選ばれるのか？
+            </h2>
+            <div className="lp-accent-line h-[2px] w-16 mt-3 rounded-full" style={{ background: "linear-gradient(90deg, #a855f7, #ec4899)" }} />
+          </div>
+          <BenefitCards isMobile={isMobile} />
         </section>
 
         {/* ================= SUPPORT SECTIONS ================= */}
