@@ -715,7 +715,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                         )}
                         {mobileTab === "results" && (
                             <motion.div key="results" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="h-full">
-                                <GachaResultDisplay results={latestResults || []} pool={pool} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} isMobile={true} playerName={activePlayer?.name ?? "ゲスト"} />
+                                <GachaResultDisplay results={latestResults || []} pool={pool} players={visiblePlayers} activePlayer={activePlayer ?? undefined} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} isMobile={true} playerName={activePlayer?.name ?? "ゲスト"} />
                             </motion.div>
                         )}
                         {mobileTab === "players" && (
@@ -740,7 +740,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                         {historySubTab === "players" ? (
                                             <GachaPlayerManager players={visiblePlayers} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} integrationEnabled={isIntegrationEnabled} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} linkStatuses={playerLinkStatuses} onLinkedRecipientChange={handleLinkedRecipientChange} onResyncPlayer={handleResyncPlayer} onNavigateToDistribution={navigateToDistribution} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} />
                                         ) : (
-                                            <ItemHistoryPanel players={visiblePlayers} pool={pool} isLightMode={isLightMode} textContrastLight={false} />
+                                            <ItemHistoryPanel players={visiblePlayers} pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={false} />
                                         )}
                                     </div>
                                 </div>
@@ -794,6 +794,8 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                             <GachaResultDisplay
                                 results={latestResults}
                                 pool={pool}
+                                players={visiblePlayers}
+                                activePlayer={activePlayer ?? undefined}
                                 isLightMode={isLightMode}
                                 textContrastLight={false}
                                 shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG}
@@ -903,9 +905,9 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                                                 <div className="flex flex-col gap-4">
                                                     <GachaPresetsPanel pool={pool} onPoolChange={setPool} isLightMode={isLightMode} />
                                                     <hr className="border-t opacity-10" style={{ borderColor: glassBorder }} />
-                                                    <GachaSetup pool={pool} onPoolChange={setPool} isLightMode={isLightMode} integrationConfig={integrationConfig} openBulkModal={openBulkModal} onBulkModalOpened={() => setOpenBulkModal(false)} onNavigateToDistribution={navigateToDistribution} distributionIntegrationActive={integrationActive} />
+                                                    <GachaSetup pool={pool} onPoolChange={setPool} players={visiblePlayers} isLightMode={isLightMode} textContrastLight={false} integrationConfig={integrationConfig} openBulkModal={openBulkModal} onBulkModalOpened={() => setOpenBulkModal(false)} onNavigateToDistribution={navigateToDistribution} distributionIntegrationActive={integrationActive} />
                                                 </div>
-                                            ) : sidebarTab === "players" ? <GachaPlayerManager players={visiblePlayers} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} integrationEnabled={isIntegrationEnabled} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} linkStatuses={playerLinkStatuses} onLinkedRecipientChange={handleLinkedRecipientChange} onResyncPlayer={handleResyncPlayer} onNavigateToDistribution={navigateToDistribution} /> : sidebarTab === "items" ? <ItemHistoryPanel players={visiblePlayers} pool={pool} isLightMode={isLightMode} textContrastLight={false} /> : sidebarTab === "distribute" ? <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={visiblePlayers} isLightMode={isLightMode} focusItemId={distributionFocusItemId} onNavigateToPlayers={navigateToPlayers} /> : null}
+                                            ) : sidebarTab === "players" ? <GachaPlayerManager players={visiblePlayers} activePlayerId={activePlayerId} onSelectPlayer={setActivePlayerId} onAddPlayer={engine.addPlayer} onRemovePlayer={engine.removePlayer} onResetPlayer={engine.resetPlayer} onRenamePlayer={engine.renamePlayer} onResetAllPlayers={engine.resetAllPlayers} onViewPlayerHistory={setPlayerHistoryViewId} pool={pool} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} integrationEnabled={isIntegrationEnabled} integrationConfig={integrationConfig} onUpdatePlayers={setPlayers} linkStatuses={playerLinkStatuses} onLinkedRecipientChange={handleLinkedRecipientChange} onResyncPlayer={handleResyncPlayer} onNavigateToDistribution={navigateToDistribution} /> : sidebarTab === "items" ? <ItemHistoryPanel players={visiblePlayers} pool={pool} onPoolChange={setPool} isLightMode={isLightMode} textContrastLight={false} /> : sidebarTab === "distribute" ? <GachaDistributionPanel pool={pool} onPoolChange={setPool} integrationConfig={integrationConfig} onIntegrationConfigChange={setIntegrationConfig} players={visiblePlayers} isLightMode={isLightMode} focusItemId={distributionFocusItemId} onNavigateToPlayers={navigateToPlayers} /> : null}
                                         </div>
                                     </div>
                                 </motion.aside>
@@ -984,7 +986,7 @@ export default function GachaContent({ isSplitMode = false, isRightPane: _isRigh
                             </motion.div>
                         ) : engine.showResults && latestResults ? (
                             <motion.div key="results" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full flex flex-col">
-                                <GachaResultDisplay results={latestResults} pool={pool} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} isMobile={false} onBackToGacha={() => { engine.setShowResults(false); setLatestResults(null); }} accentColor={gachaSettings.accentColor ?? "#a855f7"} playerName={activePlayer?.name ?? "ゲスト"} />
+                                <GachaResultDisplay results={latestResults} pool={pool} players={visiblePlayers} activePlayer={activePlayer ?? undefined} isLightMode={isLightMode} textContrastLight={false} shareHashtags={gachaSettings.shareHashtags ?? DEFAULT_EXTRA_HASHTAG} isMobile={false} onBackToGacha={() => { engine.setShowResults(false); setLatestResults(null); }} accentColor={gachaSettings.accentColor ?? "#a855f7"} playerName={activePlayer?.name ?? "ゲスト"} />
                             </motion.div>
                         ) : (
                             <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">

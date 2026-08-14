@@ -17,7 +17,7 @@ import {
     Wand2,
 } from "lucide-react";
 import type { GachaPool, GachaItem, RarityTier } from "@/lib/gacha";
-import { generateId, distributePercentagesProportionally } from "@/lib/gacha";
+import { generateId, distributePercentagesProportionally, sanitizeItemLimits } from "@/lib/gacha";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/components/Toast";
 import GachaProfitChart, { SimDataPoint } from "./GachaProfitChart";
@@ -40,6 +40,8 @@ interface DraftRow {
     /** 確率をロックするか（このモーダル内限定の一時状態） */
     locked: boolean;
     costPrice: number;
+    maxGlobalCount?: number;
+    maxPerPlayerCount?: number;
 }
 
 interface GachaBulkSetupModalProps {
@@ -108,6 +110,8 @@ function draftToItems(rows: DraftRow[]): GachaItem[] {
         weight: Math.max(0, r.weight),
         ...(r.linkedAssetId ? { linkedAssetId: r.linkedAssetId } : {}),
         costPrice: r.costPrice,
+        ...(r.maxGlobalCount ? { maxGlobalCount: r.maxGlobalCount } : {}),
+        ...(r.maxPerPlayerCount ? { maxPerPlayerCount: r.maxPerPlayerCount } : {}),
     }));
 }
 
@@ -451,6 +455,8 @@ interface BulkSetupRowCardProps {
     onToggleLock: (id: string) => void;
     onWeightChange: (id: string, val: string) => void;
     onCostChange: (id: string, val: string) => void;
+    onMaxGlobalChange: (id: string, val: string) => void;
+    onMaxPlayerChange: (id: string, val: string) => void;
     onDeleteRow: (id: string) => void;
 }
 
@@ -477,6 +483,8 @@ function BulkSetupRowCard({
     onToggleLock,
     onWeightChange,
     onCostChange,
+    onMaxGlobalChange,
+    onMaxPlayerChange,
     onDeleteRow,
 }: BulkSetupRowCardProps) {
     const cardBg = idx % 2 === 0
@@ -566,6 +574,39 @@ function BulkSetupRowCard({
             <div className="flex items-center justify-between text-[10px]" style={{ color: textMuted }}>
                 <span>全体確率</span>
                 <span className="font-semibold tabular-nums">{fmtW(globalProb)}%</span>
+            </div>
+
+            {/* 個数制限設定（全体・個人） */}
+            <div className="flex items-center justify-between gap-2 pt-1 border-t" style={{ borderColor }}>
+                <span className="text-[10px] font-semibold shrink-0" style={{ color: textMuted }}>個数制限</span>
+                <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-black/5" style={{ border: `1px solid ${inputBorder}` }}>
+                        <span className="text-[9px]" style={{ color: textMuted }}>全体:</span>
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="∞"
+                            value={row.maxGlobalCount ? String(row.maxGlobalCount) : ""}
+                            onChange={e => onMaxGlobalChange(row.id, e.target.value)}
+                            className="w-10 text-right text-xs tabular-nums font-semibold outline-none focus:ring-1 focus:ring-purple-400"
+                            style={{ background: inputBg, border: "none", color: textPrimary }}
+                            title="全体上限個数（空欄で無制限）"
+                        />
+                    </div>
+                    <div className="flex items-center gap-1 px-2 py-0.5 rounded bg-black/5" style={{ border: `1px solid ${inputBorder}` }}>
+                        <span className="text-[9px]" style={{ color: textMuted }}>個人:</span>
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            placeholder="∞"
+                            value={row.maxPerPlayerCount ? String(row.maxPerPlayerCount) : ""}
+                            onChange={e => onMaxPlayerChange(row.id, e.target.value)}
+                            className="w-10 text-right text-xs tabular-nums font-semibold outline-none focus:ring-1 focus:ring-purple-400"
+                            style={{ background: inputBg, border: "none", color: textPrimary }}
+                            title="1プレイヤーあたりの上限個数（空欄で無制限）"
+                        />
+                    </div>
+                </div>
             </div>
 
             {showCostSimulator && (
@@ -658,12 +699,15 @@ export default function GachaBulkSetupModal({
     isLightMode = false,
     onClose,
     onApply,
-    showCostSimulator = false,
+    showCostSimulator: propShowCostSimulator = false,
     onToggleCostSimulator,
 }: GachaBulkSetupModalProps) {
     const { confirm } = useConfirm();
     const { showToast } = useToast();
     const [openSnapshot, setOpenSnapshot] = useState<DraftSnapshot | null>(null);
+
+    /** 収益シミュレーションモード（一括設定モーダル内で切り替え可能） */
+    const [showCostSimulator, setShowCostSimulator] = useState(propShowCostSimulator);
 
     /** 下書き行リスト */
     const [rows, setRows] = useState<DraftRow[]>([]);
@@ -701,6 +745,8 @@ export default function GachaBulkSetupModal({
                 linkedAssetId: it.linkedAssetId,
                 locked: false,
                 costPrice: it.costPrice ?? 0,
+                maxGlobalCount: it.maxGlobalCount,
+                maxPerPlayerCount: it.maxPerPlayerCount,
             }));
             setRows(initial);
             setFilterRarityId("all");
@@ -774,6 +820,29 @@ export default function GachaBulkSetupModal({
     const handleToggleLock = useCallback((id: string) => {
         setRows(prev => prev.map(r => r.id === id ? { ...r, locked: !r.locked } : r));
     }, []);
+
+    const handleMaxGlobalChange = useCallback((id: string, rawVal: string) => {
+        const val = rawVal.trim() ? parseInt(rawVal.trim(), 10) : undefined;
+        const num = val && !isNaN(val) && val > 0 ? val : undefined;
+        setRows(prev => prev.map(r => {
+            if (r.id !== id) return r;
+            const sanitized = sanitizeItemLimits(num, r.maxPerPlayerCount);
+            return { ...r, maxGlobalCount: sanitized.maxGlobalCount, maxPerPlayerCount: sanitized.maxPerPlayerCount };
+        }));
+    }, []);
+
+    const handleMaxPlayerChange = useCallback((id: string, rawVal: string) => {
+        const val = rawVal.trim() ? parseInt(rawVal.trim(), 10) : undefined;
+        const num = val && !isNaN(val) && val > 0 ? val : undefined;
+        setRows(prev => prev.map(r => {
+            if (r.id !== id) return r;
+            const sanitized = sanitizeItemLimits(r.maxGlobalCount, num);
+            if (num && sanitized.maxPerPlayerCount !== num) {
+                showToast("個人上限数は全体上限数を超えられないため自動補正されました", "info");
+            }
+            return { ...r, maxGlobalCount: sanitized.maxGlobalCount, maxPerPlayerCount: sanitized.maxPerPlayerCount };
+        }));
+    }, [showToast]);
 
     const handleAddRow = useCallback(() => {
         const defaultRarityId = sortedRarities[0]?.id ?? "";
@@ -1267,17 +1336,42 @@ export default function GachaBulkSetupModal({
                                 </p>
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={handleRequestClose}
-                            className="min-h-11 min-w-11 rounded-full flex items-center justify-center transition-colors shrink-0"
-                            style={{ color: textMuted }}
-                            aria-label="閉じる"
-                            onMouseOver={e => (e.currentTarget.style.background = isLightMode ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)")}
-                            onMouseOut={e => (e.currentTarget.style.background = "transparent")}
-                        >
-                            <X size={18} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowCostSimulator(prev => !prev);
+                                    onToggleCostSimulator?.();
+                                }}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                                    showCostSimulator
+                                        ? isLightMode
+                                            ? "bg-amber-100 text-amber-800 border-amber-300 shadow-sm shadow-amber-200/50"
+                                            : "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10"
+                                        : isLightMode
+                                            ? "bg-neutral-100 text-neutral-600 border-neutral-200 hover:bg-neutral-200"
+                                            : "bg-white/5 text-white/60 border-white/10 hover:bg-white/10"
+                                }`}
+                                title="原価と期待値ベースの収益シミュレーションモードを切り替えます"
+                            >
+                                <Coins size={14} className={showCostSimulator ? "animate-pulse text-amber-500" : ""} />
+                                <span>収益シミュレーション</span>
+                                {showCostSimulator && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
+                                )}
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleRequestClose}
+                                className="min-h-11 min-w-11 rounded-full flex items-center justify-center transition-colors shrink-0"
+                                style={{ color: textMuted }}
+                                aria-label="閉じる"
+                                onMouseOver={e => (e.currentTarget.style.background = isLightMode ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)")}
+                                onMouseOut={e => (e.currentTarget.style.background = "transparent")}
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
                     </div>
 
                     {/* スマホ用セグメントタブ (シミュレーションモードONかつモバイル表示時のみ) */}
@@ -1664,6 +1758,8 @@ export default function GachaBulkSetupModal({
                                                     onToggleLock={handleToggleLock}
                                                     onWeightChange={handleWeightChange}
                                                     onCostChange={handleCostChange}
+                                                    onMaxGlobalChange={handleMaxGlobalChange}
+                                                    onMaxPlayerChange={handleMaxPlayerChange}
                                                     onDeleteRow={handleRequestDeleteRow}
                                                 />
                                             </motion.div>
@@ -1689,6 +1785,8 @@ export default function GachaBulkSetupModal({
                                     <tr style={{ borderBottom: `1px solid ${borderColor}` }}>
                                         <th className="sticky left-0 top-0 z-20 px-3 py-2.5 text-left font-semibold w-24" style={{ color: textMuted, background: bgHeader }}>レア度</th>
                                         <th className="sticky left-[96px] top-0 z-20 px-3 py-2.5 text-left font-semibold min-w-[160px] border-r" style={{ color: textMuted, background: bgHeader, borderColor }}>景品名</th>
+                                         <th className="px-3 py-2.5 text-center font-semibold w-20" style={{ color: textMuted }} title="ガチャ全体での排出上限個数（空欄で無制限）">全体上限</th>
+                                         <th className="px-3 py-2.5 text-center font-semibold w-20" style={{ color: textMuted }} title="1プレイヤーあたりの排出上限個数（空欄で無制限）">個人上限</th>
                                         <th className="px-3 py-2.5 text-center font-semibold w-8" style={{ color: textMuted }} title="ロック中は均等割り・比例配分から除外">
                                             <Lock size={10} />
                                         </th>
@@ -1784,6 +1882,34 @@ export default function GachaBulkSetupModal({
                                                                 border: `1px solid ${hasEmptyName ? "rgba(239,68,68,0.5)" : inputBorder}`,
                                                                 color: textPrimary,
                                                             }}
+                                                        />
+                                                    </td>
+
+                                                    {/* 全体上限 */}
+                                                    <td className="px-2 py-2 w-20 text-center">
+                                                        <input
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            placeholder="無制限"
+                                                            value={row.maxGlobalCount ? String(row.maxGlobalCount) : ""}
+                                                            onChange={e => handleMaxGlobalChange(row.id, e.target.value)}
+                                                            className="w-full text-right text-xs px-2 py-1 rounded-lg outline-none font-semibold focus:ring-1 focus:ring-purple-400"
+                                                            style={{ background: inputBg, border: `1px solid ${inputBorder}`, color: textPrimary }}
+                                                            title="ガチャ全体での排出上限個数（空欄で無制限）"
+                                                        />
+                                                    </td>
+
+                                                    {/* 個人上限 */}
+                                                    <td className="px-2 py-2 w-20 text-center">
+                                                        <input
+                                                            type="text"
+                                                            inputMode="numeric"
+                                                            placeholder="無制限"
+                                                            value={row.maxPerPlayerCount ? String(row.maxPerPlayerCount) : ""}
+                                                            onChange={e => handleMaxPlayerChange(row.id, e.target.value)}
+                                                            className="w-full text-right text-xs px-2 py-1 rounded-lg outline-none font-semibold focus:ring-1 focus:ring-purple-400"
+                                                            style={{ background: inputBg, border: `1px solid ${inputBorder}`, color: textPrimary }}
+                                                            title="1プレイヤーあたりの排出上限個数（空欄で無制限）"
                                                         />
                                                     </td>
 

@@ -4,8 +4,15 @@ import {
   getRarityProbabilities,
   getGlobalProbabilities,
   distributePercentagesProportionally,
+  performGachaPull,
+  createDefaultPlayer,
+  isPoolSoldOut,
+  isItemSoldOut,
+  sanitizeItemLimits,
+  refillItemStock,
   type GachaItem,
-  type RarityTier
+  type RarityTier,
+  type GachaPool,
 } from "./gacha";
 
 const rarities: RarityTier[] = [
@@ -143,5 +150,177 @@ describe("distributePercentagesProportionally", () => {
     expect(res.find(it => it.id === "b")?.value).toBe(30);
     expect(res.find(it => it.id === "c")?.value).toBe(40);
     expect(res.find(it => it.id === "d")?.value).toBe(0);
+  });
+});
+
+describe("performGachaPull with item limits", () => {
+  const pool: GachaPool = {
+    id: "test-pool-limits",
+    conceptName: "Limit Test Pool",
+    rarities: [
+      { id: "r1", name: "Rarity 1", color: "#fff", glowColor: "#fff", bgColor: "#000", sortOrder: 1, defaultWeight: 100 },
+    ],
+    items: [
+      { id: "item-limited-global", name: "Global Limit 2", rarityId: "r1", weight: 50, maxGlobalCount: 2 },
+      { id: "item-limited-player", name: "Per Player Limit 1", rarityId: "r1", weight: 50, maxPerPlayerCount: 1 },
+      { id: "item-unlimited", name: "Unlimited Item", rarityId: "r1", weight: 1 },
+    ],
+    pullCount: 1,
+    pityEnabled: false,
+    pityThreshold: 10,
+    pityGuaranteedRarityId: "r1",
+  };
+
+  it("respects maxPerPlayerCount per player", () => {
+    const player1 = createDefaultPlayer("Player 1");
+    // Pull item-limited-player until it reaches limit of 1
+    const poolSingleItem: import("./gacha").GachaPool = {
+      ...pool,
+      items: [{ id: "item-per-player", name: "Per Player Limit 1", rarityId: "r1", weight: 100, maxPerPlayerCount: 1 }],
+    };
+
+    const res1 = performGachaPull(poolSingleItem, 3, player1);
+    // Even though count=3 requested, player1 can only get 1 item because maxPerPlayerCount=1
+    expect(res1.results.length).toBe(1);
+    expect(res1.updatedPlayer.poolStates[poolSingleItem.id]?.inventory?.["item-per-player"]?.count).toBe(1);
+
+    // Player 2 should still be able to pull 1 item
+    const player2 = createDefaultPlayer("Player 2");
+    const res2 = performGachaPull(poolSingleItem, 1, player2, [res1.updatedPlayer, player2]);
+    expect(res2.results.length).toBe(1);
+  });
+
+  it("respects maxGlobalCount across all players", () => {
+    const poolGlobal: import("./gacha").GachaPool = {
+      ...pool,
+      items: [{ id: "item-global-2", name: "Global Limit 2", rarityId: "r1", weight: 100, maxGlobalCount: 2 }],
+    };
+
+    const player1 = createDefaultPlayer("P1");
+    const res1 = performGachaPull(poolGlobal, 2, player1);
+    expect(res1.results.length).toBe(2);
+
+    const player2 = createDefaultPlayer("P2");
+    const res2 = performGachaPull(poolGlobal, 2, player2, [res1.updatedPlayer, player2]);
+    // Global limit reached (2 total drawn by P1), P2 should get 0 results
+    expect(res2.results.length).toBe(0);
+  });
+
+  it("correctly identifies when a pool is sold out", () => {
+    const poolLimited: import("./gacha").GachaPool = {
+      ...pool,
+      items: [{ id: "item-only-1", name: "Only 1 Item", rarityId: "r1", weight: 100, maxGlobalCount: 1 }],
+    };
+
+    const p1 = createDefaultPlayer("P1");
+    expect(isPoolSoldOut(poolLimited, [p1], p1)).toBe(false);
+
+    const res1 = performGachaPull(poolLimited, 1, p1);
+    const updatedP1 = res1.updatedPlayer;
+
+    expect(isItemSoldOut(poolLimited, poolLimited.items[0]!, [updatedP1], updatedP1)).toBe(true);
+    expect(isPoolSoldOut(poolLimited, [updatedP1], updatedP1)).toBe(true);
+  });
+
+  it("sanitizes item limits and clamps player limit to global limit", () => {
+    // maxPerPlayerCount > maxGlobalCount should be clamped
+    const r1 = sanitizeItemLimits(10, 41);
+    expect(r1.maxGlobalCount).toBe(10);
+    expect(r1.maxPerPlayerCount).toBe(10);
+
+    // maxPerPlayerCount <= maxGlobalCount remains intact
+    const r2 = sanitizeItemLimits(10, 2);
+    expect(r2.maxGlobalCount).toBe(10);
+    expect(r2.maxPerPlayerCount).toBe(2);
+
+    // invalid or <= 0 numbers become undefined
+    const r3 = sanitizeItemLimits(0, -5);
+    expect(r3.maxGlobalCount).toBeUndefined();
+    expect(r3.maxPerPlayerCount).toBeUndefined();
+  });
+});
+
+describe("refillItemStock", () => {
+  it("adds stock refill offset for add mode", () => {
+    const p1 = createDefaultPlayer("P1");
+    p1.poolStates = {
+      "pool-1": {
+        totalPulls: 10,
+        pityCounter: 0,
+        pityReachCount: 0,
+        inventory: { "item-1": { itemId: "item-1", count: 10 } },
+      },
+    };
+    const pool: GachaPool = {
+      id: "pool-1",
+      conceptName: "Test",
+      rarities: [],
+      items: [{ id: "item-1", name: "Item 1", rarityId: "r1", weight: 1, maxGlobalCount: 10 }],
+      pullCount: 1,
+      pityEnabled: false,
+      pityThreshold: 10,
+      pityGuaranteedRarityId: "r1",
+    };
+
+    expect(isItemSoldOut(pool, pool.items[0]!, [p1])).toBe(true);
+
+    const updatedPool = refillItemStock(pool, "item-1", "add", 5, [p1]);
+    expect(updatedPool.stockRefillOffsets?.["item-1"]).toBe(5);
+    expect(isItemSoldOut(updatedPool, updatedPool.items[0]!, [p1])).toBe(false);
+  });
+
+  it("resets stock refill offset for reset mode", () => {
+    const p1 = createDefaultPlayer("P1");
+    p1.poolStates = {
+      "pool-1": {
+        totalPulls: 10,
+        pityCounter: 0,
+        pityReachCount: 0,
+        inventory: { "item-1": { itemId: "item-1", count: 10 } },
+      },
+    };
+    const pool: GachaPool = {
+      id: "pool-1",
+      conceptName: "Test",
+      rarities: [],
+      items: [{ id: "item-1", name: "Item 1", rarityId: "r1", weight: 1, maxGlobalCount: 10 }],
+      pullCount: 1,
+      pityEnabled: false,
+      pityThreshold: 10,
+      pityGuaranteedRarityId: "r1",
+    };
+
+    const resetPool = refillItemStock(pool, "item-1", "reset", 0, [p1]);
+    expect(resetPool.stockRefillOffsets?.["item-1"]).toBe(10);
+    expect(isItemSoldOut(resetPool, resetPool.items[0]!, [p1])).toBe(false);
+  });
+
+  it("reduces stock in subtract mode and updates maxGlobalCount when specified", () => {
+    const p1 = createDefaultPlayer("P1");
+    p1.poolStates = {
+      "pool-1": {
+        totalPulls: 5,
+        pityCounter: 0,
+        pityReachCount: 0,
+        inventory: { "item-1": { itemId: "item-1", count: 5 } },
+      },
+    };
+    const pool: GachaPool = {
+      id: "pool-1",
+      conceptName: "Test",
+      rarities: [],
+      items: [{ id: "item-1", name: "Item 1", rarityId: "r1", weight: 1, maxGlobalCount: 10 }],
+      pullCount: 1,
+      pityEnabled: false,
+      pityThreshold: 10,
+      pityGuaranteedRarityId: "r1",
+      stockRefillOffsets: { "item-1": 5 },
+    };
+
+    // Subtracted stock by 3 -> offset decreases from 5 to 2
+    // New maxGlobalCount changed to 20
+    const updatedPool = refillItemStock(pool, "item-1", "subtract", 3, [p1], 20);
+    expect(updatedPool.stockRefillOffsets?.["item-1"]).toBe(2);
+    expect(updatedPool.items[0]?.maxGlobalCount).toBe(20);
   });
 });

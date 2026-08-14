@@ -24,6 +24,10 @@ export interface GachaItem {
     imageUrl?: string;
     audioUrl?: string;
     costPrice?: number;
+    /** 全体での排出個数上限（未指定または0は無制限） */
+    maxGlobalCount?: number;
+    /** プレイヤーごとの排出個数上限（未指定または0は無制限） */
+    maxPerPlayerCount?: number;
 }
 
 export interface GachaPool {
@@ -38,6 +42,8 @@ export interface GachaPool {
     /** ファイル配布連携: file-share-app のキャンペーン ID */
     linkedCampaignId?: string;
     pullPrice?: number;
+    /** 品目IDごとの在庫補充・リセット用オフセット量 (itemId -> 補充累積数) */
+    stockRefillOffsets?: Record<string, number>;
 }
 
 /** 保存したガチャ設定（プリセット） */
@@ -431,24 +437,142 @@ function pickItemInRarity(items: GachaItem[], rarityId: string): GachaItem {
     return candidates[candidates.length - 1]!;
 }
 
+/**
+ * 個数制限数（全体上限・個人上限）の正規化とバリデーション。
+ * 個人上限が全体上限を超えている場合は全体上限値にクランプする。
+ */
+export function sanitizeItemLimits(maxGlobalCount?: number, maxPerPlayerCount?: number): {
+    maxGlobalCount?: number;
+    maxPerPlayerCount?: number;
+} {
+    const validGlobal = maxGlobalCount && !isNaN(maxGlobalCount) && maxGlobalCount > 0 ? Math.floor(maxGlobalCount) : undefined;
+    let validPlayer = maxPerPlayerCount && !isNaN(maxPerPlayerCount) && maxPerPlayerCount > 0 ? Math.floor(maxPerPlayerCount) : undefined;
+
+    if (validGlobal && validPlayer && validPlayer > validGlobal) {
+        validPlayer = validGlobal;
+    }
+
+    return {
+        maxGlobalCount: validGlobal,
+        maxPerPlayerCount: validPlayer,
+    };
+}
+
+/** 指定した品目の全プレイヤー合計排出数を算出（補充オフセット適用済み） */
+export function getGlobalItemEmissionCount(poolId: string, itemId: string, players: Player[], pool?: GachaPool): number {
+    let count = 0;
+    for (const p of players) {
+        const invItem = p.poolStates?.[poolId]?.inventory?.[itemId];
+        if (invItem) {
+            count += invItem.count || 0;
+        }
+    }
+    const offset = pool?.stockRefillOffsets?.[itemId] ?? 0;
+    return Math.max(0, count - offset);
+}
+
+/**
+ * 特定品目の在庫（排出数）補充・削減・フルリセットおよび上限個数変更を行う
+ * @param pool 対象のガチャプール
+ * @param itemId 補充・調整対象の品目ID
+ * @param mode "add": 追加入荷 / "subtract": 在庫削減 / "reset": フル補充(0にリセット) / "setOffset": オフセット直接指定
+ * @param amount 調整個数
+ * @param players 排出数を算出するための全プレイヤー配列
+ * @param newMaxGlobalCount 新しい全体上限個数（undefinedの場合は維持、null/0の場合は上限解除）
+ */
+export function refillItemStock(
+    pool: GachaPool,
+    itemId: string,
+    mode: "add" | "subtract" | "reset" | "setOffset",
+    amount: number = 1,
+    players: Player[] = [],
+    newMaxGlobalCount?: number | null
+): GachaPool {
+    let rawDrawn = 0;
+    for (const p of players) {
+        const count = p.poolStates?.[pool.id]?.inventory?.[itemId]?.count || 0;
+        rawDrawn += count;
+    }
+
+    const currentOffsets = { ...(pool.stockRefillOffsets || {}) };
+
+    if (mode === "reset") {
+        currentOffsets[itemId] = rawDrawn;
+    } else if (mode === "setOffset") {
+        currentOffsets[itemId] = Math.max(0, amount);
+    } else if (mode === "subtract") {
+        const subAmount = Math.max(1, Math.floor(amount));
+        currentOffsets[itemId] = (currentOffsets[itemId] || 0) - subAmount;
+    } else {
+        const addAmount = Math.max(1, Math.floor(amount));
+        currentOffsets[itemId] = (currentOffsets[itemId] || 0) + addAmount;
+    }
+
+    let updatedItems = pool.items;
+    if (newMaxGlobalCount !== undefined) {
+        updatedItems = pool.items.map(it => {
+            if (it.id !== itemId) return it;
+            const validLimit = newMaxGlobalCount && newMaxGlobalCount > 0 ? Math.floor(newMaxGlobalCount) : undefined;
+            return {
+                ...it,
+                maxGlobalCount: validLimit,
+            };
+        });
+    }
+
+    return {
+        ...pool,
+        items: updatedItems,
+        stockRefillOffsets: currentOffsets,
+    };
+}
+
+/** 品目が排出上限に達しているか判定 */
+export function isItemSoldOut(
+    pool: GachaPool,
+    item: GachaItem,
+    players: Player[],
+    targetPlayer?: Player
+): boolean {
+    if (item.maxGlobalCount !== undefined && item.maxGlobalCount !== null && item.maxGlobalCount > 0) {
+        const globalCount = getGlobalItemEmissionCount(pool.id, item.id, players, pool);
+        if (globalCount >= item.maxGlobalCount) return true;
+    }
+    if (targetPlayer && item.maxPerPlayerCount !== undefined && item.maxPerPlayerCount !== null && item.maxPerPlayerCount > 0) {
+        const playerInvItem = targetPlayer.poolStates?.[pool.id]?.inventory?.[item.id];
+        const playerDrawnCount = playerInvItem?.count || 0;
+        if (playerDrawnCount >= item.maxPerPlayerCount) return true;
+    }
+    return false;
+}
+
+/** プール全体（対象プレイヤー視点）で引き放題の品目が残っているか判定（全景品が完売している場合 true） */
+export function isPoolSoldOut(pool: GachaPool, players: Player[], targetPlayer?: Player): boolean {
+    if (pool.items.length === 0) return true;
+    return pool.items.every(item => isItemSoldOut(pool, item, players, targetPlayer));
+}
+
 export function performGachaPull(
     pool: GachaPool,
     count: number,
     player: Player,
+    allPlayers?: Player[]
 ): { results: GachaResult[]; updatedPlayer: Player; pityTriggered: boolean } {
     if (pool.items.length === 0) return { results: [], updatedPlayer: player, pityTriggered: false };
 
-    // 品目があるレア度を列挙
-    const raritiesWithItems = new Set<string>();
-    for (const item of pool.items) raritiesWithItems.add(item.rarityId);
+    const playersList = allPlayers && allPlayers.length > 0 ? allPlayers : [player];
 
-    if (raritiesWithItems.size === 0) return { results: [], updatedPlayer: player, pityTriggered: false };
-
-    // 最高レア度を決定
-    const highestRarity = [...pool.rarities].filter(r => raritiesWithItems.has(r.id)).sort((a, b) => b.sortOrder - a.sortOrder)[0];
-
-    // 天井確定レア度のアイテム
-    const pityRarityItems = pool.items.filter(item => item.rarityId === pool.pityGuaranteedRarityId);
+    // 全プレイヤーの品目別排出数マップを構築（ただし対象プレイヤーの分は後で動的に更新されるため、他プレイヤー分を事前計算）
+    const otherPlayersEmissions = new Map<string, number>();
+    for (const p of playersList) {
+        if (p.id === player.id) continue;
+        const inv = p.poolStates?.[pool.id]?.inventory;
+        if (inv) {
+            for (const [itemId, itemData] of Object.entries(inv)) {
+                otherPlayersEmissions.set(itemId, (otherPlayersEmissions.get(itemId) || 0) + (itemData.count || 0));
+            }
+        }
+    }
 
     // 現在のプールのステートを取得または初期化
     const poolState: PlayerPoolState = player.poolStates?.[pool.id] || {
@@ -466,21 +590,66 @@ export function performGachaPull(
     const baseId = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
 
     for (let i = 0; i < count; i++) {
+        // 利用可能な品目をフィルタリング
+        const eligibleItems = pool.items.filter((item) => {
+            const playerDrawnCount = inventory[item.id]?.count || 0;
+
+            if (item.maxPerPlayerCount !== undefined && item.maxPerPlayerCount !== null && item.maxPerPlayerCount > 0) {
+                if (playerDrawnCount >= item.maxPerPlayerCount) return false;
+            }
+
+            if (item.maxGlobalCount !== undefined && item.maxGlobalCount !== null && item.maxGlobalCount > 0) {
+                const otherDrawnCount = otherPlayersEmissions.get(item.id) || 0;
+                const offset = pool.stockRefillOffsets?.[item.id] ?? 0;
+                const totalGlobalDrawn = Math.max(0, otherDrawnCount + playerDrawnCount - offset);
+                if (totalGlobalDrawn >= item.maxGlobalCount) return false;
+            }
+
+            return true;
+        });
+
+        // 排出可能な品目が一切ない場合は抽選を途中で終了
+        if (eligibleItems.length === 0) {
+            break;
+        }
+
+        const raritiesWithEligibleItems = new Set<string>();
+        for (const item of eligibleItems) raritiesWithEligibleItems.add(item.rarityId);
+
+        // 最高レア度を決定（利用可能アイテムが存在するレア度から）
+        const highestRarity = [...pool.rarities]
+            .filter(r => raritiesWithEligibleItems.has(r.id))
+            .sort((a, b) => b.sortOrder - a.sortOrder)[0];
+
         pityCounter++;
-        let picked: GachaItem;
+        let picked: GachaItem | undefined;
 
         // 天井チェック
-        if (pool.pityEnabled && pityCounter >= pool.pityThreshold && pityRarityItems.length > 0) {
-            // 天井到達: 確定レア度からランダム
-            picked = pickItemInRarity(pool.items, pool.pityGuaranteedRarityId);
-            pityCounter = 0;
-            pityTriggered = true;
-        } else {
+        if (pool.pityEnabled && pityCounter >= pool.pityThreshold) {
+            const pityEligibleItems = eligibleItems.filter(item => item.rarityId === pool.pityGuaranteedRarityId);
+            if (pityEligibleItems.length > 0) {
+                picked = pickItemInRarity(pityEligibleItems, pool.pityGuaranteedRarityId);
+                pityCounter = 0;
+                pityTriggered = true;
+            } else {
+                // 天井確定レア度に空きがない場合は、残っている最高レア度の品目をフォールバック選択
+                if (highestRarity) {
+                    const highestEligible = eligibleItems.filter(item => item.rarityId === highestRarity.id);
+                    if (highestEligible.length > 0) {
+                        picked = pickItemInRarity(highestEligible, highestRarity.id);
+                        pityCounter = 0;
+                        pityTriggered = true;
+                    }
+                }
+            }
+        }
+
+        if (!picked) {
             // 2段階抽選: レア度 → 品目
-            const rarity = pickRarity(pool.rarities, raritiesWithItems);
-            picked = pickItemInRarity(pool.items, rarity.id);
+            const rarity = pickRarity(pool.rarities, raritiesWithEligibleItems);
+            picked = pickItemInRarity(eligibleItems, rarity.id);
             // 最高レアが出たらピティカウントリセット
-            if (picked.rarityId === highestRarity?.id) {
+            if (highestRarity && picked.rarityId === highestRarity.id) {
                 pityCounter = 0;
             }
         }
@@ -500,13 +669,14 @@ export function performGachaPull(
         inventory[picked.id]!.count += 1;
     }
 
+    const actualPullCount = results.length;
     const runHistory = player.runHistory ?? [];
     const runIndex = runHistory.length + 1;
     const summaryItems = organizeResults(results, pool.rarities, "rarity-asc");
     const runSummary: RunSummary = {
         runIndex,
         timestamp: now,
-        pullCount: count,
+        pullCount: actualPullCount,
         items: summaryItems.map(o => ({ itemId: o.itemId, itemName: o.itemName, rarityId: o.rarityId, count: o.count })),
         poolId: pool.id,
         poolName: pool.conceptName,
@@ -529,14 +699,14 @@ export function performGachaPull(
         poolStates: {
             ...(player.poolStates || {}),
             [pool.id]: {
-                totalPulls: poolState.totalPulls + count,
+                totalPulls: poolState.totalPulls + actualPullCount,
                 pityCounter,
                 pityReachCount: (poolState.pityReachCount ?? 0) + (pityTriggered ? 1 : 0),
                 inventory,
             }
         },
         // レガシーフィールドも一応更新（古いUIが参照している可能性を考慮）
-        totalPulls: player.totalPulls + count,
+        totalPulls: player.totalPulls + actualPullCount,
         pityCounter,
         pityReachCount: (player.pityReachCount ?? 0) + (pityTriggered ? 1 : 0),
         inventory: inventory // 全体のインベントリとしても残す（オプション）

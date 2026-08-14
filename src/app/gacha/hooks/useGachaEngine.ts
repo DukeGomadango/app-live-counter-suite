@@ -8,7 +8,8 @@ import {
   type GachaSettings, 
   type IntegrationConfig,
   performGachaPull,
-  createDefaultPlayer
+  createDefaultPlayer,
+  isPoolSoldOut,
 } from "@/lib/gacha";
 import {
   issueClaimForPlayer,
@@ -117,7 +118,17 @@ export function useGachaEngine({
       targetPlayer = createDefaultPlayer("ゲスト");
     }
 
-    const { results, updatedPlayer } = performGachaPull(pool, pool.pullCount, targetPlayer);
+    if (isPoolSoldOut(pool, players || [], targetPlayer)) {
+      showToast("排出可能な景品が残っていません（すべての景品が上限に達しています）", "error");
+      return;
+    }
+
+    const { results, updatedPlayer } = performGachaPull(pool, pool.pullCount, targetPlayer, players || []);
+
+    if (results.length === 0) {
+      showToast("排出可能な景品がありませんでした", "error");
+      return;
+    }
 
     setLatestResults(results);
 
@@ -145,7 +156,7 @@ export function useGachaEngine({
     }
 
     syncPlayerWithRemote(updatedPlayer);
-  }, [pool, players, activePlayerId, setLatestResults, setPlayers, setActivePlayerId, gachaSettings.enableAnimation, syncPlayerWithRemote]);
+  }, [pool, players, activePlayerId, setLatestResults, setPlayers, setActivePlayerId, gachaSettings.enableAnimation, syncPlayerWithRemote, showToast]);
 
   const handleAnimationComplete = useCallback(() => {
     queueMicrotask(() => {

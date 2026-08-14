@@ -12,8 +12,8 @@ import {
     Filter,
     ImageDown,
 } from "lucide-react";
-import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode } from "@/lib/gacha";
-import { organizeResults, formatResultsForShare, formatResultsHeaderForShare } from "@/lib/gacha";
+import type { GachaResult, GachaPool, RarityTier, SortMode, FilterMode, Player } from "@/lib/gacha";
+import { organizeResults, formatResultsForShare, formatResultsHeaderForShare, getGlobalItemEmissionCount } from "@/lib/gacha";
 import { generateShareUrl } from "@/lib/share";
 import { DEFAULT_EXTRA_HASHTAG } from "@/lib/site";
 import { DEFAULT_ACCENT_COLOR } from "@/lib/constants";
@@ -25,6 +25,8 @@ import ShareModal from "@/components/ShareModal";
 interface GachaResultDisplayProps {
     results: GachaResult[];
     pool: GachaPool;
+    players?: Player[];
+    activePlayer?: Player;
     isLightMode: boolean;
     /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
     textContrastLight?: boolean;
@@ -44,6 +46,8 @@ interface GachaResultDisplayProps {
 export default function GachaResultDisplay({
     results,
     pool,
+    players = [],
+    activePlayer,
     isLightMode,
     textContrastLight = false,
     title,
@@ -321,6 +325,12 @@ export default function GachaResultDisplay({
                 <div className="flex flex-col gap-1">
                     {organized.map((item, idx) => {
                         const rarity = getRarity(item.rarityId);
+                        const poolItem = pool.items.find(it => it.id === item.itemId);
+                        const globalDrawnCount = poolItem && players.length > 0 ? getGlobalItemEmissionCount(pool.id, item.itemId, players) : 0;
+                        const remainingGlobal = poolItem?.maxGlobalCount !== undefined ? Math.max(0, poolItem.maxGlobalCount - globalDrawnCount) : undefined;
+                        const playerDrawnCount = activePlayer?.poolStates?.[pool.id]?.inventory?.[item.itemId]?.count ?? 0;
+                        const remainingPlayer = poolItem?.maxPerPlayerCount !== undefined ? Math.max(0, poolItem.maxPerPlayerCount - playerDrawnCount) : undefined;
+
                         return (
                             <motion.div
                                 key={item.itemId}
@@ -339,7 +349,25 @@ export default function GachaResultDisplay({
                                 >
                                     {rarity?.name || "?"}
                                 </span>
-                                <span className={`text-xs flex-1 ${textPrimary}`}>{item.itemName}</span>
+                                <div className="flex-1 flex items-center gap-1.5 min-w-0 flex-wrap">
+                                    <span className={`text-xs ${textPrimary}`}>{item.itemName}</span>
+                                    {remainingGlobal !== undefined && (
+                                        remainingGlobal === 0 ? (
+                                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 shrink-0">
+                                                完売 (0/{poolItem?.maxGlobalCount})
+                                            </span>
+                                        ) : (
+                                            <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${isLightMode ? "bg-purple-50 text-purple-700 border border-purple-200" : "bg-purple-500/10 text-purple-300 border border-purple-500/20"}`}>
+                                                全{poolItem?.maxGlobalCount}個 (残{remainingGlobal})
+                                            </span>
+                                        )
+                                    )}
+                                    {remainingPlayer !== undefined && (
+                                        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${isLightMode ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-amber-500/10 text-amber-300 border border-amber-500/20"}`}>
+                                            個人残{remainingPlayer}
+                                        </span>
+                                    )}
+                                </div>
                                 <span className={`text-sm font-bold tabular-nums ${textPrimary}`}>
                                     ×{item.count.toLocaleString()}
                                 </span>

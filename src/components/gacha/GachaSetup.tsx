@@ -16,10 +16,10 @@ import {
     Lock,
     Unlock,
     LayoutGrid,
-    Coins,
-    } from "lucide-react";
-import type { GachaPool, GachaItem, RarityTier, IntegrationConfig } from "@/lib/gacha";
-import { generateId, getRarityProbabilities, getGlobalProbabilities, distributePercentagesProportionally } from "@/lib/gacha";
+} from "lucide-react";
+import type { GachaPool, GachaItem, RarityTier, IntegrationConfig, Player } from "@/lib/gacha";
+import { generateId, getRarityProbabilities, getGlobalProbabilities, distributePercentagesProportionally, getGlobalItemEmissionCount } from "@/lib/gacha";
+import GachaItemRefillModal from "./GachaItemRefillModal";
 import {
     DndContext,
     closestCenter,
@@ -48,6 +48,7 @@ import { saveExternalGachaConfig } from "@/lib/gachaDistribution";
 interface GachaSetupProps {
     pool: GachaPool;
     onPoolChange: (pool: GachaPool) => void;
+    players?: Player[];
     isLightMode: boolean;
     /** ダークモードで背景が明るいとき true。文字を暗くして視認性を確保 */
     textContrastLight?: boolean;
@@ -102,11 +103,13 @@ function SectionHeader({
     );
 }
 
-export default function GachaSetup({ pool, onPoolChange, isLightMode, textContrastLight = false, integrationConfig, openBulkModal = false, onBulkModalOpened, onNavigateToDistribution, distributionIntegrationActive = false }: GachaSetupProps) {
+export default function GachaSetup({ pool, onPoolChange, players = [], isLightMode, textContrastLight = false, integrationConfig, openBulkModal = false, onBulkModalOpened, onNavigateToDistribution: _onNavigateToDistribution, distributionIntegrationActive: _distributionIntegrationActive = false }: GachaSetupProps) {
     const [expandedSection, setExpandedSection] = useState<string | null>("items");
     const [newItemName, setNewItemName] = useState("");
     const [newItemRarityId, setNewItemRarityId] = useState(pool.rarities[0]?.id || "");
     const [newItemProb, setNewItemProb] = useState("1");
+    const [newItemMaxGlobal, setNewItemMaxGlobal] = useState("");
+    const [newItemMaxPlayer, setNewItemMaxPlayer] = useState("");
     const [editingItemId, setEditingItemId] = useState<string | null>(null);
     const [editName, setEditName] = useState("");
     const { confirm } = useConfirm();
@@ -158,8 +161,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
     /** アイテムロック状態（設定作業用の一時UI状態。永続化しない） */
     const [lockedItemIds, setLockedItemIds] = useState<Set<string>>(new Set());
     const [showBulkModal, setShowBulkModal] = useState(false);
-    /** 収益シミュレーションモード（原価・利益表示のオンオフ状態） */
-    const [showCostSimulator, setShowCostSimulator] = useState(false);
+    const [refillModalItem, setRefillModalItem] = useState<GachaItem | null>(null);
 
     const toggleRarityLock = useCallback((id: string) => {
         setLockedRarityIds(prev => {
@@ -179,25 +181,9 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         });
     }, []);
 
-    const handleToggleCostSimulator = useCallback(() => {
-        setShowCostSimulator(prev => {
-            const next = !prev;
-            if (typeof window !== "undefined") {
-                localStorage.setItem("gacha_show_cost_simulator", String(next));
-            }
-            return next;
-        });
-    }, []);
-
     useEffect(() => {
         const id = setTimeout(() => {
             setMounted(true);
-            if (typeof window !== "undefined") {
-                const val = localStorage.getItem("gacha_show_cost_simulator");
-                if (val === "true") {
-                    setShowCostSimulator(true);
-                }
-            }
         }, 0);
         return () => clearTimeout(id);
     }, []);
@@ -404,11 +390,15 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         if (!newItemName.trim() || !newItemRarityId) return;
         const prob = parseFloat(newItemProb);
         const w = Number.isNaN(prob) || prob < 0 ? 0 : Math.min(100, prob);
+        const maxG = newItemMaxGlobal.trim() ? parseInt(newItemMaxGlobal.trim(), 10) : undefined;
+        const maxP = newItemMaxPlayer.trim() ? parseInt(newItemMaxPlayer.trim(), 10) : undefined;
         const newItem: GachaItem = {
             id: generateId(),
             name: newItemName.trim(),
             rarityId: newItemRarityId,
             weight: w,
+            ...(maxG && !isNaN(maxG) && maxG > 0 ? { maxGlobalCount: maxG } : {}),
+            ...(maxP && !isNaN(maxP) && maxP > 0 ? { maxPerPlayerCount: maxP } : {}),
         };
         const nextItems = normalizeRarityWeights([...pool.items, newItem], newItemRarityId, newItem.id, w);
         
@@ -426,6 +416,8 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
         onPoolChange({ ...pool, items: nextItems });
         setNewItemName("");
         setNewItemProb("100");
+        setNewItemMaxGlobal("");
+        setNewItemMaxPlayer("");
     };
 
     const applyBulkProbability = (weight: number) => {
@@ -561,32 +553,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                 />
                 <p className={`text-[10px] mt-1 ${textMuted}`}>最大100,000枚</p>
             </div>
-
-            {/* ガチャ1回の販売単価 */}
-            {showCostSimulator && (
-                <div className="rounded-2xl p-4" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
-                    <div className="flex items-center gap-1.5 mb-2">
-                        <Coins size={14} className={textLight ? "text-amber-600 animate-pulse" : "text-amber-400 animate-pulse"} />
-                        <label className={`text-xs font-semibold ${textSecondary} uppercase tracking-wider block`}>
-                            ガチャ1回の販売単価
-                        </label>
-                    </div>
-                    <div className="relative">
-                        <input
-                            type="text"
-                            inputMode="numeric"
-                            value={pool.pullPrice ?? 300}
-                            onChange={e => {
-                                const n = parseInt(e.target.value, 10);
-                                onPoolChange({ ...pool, pullPrice: Number.isNaN(n) || n < 0 ? 0 : n });
-                            }}
-                            className={`w-full px-3 py-2 rounded-lg text-sm ${textPrimary} ${placeholderCls} outline-none transition-all focus:ring-2 focus:ring-purple-500/30 pr-8`}
-                            style={{ background: inputBg, border: `1px solid ${inputBorder}` }}
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold" style={{ color: textMuted }}>円</span>
-                    </div>
-                </div>
-            )}
 
             {/* レア度設定 */}
             <div className="rounded-2xl overflow-hidden" style={{ background: glassBg, border: `1px solid ${glassBorder}`, backdropFilter: "blur(12px)" }}>
@@ -745,7 +711,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                     </div>
                                 )}
 
-                                {/* 並べ替え & シミュレーション切り替え */}
+                                {/* 並べ替え */}
                                 {mounted && pool.items.length > 0 && (
                                     <div className="flex items-center justify-between gap-2 mb-2 w-full">
                                         <div className="flex items-center gap-2">
@@ -769,26 +735,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                 <option value="name-desc" style={selectOptionStyle}>名前順（ん→あ）</option>
                                             </select>
                                         </div>
-                                        <button
-                                            type="button"
-                                            onClick={handleToggleCostSimulator}
-                                            className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-semibold border transition-all cursor-pointer ${
-                                                showCostSimulator
-                                                    ? textLight
-                                                        ? "bg-amber-100 text-amber-800 border-amber-300 shadow-sm shadow-amber-200/50"
-                                                        : "bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10"
-                                                    : textLight
-                                                        ? "bg-neutral-100 text-neutral-600 border-neutral-200 hover:bg-neutral-200"
-                                                        : "bg-white/5 text-white/50 border-white/10 hover:bg-white/10"
-                                            }`}
-                                            title="原価と期待値ベースの収益シミュレーションモードを切り替えます"
-                                        >
-                                            <Coins size={11} className={showCostSimulator ? "animate-pulse text-amber-500" : ""} />
-                                            収益シミュレーション
-                                            {showCostSimulator && (
-                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping shrink-0" />
-                                            )}
-                                        </button>
                                     </div>
                                 )}
 
@@ -799,8 +745,9 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                         <div className={`flex items-center gap-1.5 px-2 pb-1 text-[10px] font-medium ${textSecondary} select-none`}>
                                             <div className="w-5 text-center shrink-0" title="ドラッグ＆ドロップで並び替え">⇅</div>
                                             <div className="w-2.5 text-center shrink-0" title="一括操作用のチェックボックス">✓</div>
-                                            <div className="w-16 text-center shrink-0 opacity-80">レア度</div>
-                                            <div className="flex-1 px-1.5 opacity-80">アイテム名</div>
+                                            <div className="w-14 text-center shrink-0 opacity-80">レア度</div>
+                                            <div className="flex-1 px-1.5 opacity-80 min-w-0">アイテム名</div>
+                                            <div className="shrink-0 text-center opacity-80 min-w-[70px]">在庫・制限</div>
                                             <div className="w-6 text-center shrink-0 opacity-80" title="🔒ロック中はこの項目の確率が自動調整から除外されます">🔒</div>
                                             <div className="w-[124px] text-center shrink-0 opacity-80">レア度内(%) / 全体(%)</div>
                                             <div className="w-[36px] text-center shrink-0 hidden sm:block opacity-80">操作</div>
@@ -823,6 +770,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         itemIndex={index}
                                                         isFirstItem={false}
                                                         pool={pool}
+                                                        players={players}
                                                         isLightMode={textLight}
                                                         editingItemId={editingItemId}
                                                         editName={editName}
@@ -843,13 +791,7 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                                                         activeDragId={activeDragId}
                                                         isLocked={lockedItemIds.has(item.id)}
                                                         onToggleLock={toggleItemLock}
-                                                        showCostSimulator={showCostSimulator}
-                                                        showDistributionStatus={distributionIntegrationActive}
-                                                        onOpenDistribution={
-                                                            onNavigateToDistribution
-                                                                ? () => onNavigateToDistribution(item.id)
-                                                                : undefined
-                                                        }
+                                                        onOpenRefillModal={item => setRefillModalItem(item)}
                                                     />
                                                 );
                                             })}
@@ -1020,8 +962,6 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                 open={showBulkModal}
                 pool={pool}
                 isLightMode={isLightMode}
-                showCostSimulator={showCostSimulator}
-                onToggleCostSimulator={handleToggleCostSimulator}
                 onClose={() => setShowBulkModal(false)}
                 onApply={(updatedItems, updatedRarities, updatedPullPrice) => {
                     onPoolChange({ ...pool, items: updatedItems, rarities: updatedRarities, pullPrice: updatedPullPrice });
@@ -1030,6 +970,17 @@ export default function GachaSetup({ pool, onPoolChange, isLightMode, textContra
                     // Sync to external campaign
                     void syncGachaConfigToExternal(updatedItems, updatedRarities);
                 }}
+            />
+
+            {/* 在庫補充専用モーダル */}
+            <GachaItemRefillModal
+                open={!!refillModalItem}
+                item={refillModalItem}
+                pool={pool}
+                players={players}
+                isLightMode={isLightMode}
+                onClose={() => setRefillModalItem(null)}
+                onRefill={updatedPool => onPoolChange(updatedPool)}
             />
         </div>
     );
@@ -1052,6 +1003,7 @@ interface SortableItemProps {
     itemIndex: number;
     isFirstItem: boolean;
     pool: GachaPool;
+    players?: Player[];
     isLightMode: boolean;
     editingItemId: string | null;
     editName: string;
@@ -1070,9 +1022,8 @@ interface SortableItemProps {
     isLocked: boolean;
     /** ロック状態をトグルするコールバック */
     onToggleLock: (id: string) => void;
-    showCostSimulator?: boolean;
-    showDistributionStatus?: boolean;
-    onOpenDistribution?: () => void;
+    /** 在庫補充モーダルを開くコールバック */
+    onOpenRefillModal?: (item: GachaItem) => void;
 }
 
 function SortableItem({
@@ -1080,6 +1031,7 @@ function SortableItem({
     itemIndex,
     isFirstItem,
     pool,
+    players = [],
     isLightMode,
     editingItemId,
     editName,
@@ -1096,15 +1048,18 @@ function SortableItem({
     activeDragId,
     isLocked,
     onToggleLock,
-    showCostSimulator,
-    showDistributionStatus,
-    onOpenDistribution,
+    onOpenRefillModal,
 }: SortableItemProps) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
     const isEditing = editingItemId === item.id;
     const rarity = pool.rarities.find(r => r.id === item.rarityId);
     const [probInput, setProbInput] = useState<string | null>(null);
     const probDisplay = probInput !== null ? probInput : formatProb(item.weight);
+
+    const globalDrawnCount = getGlobalItemEmissionCount(pool.id, item.id, players);
+    const hasGlobalLimit = item.maxGlobalCount !== undefined && item.maxGlobalCount !== null && item.maxGlobalCount > 0;
+    const remainingGlobal = hasGlobalLimit ? Math.max(0, item.maxGlobalCount! - globalDrawnCount) : null;
+    const isSoldOut = hasGlobalLimit && remainingGlobal === 0;
 
     const isPartOfDraggingSelection = draggingSelectionIds?.has(item.id) ?? false;
     const isTheDraggedItem = activeDragId === item.id;
@@ -1220,46 +1175,64 @@ function SortableItem({
                 </span>
             )}
 
-            {/* 原価設定 */}
-            {showCostSimulator && (
-                <div className="flex items-center gap-1 shrink-0 px-1 py-0.5 rounded bg-black/5" style={{ border: `1px solid ${inputBorder}` }}>
-                    <span className={`text-[9px] ${textMuted}`}>原価:</span>
-                    <input
-                        type="text"
-                        inputMode="numeric"
-                        value={item.costPrice ?? 0}
-                        onChange={e => {
-                            const n = parseInt(e.target.value, 10);
-                            updateItem(item.id, { costPrice: Number.isNaN(n) || n < 0 ? 0 : n });
-                        }}
-                        className={`w-12 px-1 py-0.5 rounded text-right text-[10px] tabular-nums font-semibold outline-none focus:ring-1 focus:ring-purple-400 ${textPrimary}`}
-                        style={{ background: inputBg, border: "none" }}
-                    />
-                    <span className={`text-[9px] ${textMuted}`}>円</span>
-                </div>
-            )}
+            {/* 在庫・個数制限ステータス表示 & 補充ボタン */}
+            <div className="shrink-0 flex items-center gap-1 text-[10px]">
+                {hasGlobalLimit ? (
+                    isSoldOut ? (
+                        <div className="flex items-center gap-1">
+                            <span className="px-1.5 py-0.5 rounded-full font-bold text-red-500 bg-red-500/10 border border-red-500/20" title="完売（排出上限に達しました）">
+                                完売 (0/{item.maxGlobalCount})
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => onOpenRefillModal?.(item)}
+                                className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 transition-all flex items-center gap-0.5 animate-pulse cursor-pointer"
+                                title="この品目の在庫を補充・リセットします"
+                            >
+                                <Plus size={10} /> 補充
+                            </button>
+                        </div>
+                    ) : (
+                        <div className="flex items-center gap-1">
+                            <span
+                                className={`px-1.5 py-0.5 rounded-full font-semibold border ${
+                                    isLightMode
+                                        ? "bg-purple-50 text-purple-700 border-purple-200"
+                                        : "bg-purple-500/10 text-purple-300 border-purple-500/20"
+                                }`}
+                                title={`全体上限: ${item.maxGlobalCount}個 / 排出済: ${globalDrawnCount}個 / 残り: ${remainingGlobal}個`}
+                            >
+                                全{item.maxGlobalCount}個 <span className="font-bold">(残{remainingGlobal})</span>
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => onOpenRefillModal?.(item)}
+                                className={`px-1.5 py-0.5 rounded-full text-[9px] font-bold border transition-all flex items-center gap-0.5 cursor-pointer ${
+                                    isLightMode
+                                        ? "bg-purple-100 text-purple-800 border-purple-300 hover:bg-purple-200"
+                                        : "bg-purple-500/20 text-purple-300 border-purple-500/40 hover:bg-purple-500/30"
+                                }`}
+                                title="この品目の在庫を補充・リセットします"
+                            >
+                                <Plus size={10} /> 補充
+                            </button>
+                        </div>
+                    )
+                ) : null}
 
-            {showDistributionStatus && onOpenDistribution && (
-                <button
-                    type="button"
-                    onClick={e => {
-                        e.stopPropagation();
-                        onOpenDistribution();
-                    }}
-                    className={`shrink-0 px-1.5 py-0.5 rounded text-[9px] font-bold border transition-all ${
-                        item.linkedAssetId
-                            ? isLightMode
-                                ? "border-emerald-300 text-emerald-700 bg-emerald-50"
-                                : "border-emerald-500/40 text-emerald-300 bg-emerald-500/10"
-                            : isLightMode
-                              ? "border-amber-300 text-amber-700 bg-amber-50"
-                              : "border-amber-500/40 text-amber-200 bg-amber-500/10"
-                    }`}
-                    title={item.linkedAssetId ? "配布ファイル済み — 配布タブで確認" : "配布ファイル未設定 — 配布タブで紐づけ"}
-                >
-                    {item.linkedAssetId ? "配布済" : "未配布"}
-                </button>
-            )}
+                {item.maxPerPlayerCount ? (
+                    <span
+                        className={`px-1.5 py-0.5 rounded-full font-semibold border ${
+                            isLightMode
+                                ? "bg-amber-50 text-amber-800 border-amber-200"
+                                : "bg-amber-500/10 text-amber-300 border-amber-500/20"
+                        }`}
+                        title={`プレイヤーごとの排出上限数: ${item.maxPerPlayerCount}個`}
+                    >
+                        個人:{item.maxPerPlayerCount}個
+                    </span>
+                ) : null}
+            </div>
 
             {/* 🔒ロックボタン */}
             <button
